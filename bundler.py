@@ -1,12 +1,9 @@
 """Build Process
 """
-import yaml
 import json
-from jsonpath_ng import jsonpath, parse
 import os
 import subprocess
 import shutil
-import openapi_spec_validator
 import datetime
 
 
@@ -52,7 +49,6 @@ class Bundler(object):
             ]
             process = subprocess.Popen(process_args, shell=True)
             process.wait()
-        return self
 
     def bundle(self):
         self._install_dependencies()
@@ -138,6 +134,10 @@ class Bundler(object):
                         
 
 if __name__ == '__main__':
+    import yaml
+    from jsonpath_ng import jsonpath, parse
+    import openapi_spec_validator
+
     bundler = Bundler(api_filename='./api/api.yaml', 
         output_filename='./openapi.yaml', 
         dependencies=True,

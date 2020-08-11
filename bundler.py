@@ -30,6 +30,7 @@ class Bundler(object):
         api_filename = os.path.normpath(os.path.abspath(api_filename))
         self._base_dir = os.path.dirname(api_filename)
         self._api_filename = os.path.basename(api_filename)
+        self._install_dependencies()
 
     def _install_dependencies(self):
         if self._dependencies is False:
@@ -51,7 +52,6 @@ class Bundler(object):
             process.wait()
 
     def bundle(self):
-        self._install_dependencies()
         self._bundle(self._base_dir, self._api_filename, self._output_filename)
         return self
 
@@ -134,12 +134,14 @@ class Bundler(object):
                         
 
 if __name__ == '__main__':
+    bundler = Bundler(api_filename='./api/api.yaml', 
+        output_filename='./openapi.yaml', 
+        dependencies=True,
+        validate=True)
+
     import yaml
     from jsonpath_ng import jsonpath, parse
     import openapi_spec_validator
 
-    bundler = Bundler(api_filename='./api/api.yaml', 
-        output_filename='./openapi.yaml', 
-        dependencies=True,
-        validate=True).bundle().validate()
+    bundler.bundle().validate()
 

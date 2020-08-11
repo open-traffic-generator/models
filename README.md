@@ -1,5 +1,16 @@
-# models
-Abstract traffic generator models
+# Abstract Traffic Generator Models
 
 [![Validated](https://travis-ci.org/open-traffic-generator/models.svg?branch=master)](https://travis-ci.org/open-traffic-generator/models)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
+
+This repository is a collaborative effort to develop agnostic data 
+models and APIs for managing traffic generators using a `model first` approach.
+
+The focus of this repository is the following:
+- modeling best practices
+- consistent set of OpenAPI vendor-neutral data and API models
+- continuous build process that consolidates all files and validates
+
+## Contributing
+The open-traffic-generator organization welcomes new members to join this open
+source community project and contribute to its development.

@@ -47,7 +47,7 @@ class Bundler(object):
                 '-U',
                 package
             ]
-            process = subprocess.Popen(process_args, shell=True)
+            process = subprocess.Popen(process_args, shell=False)
             process.wait()
 
     def bundle(self):
@@ -140,6 +140,6 @@ if __name__ == '__main__':
 
     bundler = Bundler(api_filename='./api/api.yaml', 
         output_filename='./openapi.yaml', 
-        dependencies=False,
+        dependencies=True,
         validate=True).bundle().validate()
 

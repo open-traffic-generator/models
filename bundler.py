@@ -140,6 +140,6 @@ class Bundler(object):
 if __name__ == '__main__':
     bundler = Bundler(api_filename='./api/api.yaml', 
         output_filename='./openapi.yaml', 
-        dependencies=False,
+        dependencies=True,
         validate=True).bundle().validate()
 

@@ -38,7 +38,7 @@ The build script will enforce the following keyword conventions.
 
 - ALLOF
   - is not to be used
-  - use the x-property-fragments extension instead and the bundler will do
+  - use the x-inline extension instead and the bundler will do
   inline replacement
 
 - DESCRIPTIONS

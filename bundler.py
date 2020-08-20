@@ -1,5 +1,6 @@
 """Build Process
 """
+import sys
 import json
 import os
 import subprocess
@@ -23,6 +24,9 @@ class Bundler(object):
         output_filename (str): The filename of the resolved API
     """
     def __init__(self, api_filename, output_filename, dependencies=True, validate=True):
+        self.__python = os.path.normpath(sys.executable)
+        self.__python_dir = os.path.dirname(self.__python)
+        self.__pip = os.path.normpath('%s/Scripts/pip' % self.__python_dir)
         self._content = {}
         self._dependencies = dependencies
         self._validate = validate
@@ -43,7 +47,7 @@ class Bundler(object):
         for package in packages:
             print('installing dependency %s...' % package)
             process_args = [
-                'pip',
+                self.__pip,
                 'install',
                 '-U',
                 package

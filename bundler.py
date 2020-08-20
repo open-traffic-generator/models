@@ -26,7 +26,6 @@ class Bundler(object):
     def __init__(self, api_filename, output_filename, dependencies=True, validate=True):
         self.__python = os.path.normpath(sys.executable)
         self.__python_dir = os.path.dirname(self.__python)
-        self.__pip = os.path.normpath('%s/Scripts/pip' % self.__python_dir)
         self._content = {}
         self._dependencies = dependencies
         self._validate = validate
@@ -47,7 +46,9 @@ class Bundler(object):
         for package in packages:
             print('installing dependency %s...' % package)
             process_args = [
-                self.__pip,
+                self.__python,
+                '-m',
+                'pip',
                 'install',
                 '-U',
                 package

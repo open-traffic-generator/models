@@ -15,22 +15,46 @@ components:
         state:
           description: >-
             The requested state to be applied to the current configuration.
+            
+            CREATE will overwrite any configuration content on the traffic 
+            generator with the payload content.
+
+            UPDATE will update the current configuration content on the traffic 
+            generator with the payload content.
+            The configuration can be updated with partial content or as an 
+            entire configuration.
+            The traffic generator receiving the configuration must resolve any
+            changes in the submitted configuration.
+            
+            To delete items from the configuration use UPDATE and submit the  
+            entire configuration with the items that are to be deleted missing 
+            from the payload content.
           type: string
-          enum: [CREATE, UPDATE, DELETE]
+          enum: [CREATE, UPDATE]
         ports:
           description: >-
-            The port content to be used by the requested state.
+            The ports that will be configured on the traffic generator.
           type: array
           items:
             $ref: '../port/port.yaml#/components/schemas/Port.Port'
         devices:
+          description: >-
+            The devices that will be configured on the traffic generator.
           type: array
           items:
             $ref: '../device/device-group.yaml#/components/schemas/Emulated.DeviceGroup'
         flows:
+          description: >-
+            The flows that will be configured on the traffic generator.
           type: array
           items:
             $ref: '../flow/flow.yaml#/components/schemas/Flow.Flow'
+        captures:
+          description: >-
+            The captures that will be configured on the traffic generator.
+          type: array
+          items:
+            $ref: '../capture/capture.yaml#/components/schemas/Capture.Capture'
 
     State.Flow:
       description: >-
@@ -61,25 +85,43 @@ components:
             The requested state of the port.
           type: string
           enum: [LINK_UP, LINK_DOWN]
-        flows:
+        ports:
           description: >-
             The unique names of port objects.
           type: array
           items:
             type: string
 
+    State.Device:
+      description: >-
+        Request for the traffic generator to move emulated devices to a specific state.
+      type: object
+      required: [state]
+      properties:
+        state:
+          description: >-
+            The requested state of the devices.
+          type: string
+          enum: [START, STOP]
+        devices:
+          description: >-
+            The unique names of emulated device objects.
+          type: array
+          items:
+            type: string
+
     State.Capture:
       description: >-
-        placeholder
+        Request for the traffic generator to move capture to a specific state.
       type: object
-      required: [requested_state]
+      required: [state]
       properties:
-        requested_state:
+        state:
           type: string
           enum: [START, STOP]
         captures:
           description: >-
-            The names of capture objects.
+            The unique names of capture objects.
           type: array
           items:
             type: string
@@ -88,15 +130,23 @@ components:
       description: >-
         The desired state of the traffic generator 
       type: object
+      required: [choice]
       properties:
-        configuration:
+        choice: 
+          type: string
+          enum: [config, port, device, flow, capture]
+        config:
           $ref: '#/components/schemas/State.Config'
-        traffic:
+        port:
+          $ref: '#/components/schemas/State.Port'
+        device:
+          $ref: '#/components/schemas/State.Device'
+        flow:
           $ref: '#/components/schemas/State.Flow'
         capture:
           $ref: '#/components/schemas/State.Capture'
 
-    State.Actual:
+    State.Current:
       description: >-
         The desired and actual state of the traffic generator
       type: object

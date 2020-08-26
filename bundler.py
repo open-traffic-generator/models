@@ -67,8 +67,10 @@ class Bundler(object):
     def _bundle(self, base_dir, api_filename, output_filename):
         print('bundling started')
         self._read_file(base_dir, api_filename)
+        self._resolve_strings(self._content)
         with open(self._output_filename, 'w') as fid:
-            yaml.dump(self._content, fid, indent=2, sort_keys=False)
+            yaml.dump(self._content, fid, indent=2, allow_unicode=False, 
+                sort_keys=False)
         print('bundling complete')
 
     def _validate_file(self):
@@ -137,6 +139,15 @@ class Bundler(object):
             yobject = yaml.safe_load(fid)
         return parse('$%s' % inline_key.replace('/', '.'), ).find(yobject)[0].value
                         
+    def _resolve_strings(self, content):
+        """Fix up strings
+        """
+        for key, value in content.items():
+            if isinstance(value, dict):
+                self._resolve_strings(value)
+            elif key == 'description':
+                content[key] = folded_unicode(value)
+            
 
 if __name__ == '__main__':
     bundler = Bundler(api_filename='./api/api.yaml', 
@@ -147,6 +158,18 @@ if __name__ == '__main__':
     import yaml
     from jsonpath_ng import jsonpath, parse
     import openapi_spec_validator
+
+    class folded_unicode(str): pass
+    class literal_unicode(str): pass
+
+    def folded_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='>')
+    def literal_unicode_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+
+    yaml.add_representer(folded_unicode, folded_unicode_representer)
+    yaml.add_representer(literal_unicode, literal_unicode_representer)
+
 
     bundler.bundle().validate()
 

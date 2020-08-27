@@ -9,11 +9,11 @@ The build script will enforce the following keyword conventions.
 - `naming`
   - `property names` MUST be snake_case
   - `schema object names` MUST be PascalCase (upper camel case)
-  - `enum names` MUST be UPPER_CASE with underscores at natural word breaks
+  - `enum names` MUST be lowercase with underscores at natural word breaks
   - `namespaces` MUST be enforced using a `.` separator
 
 - `oneOf`
-  - oneOf OpenAPI keyword support in generation tools is not very well supported
+  - oneOf OpenAPI keyword support in generation tools is not very well supported at this time
   - this repository uses the `choice` property to discriminate between multiple 
   objects at the same level
     ```yaml
@@ -50,7 +50,7 @@ The build script will enforce the following keyword conventions.
     extensiblity
 
 - `nullable`
-  - MUST not be used
+  - MUST NOT be used
 
 - `x-inline`
     - use x-inline to inline snippets into a schema

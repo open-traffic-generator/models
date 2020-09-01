@@ -1,0 +1,100 @@
+# This workflow creates a new github release page and posts all build artifacts
+# upon detection of new git tag
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build container image
+        run: docker build . -t models || exit 1
+
+      - name: Generate artifacts
+        # mount local dir to a dir inside container where build artifacts are
+        # generated so that we don't have to actually get inside the container
+        run: |
+          mkdir -p artifacts
+          docker run -v $(pwd)/artifacts:/home/athena/models/artifacts/ models /bin/bash -c "./do.sh art" || exit 1
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+        # Upload artifacts to newly created release page
+
+      - name: Upload YAML
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/openapi.yaml
+          asset_name: openapi.yaml
+          asset_content_type: application/x-yaml
+
+      - name: Upload JSON
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/openapi.json
+          asset_name: openapi.json
+          asset_content_type: application/json
+
+      - name: Upload Protobuf3 Spec
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/protobuf3.tar.gz
+          asset_name: protobuf3.tar.gz
+          asset_content_type: application/tar+gzip
+
+      - name: Upload Python Client
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/pyclient.tar.gz
+          asset_name: pyclient.tar.gz
+          asset_content_type: application/tar+gzip
+
+      - name: Upload Go Client
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/goclient.tar.gz
+          asset_name: goclient.tar.gz
+          asset_content_type: application/tar+gzip
+
+      - name: Upload Go Server
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/goserver.tar.gz
+          asset_name: goserver.tar.gz
+          asset_content_type: application/tar+gzip

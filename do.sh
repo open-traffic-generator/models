@@ -6,6 +6,7 @@ JAVA=/opt/java/bin/java
 OPENAPI_GEN_VERSION=4.3.1
 OPENAPI_GEN=/opt/openapi-gen.jar
 
+BASE_YAML=api/api.yaml
 OPENAPI_YAML=openapi.yaml
 OPENAPI_JSON=openapi.json
 
@@ -109,50 +110,31 @@ gen_spec() {
 }
 
 create_artifacts() {
+    # also creates a file named tag containing version if the version isn't
+    # alreadt tagged
+    version=$(get_version)
     mkdir -p artifacts \
     && cp ${OPENAPI_YAML} artifacts/ \
     && cp ${OPENAPI_JSON} artifacts/ \
     && tar czvf artifacts/${PY_CLIENT_DIR}.tar.gz ${PY_CLIENT_DIR} \
     && tar czvf artifacts/${GO_CLIENT_DIR}.tar.gz ${GO_CLIENT_DIR} \
     && tar czvf artifacts/${GO_SERVER_DIR}.tar.gz ${GO_SERVER_DIR} \
-    && tar czvf artifacts/${PROTO_DIR}.tar.gz ${PROTO_DIR}
+    && tar czvf artifacts/${PROTO_DIR}.tar.gz ${PROTO_DIR} \
+    && git rev-parse "v${version}" >/dev/null 2>&1 || echo $version > artifacts/tag
 }
 
 get_version() {
-    grep version common/common.yaml | grep --color=never  -Eo "[0-9.]+"
+    grep version ${BASE_YAML} | cut -d: -f2 | sed -e "s/\s//g"
 }
 
 update_version() {
-
-    if [ ! -z "$(git status --porcelain)" ]
-    then
-        echo "Please commit all your changes before updating version number !"
-        exit 1
-    fi
-
     version=$1
-    if [ -z $version ]
-    then
-        version=$(get_version)
-        MAJOR=$(echo $version | cut -d. -f1)
-        MINOR=$(echo $version | cut -d. -f2)
-        PATCH=$(echo $version | cut -d. -f3)
-        PATCH=$((${PATCH} + 1))
-        version="${MAJOR}.${MINOR}.${PATCH}"
-        echo "User did not provide version, using $version ..."
-        echo "Current version: $(get_version)"
-    fi
 
     echo "Upgrading version to $version ..."
     for f in $(find . -type f -name "*.yaml")
     do
         sed -i "s/version.*/version: ${version}/g" ${f}
     done
-
-    git commit -a -m "Update version to v${version}" \
-    && echo "Adding version tag for $version ..." \
-    && git tag -a v${version} -m "v${version}" \
-    && git push --follow-tags
 }
 
 clean() {

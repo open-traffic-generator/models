@@ -1,6 +1,6 @@
 # Open Traffic Generator Models
 
-[![Models CI/CD](https://github.com/open-traffic-generator/models/workflows/Models CI/CD/badge.svg)](https://github.com/open-traffic-generator/models/actions)
+[![Models CI/CD](https://github.com/open-traffic-generator/models/workflows/Models%20I/CD/badge.svg)](https://github.com/open-traffic-generator/models/actions)
 [![Validated](https://travis-ci.org/open-traffic-generator/models.svg?branch=master)](https://travis-ci.org/open-traffic-generator/models)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
 

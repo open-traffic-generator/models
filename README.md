@@ -1,5 +1,6 @@
 # Open Traffic Generator Models
 
+![Athena Models CI/CD](https://github.com/open-traffic-generator/models/workflows/Athena%20Models%20CI/CD/badge.svg)
 [![Validated](https://travis-ci.org/open-traffic-generator/models.svg?branch=master)](https://travis-ci.org/open-traffic-generator/models)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
 

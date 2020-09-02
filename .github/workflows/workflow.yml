@@ -1,45 +1,61 @@
-# This workflow creates a new github release page and posts all build artifacts
-# upon detection of new git tag
+name: Athena Models CI/CD
 
-name: Release
-
-on:
-  push:
-    tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+# Trigger everytime a push occurs
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v2
+        with:
+          # Fetches entire history, so we can analyze all existing tags
+          fetch-depth: 0
 
       - name: Build container image
         run: docker build . -t models || exit 1
 
       - name: Generate artifacts
-        # mount local dir to a dir inside container where build artifacts are
-        # generated so that we don't have to actually get inside the container
+        id: gen_artifact
+        # 1. Mount local dir to a dir inside container where build artifacts are
+        #    generated so that we don't have to actually get inside the container.
+        # 2. 'artifacts/tag' file containing version number is generated if there's
+        #    no tag for current API version.
+        # 3. Set 'tag' variable to '0' if 'artifacts/tag' is not generated (i.e.
+        #    tag for that version already exists), otherwise store version.
+        #    This will be used later to indicate whether we need to create new tag/release or not.
         run: |
           mkdir -p artifacts
           docker run -v $(pwd)/artifacts:/home/athena/models/artifacts/ models /bin/bash -c "./do.sh art" || exit 1
+          echo "::set-output name=tag::$(cat artifacts/tag || echo 0)"
 
+        # Upload all artifacts zipped inside artifacts.zip downloadable from
+        # actions page. These are not permanent (probably removed after 90 days)
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          path: artifacts
+
+        # Create a new GIT tag and corresponding release page
+        # Artifacts in releases are permanent
       - name: Create Release
+        # Skip this step if tag already exists
+        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
         uses: actions/create-release@v1
         id: create_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: v${{ steps.gen_artifact.outputs.tag }}
+          release_name: Release ${{ steps.gen_artifact.outputs.tag }}
           draft: false
           prerelease: false
 
-        # Upload artifacts to newly created release page
-
       - name: Upload YAML
+        # Skip this step if tag already exists
+        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -50,6 +66,8 @@ jobs:
           asset_content_type: application/x-yaml
 
       - name: Upload JSON
+        # Skip this step if tag already exists
+        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -60,6 +78,8 @@ jobs:
           asset_content_type: application/json
 
       - name: Upload Protobuf3 Spec
+        # Skip this step if tag already exists
+        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,6 +90,8 @@ jobs:
           asset_content_type: application/tar+gzip
 
       - name: Upload Python Client
+        # Skip this step if tag already exists
+        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -80,6 +102,8 @@ jobs:
           asset_content_type: application/tar+gzip
 
       - name: Upload Go Client
+        # Skip this step if tag already exists
+        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -90,6 +114,8 @@ jobs:
           asset_content_type: application/tar+gzip
 
       - name: Upload Go Server
+        # Skip this step if tag already exists
+        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

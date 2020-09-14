@@ -108,9 +108,10 @@ class Bundler(object):
                 if 'schemas' in value:
                     schemas = value['schemas']
                     for schema_key in schemas.keys():
-                        for name in schemas[schema_key]['properties']:
-                            if re.match('^[+a-zA-Z0-9_]+$', name) is None:
-                                raise NameError('%s property name `%s` contains invalid characters' % (schema_key, name))
+                        if 'properties' in schemas[schema_key]:
+                            for name in schemas[schema_key]['properties']:
+                                if re.match('^[+a-zA-Z0-9_]+$', name) is None:
+                                    raise NameError('%s property name `%s` contains invalid characters' % (schema_key, name))
                         self._content['components']['schemas'][schema_key] = schemas[schema_key]
         self._resolve_refs(base_dir, yobject)
 

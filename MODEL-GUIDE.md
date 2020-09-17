@@ -66,5 +66,20 @@ The build script will enforce the following keyword conventions.
         pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
     ```
 
+- `x-constraint`
+    - use x-constraint to identify referential integrity targets
+    - use yamlpath to specify a constraint within an openapi yaml document
+        - there currently is no standard but this serves as a reference 
+        https://pypi.org/project/yamlpath/
+    - an implementation of the model should use this extension to enforce 
+    referential integrity
+    - example: constrain a property so that it only contains a Port name 
+    ```yaml
+    property:
+        port_name:
+            type: string
+            x-constraint:
+            - /components/schemas/Port.properties.name
+    ```
 
 

@@ -9,12 +9,11 @@ The build script will enforce the following keyword conventions.
 - `naming`
   - `property names` MUST be snake_case
   - `schema object names` MUST be PascalCase (upper camel case)
-  - `enum names` MUST be lowercase with underscores at natural word breaks, valid 
-  characters are `^[\sa-zA-Z0-9-_()><\.\[\]]+$`. Numbers in enums should be represented 
-  with numerals not the names of numbers except for when enums are being used in a choice 
-  property then they MUST NOT start with a numeral.
-    - YES: 100_gpbs
-    - NO: one_hundred_gbps
+  - `enum names` MUST be lowercase with underscores at natural word breaks.
+  Valid characters are `^[a-z0-9_]+$`. 
+  Enum names MUST start with an alphabetic character.
+    - NO: 100_gpbs
+    - YES: one_hundred_gbps
   - `namespaces` MUST be PascalCase (upper camel case) and use a `.` separator
 
 - `oneOf`

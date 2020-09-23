@@ -9,8 +9,12 @@ The build script will enforce the following keyword conventions.
 - `naming`
   - `property names` MUST be snake_case
   - `schema object names` MUST be PascalCase (upper camel case)
-  - `enum names` MUST be lowercase with underscores at natural word breaks
-  - `namespaces` MUST be enforced using a `.` separator
+  - `enum names` MUST be lowercase with underscores at natural word breaks.
+  Valid characters are `^[a-z0-9_]+$`. 
+  Enum names MUST start with an alphabetic character.
+    - NO: 100_gpbs
+    - YES: one_hundred_gbps
+  - `namespaces` MUST be PascalCase (upper camel case) and use a `.` separator
 
 - `oneOf`
   - oneOf OpenAPI keyword support in generation tools is not very well supported at this time
@@ -66,5 +70,20 @@ The build script will enforce the following keyword conventions.
         pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
     ```
 
+- `x-constraint`
+    - use x-constraint to identify referential integrity targets
+    - use yamlpath to specify a constraint within an openapi yaml document
+        - there currently is no standard but this serves as a reference 
+        https://pypi.org/project/yamlpath/
+    - an implementation of the model should use this extension to enforce 
+    referential integrity
+    - example: constrain a property so that it only contains a Port name 
+    ```yaml
+    property:
+        port_name:
+            type: string
+            x-constraint:
+            - /components/schemas/Port.properties.name
+    ```
 
 

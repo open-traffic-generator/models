@@ -103,6 +103,7 @@ class Bundler(object):
             elif key == 'components':
                 if key not in self._content.keys():
                     self._content[key] = {
+                        'responses': {},
                         'schemas': {}
                     }
                 if 'schemas' in value:
@@ -113,6 +114,14 @@ class Bundler(object):
                                 if re.match('^[+a-zA-Z0-9_]+$', name) is None:
                                     raise NameError('%s property name `%s` contains invalid characters' % (schema_key, name))
                         self._content['components']['schemas'][schema_key] = schemas[schema_key]
+                if 'responses' in value:
+                    schemas = value['responses']
+                    for schema_key in schemas.keys():
+                        if 'properties' in schemas[schema_key]:
+                            for name in schemas[schema_key]['properties']:
+                                if re.match('^[+a-zA-Z0-9_]+$', name) is None:
+                                    raise NameError('%s property name `%s` contains invalid characters' % (schema_key, name))
+                        self._content['components']['responses'][schema_key] = schemas[schema_key]
         self._resolve_refs(base_dir, yobject)
 
     def _resolve_refs(self, base_dir, yobject):

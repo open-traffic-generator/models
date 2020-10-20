@@ -1,7 +1,7 @@
 openapi: 3.1.0
 
 info:
-  title: Emulated device model
+  title: Emulated device/interface models
   version: ^0.0.0
 
 components:
@@ -10,19 +10,43 @@ components:
       description: >-
         A container for emulated protocol devices.
       type: object
-      required: [name, choice]
+      required: [name, container_name, choice]
       properties:
         name: '../common/common.yaml#/components/x-inline/UniqueName'
-        choice:
+        container_name: 
           description: >-
-            The type of emulated protocol device. 
+            The unique name of a Port or Lag object that will contain the 
+            emulated interfaces and/or devices.
           type: string
-          enum: [ethernet, ipv4, ipv6, bgpv4]
+          x-constraint:
+          - '/components/schemas/Port/properties/name'
+          - '/components/schemas/Lag/properties/name'
         device_count:
           description: >-
-            The number of devices per port.
+            The number of emulated protocol devices or interfaces per port.
+            
+            Example:
+            If the device_count is 10 and the choice property value is ethernet 
+            then an implementation MUST create 10 ethernet interfaces.
+            The ethernet property is a container for src, dst and eth_type 
+            properties with each on of those properties being a pattern container 
+            for 10 possible values.  
+
+            If an implementation is unable to support the maximum device_count
+            it MUST indicate what the maximum device_count is using the 
+            /results/capabilities API.
+
+            The device_count is also used by the individual child properties 
+            that are a container for a /components/schemas/Device.Pattern.
           type: integer
           default: 1
+          minimum: 1
+          maximum: 100000000
+        choice:
+          description: >-
+            The type of emulated protocol interface or device.
+          type: string
+          enum: [ethernet, ipv4, ipv6, bgpv4]
         ethernet:
           $ref: './ethernet.yaml#/components/schemas/Device.Ethernet'
         ipv4:

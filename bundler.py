@@ -95,29 +95,22 @@ class Bundler(object):
             elif key == 'components':
                 if key not in self._content.keys():
                     self._content[key] = {'responses': {}, 'schemas': {}}
-                if 'schemas' in value:
-                    schemas = value['schemas']
-                    for schema_key in schemas.keys():
-                        if 'properties' in schemas[schema_key]:
-                            for name in schemas[schema_key]['properties']:
-                                if re.match('^[+a-zA-Z0-9_]+$', name) is None:
-                                    raise NameError(
-                                        '%s property name `%s` contains invalid characters'
-                                        % (schema_key, name))
-                        self._content['components']['schemas'][
-                            schema_key] = schemas[schema_key]
-                if 'responses' in value:
-                    schemas = value['responses']
-                    for schema_key in schemas.keys():
-                        if 'properties' in schemas[schema_key]:
-                            for name in schemas[schema_key]['properties']:
-                                if re.match('^[+a-zA-Z0-9_]+$', name) is None:
-                                    raise NameError(
-                                        '%s property name `%s` contains invalid characters'
-                                        % (schema_key, name))
-                        self._content['components']['responses'][
-                            schema_key] = schemas[schema_key]
+                self._validate_names('^[+a-zA-Z0-9_]+$', 'schemas', value)
+                self._validate_names('^[+a-zA-Z0-9_]+$', 'responses', value)
         self._resolve_refs(base_dir, yobject)
+
+    def _validate_names(self, regex, components_key, components):
+        if components_key not in components:
+            return
+        objects = components[components_key]
+        for key, value in objects.items():
+            if 'properties' in objects[key]:
+                for name in objects[key]['properties']:
+                    if re.match(regex, name) is None:
+                        raise NameError(
+                            '%s property name `%s` contains invalid characters'
+                            % (key, name))
+            self._content['components'][components_key][key] = value
 
     def _resolve_refs(self, base_dir, yobject):
         """Resolving references is relative to the current file location

@@ -24,12 +24,10 @@ class Bundler(object):
     def __init__(self,
                  api_filename,
                  output_filename,
-                 dependencies=True,
                  validate=True):
         self.__python = os.path.normpath(sys.executable)
         self.__python_dir = os.path.dirname(self.__python)
         self._content = {}
-        self._dependencies = dependencies
         self._validate = validate
         self._output_filename = output_filename
         api_filename = os.path.normpath(os.path.abspath(api_filename))
@@ -38,8 +36,6 @@ class Bundler(object):
         self._install_dependencies()
 
     def _install_dependencies(self):
-        if self._dependencies is False:
-            return
         packages = ['pyyaml', 'jsonpath-ng', 'openapi-spec-validator']
         for package in packages:
             print('installing dependency %s...' % package)
@@ -167,7 +163,6 @@ class Bundler(object):
 if __name__ == '__main__':
     bundler = Bundler(api_filename='./api/api.yaml',
                       output_filename='./openapi.yaml',
-                      dependencies=False,
                       validate=True)
 
     import yaml

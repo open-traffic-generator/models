@@ -6,7 +6,7 @@ info:
 
 components:
   schemas:
-    Result.FlowRequest:
+    Flow.Metrics.Request:
       description: >-
         The request to the traffic generator for flow results.
       type: object
@@ -22,26 +22,40 @@ components:
               - "/components/schemas/Flow/properties/name"
         column_names:
           description: >-
-            The names of Result.Flow properties to return.
-            If the list is empty then all properties will be returned.
+            The list of column names that the returned result set will contain.
+            If the list is empty then all columns will be returned except for
+            any result_groups.
+            The name of the flow cannot be excluded.
+          type: array
+          items:
+            type: string
+            enum:
+              - transmit
+              - port_tx
+              - port_rx
+              - frames_tx
+              - frames_rx
+              - bytes_tx
+              - bytes_rx
+              - frames_tx_rate
+              - frames_rx_rate
+              - loss
+        result_group_names:
+          description: >-
+            Extend the details of flow results by specifying any configured 
+            flow packet header field result_group names.
           type: array
           items:
             type: string
             x-constraint:
-              - '/components/schemas/Result.Flow/properties/*'
-        ingress_result_names:
-          description: >-
-            Add any configured Flow.Pattern.ingress_result_name values
-            that are to be included in the results.
-            If the name is not configured then it will be excluded from the 
-            Result.Flow.columns and Result.Flow.rows.
-            The name in the Result.Flow.columns will be a combination of the 
-            ingress_result_name and any system assigned name.
-          type: array
-          items:
-            type: string
+              - "/components/schemas/Flow.Pattern/properties/result_group"
 
-    Result.Flow:
+    Flow.Metrics:
+      type: array
+      items: 
+        $ref: '#/components/schemas/Flow.Metric'
+
+    Flow.Metric:
       type: object
       properties:
         name:
@@ -57,10 +71,14 @@ components:
           description: >-
             The name of a configured port
           type: string
+          x-constraint:
+            - "/components/schemas/Port/properties/name"
         port_rx:
           description: >-
             The name of a configured port
           type: string
+          x-constraint:
+            - "/components/schemas/Port/properties/name"
         frames_tx:
           description: >-
             The current total number of frames transmitted
@@ -91,8 +109,10 @@ components:
           type: number
         additionalProperties:
           description: >-
-            Any requested ingress result names will appear as additional 
-            name/value pairs.
-            Ingress result names will be the keys in string format.
-            Ingress result values will be in number format.
+            Any configured flow packet header field result_group names will 
+            appear as additional name/value pairs.
+            result_group names will be the keys in string format.
+            result_group values will be in number format.
           type: number
+          x-constraint:
+            - "/components/schemas/Flow.Pattern/properties/result_group"

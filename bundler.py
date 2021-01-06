@@ -1,11 +1,8 @@
 """Build Process
 """
 import sys
-import json
 import os
 import subprocess
-import shutil
-import datetime
 import re
 
 
@@ -24,11 +21,13 @@ class Bundler(object):
         api_filename (str): The filename of the toplevel API
         output_filename (str): The filename of the resolved API
     """
-    def __init__(self, api_filename, output_filename, dependencies=True, validate=True):
+    def __init__(self,
+                 api_filename,
+                 output_filename,
+                 validate=True):
         self.__python = os.path.normpath(sys.executable)
         self.__python_dir = os.path.dirname(self.__python)
         self._content = {}
-        self._dependencies = dependencies
         self._validate = validate
         self._output_filename = output_filename
         api_filename = os.path.normpath(os.path.abspath(api_filename))
@@ -37,22 +36,11 @@ class Bundler(object):
         self._install_dependencies()
 
     def _install_dependencies(self):
-        if self._dependencies is False:
-            return
-        packages = [
-            'pyyaml', 
-            'jsonpath-ng',
-            'openapi-spec-validator'
-        ]
+        packages = ['pyyaml', 'jsonpath-ng', 'openapi-spec-validator']
         for package in packages:
             print('installing dependency %s...' % package)
             process_args = [
-                self.__python,
-                '-m',
-                'pip',
-                'install',
-                '-U',
-                package
+                self.__python, '-m', 'pip', 'install', '-U', package
             ]
             process = subprocess.Popen(process_args, shell=False)
             process.wait()
@@ -70,8 +58,11 @@ class Bundler(object):
         self._read_file(base_dir, api_filename)
         self._resolve_strings(self._content)
         with open(self._output_filename, 'w') as fid:
-            yaml.dump(self._content, fid, indent=2, allow_unicode=False, 
-                sort_keys=False)
+            yaml.dump(self._content,
+                      fid,
+                      indent=2,
+                      allow_unicode=False,
+                      sort_keys=False)
         print('bundling complete')
 
     def _validate_file(self):
@@ -93,36 +84,33 @@ class Bundler(object):
 
     def _process_yaml_object(self, base_dir, yobject):
         for key, value in yobject.items():
-            if key in ['openapi', 'info', 'servers'] and key not in self._content.keys():
+            if key in ['openapi', 'info', 'servers'
+                       ] and key not in self._content.keys():
                 self._content[key] = value
             elif key in ['paths']:
                 if key not in self._content.keys():
                     self._content[key] = {}
                 for sub_key in value.keys():
-                    self._content[key][sub_key] = value[sub_key] 
+                    self._content[key][sub_key] = value[sub_key]
             elif key == 'components':
                 if key not in self._content.keys():
-                    self._content[key] = {
-                        'responses': {},
-                        'schemas': {}
-                    }
-                if 'schemas' in value:
-                    schemas = value['schemas']
-                    for schema_key in schemas.keys():
-                        if 'properties' in schemas[schema_key]:
-                            for name in schemas[schema_key]['properties']:
-                                if re.match('^[+a-zA-Z0-9_]+$', name) is None:
-                                    raise NameError('%s property name `%s` contains invalid characters' % (schema_key, name))
-                        self._content['components']['schemas'][schema_key] = schemas[schema_key]
-                if 'responses' in value:
-                    schemas = value['responses']
-                    for schema_key in schemas.keys():
-                        if 'properties' in schemas[schema_key]:
-                            for name in schemas[schema_key]['properties']:
-                                if re.match('^[+a-zA-Z0-9_]+$', name) is None:
-                                    raise NameError('%s property name `%s` contains invalid characters' % (schema_key, name))
-                        self._content['components']['responses'][schema_key] = schemas[schema_key]
+                    self._content[key] = {'responses': {}, 'schemas': {}}
+                self._validate_names('^[+a-zA-Z0-9_]+$', 'schemas', value)
+                self._validate_names('^[+a-zA-Z0-9_]+$', 'responses', value)
         self._resolve_refs(base_dir, yobject)
+
+    def _validate_names(self, regex, components_key, components):
+        if components_key not in components:
+            return
+        objects = components[components_key]
+        for key, value in objects.items():
+            if 'properties' in objects[key]:
+                for name in objects[key]['properties']:
+                    if re.match(regex, name) is None:
+                        raise NameError(
+                            '%s property name `%s` contains invalid characters'
+                            % (key, name))
+            self._content['components'][components_key][key] = value
 
     def _resolve_refs(self, base_dir, yobject):
         """Resolving references is relative to the current file location
@@ -143,7 +131,7 @@ class Bundler(object):
                     self._resolve_refs(base_dir, value)
         elif isinstance(yobject, list):
             for item in yobject:
-                self._resolve_refs(base_dir, item) 
+                self._resolve_refs(base_dir, item)
 
     def _get_inline_ref(self, base_dir, filename, inline_key):
         filename = os.path.join(base_dir, filename)
@@ -151,8 +139,10 @@ class Bundler(object):
         base_dir = os.path.dirname(filename)
         with open(filename) as fid:
             yobject = yaml.safe_load(fid)
-        return parse('$%s' % inline_key.replace('/', '.'), ).find(yobject)[0].value
-                        
+        import jsonpath_ng
+        return jsonpath_ng.parse('$%s' %
+                     inline_key.replace('/', '.'), ).find(yobject)[0].value
+
     def _resolve_strings(self, content):
         """Fix up strings
         """
@@ -161,29 +151,33 @@ class Bundler(object):
                 self._resolve_strings(value)
             elif key == 'description':
                 content[key] = folded_unicode(value)
-            
+
 
 if __name__ == '__main__':
-    bundler = Bundler(api_filename='./api/api.yaml', 
-        output_filename='./openapi.yaml', 
-        dependencies=True,
-        validate=True)
+    bundler = Bundler(api_filename='./api/api.yaml',
+                      output_filename='./openapi.yaml',
+                      validate=True)
 
     import yaml
-    from jsonpath_ng import jsonpath, parse
     import openapi_spec_validator
 
-    class folded_unicode(str): pass
-    class literal_unicode(str): pass
+    class folded_unicode(str):
+        pass
+
+    class literal_unicode(str):
+        pass
 
     def folded_unicode_representer(dumper, data):
-        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='>')
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str',
+                                       data,
+                                       style='>')
+
     def literal_unicode_representer(dumper, data):
-        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str',
+                                       data,
+                                       style='|')
 
     yaml.add_representer(folded_unicode, folded_unicode_representer)
     yaml.add_representer(literal_unicode, literal_unicode_representer)
 
-
     bundler.bundle().validate()
-

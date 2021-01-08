@@ -4,7 +4,6 @@ import sys
 import os
 import subprocess
 import re
-import jsonpath_ng
 import copy
 
 
@@ -145,6 +144,7 @@ class Bundler(object):
         """Find all instances of x-include in the openapi content
         and merge the x-include content into the parent object
         """
+        import jsonpath_ng
         for xinclude in jsonpath_ng.parse('$..x-include').find(self._content):
             print('including %s...' % xinclude.value)
             parent_schema_object = jsonpath_ng.Parent().find(xinclude)[0].value
@@ -169,6 +169,7 @@ class Bundler(object):
         return dst
 
     def _get_schema_object(self, base_dir, schema_path):
+        import jsonpath_ng
         json_path = "$..'%s'" % schema_path.split('/')[-1]
         schema_object = jsonpath_ng.parse(json_path).find(self._content)
         if len(schema_object) == 0:
@@ -178,6 +179,7 @@ class Bundler(object):
         return schema_object
 
     def _get_schema_object_from_file(self, base_dir, schema_path):
+        import jsonpath_ng
         paths = schema_path.split('#')
         filename = os.path.join(base_dir, paths[0])
         filename = os.path.abspath(os.path.normpath(filename))

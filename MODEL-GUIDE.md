@@ -20,29 +20,31 @@ The build script will enforce the following keyword conventions.
   - oneOf OpenAPI keyword support in generation tools is not very well supported at this time
   - this repository uses the `choice` property to discriminate between multiple 
   objects at the same level
+  - oneOf can be used when specifing primitive types
     ```yaml
-    # demonstrates how to model a choice
-        Port:
-            type: object
-            required: [choice]
-            properties:
-                choice:
-                    type: string
-                    enum: [physical, interface, virtual, container]
-                physical:
-                    $ref: '#/components/schemas/Physical'
-                interface:
-                    $ref: '#/components/schemas/Interface'
-                virtual:
-                    $ref: '#/components/schemas/Virtual'
-                container:
-                    $ref: '#/components/schemas/Container'
+    # demonstrates how to model a choice and primitive oneOf
+    Choice.Object:
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          enum: [a, b, c]
+        a:
+          $ref: '#/components/schemas/Choice.A'
+        b:
+          $ref: '#/components/schemas/Choice.B'
+        c:
+          $ref: '#/components/schemas/Choice.C'
+        one_of_sample:
+          oneOf:
+          - type: string
+          - type: number
     ```
 
 - `allOf`
   - is not to be used
-  - use the x-inline extension instead and the bundler will do
-  inline replacement
+  - use the x-include extension instead
 
 - `description`
   - everything MUST have a `description keyword` filled in with a meaningful 
@@ -56,18 +58,36 @@ The build script will enforce the following keyword conventions.
 - `nullable`
   - MUST NOT be used
 
-- `x-inline`
-    - use x-inline to inline snippets into a schema
-    - the bundler.py will correctly inline and drop the x-inline-properties
+- `x-include`
+    - for object composition use the x-include keyword to merge schema objects 
+    into other schema objects instead of using the allOf keyword.
+    - tooling does not handle the allOf keyword correctly in all cases and
+    this allows the bundler.py to generate a lowest common denominator file.
+    - the bundler.py will correctly merge the x-include and drop the x-include
+    keyword from the merged object
+    - the x-include value follows the same notation as the $ref
     ```yaml
     components:
-    x-inline:
-        name:
-        description: >-
+      schemas:
+        Named.Object:
+        type: object
+        required: [name]
+        properties:
+          name:
+          description: >-
             The primary key for any item to be used in a list or as a
             foreign key reference
-        type: string
-        pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        
+        Composite.Object:
+          x-include: '#/components/schemas/Named.Object'
+          description: >
+            This object will include all the items of the Named.Object in
+            addition to its own properties
+          properties:
+            sample:
+              type: string
     ```
 
 - `x-constraint`
@@ -83,7 +103,7 @@ The build script will enforce the following keyword conventions.
         port_name:
             type: string
             x-constraint:
-            - /components/schemas/Port.properties.name
+            - /components/schemas/Port/properties/name
     ```
 
 

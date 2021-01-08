@@ -4,6 +4,8 @@ import sys
 import os
 import subprocess
 import re
+import jsonpath_ng
+import copy
 
 
 class Bundler(object):
@@ -28,6 +30,7 @@ class Bundler(object):
         self.__python = os.path.normpath(sys.executable)
         self.__python_dir = os.path.dirname(self.__python)
         self._content = {}
+        self._includes = {}
         self._validate = validate
         self._output_filename = output_filename
         api_filename = os.path.normpath(os.path.abspath(api_filename))
@@ -54,8 +57,12 @@ class Bundler(object):
         return self
 
     def _bundle(self, base_dir, api_filename, output_filename):
+        """Start at the file that contains the paths and bundle all 
+        dependent files into one openapi.yaml file.
+        """
         print('bundling started')
         self._read_file(base_dir, api_filename)
+        self._resolve_x_include()
         self._resolve_strings(self._content)
         with open(self._output_filename, 'w') as fid:
             yaml.dump(self._content,
@@ -84,8 +91,7 @@ class Bundler(object):
 
     def _process_yaml_object(self, base_dir, yobject):
         for key, value in yobject.items():
-            if key in ['openapi', 'info', 'servers'
-                       ] and key not in self._content.keys():
+            if key in ['openapi', 'info', 'servers'] and key not in self._content.keys():
                 self._content[key] = value
             elif key in ['paths']:
                 if key not in self._content.keys():
@@ -127,11 +133,59 @@ class Bundler(object):
                     print('inlining %s' % value)
                     inline = self._get_inline_ref(base_dir, refs[0], refs[1])
                     yobject[key] = inline
+                elif key == 'x-include':
+                    self._includes[value] = self._get_schema_object(base_dir, value)
                 else:
                     self._resolve_refs(base_dir, value)
         elif isinstance(yobject, list):
             for item in yobject:
                 self._resolve_refs(base_dir, item)
+
+    def _resolve_x_include(self):
+        """Find all instances of x-include in the openapi content
+        and merge the x-include content into the parent object
+        """
+        for xinclude in jsonpath_ng.parse('$..x-include').find(self._content):
+            print('including %s...' % xinclude.value)
+            parent_schema_object = jsonpath_ng.Parent().find(xinclude)[0].value
+            include_schema_object = self._includes[xinclude.value]
+            self._merge(copy.deepcopy(include_schema_object), parent_schema_object)
+            del parent_schema_object['x-include']
+
+    def _merge(self, src, dst):
+        """
+        Recursively update a dict.
+        Subdict's won't be overwritten but also updated.
+        """
+        for key, value in src.items(): 
+            if key not in dst:
+                dst[key] = value
+            elif isinstance(value, list):
+                for item in value:
+                    if item not in dst[key]:
+                        dst[key].append(item)
+            elif isinstance(value, dict):
+                self._merge(value, dst[key]) 
+        return dst
+
+    def _get_schema_object(self, base_dir, schema_path):
+        json_path = "$..'%s'" % schema_path.split('/')[-1]
+        schema_object = jsonpath_ng.parse(json_path).find(self._content)
+        if len(schema_object) == 0:
+            schema_object = self._get_schema_object_from_file(base_dir, schema_path)
+        else:
+            schema_object = schema_object[0].value
+        return schema_object
+
+    def _get_schema_object_from_file(self, base_dir, schema_path):
+        paths = schema_path.split('#')
+        filename = os.path.join(base_dir, paths[0])
+        filename = os.path.abspath(os.path.normpath(filename))
+        with open(filename) as fid:
+            schema_file = yaml.safe_load(fid)
+        json_path = "$..'%s'" % schema_path.split('/')[-1]
+        schema_object = jsonpath_ng.parse(json_path).find(schema_file)[0].value
+        return schema_object
 
     def _get_inline_ref(self, base_dir, filename, inline_key):
         filename = os.path.join(base_dir, filename)
@@ -139,9 +193,7 @@ class Bundler(object):
         base_dir = os.path.dirname(filename)
         with open(filename) as fid:
             yobject = yaml.safe_load(fid)
-        import jsonpath_ng
-        return jsonpath_ng.parse('$%s' %
-                     inline_key.replace('/', '.'), ).find(yobject)[0].value
+        return jsonpath_ng.parse('$%s' % inline_key.replace('/', '.'), ).find(yobject)[0].value
 
     def _resolve_strings(self, content):
         """Fix up strings
@@ -150,7 +202,7 @@ class Bundler(object):
             if isinstance(value, dict):
                 self._resolve_strings(value)
             elif key == 'description':
-                content[key] = folded_unicode(value)
+                content[key] = folded_unicode(copy.deepcopy(value))
 
 
 if __name__ == '__main__':

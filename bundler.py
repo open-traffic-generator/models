@@ -190,6 +190,7 @@ class Bundler(object):
         return schema_object
 
     def _get_inline_ref(self, base_dir, filename, inline_key):
+        import jsonpath_ng
         filename = os.path.join(base_dir, filename)
         filename = os.path.abspath(os.path.normpath(filename))
         base_dir = os.path.dirname(filename)

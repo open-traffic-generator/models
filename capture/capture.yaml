@@ -12,7 +12,7 @@ components:
       description: >-
         Container for capture settings.
       type: object
-      required: [name, choice]
+      required: [name]
       properties:
         port_names:
           description: >-
@@ -22,24 +22,22 @@ components:
             type: string
             x-constraint:
             - '/components/schemas/Port/properties/name'
-        choice: 
+        custom_filters:
           description: >-
-            The type of filter.
-          type: string
-          enum: [basic, pcap]
-        basic:
-          description: >-
-            An array of basic filters.
-            The filters supported are source address, destination address and
-            custom.  
+            A list of custom filters
           type: array
           items:
-            $ref: '#/components/schemas/Capture.BasicFilter'
-        pcap:
+            $ref: '#/components/schemas/Capture.Custom'
+        packet_filter:
           description: >-
-            The content of this property must be of pcap filter syntax.
-            https://www.tcpdump.org/manpages/pcap-filter.7.html
-          type: string
+            A list of packet filters to apply to the capturing ports.
+            If no packet filters are specified then all packets will be captured.
+            A capture can have multiple filters. The number of filters supported
+            is determined by the implementation which can be retrieved using
+            the capabilities API.
+          type: array
+          items:
+            $ref: '#/components/schemas/Capture.Filter'
         enable:
           description: >-
             Enable capture on the port.
@@ -57,64 +55,72 @@ components:
           enum: [pcap, pcapng]
           default: pcap
 
-    Capture.BasicFilter:
+    Capture.Filter:
       description: >-
-        A container for different types of basic capture filters.
+        Container for capture filters
       type: object
       required: [choice]
       properties:
         choice:
           type: string
-          enum: [mac_address, custom]
-        mac_address:
-          $ref: '#/components/schemas/Capture.MacAddressFilter'
-        custom:
-          $ref: '#/components/schemas/Capture.CustomFilter'
-        and_operator:
-          type: boolean
-          default: true
-        not_operator:
-          type: boolean
-          default: false
+          enum: [ethernet, vlan, ipv4]
+        ethernet:
+          $ref: '#/components/schemas/Capture.Ethernet'
+        vlan:
+          $ref: '#/components/schemas/Capture.Vlan'
+        ipv4:
+          $ref: '#/components/schemas/Capture.Ipv4'
 
-    Capture.MacAddressFilter:
-      description: >-
-        A container for a mac address capture filter.
+    Capture.Custom:
       type: object
-      required: [mac, filter]
       properties:
-        mac:
-          description: >-
-            The type of mac address filters.
-            This can be either source or destination.
-          type: string
-          enum: [source, destination]
-        filter:
-          description: >-
-            The value of the mac address.
-          type: string
-        mask:
-          description: >-
-            The value of the mask to be applied to the mac address.
-          type: string
-
-    Capture.CustomFilter:
-      description: >-
-        A container for a custom capture filter.
-      type: object
-      required: [filter, offset]
-      properties:
-        filter:
-          description: >-
-            The value to filter on.
-          type: string
-        mask:
-          description: >-
-            The mask to be applied to the filter.
-          type: string
         offset:
           description: >-
-            The offset in the packet to filter at.
+            The byte offset to filter on
           type: integer
+        value:
+          type: string
+          format: hex
+        mask:
+          type: string
+          format: hex
+    
+    Capture.Field:
+      type: object
+      properties:
+        value:
+          type: string
+          format: hex
+        mask:
+          type: string
+          format: hex
 
- 
+    Capture.Ethernet:
+      type: object
+      properties:
+        src:
+          $ref: '#/components/schemas/Capture.Field'
+        dst:
+          $ref: '#/components/schemas/Capture.Field'
+        ether_type:
+          $ref: '#/components/schemas/Capture.Field'
+        pfc_queue:
+          $ref: '#/components/schemas/Capture.Field'
+
+    Capture.Vlan:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Capture.Field'
+        priority:
+          $ref: '#/components/schemas/Capture.Field'
+
+    Capture.Ipv4:
+      type: object
+      properties:
+        src:
+          $ref: '#/components/schemas/Capture.Field'
+        dst:
+          $ref: '#/components/schemas/Capture.Field'
+        priority:
+          $ref: '#/components/schemas/Capture.Field'

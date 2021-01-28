@@ -12,44 +12,41 @@ components:
       description: >-
         Container for capture settings.
       type: object
-      required: [name, choice]
+      required: [name]
       properties:
         port_names:
           description: >-
             The unique names of ports that the capture settings will apply to.
+            Port_names cannot be duplicated between capture objects.
           type: array
           items:
             type: string
             x-constraint:
             - '/components/schemas/Port/properties/name'
-        choice: 
+        filters:
           description: >-
-            The type of filter.
-          type: string
-          enum: [basic, pcap]
-        basic:
-          description: >-
-            An array of basic filters.
-            The filters supported are source address, destination address and
-            custom.  
+            A list of filters to apply to the capturing ports.
+            If no filters are specified then all packets will be captured.
+            A capture can have multiple filters. The number of filters supported
+            is determined by the implementation which can be retrieved using
+            the capabilities API.
+
+            When multiple filters are specified the capture implementation 
+            must && (and) all the filters.
           type: array
           items:
-            $ref: '#/components/schemas/Capture.BasicFilter'
-        pcap:
-          description: >-
-            The content of this property must be of pcap filter syntax.
-            https://www.tcpdump.org/manpages/pcap-filter.7.html
-          type: string
-        enable:
-          description: >-
-            Enable capture on the port.
-          type: boolean
-          default: True
+            $ref: '#/components/schemas/Capture.Filter'
         overwrite:
           description: >-
             Overwrite the capture buffer.
           type: boolean
           default: false
+        packet_size:
+          description: >-
+            The maximum size of each captured packet.
+            If no value is specified or it is null then the entire packet will
+            be captured.
+          type: integer
         format:
           description: >-
             The format of the capture file.
@@ -57,64 +54,102 @@ components:
           enum: [pcap, pcapng]
           default: pcap
 
-    Capture.BasicFilter:
+    Capture.Filter:
       description: >-
-        A container for different types of basic capture filters.
+        Container for capture filters
       type: object
       required: [choice]
       properties:
         choice:
           type: string
-          enum: [mac_address, custom]
-        mac_address:
-          $ref: '#/components/schemas/Capture.MacAddressFilter'
+          enum: [custom, ethernet, vlan, ipv4]
         custom:
-          $ref: '#/components/schemas/Capture.CustomFilter'
-        and_operator:
-          type: boolean
-          default: true
-        not_operator:
+          description: >-
+            Offset from last filter in the list.
+            If no filters are present it is offset from position 0.
+            Multiple custom filters can be present, the length of each custom
+            filter is the length of the value being filtered.
+          $ref: '#/components/schemas/Capture.Custom'
+        ethernet:
+          $ref: '#/components/schemas/Capture.Ethernet'
+        vlan:
+          $ref: '#/components/schemas/Capture.Vlan'
+        ipv4:
+          $ref: '#/components/schemas/Capture.Ipv4'
+
+    Capture.Custom:
+      x-include: '#/components/schemas/Capture.Field'
+      properties:
+        offset:
+          description: >-
+            The byte offset to filter on
+          type: integer
+    
+    Capture.Field:
+      type: object
+      properties:
+        value:
+          type: string
+          format: hex
+        mask:
+          type: string
+          format: hex
+        negate:
           type: boolean
           default: false
 
-    Capture.MacAddressFilter:
-      description: >-
-        A container for a mac address capture filter.
+    Capture.Ethernet:
       type: object
-      required: [mac, filter]
       properties:
-        mac:
-          description: >-
-            The type of mac address filters.
-            This can be either source or destination.
-          type: string
-          enum: [source, destination]
-        filter:
-          description: >-
-            The value of the mac address.
-          type: string
-        mask:
-          description: >-
-            The value of the mask to be applied to the mac address.
-          type: string
+        src:
+          $ref: '#/components/schemas/Capture.Field'
+        dst:
+          $ref: '#/components/schemas/Capture.Field'
+        ether_type:
+          $ref: '#/components/schemas/Capture.Field'
+        pfc_queue:
+          $ref: '#/components/schemas/Capture.Field'
 
-    Capture.CustomFilter:
-      description: >-
-        A container for a custom capture filter.
+    Capture.Vlan:
       type: object
-      required: [filter, offset]
       properties:
-        filter:
-          description: >-
-            The value to filter on.
-          type: string
-        mask:
-          description: >-
-            The mask to be applied to the filter.
-          type: string
-        offset:
-          description: >-
-            The offset in the packet to filter at.
-          type: integer
+        priority:
+          $ref: '#/components/schemas/Capture.Field'
+        cfi:
+          $ref: '#/components/schemas/Capture.Field'
+        id:
+          $ref: '#/components/schemas/Capture.Field'
+        protocol:
+          $ref: '#/components/schemas/Capture.Field'
 
- 
+    Capture.Ipv4:
+      type: object
+      properties:
+        version:
+          $ref: '#/components/schemas/Capture.Field'
+        headeer_length:
+          $ref: '#/components/schemas/Capture.Field'
+        priority:
+          $ref: '#/components/schemas/Capture.Field'
+        total_length:
+          $ref: '#/components/schemas/Capture.Field'
+        identification:
+          $ref: '#/components/schemas/Capture.Field'
+        reserved:
+          $ref: '#/components/schemas/Capture.Field'
+        dont_fragment:
+          $ref: '#/components/schemas/Capture.Field'
+        more_fragments:
+          $ref: '#/components/schemas/Capture.Field'
+        fragment_offset:
+          $ref: '#/components/schemas/Capture.Field'
+        time_to_live:
+          $ref: '#/components/schemas/Capture.Field'
+        protocol:
+          $ref: '#/components/schemas/Capture.Field'
+        header_checksum:
+          $ref: '#/components/schemas/Capture.Field'
+        src:
+          $ref: '#/components/schemas/Capture.Field'
+        dst:
+          $ref: '#/components/schemas/Capture.Field'

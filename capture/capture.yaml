@@ -22,27 +22,16 @@ components:
             type: string
             x-constraint:
             - '/components/schemas/Port/properties/name'
-        custom_filters:
+        filters:
           description: >-
-            A list of custom filters
-          type: array
-          items:
-            $ref: '#/components/schemas/Capture.Custom'
-        packet_filter:
-          description: >-
-            A list of packet filters to apply to the capturing ports.
-            If no packet filters are specified then all packets will be captured.
+            A list of filters to apply to the capturing ports.
+            If no filters are specified then all packets will be captured.
             A capture can have multiple filters. The number of filters supported
             is determined by the implementation which can be retrieved using
             the capabilities API.
           type: array
           items:
             $ref: '#/components/schemas/Capture.Filter'
-        enable:
-          description: >-
-            Enable capture on the port.
-          type: boolean
-          default: True
         overwrite:
           description: >-
             Overwrite the capture buffer.
@@ -63,7 +52,14 @@ components:
       properties:
         choice:
           type: string
-          enum: [ethernet, vlan, ipv4]
+          enum: [custom, ethernet, vlan, ipv4]
+        custom:
+          description: >-
+            Offset from last filter in the list.
+            If no filters are present it is offset from position 0.
+            Multiple custom filters can be present, the length of each custom
+            filter is the length of the value being filtered.
+          $ref: '#/components/schemas/Capture.Custom'
         ethernet:
           $ref: '#/components/schemas/Capture.Ethernet'
         vlan:
@@ -72,18 +68,12 @@ components:
           $ref: '#/components/schemas/Capture.Ipv4'
 
     Capture.Custom:
-      type: object
+      x-include: '#/components/schemas/Capture.Field'
       properties:
         offset:
           description: >-
             The byte offset to filter on
           type: integer
-        value:
-          type: string
-          format: hex
-        mask:
-          type: string
-          format: hex
     
     Capture.Field:
       type: object
@@ -94,6 +84,9 @@ components:
         mask:
           type: string
           format: hex
+        negate:
+          type: boolean
+          default: false
 
     Capture.Ethernet:
       type: object
@@ -110,17 +103,43 @@ components:
     Capture.Vlan:
       type: object
       properties:
+        priority:
+          $ref: '#/components/schemas/Capture.Field'
+        cfi:
+          $ref: '#/components/schemas/Capture.Field'
         id:
           $ref: '#/components/schemas/Capture.Field'
-        priority:
+        protocol:
           $ref: '#/components/schemas/Capture.Field'
 
     Capture.Ipv4:
       type: object
       properties:
+        version:
+          $ref: '#/components/schemas/Capture.Field'
+        headeer_length:
+          $ref: '#/components/schemas/Capture.Field'
+        priority:
+          $ref: '#/components/schemas/Capture.Field'
+        total_length:
+          $ref: '#/components/schemas/Capture.Field'
+        identification:
+          $ref: '#/components/schemas/Capture.Field'
+        reserved:
+          $ref: '#/components/schemas/Capture.Field'
+        dont_fragment:
+          $ref: '#/components/schemas/Capture.Field'
+        more_fragments:
+          $ref: '#/components/schemas/Capture.Field'
+        fragment_offset:
+          $ref: '#/components/schemas/Capture.Field'
+        time_to_live:
+          $ref: '#/components/schemas/Capture.Field'
+        protocol:
+          $ref: '#/components/schemas/Capture.Field'
+        header_checksum:
+          $ref: '#/components/schemas/Capture.Field'
         src:
           $ref: '#/components/schemas/Capture.Field'
         dst:
-          $ref: '#/components/schemas/Capture.Field'
-        priority:
           $ref: '#/components/schemas/Capture.Field'

@@ -30,6 +30,7 @@ class Bundler(object):
         self.__python_dir = os.path.dirname(self.__python)
         self._content = {}
         self._includes = {}
+        self._resolved = []
         self._validate = validate
         self._output_filename = output_filename
         api_filename = os.path.normpath(os.path.abspath(api_filename))
@@ -67,7 +68,8 @@ class Bundler(object):
             yaml.dump(self._content,
                       fid,
                       indent=2,
-                      allow_unicode=False,
+                      allow_unicode=True,
+                      line_break='\n',
                       sort_keys=False)
         print('bundling complete')
 
@@ -124,8 +126,10 @@ class Bundler(object):
             for key, value in yobject.items():
                 if key == '$ref' and value.startswith('#') is False:
                     refs = value.split('#')
-                    print('resolving %s' % value)
-                    self._read_file(base_dir, refs[0])
+                    if refs[1] not in self._resolved:
+                        self._resolved.append(refs[1])
+                        print('resolving %s' % value)
+                        self._read_file(base_dir, refs[0])
                     yobject[key] = '#%s' % refs[1]
                 elif isinstance(value, str) and 'x-inline' in value:
                     refs = value.split('#')
@@ -133,7 +137,11 @@ class Bundler(object):
                     inline = self._get_inline_ref(base_dir, refs[0], refs[1])
                     yobject[key] = inline
                 elif key == 'x-include':
-                    self._includes[value] = self._get_schema_object(base_dir, value)
+                    for include_ref in value:
+                        if include_ref not in self._includes:
+                            include = self._get_schema_object(base_dir, include_ref)
+                            self._resolve_refs(base_dir, include)
+                            self._includes[include_ref] = include
                 else:
                     self._resolve_refs(base_dir, value)
         elif isinstance(yobject, list):
@@ -145,11 +153,12 @@ class Bundler(object):
         and merge the x-include content into the parent object
         """
         import jsonpath_ng
-        for xinclude in jsonpath_ng.parse('$..x-include').find(self._content):
-            print('including %s...' % xinclude.value)
-            parent_schema_object = jsonpath_ng.Parent().find(xinclude)[0].value
-            include_schema_object = self._includes[xinclude.value]
-            self._merge(copy.deepcopy(include_schema_object), parent_schema_object)
+        for xincludes in jsonpath_ng.parse('$..x-include').find(self._content):
+            print('resolving %s...' % (str(xincludes.full_path)))
+            parent_schema_object = jsonpath_ng.Parent().find(xincludes)[0].value
+            for xinclude in xincludes.value:
+                include_schema_object = self._includes[xinclude]
+                self._merge(copy.deepcopy(include_schema_object), parent_schema_object)
             del parent_schema_object['x-include']
 
     def _merge(self, src, dst):
@@ -166,6 +175,8 @@ class Bundler(object):
                         dst[key].append(item)
             elif isinstance(value, dict):
                 self._merge(value, dst[key]) 
+            elif key == 'description':
+                dst[key] = '{}\n{}'.format(dst[key], value) 
         return dst
 
     def _get_schema_object(self, base_dir, schema_path):
@@ -205,7 +216,8 @@ class Bundler(object):
             if isinstance(value, dict):
                 self._resolve_strings(value)
             elif key == 'description':
-                content[key] = folded_unicode(copy.deepcopy(value))
+                descr = copy.deepcopy(value)
+                content[key] = description(descr)
 
 
 if __name__ == '__main__':
@@ -216,23 +228,14 @@ if __name__ == '__main__':
     import yaml
     import openapi_spec_validator
 
-    class folded_unicode(str):
+    class description(str):
         pass
 
-    class literal_unicode(str):
-        pass
-
-    def folded_unicode_representer(dumper, data):
-        return dumper.represent_scalar(u'tag:yaml.org,2002:str',
-                                       data,
-                                       style='>')
-
-    def literal_unicode_representer(dumper, data):
+    def description_representer(dumper, data):
         return dumper.represent_scalar(u'tag:yaml.org,2002:str',
                                        data,
                                        style='|')
 
-    yaml.add_representer(folded_unicode, folded_unicode_representer)
-    yaml.add_representer(literal_unicode, literal_unicode_representer)
+    yaml.add_representer(description, description_representer)
 
     bundler.bundle().validate()

@@ -36,7 +36,7 @@ class Bundler(object):
         api_filename = os.path.normpath(os.path.abspath(api_filename))
         self._base_dir = os.path.dirname(api_filename)
         self._api_filename = os.path.basename(api_filename)
-        self._install_dependencies()
+        # self._install_dependencies()
 
     def _install_dependencies(self):
         packages = ['pyyaml', 'jsonpath-ng', 'openapi-spec-validator']
@@ -63,6 +63,7 @@ class Bundler(object):
         print('bundling started')
         self._read_file(base_dir, api_filename)
         self._resolve_x_include()
+        self._resolve_x_pattern()
         self._resolve_strings(self._content)
         with open(self._output_filename, 'w') as fid:
             yaml.dump(self._content,
@@ -147,6 +148,71 @@ class Bundler(object):
         elif isinstance(yobject, list):
             for item in yobject:
                 self._resolve_refs(base_dir, item)
+
+    def _resolve_x_pattern(self):
+        """Find all instances of x-pattern in the openapi content
+        and generate a #/components/schemas/... pattern schema object that is
+        specific to the property hosting the x-pattern content.
+        Replace the x-pattern schema with a $ref to the generated schema.
+        """
+        import jsonpath_ng
+        for xpattern_path in jsonpath_ng.parse('$..x-pattern').find(self._content):
+            print('resolving %s...' % (str(xpattern_path.full_path)))
+            object_name = xpattern_path.full_path.left.left.left.right.fields[0]
+            property_name = xpattern_path.full_path.left.right.fields[0]
+            property_schema = jsonpath_ng.Parent().find(xpattern_path)[0].value
+            xpattern = xpattern_path.value
+            schema_name = 'Pattern.{}.{}'.format(
+                ''.join([piece[0].upper() + piece[1:] for piece in object_name.split('_')]),
+                ''.join([piece[0].upper() + piece[1:] for piece in property_name.split('_')])
+            )
+            type_name = xpattern['format']
+            if type_name in ['mac', 'ipv4', 'ipv6', 'hex', 'enum']:
+                type_name = 'string'
+            schema = {
+                'type': 'object',
+                'description': property_schema['description'],
+                'required': ['choice'],
+                'properties': {
+                    'choice': {
+                        'type': 'string',
+                        'enum': ['value', 'values'],
+                        'default': 'value'
+                    },
+                    'value': {
+                        'type': copy.deepcopy(type_name)
+                    },
+                    'values': {
+                        'type': 'array',
+                        'items': {
+                            'type': copy.deepcopy(type_name)
+                        }
+                    }
+                }
+            }
+            if 'default' in xpattern:
+                schema['properties']['value']['default'] = xpattern['default']
+            if xpattern['format'] in ['integer', 'number']:
+                counter_pattern = 'Pattern.{}{}Counter'.format(
+                    xpattern['format'][0].upper(), 
+                    xpattern['format'][1:]
+                )
+                schema['properties']['choice']['enum'].extend(['increment', 'decrement'])
+                schema['properties']['increment'] = {
+                    '$ref': '#/components/schemas/{}'.format(counter_pattern)
+                }
+                schema['properties']['decrement'] = {
+                    '$ref': '#/components/schemas/{}'.format(counter_pattern)
+                }
+            if 'enums' in xpattern:
+                schema['properties']['value']['enum'] = copy.deepcopy(xpattern['enums'])
+                schema['properties']['values']['items']['enum'] = copy.deepcopy(xpattern['enums'])
+            property_schema['$ref'] = '#/components/schemas/{}'.format(
+                schema_name
+            )
+            del property_schema['x-pattern']
+            self._content['components']['schemas'][schema_name] = schema
+
 
     def _resolve_x_include(self):
         """Find all instances of x-include in the openapi content

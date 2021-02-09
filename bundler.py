@@ -180,12 +180,14 @@ class Bundler(object):
                         'default': 'value'
                     },
                     'value': {
-                        'type': copy.deepcopy(type_name)
+                        'type': copy.deepcopy(type_name),
+                        'format': xpattern['format']
                     },
                     'values': {
                         'type': 'array',
                         'items': {
-                            'type': copy.deepcopy(type_name)
+                            'type': copy.deepcopy(type_name),
+                            'format': xpattern['format']
                         }
                     }
                 }

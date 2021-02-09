@@ -204,6 +204,21 @@ class Bundler(object):
                 schema['properties']['decrement'] = {
                     '$ref': '#/components/schemas/{}'.format(counter_pattern)
                 }
+                for name in ['Integer', 'Number']:
+                    pattern_name = 'Pattern.{}Counter'.format(name)
+                    if pattern_name not in self._content['components']['schemas']:
+                        self._content['components']['schemas'][pattern_name] = {
+                            'type': 'object',
+                            'required': ['start', 'step'],
+                            'properties': {
+                                'start': {
+                                    'type': name.lower()
+                                },
+                                'step': {
+                                    'type': name.lower()
+                                }
+                            }
+                        }
             if 'enums' in xpattern:
                 schema['properties']['value']['enum'] = copy.deepcopy(xpattern['enums'])
                 schema['properties']['values']['items']['enum'] = copy.deepcopy(xpattern['enums'])

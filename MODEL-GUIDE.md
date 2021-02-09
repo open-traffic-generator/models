@@ -117,4 +117,62 @@ The build script will enforce the following keyword conventions.
             - /components/schemas/Port/properties/name
     ```
 
-
+- `x-pattern`
+The x-pattern extension is used to provide pattern information for properties.
+The information will be used by bundler.py to generate unique schema objects
+for each property marked up with the extension.
+The format property is the only property required.
+For generated schema object the choice 
+```yaml
+x-pattern: 
+  format: 
+  - ipv4
+  - ipv6
+  - hex
+  - mac
+  - integer
+  - number
+  - enum
+  - string
+  enums: 
+    If the format is enum this property is used to specify 
+    the enums that the pattern is constrained to
+  default: 
+    Default value of the pattern value
+```
+Sample property with extension before bundle
+```yaml
+Device.Ipv4:
+  properties:
+    address:
+      x-pattern:
+        format: ipv4
+        default: 0.0.0.0
+```
+Sample property after bundle
+```yaml
+Pattern.Device.Ipv4:
+  properties:
+    address:
+      choice:
+        type: string
+        enum: [value, values, increment, decrement]
+      value:
+        type: string
+        default: 0.0.0.0
+      values:
+        type: array
+        items:
+          type: string
+      increment:
+        $ref: '#/components/schemas/Pattern.Counter'
+      decrement:
+        $ref: '#/components/schemas/Pattern.Counter'    
+```
+Sample instantiation
+```yaml
+ipv4:
+  address:
+    choice: value
+    value: 0.0.0.0
+```

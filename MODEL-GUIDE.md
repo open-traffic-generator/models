@@ -126,8 +126,12 @@ x-pattern:
     This extension is used by the bundler to generate a unique pattern schema
     object for properties with specific a specific type, enum (if any), default.
   type: object
-  required: [format, count, length, default, count]
+  required: [description, format]
   properties:
+    description: 
+      description: >-
+        Description of the parent property hosting the x-pattern extension
+      type: string  
     format:
       description: >-
         The type of the generated value, values properties
@@ -146,6 +150,7 @@ x-pattern:
       For hex and integer it is the bit length
       For string it is the byte length
       For a format of ipv4, ipv6 it is ignored.
+      The format will have the length appended to it: hex_4_bits, string_6_bytes
     type: integer
   enums: 
     description: >-
@@ -169,6 +174,11 @@ x-pattern:
       unique generated pattern schema object.
     type: boolean
     default: false
+  metric_group_name:
+    description: >- 
+        Used to indicate that a flow packet header field can be expanded in
+        metrics under the name given to this property.
+    type: string
 ```
 ### Sample property with extension before bundle
 ```yaml

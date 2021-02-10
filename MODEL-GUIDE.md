@@ -189,7 +189,7 @@ Device.Ipv4:
     address:
       $ref: '#/components/schemas/Pattern.Device.Ipv4.Address'
 
-Pattern.Device.Ipv4:
+Pattern.Device.Ipv4.Address:
   type: object
   required: [choice]
   properties:

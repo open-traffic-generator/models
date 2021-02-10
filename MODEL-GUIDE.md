@@ -117,59 +117,100 @@ The build script will enforce the following keyword conventions.
             - /components/schemas/Port/properties/name
     ```
 
-- `x-pattern`
-The x-pattern extension is used to provide pattern information for properties.
-The information will be used by bundler.py to generate unique schema objects
-for each property marked up with the extension.
-The format property is the only property required.
-For generated schema object the choice 
+
+## x-pattern extension
+### schema
 ```yaml
 x-pattern: 
-  format: 
-  - ipv4
-  - ipv6
-  - hex
-  - mac
-  - integer
-  - number
-  - enum
-  - string
+  description: >-
+    This extension is used by the bundler to generate a unique pattern schema
+    object for properties with specific a specific type, enum (if any), default.
+  type: object
+  required: [format, count, length, default, count]
+  properties:
+    format:
+      description: >-
+        The type of the generated value, values properties
+      type: string
+      enum:
+      - ipv4
+      - ipv6
+      - hex
+      - integer
+      - number
+      - enum
+      - string
+  length:
+    description: >-
+      The length of hex, integer and string value(s).
+      For hex and integer it is the bit length
+      For string it is the byte length
+      For a format of ipv4, ipv6 it is ignored.
+    type: integer
   enums: 
-    If the format is enum this property is used to specify 
-    the enums that the pattern is constrained to
-  default: 
-    Default value of the pattern value
+    description: >-
+      If the format is enum this property is used to specify 
+      a list of enums that the pattern is constrained to
+    type: array
+    items:
+      type: string
+  default:
+    description: >-
+      The default value of the pattern value. There is no specific type for 
+      this property as it is dependent on the format property.
+      For a format of ipv4, ipv6, hex, string the default is a string value.
+      For a format of enum it MUST be one of the items in the enums property.
+      For a format of integer it MUST be a whole number falling within the 
+      bounds of the length property.
+      For a format of number it MUST be a decimal number. 
+  count: 
+    description: >- 
+      Used to specify whether or not a count property is included in the
+      unique generated pattern schema object.
+    type: boolean
+    default: false
 ```
-Sample property with extension before bundle
+### Sample property with extension before bundle
 ```yaml
 Device.Ipv4:
+  type: object
   properties:
     address:
       x-pattern:
         format: ipv4
         default: 0.0.0.0
+        count: false
 ```
-Sample property after bundle
+### Sample property after bundle
 ```yaml
-Pattern.Device.Ipv4:
+Device.Ipv4:
+  type: object
   properties:
     address:
-      choice:
+      $ref: '#/components/schemas/Pattern.Device.Ipv4.Address'
+
+Pattern.Device.Ipv4:
+  type: object
+  required: [choice]
+  properties:
+    choice:
+      type: string
+      enum: [value, values, increment, decrement]
+    value:
+      type: string
+      format: ipv4
+      default: 0.0.0.0
+    values:
+      type: array
+      items:
         type: string
-        enum: [value, values, increment, decrement]
-      value:
-        type: string
-        default: 0.0.0.0
-      values:
-        type: array
-        items:
-          type: string
-      increment:
-        $ref: '#/components/schemas/Pattern.Counter'
-      decrement:
-        $ref: '#/components/schemas/Pattern.Counter'    
+        format: ipv4
+    increment:
+      $ref: '#/components/schemas/Pattern.Ipv4Counter'
+    decrement:
+      $ref: '#/components/schemas/Pattern.Ipv4Counter'    
 ```
-Sample instantiation
+### Sample instantiation
 ```yaml
 ipv4:
   address:

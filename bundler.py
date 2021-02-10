@@ -5,6 +5,7 @@ import os
 import subprocess
 import re
 import copy
+import json
 
 
 class Bundler(object):
@@ -72,6 +73,8 @@ class Bundler(object):
                       allow_unicode=True,
                       line_break='\n',
                       sort_keys=False)
+        with open('openapi.json', 'w') as fp:
+            fp.write(json.dumps(self._content))         
         print('bundling complete')
 
     def _validate_file(self):
@@ -169,9 +172,14 @@ class Bundler(object):
             type_name = xpattern['format']
             if type_name in ['mac', 'ipv4', 'ipv6', 'hex', 'enum']:
                 type_name = 'string'
+            description = 'TBD'
+            if 'description' in xpattern:
+                description = xpattern['description']
+            elif 'description' in property_schema:
+                description = property_schema['description']
             schema = {
+                'description': description,
                 'type': 'object',
-                'description': property_schema['description'],
                 'required': ['choice'],
                 'properties': {
                     'choice': {
@@ -194,33 +202,34 @@ class Bundler(object):
             }
             if 'default' in xpattern:
                 schema['properties']['value']['default'] = xpattern['default']
-            if xpattern['format'] in ['integer', 'number']:
-                counter_pattern = 'Pattern.{}{}Counter'.format(
+            if xpattern['format'] in ['integer', 'number', 'ipv4', 'ipv6', 'hex']:
+                counter_pattern_name = 'Pattern.{}{}Counter'.format(
                     xpattern['format'][0].upper(), 
                     xpattern['format'][1:]
                 )
                 schema['properties']['choice']['enum'].extend(['increment', 'decrement'])
                 schema['properties']['increment'] = {
-                    '$ref': '#/components/schemas/{}'.format(counter_pattern)
+                    '$ref': '#/components/schemas/{}'.format(counter_pattern_name)
                 }
                 schema['properties']['decrement'] = {
-                    '$ref': '#/components/schemas/{}'.format(counter_pattern)
+                    '$ref': '#/components/schemas/{}'.format(counter_pattern_name)
                 }
-                for name in ['Integer', 'Number']:
-                    pattern_name = 'Pattern.{}Counter'.format(name)
-                    if pattern_name not in self._content['components']['schemas']:
-                        self._content['components']['schemas'][pattern_name] = {
-                            'type': 'object',
-                            'required': ['start', 'step'],
-                            'properties': {
-                                'start': {
-                                    'type': name.lower()
-                                },
-                                'step': {
-                                    'type': name.lower()
-                                }
+                if counter_pattern_name not in self._content['components']['schemas']:
+                    self._content['components']['schemas'][counter_pattern_name] = {
+                        'description': '{} counter pattern'.format(xpattern['format']),
+                        'type': 'object',
+                        'required': ['start', 'step'],
+                        'properties': {
+                            'start': {
+                                'type': type_name,
+                                'format': xpattern['format']
+                            },
+                            'step': {
+                                'type': type_name,
+                                'format': xpattern['format']
                             }
                         }
+                    }
             if 'enums' in xpattern:
                 schema['properties']['value']['enum'] = copy.deepcopy(xpattern['enums'])
                 schema['properties']['values']['items']['enum'] = copy.deepcopy(xpattern['enums'])
@@ -229,7 +238,6 @@ class Bundler(object):
             )
             del property_schema['x-pattern']
             self._content['components']['schemas'][schema_name] = schema
-
 
     def _resolve_x_include(self):
         """Find all instances of x-include in the openapi content

@@ -118,3 +118,119 @@ The build script will enforce the following keyword conventions.
     ```
 
 
+## x-pattern extension
+### schema
+```yaml
+x-pattern: 
+  description: >-
+    This extension is used by the bundler to generate a unique pattern schema
+    object for properties with specific a specific type, enum (if any), default.
+  type: object
+  required: [description, format]
+  properties:
+    description: 
+      description: >-
+        Description of the parent property hosting the x-pattern extension
+      type: string  
+    format:
+      description: >-
+        Controls the shape of the generated schema object.
+      type: string
+      enum:
+      - ipv4
+      - ipv6
+      - hex
+      - integer
+      - number
+      - enum
+      - string
+      - checksum
+  length:
+    description: >-
+      The length of hex, integer and string value(s).
+      For hex and integer it is the bit length
+      For string it is the byte length
+      For a format of ipv4, ipv6 it is ignored.
+      The format will have the length appended to it: hex_4_bits, string_6_bytes
+    type: integer
+  enums: 
+    description: >-
+      If the format is enum this property is used to specify 
+      a list of enums that the pattern is constrained to
+    type: array
+    items:
+      type: string
+  default:
+    description: >-
+      The default value of the pattern value. There is no specific type for 
+      this property as it is dependent on the format property.
+      For a format of ipv4, ipv6, hex, string the default is a string value.
+      For a format of enum it MUST be one of the items in the enums property.
+      For a format of integer it MUST be a whole number falling within the 
+      bounds of the length property.
+      For a format of number it MUST be a decimal number. 
+  features:
+    type: string
+    enum: [count, auto, metric_group]
+    description: >- 
+      count:
+      Used to specify whether or not a count property is included in the
+      unique generated pattern schema object.
+
+      auto:
+      Used to specify whether or not a choice property named auto is included in
+      the unique generated pattern schema object.
+      The choice property auto indicates that the system should auto generate a
+      value for the field.
+
+      metric_group:
+      Used to indicate that a flow packet header field can be expanded in
+      metrics under the name given to this property.
+```
+### Sample property with extension before bundle
+```yaml
+Device.Ipv4:
+  type: object
+  properties:
+    address:
+      x-pattern:
+        format: ipv4
+        default: 0.0.0.0
+        count: false
+```
+### Sample property after bundle
+```yaml
+Device.Ipv4:
+  type: object
+  properties:
+    address:
+      $ref: '#/components/schemas/Pattern.Device.Ipv4.Address'
+
+Pattern.Device.Ipv4.Address:
+  type: object
+  required: [choice]
+  properties:
+    choice:
+      type: string
+      enum: [value, values, increment, decrement]
+    value:
+      type: string
+      format: ipv4
+      default: 0.0.0.0
+    values:
+      type: array
+      items:
+        type: string
+        format: ipv4
+    increment:
+      $ref: '#/components/schemas/Pattern.Ipv4Counter'
+    decrement:
+      $ref: '#/components/schemas/Pattern.Ipv4Counter'    
+```
+### Sample instantiation
+```yaml
+ipv4:
+  address:
+    choice: value
+    value: 0.0.0.0
+```

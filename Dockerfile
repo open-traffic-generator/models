@@ -1,5 +1,6 @@
 FROM ubuntu:20.04
-ENV ROOT_PATH=/home/athena/models
+ENV ROOT_PATH=/home/otg/models
+ENV GOPATH=/home/go
 RUN mkdir -p ${ROOT_PATH}
 # Get project source, install dependencies and build it
 COPY . ${ROOT_PATH}/

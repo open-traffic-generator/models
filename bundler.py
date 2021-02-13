@@ -64,7 +64,7 @@ class Bundler(object):
         print('bundling started')
         self._read_file(base_dir, api_filename)
         self._resolve_x_include()
-        self._resolve_x_pattern()
+        self._resolve_x_field_pattern()
         self._resolve_strings(self._content)
         with open(self._output_filename, 'w') as fid:
             yaml.dump(self._content,
@@ -152,14 +152,14 @@ class Bundler(object):
             for item in yobject:
                 self._resolve_refs(base_dir, item)
 
-    def _resolve_x_pattern(self):
+    def _resolve_x_field_pattern(self):
         """Find all instances of x-pattern in the openapi content
         and generate a #/components/schemas/... pattern schema object that is
         specific to the property hosting the x-pattern content.
         Replace the x-pattern schema with a $ref to the generated schema.
         """
         import jsonpath_ng
-        for xpattern_path in jsonpath_ng.parse('$..x-pattern').find(self._content):
+        for xpattern_path in jsonpath_ng.parse('$..x-field-pattern').find(self._content):
             print('generating %s...' % (str(xpattern_path.full_path)))
             object_name = xpattern_path.full_path.left.left.left.right.fields[0]
             property_name = xpattern_path.full_path.left.right.fields[0]
@@ -169,18 +169,18 @@ class Bundler(object):
                 ''.join([piece[0].upper() + piece[1:] for piece in object_name.split('_')]),
                 ''.join([piece[0].upper() + piece[1:] for piece in property_name.split('_')])
             )
+            format = None
             type_name = xpattern['format']
-            if type_name in ['mac', 'ipv4', 'ipv6', 'hex', 'enum']:
+            if type_name in ['ipv4', 'ipv6']:
+                format = type_name
                 type_name = 'string'
+            elif type_name == 'integer':
+                format = 'uint{}'.format(xpattern['length'])
             description = 'TBD'
             if 'description' in xpattern:
                 description = xpattern['description']
             elif 'description' in property_schema:
                 description = property_schema['description']
-            format = xpattern['format']
-            if xpattern['format'] != 'number' and 'length' in xpattern: 
-                format += '_' + str(xpattern['length'])
-                format += '_bits' if xpattern['format'] in ['hex', 'integer'] else '_bytes'
 
             if xpattern['format'] == 'checksum':
                 self._generate_checksum_schema(xpattern, schema_name, description)
@@ -190,7 +190,7 @@ class Bundler(object):
             property_schema['$ref'] = '#/components/schemas/{}'.format(
                 schema_name
             )
-            del property_schema['x-pattern']
+            del property_schema['x-field-pattern']
 
     def _generate_checksum_schema(self, xpattern, schema_name, description):
         """ Generate a checksum schema object
@@ -233,14 +233,12 @@ class Bundler(object):
                     'default': 'value'
                 },
                 'value': {
-                    'type': copy.deepcopy(type_name),
-                    'format': format
+                    'type': copy.deepcopy(type_name)
                 },
                 'values': {
                     'type': 'array',
                     'items': {
-                        'type': copy.deepcopy(type_name),
-                        'format': format
+                        'type': copy.deepcopy(type_name)
                     }
                 }
             }
@@ -266,7 +264,10 @@ class Bundler(object):
                 }
         if 'default' in xpattern:
             schema['properties']['value']['default'] = xpattern['default']
-        if xpattern['format'] in ['integer', 'number', 'ipv4', 'ipv6', 'hex']:
+        if format is not None:
+            schema['properties']['value']['format'] = format
+            schema['properties']['values']['items']['format'] = format
+        if xpattern['format'] in ['integer', 'ipv4', 'ipv6']:
             counter_pattern_name = '{}.Counter'.format(schema_name)
             schema['properties']['choice']['enum'].extend(['increment', 'decrement'])
             schema['properties']['increment'] = {
@@ -296,9 +297,6 @@ class Bundler(object):
                     'default': 1
                 }
             self._content['components']['schemas'][counter_pattern_name] = counter_schema
-        if 'enums' in xpattern:
-            schema['properties']['value']['enum'] = copy.deepcopy(xpattern['enums'])
-            schema['properties']['values']['items']['enum'] = copy.deepcopy(xpattern['enums'])
         self._content['components']['schemas'][schema_name] = schema
 
     def _resolve_x_include(self):

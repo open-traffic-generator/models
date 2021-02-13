@@ -37,7 +37,7 @@ class Bundler(object):
         api_filename = os.path.normpath(os.path.abspath(api_filename))
         self._base_dir = os.path.dirname(api_filename)
         self._api_filename = os.path.basename(api_filename)
-        # self._install_dependencies()
+        self._install_dependencies()
 
     def _install_dependencies(self):
         packages = ['pyyaml', 'jsonpath-ng', 'openapi-spec-validator']

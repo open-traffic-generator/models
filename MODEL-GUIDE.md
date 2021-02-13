@@ -143,10 +143,10 @@ x-field-pattern:
       - checksum
   length:
     description: >-
-      The length of integer values.
+      The length of integer values in bits.
       If the format is integer then the length MUST be specified as the size of
       a packet field must be exact and not open to interpretation.
-      Pre-processing will write format: uint<length>
+      Pre-processing will write minimum and maximum values based on the length.
     type: integer
   default:
     description: >-

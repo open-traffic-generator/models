@@ -37,7 +37,7 @@ class Bundler(object):
         api_filename = os.path.normpath(os.path.abspath(api_filename))
         self._base_dir = os.path.dirname(api_filename)
         self._api_filename = os.path.basename(api_filename)
-        self._install_dependencies()
+        # self._install_dependencies()
 
     def _install_dependencies(self):
         packages = ['pyyaml', 'jsonpath-ng', 'openapi-spec-validator']
@@ -174,8 +174,6 @@ class Bundler(object):
             if type_name in ['ipv4', 'ipv6']:
                 format = type_name
                 type_name = 'string'
-            elif type_name == 'integer':
-                format = 'uint{}'.format(xpattern['length'])
             description = 'TBD'
             if 'description' in xpattern:
                 description = xpattern['description']
@@ -267,6 +265,9 @@ class Bundler(object):
         if format is not None:
             schema['properties']['value']['format'] = format
             schema['properties']['values']['items']['format'] = format
+        if 'length' in xpattern:
+            schema['properties']['value']['minimum'] = 0
+            schema['properties']['value']['maximum'] = 2**int(xpattern['length']) - 1
         if xpattern['format'] in ['integer', 'ipv4', 'ipv6']:
             counter_pattern_name = '{}.Counter'.format(schema_name)
             schema['properties']['choice']['enum'].extend(['increment', 'decrement'])
@@ -282,12 +283,10 @@ class Bundler(object):
                 'required': ['start', 'step'],
                 'properties': {
                     'start': {
-                        'type': type_name,
-                        'format': format
+                        'type': type_name
                     },
                     'step': {
-                        'type': type_name,
-                        'format': format
+                        'type': type_name
                     }
                 }
             }

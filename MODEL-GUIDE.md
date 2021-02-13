@@ -121,10 +121,10 @@ The build script will enforce the following keyword conventions.
 ## x-pattern extension
 ### schema
 ```yaml
-x-pattern: 
+x-field-pattern: 
   description: >-
     This extension is used by the bundler to generate a unique pattern schema
-    object for properties with specific a specific type, enum (if any), default.
+    object for flow packet header field properties.
   type: object
   required: [description, format]
   properties:
@@ -139,36 +139,22 @@ x-pattern:
       enum:
       - ipv4
       - ipv6
-      - hex
       - integer
-      - number
-      - enum
-      - string
       - checksum
   length:
     description: >-
-      The length of hex, integer and string value(s).
-      For hex and integer it is the bit length
-      For string it is the byte length
-      For a format of ipv4, ipv6 it is ignored.
-      The format will have the length appended to it: hex_4_bits, string_6_bytes
+      The length of integer values.
+      If the format is integer then the length MUST be specified as the size of
+      a packet field must be exact and not open to interpretation.
+      Pre-processing will write format: uint<length>
     type: integer
-  enums: 
-    description: >-
-      If the format is enum this property is used to specify 
-      a list of enums that the pattern is constrained to
-    type: array
-    items:
-      type: string
   default:
     description: >-
       The default value of the pattern value. There is no specific type for 
       this property as it is dependent on the format property.
-      For a format of ipv4, ipv6, hex, string the default is a string value.
-      For a format of enum it MUST be one of the items in the enums property.
+      For a format of ipv4, ipv6 the default is a string value.
       For a format of integer it MUST be a whole number falling within the 
       bounds of the length property.
-      For a format of number it MUST be a decimal number. 
   features:
     type: string
     enum: [count, auto, metric_group]
@@ -222,6 +208,7 @@ Pattern.Device.Ipv4.Address:
       items:
         type: string
         format: ipv4
+        default: 0.0.0.0
     increment:
       $ref: '#/components/schemas/Pattern.Ipv4Counter'
     decrement:

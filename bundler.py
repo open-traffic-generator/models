@@ -153,10 +153,10 @@ class Bundler(object):
                 self._resolve_refs(base_dir, item)
 
     def _resolve_x_field_pattern(self):
-        """Find all instances of x-pattern in the openapi content
+        """Find all instances of x-field-pattern in the openapi content
         and generate a #/components/schemas/... pattern schema object that is
-        specific to the property hosting the x-pattern content.
-        Replace the x-pattern schema with a $ref to the generated schema.
+        specific to the property hosting the x-field-pattern content.
+        Replace the x-field-pattern schema with a $ref to the generated schema.
         """
         import jsonpath_ng
         for xpattern_path in jsonpath_ng.parse('$..x-field-pattern').find(self._content):
@@ -220,6 +220,7 @@ class Bundler(object):
         self._content['components']['schemas'][schema_name] = schema
 
     def _generate_value_schema(self, xpattern, schema_name, description, type_name, format):
+        xconstants = xpattern['x-constants'] if 'x-constants' in xpattern else None
         schema = {
             'description': description,
             'type': 'object',
@@ -241,6 +242,8 @@ class Bundler(object):
                 }
             }
         }
+        if xconstants is not None:
+            schema['x-constants'] = copy.deepcopy(xconstants)
         if 'features' in xpattern:
             if 'auto' in xpattern['features']:
                 schema['properties']['choice']['enum'].append('auto')
@@ -260,14 +263,6 @@ class Bundler(object):
                         """as part of the request.""",
                     'type': 'string'
                 }
-        if 'default' in xpattern:
-            schema['properties']['value']['default'] = xpattern['default']
-        if format is not None:
-            schema['properties']['value']['format'] = format
-            schema['properties']['values']['items']['format'] = format
-        if 'length' in xpattern:
-            schema['properties']['value']['minimum'] = 0
-            schema['properties']['value']['maximum'] = 2**int(xpattern['length']) - 1
         if xpattern['format'] in ['integer', 'ipv4', 'ipv6']:
             counter_pattern_name = '{}.Counter'.format(schema_name)
             schema['properties']['choice']['enum'].extend(['increment', 'decrement'])
@@ -295,9 +290,24 @@ class Bundler(object):
                     'type': 'integer',
                     'default': 1
                 }
+            self._apply_common_x_field_pattern_properties(counter_schema['properties']['start'], xpattern, format)
+            self._apply_common_x_field_pattern_properties(counter_schema['properties']['step'], xpattern, format)
+            if xconstants is not None:
+                counter_schema['x-constants'] = copy.deepcopy(xconstants)
             self._content['components']['schemas'][counter_pattern_name] = counter_schema
+        self._apply_common_x_field_pattern_properties(schema['properties']['value'], xpattern, format)
+        self._apply_common_x_field_pattern_properties(schema['properties']['values']['items'], xpattern, format)
         self._content['components']['schemas'][schema_name] = schema
 
+    def _apply_common_x_field_pattern_properties(self, schema, xpattern, format):
+        if 'default' in xpattern:
+            schema['default'] = xpattern['default']
+        if format is not None:
+            schema['format'] = format
+        if 'length' in xpattern:
+            schema['minimum'] = 0
+            schema['maximum'] = 2**int(xpattern['length']) - 1
+            
     def _resolve_x_include(self):
         """Find all instances of x-include in the openapi content
         and merge the x-include content into the parent object

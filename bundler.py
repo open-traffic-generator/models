@@ -213,7 +213,8 @@ class Bundler(object):
                 'custom': {
                     'description': 'A custom checksum value',
                     'type': 'integer',
-                    'format': 'integer_{}_bits'.format(xpattern['length'])
+                    'minimum': 0,
+                    'maximum': 2**int(xpattern['length']) - 1
                 }
             }
         }

@@ -137,6 +137,7 @@ x-field-pattern:
         Controls the shape of the generated schema object.
       type: string
       enum:
+      - mac
       - ipv4
       - ipv6
       - integer
@@ -147,14 +148,16 @@ x-field-pattern:
       If the format is integer then the length MUST be specified as the size of
       a packet field must be exact and not open to interpretation.
       Pre-processing will write minimum and maximum values based on the length.
+      Length will be ignored for mac, ipv4, ipv6 formats.
     type: integer
   default:
     description: >-
-      The default value of the pattern value. There is no specific type for 
-      this property as it is dependent on the format property.
-      For a format of ipv4, ipv6 the default is a string value.
-      For a format of integer it MUST be a whole number falling within the 
-      bounds of the length property.
+      The default value of the pattern value. 
+      There is no specific type for this property as it is dependent on the 
+      format property.
+      For a format of mac, ipv4, ipv6 the default MUST be a string value.
+      For a format of integer the default MUST be a whole number falling within 
+      the bounds of the length property.
   features:
     type: string
     enum: [count, auto, metric_group]
@@ -210,9 +213,9 @@ Pattern.Device.Ipv4.Address:
         format: ipv4
         default: 0.0.0.0
     increment:
-      $ref: '#/components/schemas/Pattern.Ipv4Counter'
+      $ref: '#/components/schemas/Pattern.Device.Ipv4.Address.Counter'
     decrement:
-      $ref: '#/components/schemas/Pattern.Ipv4Counter'    
+      $ref: '#/components/schemas/Pattern.Device.Ipv4.Address.Counter'
 ```
 ### Sample instantiation
 ```yaml

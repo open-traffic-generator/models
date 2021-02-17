@@ -171,7 +171,7 @@ class Bundler(object):
             )
             format = None
             type_name = xpattern['format']
-            if type_name in ['ipv4', 'ipv6']:
+            if type_name in ['ipv4', 'ipv6', 'mac']:
                 format = type_name
                 type_name = 'string'
             description = 'TBD'
@@ -264,7 +264,7 @@ class Bundler(object):
                         """as part of the request.""",
                     'type': 'string'
                 }
-        if xpattern['format'] in ['integer', 'ipv4', 'ipv6']:
+        if xpattern['format'] in ['integer', 'ipv4', 'ipv6', 'mac']:
             counter_pattern_name = '{}.Counter'.format(schema_name)
             schema['properties']['choice']['enum'].extend(['increment', 'decrement'])
             schema['properties']['increment'] = {

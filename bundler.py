@@ -64,7 +64,8 @@ class Bundler(object):
         print('bundling started')
         self._read_file(base_dir, api_filename)
         self._resolve_x_include()
-        self._resolve_x_pattern()
+        self._resolve_x_pattern('x-field-pattern')
+        self._resolve_x_pattern('x-device-pattern')
         self._resolve_strings(self._content)
         with open(self._output_filename, 'w') as fid:
             yaml.dump(self._content,
@@ -152,15 +153,15 @@ class Bundler(object):
             for item in yobject:
                 self._resolve_refs(base_dir, item)
 
-    def _resolve_x_pattern(self):
-        """Find all instances of x-pattern in the openapi content
+    def _resolve_x_pattern(self, pattern_extension):
+        """Find all instances of pattern_extension in the openapi content
         and generate a #/components/schemas/... pattern schema object that is
-        specific to the property hosting the x-pattern content.
-        Replace the x-pattern schema with a $ref to the generated schema.
+        specific to the property hosting the pattern extension content.
+        Replace the x-field-pattern schema with a $ref to the generated schema.
         """
         import jsonpath_ng
-        for xpattern_path in jsonpath_ng.parse('$..x-pattern').find(self._content):
-            print('resolving %s...' % (str(xpattern_path.full_path)))
+        for xpattern_path in jsonpath_ng.parse('$..{}'.format(pattern_extension)).find(self._content):
+            print('generating %s...' % (str(xpattern_path.full_path)))
             object_name = xpattern_path.full_path.left.left.left.right.fields[0]
             property_name = xpattern_path.full_path.left.right.fields[0]
             property_schema = jsonpath_ng.Parent().find(xpattern_path)[0].value
@@ -169,76 +170,149 @@ class Bundler(object):
                 ''.join([piece[0].upper() + piece[1:] for piece in object_name.split('_')]),
                 ''.join([piece[0].upper() + piece[1:] for piece in property_name.split('_')])
             )
+            format = None
             type_name = xpattern['format']
-            if type_name in ['mac', 'ipv4', 'ipv6', 'hex', 'enum']:
+            if type_name in ['ipv4', 'ipv6', 'mac', 'enum']:
+                format = type_name
                 type_name = 'string'
             description = 'TBD'
             if 'description' in xpattern:
                 description = xpattern['description']
             elif 'description' in property_schema:
                 description = property_schema['description']
-            schema = {
-                'description': description,
-                'type': 'object',
-                'required': ['choice'],
-                'properties': {
-                    'choice': {
-                        'type': 'string',
-                        'enum': ['value', 'values'],
-                        'default': 'value'
-                    },
-                    'value': {
-                        'type': copy.deepcopy(type_name),
-                        'format': xpattern['format']
-                    },
-                    'values': {
-                        'type': 'array',
-                        'items': {
-                            'type': copy.deepcopy(type_name),
-                            'format': xpattern['format']
-                        }
-                    }
-                }
-            }
-            if 'default' in xpattern:
-                schema['properties']['value']['default'] = xpattern['default']
-            if xpattern['format'] in ['integer', 'number', 'ipv4', 'ipv6', 'hex']:
-                counter_pattern_name = 'Pattern.{}{}Counter'.format(
-                    xpattern['format'][0].upper(), 
-                    xpattern['format'][1:]
-                )
-                schema['properties']['choice']['enum'].extend(['increment', 'decrement'])
-                schema['properties']['increment'] = {
-                    '$ref': '#/components/schemas/{}'.format(counter_pattern_name)
-                }
-                schema['properties']['decrement'] = {
-                    '$ref': '#/components/schemas/{}'.format(counter_pattern_name)
-                }
-                if counter_pattern_name not in self._content['components']['schemas']:
-                    self._content['components']['schemas'][counter_pattern_name] = {
-                        'description': '{} counter pattern'.format(xpattern['format']),
-                        'type': 'object',
-                        'required': ['start', 'step'],
-                        'properties': {
-                            'start': {
-                                'type': type_name,
-                                'format': xpattern['format']
-                            },
-                            'step': {
-                                'type': type_name,
-                                'format': xpattern['format']
-                            }
-                        }
-                    }
-            if 'enums' in xpattern:
-                schema['properties']['value']['enum'] = copy.deepcopy(xpattern['enums'])
-                schema['properties']['values']['items']['enum'] = copy.deepcopy(xpattern['enums'])
+
+            if xpattern['format'] == 'checksum':
+                self._generate_checksum_schema(xpattern, schema_name, description)
+            else:
+                self._generate_value_schema(xpattern, schema_name, description, type_name, format)
+
             property_schema['$ref'] = '#/components/schemas/{}'.format(
                 schema_name
             )
-            del property_schema['x-pattern']
-            self._content['components']['schemas'][schema_name] = schema
+            del property_schema[pattern_extension]
 
+    def _generate_checksum_schema(self, xpattern, schema_name, description):
+        """ Generate a checksum schema object
+        """
+        schema = {
+            'description': description,
+            'type': 'object',
+            'required': ['choice'],
+            'properties': {
+                'choice': {
+                    'description': 'The type of checksum',
+                    'type': 'string',
+                    'enum': ['generated', 'custom'],
+                    'default': 'generated'
+                },
+                'generated': {
+                    'description': 'A system generated checksum value',
+                    'type': 'string',
+                    'enum': ['good', 'bad'],
+                    'default': 'good'
+                },
+                'custom': {
+                    'description': 'A custom checksum value',
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 2**int(xpattern['length']) - 1
+                }
+            }
+        }
+        self._content['components']['schemas'][schema_name] = schema
+
+    def _generate_value_schema(self, xpattern, schema_name, description, type_name, format):
+        xconstants = xpattern['x-constants'] if 'x-constants' in xpattern else None
+        schema = {
+            'description': description,
+            'type': 'object',
+            'required': ['choice'],
+            'properties': {
+                'choice': {
+                    'type': 'string',
+                    'enum': ['value', 'values'],
+                    'default': 'value'
+                },
+                'value': {
+                    'type': copy.deepcopy(type_name)
+                },
+                'values': {
+                    'type': 'array',
+                    'items': {
+                        'type': copy.deepcopy(type_name)
+                    }
+                }
+            }
+        }
+        if xconstants is not None:
+            schema['x-constants'] = copy.deepcopy(xconstants)
+        if 'features' in xpattern:
+            if 'auto' in xpattern['features']:
+                schema['properties']['choice']['enum'].append('auto')
+                schema['properties']['choice']['default'] = 'auto'
+                schema['properties']['auto'] = {
+                    'type': 'string',
+                    'enum': ['auto'],
+                    'default': 'auto'
+                }
+            if 'metric_group' in xpattern['features']:
+                schema['properties']['metric_group'] = {
+                    'description': """A unique name is used to indicate to the system that the field may""" 
+                        """extend the metric row key and create an aggregate metric row for""" 
+                        """every unique value."""
+                        """To have metric group columns appear in the flow metric rows the flow""" 
+                        """metric request allows for the metric_group value to be specified"""
+                        """as part of the request.""",
+                    'type': 'string'
+                }
+        if 'enums' in xpattern:
+            schema['properties']['value']['enum'] = copy.deepcopy(xpattern['enums'])
+            schema['properties']['values']['items']['enum'] = copy.deepcopy(xpattern['enums'])
+        if xpattern['format'] in ['integer', 'ipv4', 'ipv6', 'mac']:
+            counter_pattern_name = '{}.Counter'.format(schema_name)
+            schema['properties']['choice']['enum'].extend(['increment', 'decrement'])
+            schema['properties']['increment'] = {
+                '$ref': '#/components/schemas/{}'.format(counter_pattern_name)
+            }
+            schema['properties']['decrement'] = {
+                '$ref': '#/components/schemas/{}'.format(counter_pattern_name)
+            }
+            counter_schema = {
+                'description': '{} counter pattern'.format(xpattern['format']),
+                'type': 'object',
+                'required': ['start', 'step'],
+                'properties': {
+                    'start': {
+                        'type': type_name
+                    },
+                    'step': {
+                        'type': type_name
+                    }
+                }
+            }
+            if 'features' in xpattern and 'count' in xpattern['features']:
+                counter_schema['properties']['count'] = {
+                    'type': 'integer',
+                    'default': 1
+                }
+            self._apply_common_x_field_pattern_properties(counter_schema['properties']['start'], xpattern, format)
+            self._apply_common_x_field_pattern_properties(counter_schema['properties']['step'], xpattern, format)
+            if xconstants is not None:
+                counter_schema['x-constants'] = copy.deepcopy(xconstants)
+            self._content['components']['schemas'][counter_pattern_name] = counter_schema
+        self._apply_common_x_field_pattern_properties(schema['properties']['value'], xpattern, format)
+        self._apply_common_x_field_pattern_properties(schema['properties']['values']['items'], xpattern, format)
+        self._content['components']['schemas'][schema_name] = schema
+
+    def _apply_common_x_field_pattern_properties(self, schema, xpattern, format):
+        if 'default' in xpattern:
+            schema['default'] = xpattern['default']
+        if format is not None:
+            schema['format'] = format
+        if 'length' in xpattern:
+            schema['minimum'] = 0
+            schema['maximum'] = 2**int(xpattern['length']) - 1
+            
     def _resolve_x_include(self):
         """Find all instances of x-include in the openapi content
         and merge the x-include content into the parent object

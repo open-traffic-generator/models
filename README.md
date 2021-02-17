@@ -16,6 +16,45 @@ a single openapi.yaml document and then validates the document
 
 The models in this repo are under development and are subject to change, especially the models under the ‘device’ node.  All efforts will be made to keep them backwards compatible.
 
+## Setup
+
+Please make sure that the client setup meets [Python Prerequisites](#python-prerequisites).
+
+- Clone this project, `cd` inside it and make changes to spec as needed.
+
+- Generate bundled spec called `openapi.yaml`. This will automatically install required dependencies.
+  ```sh
+  python bundler.py
+  ```
+
+- To preview documentation and interact with schema, copy contents of `openapi.yaml` inside https://editor.swagger.io/.
+
+#### Python Prerequisites
+
+- Please make sure you have `python` and `pip` installed on your system.
+
+  You may have to use `python3` or `absolute path to python executable` depending on Python Installation on system, instead of `python`.
+
+  ```sh
+  python -m pip --help
+  ```
+  
+  Please see [pip installation guide](https://pip.pypa.io/en/stable/installing/), if you don't see a help message.
+
+- It is recommended that you use a python virtual environment for development.
+
+  ```sh
+  python -m pip install --upgrade virtualenv
+  # create virtual environment inside `env/` and activate it.
+  python -m virtualenv env
+  # on linux
+  source env/bin/activate
+  # on windows
+  env\Scripts\activate on Windows
+  ```
+
+  **NOTE:** If you do not wish to activate virtual env, you use `env/bin/python` (or `env\scripts\python` on Windows) instead of `python`.
+
 ## Contributing
 The open-traffic-generator organization welcomes new members to join this open
 source community project and contribute to its development.

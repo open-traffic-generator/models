@@ -257,12 +257,12 @@ class Bundler(object):
                 }
             if 'metric_group' in xpattern['features']:
                 schema['properties']['metric_group'] = {
-                    'description': """A unique name is used to indicate to the system that the field may""" 
-                        """extend the metric row key and create an aggregate metric row for""" 
-                        """every unique value."""
-                        """To have metric group columns appear in the flow metric rows the flow""" 
-                        """metric request allows for the metric_group value to be specified"""
-                        """as part of the request.""",
+                    'description': """A unique name is used to indicate to the system that the field may """ 
+                                   """extend the metric row key and create an aggregate metric row for """ 
+                                   """every unique value. """
+                                   """To have metric group columns appear in the flow metric rows the flow """ 
+                                   """metric request allows for the metric_group value to be specified """
+                                   """as part of the request.""",
                     'type': 'string'
                 }
         if 'enums' in xpattern:

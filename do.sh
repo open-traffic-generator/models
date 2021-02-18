@@ -3,6 +3,8 @@
 JAVA_VERSION=14.0.2
 JAVA=/opt/java/bin/java
 
+GO_VERSION=1.15
+
 OPENAPI_GEN_VERSION=4.3.1
 OPENAPI_GEN=/opt/openapi-gen.jar
 
@@ -10,16 +12,16 @@ BASE_YAML=api/api.yaml
 OPENAPI_YAML=openapi.yaml
 OPENAPI_JSON=openapi.json
 
-OPENAPI_PROTO_PKG=athena
+OPENAPI_PROTO_PKG=otg
 PROTO_DIR=protobuf3
 
-PY_CLIENT_PKG=athena
+PY_CLIENT_PKG=otg
 PY_CLIENT_DIR=pyclient
 
-GO_CLIENT_PKG=athena
+GO_CLIENT_PKG=otgclient
 GO_CLIENT_DIR=goclient
 
-GO_SERVER_PKG=skltn
+GO_SERVER_PKG=otgserver
 GO_SERVER_DIR=goserver
 GO_SERVER_PORT=443
 
@@ -32,6 +34,22 @@ get_java() {
         | tar --strip-components 1 -C /opt/java -xzf -
 }
 
+get_go() {
+    echo "\nInstalling Go ...\n"
+    # install golang per https://golang.org/doc/install#tarball
+    curl -kL https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz \
+        | tar -C /usr/local/ -xzf -
+}
+
+get_go_deps() {
+    echo "\nDowloading go dependencies ...\n"
+    # for generating .proto files from openapi.yaml
+    GO111MODULE=on /usr/local/go/bin/go get -u github.com/googleapis/gnostic@v0.5.4
+    GO111MODULE=on /usr/local/go/bin/go get -u github.com/googleapis/gnostic-grpc@v0.1.0
+    # for generating Go client stubs from openapi.yaml
+    GO111MODULE=on /usr/local/go/bin/go get github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.3.13
+}
+
 get_openapi_gen() {
     curl -kL -o ${OPENAPI_GEN} https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/${OPENAPI_GEN_VERSION}/openapi-generator-cli-${OPENAPI_GEN_VERSION}.jar
 }
@@ -42,7 +60,9 @@ install_deps() {
     && apt-get -y install curl git python3 python3-pip \
     && ln -s /usr/bin/python3 /usr/bin/python \
     && ln -s /usr/bin/pip3 /usr/bin/pip \
-    && python -m pip install flake8 \
+    && python -m pip install flake8 grpcio_tools \
+    && get_go \
+    && get_go_deps \
     && get_java \
     && get_openapi_gen
 }
@@ -59,10 +79,17 @@ gen_open_api() {
 }
 
 gen_proto() {
-    echo "\nGenerating Proto 3 files from Open API v3 YAML ...\n"
+    echo "\nGenerating Proto 3 files and stubs from Open API v3 YAML ...\n"
     rm -rf ${PROTO_DIR} && mkdir -p ${PROTO_DIR} \
-    && ${JAVA} -jar ${OPENAPI_GEN} generate -g protobuf-schema \
-        -i ${OPENAPI_YAML} -o ${PROTO_DIR} --package-name ${OPENAPI_PROTO_PKG}
+    && PATH="${GOPATH}/bin:${PATH}" gnostic --grpc-out=${PROTO_DIR}/ ${OPENAPI_YAML} \
+    && python scripts/patch-proto.py ${PROTO_DIR}/openapi.proto ${OPENAPI_PROTO_PKG} ${PROTO_DIR} \
+    && rm -f ${PROTO_DIR}/openapi.proto \
+    && python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. ${PROTO_DIR}/${OPENAPI_PROTO_PKG}.proto
+
+    # steps to generate proto using openapi generator (gnostic is preferred
+    # because of saner output)
+    # ${JAVA} -jar ${OPENAPI_GEN} generate -g protobuf-schema \
+    #     -i ${OPENAPI_YAML} -o ${PROTO_DIR} --package-name ${OPENAPI_PROTO_PKG}
 }
 
 gen_pyclient() {
@@ -79,23 +106,35 @@ gen_pyclient() {
 gen_goclient() {
     echo "\nGenerating Go stubs from OpenAPI v3 spec ...\n"
     rm -rf ${GO_CLIENT_DIR} && mkdir -p ${GO_CLIENT_DIR}
+    ${GOPATH}/bin/oapi-codegen \
+        -generate "types,client" \
+        -package "${GO_CLIENT_PKG}" \
+        ${OPENAPI_YAML} > ${GO_CLIENT_DIR}/client.go
+
+    # steps to generate Go client using openapi generator (oapi-codegen is preferred)
     # https://openapi-generator.tech/docs/generators/go/
-    ${JAVA} -jar ${OPENAPI_GEN} generate    \
-        -i ${OPENAPI_YAML}                  \
-        -g go                               \
-        -o ${GO_CLIENT_DIR}                 \
-        --additional-properties=packageName=${GO_CLIENT_PKG},packageVersion=$(get_version)
+    # ${JAVA} -jar ${OPENAPI_GEN} generate    \
+    #     -i ${OPENAPI_YAML}                  \
+    #     -g go                               \
+    #     -o ${GO_CLIENT_DIR}                 \
+    #     --additional-properties=packageName=${GO_CLIENT_PKG},packageVersion=$(get_version)
 }
 
 gen_goserver() {
     echo "\nGenerating Go skeleton from OpenAPI v3 spec ...\n"
     rm -rf ${GO_SERVER_DIR} && mkdir -p ${GO_SERVER_DIR}
+    ${GOPATH}/bin/oapi-codegen \
+        -generate "types,server" \
+        -package "${GO_SERVER_PKG}" \
+        ${OPENAPI_YAML} > ${GO_SERVER_DIR}/server.go
+
+    # steps to generate Go server using openapi generator (oapi-codegen is preferred)
     # https://openapi-generator.tech/docs/generators/go-server/
-    ${JAVA} -jar ${OPENAPI_GEN} generate    \
-        -i ${OPENAPI_YAML}                  \
-        -g go-server                        \
-        -o ${GO_SERVER_DIR}                 \
-        --additional-properties=packageName=${GO_SERVER_PKG},packageVersion=$(get_version),serverPort=${GO_SERVER_PORT},sourceFolder=${GO_SERVER_PKG}
+    # ${JAVA} -jar ${OPENAPI_GEN} generate    \
+    #     -i ${OPENAPI_YAML}                  \
+    #     -g go-server                        \
+    #     -o ${GO_SERVER_DIR}                 \
+    #     --additional-properties=packageName=${GO_SERVER_PKG},packageVersion=$(get_version),serverPort=${GO_SERVER_PORT},sourceFolder=${GO_SERVER_PKG}
 }
 
 gen_stubs() {
@@ -111,7 +150,7 @@ gen_spec() {
 
 create_artifacts() {
     # also creates a file named tag containing version if the version isn't
-    # alreadt tagged
+    # already tagged
     version=$(get_version)
     mkdir -p artifacts \
     && cp ${OPENAPI_YAML} artifacts/ \

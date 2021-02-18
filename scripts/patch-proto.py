@@ -13,7 +13,7 @@ import sys
 
 def patch_proto(input_proto, pkg, out_dir):
     with open(input_proto) as op:
-        with open(os.path.join(out_dir, pkg + '.proto'), 'w') as out:
+        with open(os.path.join(out_dir, pkg + '.proto'), 'w', newline='\n') as out:
             on_enum = False
             message = []
             enums = []

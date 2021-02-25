@@ -5,6 +5,7 @@ import os
 import subprocess
 import re
 import copy
+import json
 
 
 class Bundler(object):
@@ -30,6 +31,7 @@ class Bundler(object):
         self.__python_dir = os.path.dirname(self.__python)
         self._content = {}
         self._includes = {}
+        self._resolved = []
         self._validate = validate
         self._output_filename = output_filename
         api_filename = os.path.normpath(os.path.abspath(api_filename))
@@ -62,13 +64,17 @@ class Bundler(object):
         print('bundling started')
         self._read_file(base_dir, api_filename)
         self._resolve_x_include()
+        self._resolve_x_field_pattern()
         self._resolve_strings(self._content)
         with open(self._output_filename, 'w') as fid:
             yaml.dump(self._content,
                       fid,
                       indent=2,
-                      allow_unicode=False,
+                      allow_unicode=True,
+                      line_break='\n',
                       sort_keys=False)
+        with open('openapi.json', 'w') as fp:
+            fp.write(json.dumps(self._content))         
         print('bundling complete')
 
     def _validate_file(self):
@@ -124,8 +130,10 @@ class Bundler(object):
             for key, value in yobject.items():
                 if key == '$ref' and value.startswith('#') is False:
                     refs = value.split('#')
-                    print('resolving %s' % value)
-                    self._read_file(base_dir, refs[0])
+                    if refs[1] not in self._resolved:
+                        self._resolved.append(refs[1])
+                        print('resolving %s' % value)
+                        self._read_file(base_dir, refs[0])
                     yobject[key] = '#%s' % refs[1]
                 elif isinstance(value, str) and 'x-inline' in value:
                     refs = value.split('#')
@@ -133,23 +141,185 @@ class Bundler(object):
                     inline = self._get_inline_ref(base_dir, refs[0], refs[1])
                     yobject[key] = inline
                 elif key == 'x-include':
-                    self._includes[value] = self._get_schema_object(base_dir, value)
+                    for include_ref in value:
+                        if include_ref not in self._includes:
+                            include = self._get_schema_object(base_dir, include_ref)
+                            self._resolve_refs(base_dir, include)
+                            self._includes[include_ref] = include
                 else:
                     self._resolve_refs(base_dir, value)
         elif isinstance(yobject, list):
             for item in yobject:
                 self._resolve_refs(base_dir, item)
 
+    def _resolve_x_field_pattern(self):
+        """Find all instances of x-field-pattern in the openapi content
+        and generate a #/components/schemas/... pattern schema object that is
+        specific to the property hosting the x-field-pattern content.
+        Replace the x-field-pattern schema with a $ref to the generated schema.
+        """
+        import jsonpath_ng
+        for xpattern_path in jsonpath_ng.parse('$..x-field-pattern').find(self._content):
+            print('generating %s...' % (str(xpattern_path.full_path)))
+            object_name = xpattern_path.full_path.left.left.left.right.fields[0]
+            property_name = xpattern_path.full_path.left.right.fields[0]
+            property_schema = jsonpath_ng.Parent().find(xpattern_path)[0].value
+            xpattern = xpattern_path.value
+            schema_name = 'Pattern.{}.{}'.format(
+                ''.join([piece[0].upper() + piece[1:] for piece in object_name.split('_')]),
+                ''.join([piece[0].upper() + piece[1:] for piece in property_name.split('_')])
+            )
+            format = None
+            type_name = xpattern['format']
+            if type_name in ['ipv4', 'ipv6', 'mac']:
+                format = type_name
+                type_name = 'string'
+            description = 'TBD'
+            if 'description' in xpattern:
+                description = xpattern['description']
+            elif 'description' in property_schema:
+                description = property_schema['description']
+
+            if xpattern['format'] == 'checksum':
+                self._generate_checksum_schema(xpattern, schema_name, description)
+            else:
+                self._generate_value_schema(xpattern, schema_name, description, type_name, format)
+
+            property_schema['$ref'] = '#/components/schemas/{}'.format(
+                schema_name
+            )
+            del property_schema['x-field-pattern']
+
+    def _generate_checksum_schema(self, xpattern, schema_name, description):
+        """ Generate a checksum schema object
+        """
+        schema = {
+            'description': description,
+            'type': 'object',
+            'required': ['choice'],
+            'properties': {
+                'choice': {
+                    'description': 'The type of checksum',
+                    'type': 'string',
+                    'enum': ['generated', 'custom'],
+                    'default': 'generated'
+                },
+                'generated': {
+                    'description': 'A system generated checksum value',
+                    'type': 'string',
+                    'enum': ['good', 'bad'],
+                    'default': 'good'
+                },
+                'custom': {
+                    'description': 'A custom checksum value',
+                    'type': 'integer',
+                    'minimum': 0,
+                    'maximum': 2**int(xpattern['length']) - 1
+                }
+            }
+        }
+        self._content['components']['schemas'][schema_name] = schema
+
+    def _generate_value_schema(self, xpattern, schema_name, description, type_name, format):
+        xconstants = xpattern['x-constants'] if 'x-constants' in xpattern else None
+        schema = {
+            'description': description,
+            'type': 'object',
+            'required': ['choice'],
+            'properties': {
+                'choice': {
+                    'type': 'string',
+                    'enum': ['value', 'values'],
+                    'default': 'value'
+                },
+                'value': {
+                    'type': copy.deepcopy(type_name)
+                },
+                'values': {
+                    'type': 'array',
+                    'items': {
+                        'type': copy.deepcopy(type_name)
+                    }
+                }
+            }
+        }
+        if xconstants is not None:
+            schema['x-constants'] = copy.deepcopy(xconstants)
+        if 'features' in xpattern:
+            if 'auto' in xpattern['features']:
+                schema['properties']['choice']['enum'].append('auto')
+                schema['properties']['choice']['default'] = 'auto'
+                schema['properties']['auto'] = {
+                    'type': 'string',
+                    'enum': ['auto'],
+                    'default': 'auto'
+                }
+            if 'metric_group' in xpattern['features']:
+                schema['properties']['metric_group'] = {
+                    'description': """A unique name is used to indicate to the system that the field may""" 
+                        """extend the metric row key and create an aggregate metric row for""" 
+                        """every unique value."""
+                        """To have metric group columns appear in the flow metric rows the flow""" 
+                        """metric request allows for the metric_group value to be specified"""
+                        """as part of the request.""",
+                    'type': 'string'
+                }
+        if xpattern['format'] in ['integer', 'ipv4', 'ipv6', 'mac']:
+            counter_pattern_name = '{}.Counter'.format(schema_name)
+            schema['properties']['choice']['enum'].extend(['increment', 'decrement'])
+            schema['properties']['increment'] = {
+                '$ref': '#/components/schemas/{}'.format(counter_pattern_name)
+            }
+            schema['properties']['decrement'] = {
+                '$ref': '#/components/schemas/{}'.format(counter_pattern_name)
+            }
+            counter_schema = {
+                'description': '{} counter pattern'.format(xpattern['format']),
+                'type': 'object',
+                'required': ['start', 'step'],
+                'properties': {
+                    'start': {
+                        'type': type_name
+                    },
+                    'step': {
+                        'type': type_name
+                    }
+                }
+            }
+            if 'features' in xpattern and 'count' in xpattern['features']:
+                counter_schema['properties']['count'] = {
+                    'type': 'integer',
+                    'default': 1
+                }
+            self._apply_common_x_field_pattern_properties(counter_schema['properties']['start'], xpattern, format)
+            self._apply_common_x_field_pattern_properties(counter_schema['properties']['step'], xpattern, format)
+            if xconstants is not None:
+                counter_schema['x-constants'] = copy.deepcopy(xconstants)
+            self._content['components']['schemas'][counter_pattern_name] = counter_schema
+        self._apply_common_x_field_pattern_properties(schema['properties']['value'], xpattern, format)
+        self._apply_common_x_field_pattern_properties(schema['properties']['values']['items'], xpattern, format)
+        self._content['components']['schemas'][schema_name] = schema
+
+    def _apply_common_x_field_pattern_properties(self, schema, xpattern, format):
+        if 'default' in xpattern:
+            schema['default'] = xpattern['default']
+        if format is not None:
+            schema['format'] = format
+        if 'length' in xpattern:
+            schema['minimum'] = 0
+            schema['maximum'] = 2**int(xpattern['length']) - 1
+            
     def _resolve_x_include(self):
         """Find all instances of x-include in the openapi content
         and merge the x-include content into the parent object
         """
         import jsonpath_ng
-        for xinclude in jsonpath_ng.parse('$..x-include').find(self._content):
-            print('including %s...' % xinclude.value)
-            parent_schema_object = jsonpath_ng.Parent().find(xinclude)[0].value
-            include_schema_object = self._includes[xinclude.value]
-            self._merge(copy.deepcopy(include_schema_object), parent_schema_object)
+        for xincludes in jsonpath_ng.parse('$..x-include').find(self._content):
+            print('resolving %s...' % (str(xincludes.full_path)))
+            parent_schema_object = jsonpath_ng.Parent().find(xincludes)[0].value
+            for xinclude in xincludes.value:
+                include_schema_object = self._includes[xinclude]
+                self._merge(copy.deepcopy(include_schema_object), parent_schema_object)
             del parent_schema_object['x-include']
 
     def _merge(self, src, dst):
@@ -166,6 +336,8 @@ class Bundler(object):
                         dst[key].append(item)
             elif isinstance(value, dict):
                 self._merge(value, dst[key]) 
+            elif key == 'description':
+                dst[key] = '{}\n{}'.format(dst[key], value) 
         return dst
 
     def _get_schema_object(self, base_dir, schema_path):
@@ -205,7 +377,8 @@ class Bundler(object):
             if isinstance(value, dict):
                 self._resolve_strings(value)
             elif key == 'description':
-                content[key] = folded_unicode(copy.deepcopy(value))
+                descr = copy.deepcopy(value)
+                content[key] = description(descr)
 
 
 if __name__ == '__main__':
@@ -216,23 +389,14 @@ if __name__ == '__main__':
     import yaml
     import openapi_spec_validator
 
-    class folded_unicode(str):
+    class description(str):
         pass
 
-    class literal_unicode(str):
-        pass
-
-    def folded_unicode_representer(dumper, data):
-        return dumper.represent_scalar(u'tag:yaml.org,2002:str',
-                                       data,
-                                       style='>')
-
-    def literal_unicode_representer(dumper, data):
+    def description_representer(dumper, data):
         return dumper.represent_scalar(u'tag:yaml.org,2002:str',
                                        data,
                                        style='|')
 
-    yaml.add_representer(folded_unicode, folded_unicode_representer)
-    yaml.add_representer(literal_unicode, literal_unicode_representer)
+    yaml.add_representer(description, description_representer)
 
     bundler.bundle().validate()

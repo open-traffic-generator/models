@@ -149,6 +149,7 @@ create_artifacts() {
     mkdir -p artifacts \
     && cp ${OPENAPI_YAML} artifacts/ \
     && cp ${OPENAPI_JSON} artifacts/ \
+    && cp ${PROTO_DIR}/otg.proto artifacts \
     && tar czvf artifacts/${PY_CLIENT_DIR}.tar.gz ${PY_CLIENT_DIR} \
     && tar czvf artifacts/${GO_CLIENT_DIR}.tar.gz ${GO_CLIENT_DIR} \
     && tar czvf artifacts/${GO_SERVER_DIR}.tar.gz ${GO_SERVER_DIR} \

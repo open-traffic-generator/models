@@ -68,14 +68,8 @@ install_deps() {
 }
 
 gen_open_api() {
-    jsonout=jsonout
-    rm -rf ${jsonout} && mkdir -p ${jsonout}
-    echo "\nGenerating Open API v3 YAML ...\n"
-    python bundler.py \
-    && echo "\nGenerating Open API v3 JSON ...\n" \
-    && ${JAVA} -jar ${OPENAPI_GEN} generate -g openapi -i ${OPENAPI_YAML} -o ${jsonout} \
-    && mv -f ${jsonout}/openapi.json ${OPENAPI_JSON} \
-    && rm -rf ${jsonout}
+    echo "\nGenerating Open API v3 YAML/JSON ...\n"
+    python bundler.py
 }
 
 gen_proto() {

@@ -34,6 +34,16 @@ jobs:
           docker run -v $(pwd)/artifacts:/home/otg/models/artifacts/ models /bin/bash -c "./do.sh art" || exit 1
           echo "::set-output name=tag::$(cat artifacts/tag || echo 0)"
 
+      - name: Upload artifacts
+        # upload all files in the artifacts directory
+        # the artifact zip is available using the following github API 
+        # curl https://api.github.com/repos/open-traffic-generator/models/actions/artifacts
+        # the artifact is only available for the amount of time dictated by the 
+        # repo settings which is defaulted to 90 days
+        uses: actions/upload-artifact@v2
+        with:
+          path: artifacts
+
       - name: Commit auto generated content
         id: commit_generated
         run: |
@@ -46,6 +56,53 @@ jobs:
               git commit -m "Update auto generated content" 
               git push
             else
-              echo 'No changed auto generated content'
+              echo "No changed auto generated content"
           fi
+
+      # to create a release it just needs a tag
+      # the tag name MUST be in the following format:
+      #   v<major>.<minor>.<build>
+      # git tag -a <tag name> -m "message"
+      # git push origin --tags
+      - name: Get git tag
+        run: echo "HEAD_TAG=$(git tag --points-at HEAD)" >> $GITHUB_ENV
+
+      - name: Create Release
+        if: env.HEAD_TAG != ''
+        uses: actions/github-script@v2
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            console.log('environment', process.versions);
+            const fs = require('fs').promises;
+            const { repo: { owner, repo }, sha } = context;
+            console.log({ owner, repo, sha });
+            const tag = process.env.GITHUB_REF.split('/').slice(-1)[0];
+            const release = await github.repos.createRelease({
+              owner, 
+              repo,
+              tag_name: tag,
+              name: `Release ${tag}`,
+              draft: false,
+              prerelease: false,
+              target_commitish: sha
+            });
+
+            console.log('created release', { release });
+            let upload_files = [
+              'openapi.yaml',
+              'openapi.json',
+              'protobuf3.tar.gz',
+              'pyclient.tar.gz',
+              'goclient.tar.gz',
+              'goserver.tar.gz'
+            ]
+            for (let file of upload_files) {
+              await github.repos.uploadReleaseAsset({
+                owner, repo,
+                release_id: release.data.id,
+                name: file,
+                data: await fs.readFile(`./artifacts/${file}`)
+              });            
+            }
 

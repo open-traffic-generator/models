@@ -571,7 +571,7 @@ components:
           type: integer
           minimum: 1
           maximum: 32
-          default: 32
+          default: 24
         bgpv4:
           $ref: '#/components/schemas/Device.Bgpv4'
         name:
@@ -605,7 +605,7 @@ components:
           type: integer
           minimum: 1
           maximum: 32
-          default: 32
+          default: 24
         bgpv4:
           $ref: '#/components/schemas/Device.Bgpv4'
         name:
@@ -619,9 +619,7 @@ components:
       x-status: under-review
       description: |-
         Container for emulated BGPv4 peers and routes.
-        Container of basic emulated BGP peer settings.
-        This container has the following optional sub containers. Device.BgpAdvanced, Device.BgpCapability, Device.BgpSrTePolicy
-        This container has the following optional lists of containers. Device.Bgpv4RouteRange, Device.Bgpv6RouteRange
+        Container for basic emulated BGP peer settings.
       type: object
       properties:
         local_address:
@@ -636,11 +634,6 @@ components:
           type: string
           format: ipv4
           default: 0.0.0.0
-        active:
-          description: |-
-            Activates the protocol which means the protocol can be started or stopped.
-          type: boolean
-          default: true
         router_id:
           description: |-
             The BGP router ID is a unique identifier used by routing protocols. It is a 32-bit value that is often represented by an IPv4 address.
@@ -649,7 +642,7 @@ components:
           default: 0.0.0.0
         as_type:
           description: |-
-            The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp) Internal BGP is used within a single autonomous system (ibgp).
+            The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp) Internal BGP is used within a single autonomous system (ibgp). BGP property defaults are aligned with this object defined as an internal BGP peer. If the as_type is specified as ebgp then other properties will need to be specified according an external BGP peer.
           type: string
           enum:
           - ibgp
@@ -707,6 +700,11 @@ components:
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
       required:
       - name
     Device.BgpAdvanced:
@@ -732,27 +730,15 @@ components:
           default: 0
         time_to_live:
           description: |-
-            The limited number of iterations that a unit of data can experience before the data is discarded.
+            The limited number of iterations that a unit of data can experience before the data is discarded. This is placed in the TTL field in the IP header of the  transmitted packets.
           type: integer
           default: 64
-        tcp_window_size:
-          description: |-
-            TBD
-          type: integer
-          default: 8192
-        authentication:
-          description: |-
-            TBD
-          type: string
-          enum:
-          - empty
-          - md5
-          default: empty
         md5_key:
           description: |-
-            TBD
+            The value to be used as a secret MD5 key for authentication. If null or an empty string then authentication will not be enabled.
           type: string
           default: ''
+          nullable: true
     Device.BgpCapability:
       x-status: under-review
       description: |-
@@ -925,10 +911,6 @@ components:
           $ref: '#/components/schemas/Device.BgpAddPath'
         as_path:
           $ref: '#/components/schemas/Device.BgpAsPath'
-        as_path_segments:
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.BgpAsPathSegment'
         tunnel_tlvs:
           description: |-
             Optional tunnel TLV settings
@@ -1015,14 +997,9 @@ components:
             $ref: '#/components/schemas/Device.BgpAsPathSegment'
     Device.BgpAsPathSegment:
       description: |-
-        TBD
+        Container for a single BGP AS path segment
       type: object
       properties:
-        enable:
-          description: |-
-            Enable the AS path segment
-          type: boolean
-          default: false
         segment_type:
           description: |-
             AS sequence is the most common type of AS_PATH, it contains the  list of ASNs starting with the most recent ASN being added read  from left to right.
@@ -1039,32 +1016,13 @@ components:
             The AS numbers in this AS path segment.
           type: array
           items:
-            $ref: '#/components/schemas/Device.BgpAsPathSegmentNumber'
-    Device.BgpAsPathSegmentNumber:
-      description: |-
-        TBD
-      type: object
-      properties:
-        enable:
-          description: |-
-            TBD
-          type: boolean
-          default: false
-        as_number:
-          description: |-
-            TBD
-          type: integer
-          default: 1
+            type: integer
+            default: 1
     Device.BgpTunnelTlv:
       description: |-
         Container for BGP tunnel TLV settings.
       type: object
       properties:
-        active:
-          description: |-
-            Activates the tunnel TLV
-          type: boolean
-          default: false
         segment_lists:
           type: array
           items:
@@ -1077,50 +1035,37 @@ components:
           $ref: '#/components/schemas/Device.BgpBindingSubTlv'
         explicit_null_label_policy_sub_tlv:
           $ref: '#/components/schemas/Device.BgpExplicitNullLabelPolicySubTlv'
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
     Device.BgpSegmentList:
       x-status: under-review
       description: |-
         Optional container for BGP SR TE Policy segment list settings.
       type: object
       properties:
-        active:
-          description: |-
-            Determines whether or not the segment list is active
-          type: boolean
-          default: false
         segment_weight:
-          $ref: '#/components/schemas/Device.BgpSegmentWeight'
-        segments:
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.BgpSegment'
-    Device.BgpSegmentWeight:
-      x-status: under-review
-      description: |-
-        Optional container for BGP SR TE Policy segment weight settings.
-      type: object
-      properties:
-        enable:
-          description: |-
-            Enable the weight settings
-          type: boolean
-          default: false
-        weight:
           description: |-
             The weight associated with a given path.
           type: integer
           default: 0
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.BgpSegment'
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
     Device.BgpSegment:
       x-status: under-review
       description: |-
         Optional container for BGP SR TE Policy segment settings.
       type: object
       properties:
-        active:
-          description: |-
-            Determines whether or not the segment is active
-          type: boolean
-          default: false
         segment_type:
           description: |-
             TBD
@@ -1160,16 +1105,16 @@ components:
             TBD
           type: integer
           default: 0
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
     Device.BgpRemoteEndpointSubTlv:
       description: |-
         Container for BGP remote endpoint sub TLV settings.
       type: object
       properties:
-        enable:
-          description: |-
-            Determines whether or not the TLV is enabled
-          type: boolean
-          default: false
         as_number:
           description: |-
             Autonomous system (AS) number
@@ -1200,11 +1145,6 @@ components:
         Container for BGP preference sub TLV settings.
       type: object
       properties:
-        enable:
-          description: |-
-            TBD
-          type: boolean
-          default: false
         preference:
           description: |-
             TBD
@@ -1215,11 +1155,6 @@ components:
         Container for BGP binding sub TLV settings.
       type: object
       properties:
-        enable:
-          description: |-
-            Enables the optional binding sub TLV settings
-          type: boolean
-          default: false
         binding_sid_type:
           description: |-
             TBD
@@ -1267,11 +1202,6 @@ components:
         Container for BGP explicit null label policy sub TLV settings.
       type: object
       properties:
-        enable:
-          description: |-
-            Enables the explicit null label policy sub TLV
-          type: boolean
-          default: false
         explicit_null_label_policy:
           description: "The value of the explicit null label policy "
           type: string
@@ -1362,7 +1292,9 @@ components:
         prefix:
           description: "The IPv4 network prefix to be applied to the address. "
           type: integer
-          default: 32
+          default: 24
+          minimum: 0
+          maximum: 32
         count:
           description: |-
             The total number of addresses in the range
@@ -1380,29 +1312,21 @@ components:
         Container for advanced BGP route range settings
       type: object
       properties:
-        enable_multi_exit_discriminator:
-          description: |-
-            Enable the multi exit discriminator value
-          type: boolean
-          default: false
         multi_exit_discriminator:
           description: |-
-            The multi exit discriminator value
+            The multi exit discriminator (MED) value.  A null value means the MED feature is not enabled.
           type: integer
           default: 0
-        enable_origin:
-          description: |-
-            Enable the origin value
-          type: boolean
-          default: false
+          nullable: true
         origin:
           description: |-
-            The origin value
+            The origin value.  A null value means the origin feature is not enabled.
           type: string
           enum:
           - igp
           - egp
           default: igp
+          nullable: true
     Device.Bgpv6Route:
       description: |-
         Emulated BGPv6 route
@@ -1456,6 +1380,8 @@ components:
             The IPv6 network prefix to be applied to the address
           type: integer
           default: 64
+          minimum: 0
+          maximum: 128
         count:
           description: |-
             The total number of addresses in the range
@@ -1535,9 +1461,7 @@ components:
       x-status: under-review
       description: |-
         Container for BGPv6 peer settings and routes.
-        Container of basic emulated BGP peer settings.
-        This container has the following optional sub containers. Device.BgpAdvanced, Device.BgpCapability, Device.BgpSrTePolicy
-        This container has the following optional lists of containers. Device.Bgpv4RouteRange, Device.Bgpv6RouteRange
+        Container for basic emulated BGP peer settings.
       type: object
       properties:
         local_address:
@@ -1554,11 +1478,6 @@ components:
           default: ::0
         segment_routing:
           $ref: '#/components/schemas/Device.Bgpv6SegmentRouting'
-        active:
-          description: |-
-            Activates the protocol which means the protocol can be started or stopped.
-          type: boolean
-          default: true
         router_id:
           description: |-
             The BGP router ID is a unique identifier used by routing protocols. It is a 32-bit value that is often represented by an IPv4 address.
@@ -1567,7 +1486,7 @@ components:
           default: 0.0.0.0
         as_type:
           description: |-
-            The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp) Internal BGP is used within a single autonomous system (ibgp).
+            The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp) Internal BGP is used within a single autonomous system (ibgp). BGP property defaults are aligned with this object defined as an internal BGP peer. If the as_type is specified as ebgp then other properties will need to be specified according an external BGP peer.
           type: string
           enum:
           - ibgp
@@ -1625,6 +1544,11 @@ components:
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
       required:
       - name
     Device.Bgpv6SegmentRouting:
@@ -2000,6 +1924,14 @@ components:
           $ref: '#/components/schemas/Capture.Field'
         dst:
           $ref: '#/components/schemas/Capture.Field'
+    Device.Active:
+      type: object
+      properties:
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
     Device:
       description: |-
         A container for emulated interfaces and protocol devices.

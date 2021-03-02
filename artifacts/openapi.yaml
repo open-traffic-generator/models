@@ -3,7 +3,7 @@ info:
   title: Open Traffic Generator API
   description: |-
     The open traffic generator API
-  version: 0.2.1
+  version: 0.2.3
   contact:
     name: Open Traffic Generator Project Team
     email: andy.balogh@keysight.com
@@ -2095,6 +2095,8 @@ components:
           - gtpv1
           - gtpv2
           - arp
+          - icmp
+          - icmpv6
           - ppp
           - igmpv1
         custom:
@@ -2125,6 +2127,10 @@ components:
           $ref: '#/components/schemas/Flow.Gtpv2'
         arp:
           $ref: '#/components/schemas/Flow.Arp'
+        icmp:
+          $ref: '#/components/schemas/Flow.Icmp'
+        icmpv6:
+          $ref: '#/components/schemas/Flow.Icmpv6'
         ppp:
           $ref: '#/components/schemas/Flow.Ppp'
         igmpv1:
@@ -2480,6 +2486,32 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetHardwareAddr'
         target_protocol_addr:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetProtocolAddr'
+    Flow.Icmp:
+      description: |-
+        ICMP packet header
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.Type'
+        code:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.Code'
+        checksum:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.Checksum'
+        rest_of_headers:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.RestOfHeaders'
+    Flow.Icmpv6:
+      description: |-
+        ICMPv6 packet header
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Type'
+        code:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Code'
+        checksum:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Checksum'
+        message_body:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.MessageBody'
     Flow.Ppp:
       description: |-
         PPP packet header
@@ -2893,12 +2925,15 @@ components:
           - port
           - flow
           - bgpv4
+          - bgpv6
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
         flow:
           $ref: '#/components/schemas/Flow.Metrics.Request'
         bgpv4:
           $ref: '#/components/schemas/Bgpv4.Metrics.Request'
+        bgpv6:
+          $ref: '#/components/schemas/Bgpv6.Metrics.Request'
     Metrics.Response:
       description: |-
         Response containing chosen traffic generator metrics
@@ -2924,6 +2959,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Bgpv4.Metric'
+        bgpv6_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgpv6.Metric'
     Port.Metrics.Request:
       description: |-
         The port result request to the traffic generator
@@ -3195,6 +3234,65 @@ components:
         sessions_not_started:
           description: |-
             Sessions not able to start due to some internal issue
+          type: integer
+        routes_advertised:
+          description: |-
+            Number of advertised routes sent
+          type: integer
+        routes_withdrawn:
+          description: |-
+            Number of routes withdrawn
+          type: integer
+    Bgpv6.Metrics.Request:
+      description: |-
+        The request to retrieve BGPv6 Router statistics and learned routing information
+      type: object
+      properties:
+        device_names:
+          description: |-
+            The names of BGPv6 device to return results for. An empty list will return results for all BGPv6 devices.
+          type: array
+          items:
+            type: string
+            x-constraint:
+            - /components/schemas/Device.Bgpv6/properties/name
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the BGPv6 device cannot be excluded.
+          type: array
+          items:
+            type: string
+            enum:
+            - sessions_total
+            - sessions_up
+            - sessions_down
+            - sessions_not_started
+            - routes_advertised
+            - routes_withdrawn
+    Bgpv6.Metric:
+      description: |-
+        BGPv6 Router statistics and learned routing information
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of a configured BGPv6 device.
+          type: string
+        sessions_total:
+          description: |-
+            Total number of session
+          type: integer
+        sessions_up:
+          description: |-
+            Sessions are in active state
+          type: integer
+        sessions_down:
+          description: |-
+            Sessions are not active state
+          type: integer
+        sessions_not_started:
+          description: |-
+            Sessions not started yet or sessions not able to start due to some internal issue
           type: integer
         routes_advertised:
           description: |-
@@ -9926,6 +10024,440 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetProtocolAddr.Counter'
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetProtocolAddr.Counter'
+    Pattern.Flow.Icmp.Type.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      required:
+      - start
+      - step
+      properties:
+        start:
+          type: integer
+          default: 8
+          minimum: 0
+          maximum: 255
+        step:
+          type: integer
+          default: 8
+          minimum: 0
+          maximum: 255
+        count:
+          type: integer
+          default: 1
+      x-constants:
+        echo_reply: 0
+        echo_request: 8
+        destination_unreachable: 3
+        source_quench: 4
+        redirect_message: 5
+        time_exceeded: 11
+        parameter_problem: 12
+        timestamp: 13
+        timestamp_reply: 14
+        information_request: 15
+        information_reply: 16
+    Pattern.Flow.Icmp.Type:
+      description: |-
+        ICMP Type
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+          default: value
+        value:
+          type: integer
+          default: 8
+          minimum: 0
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            default: 8
+            minimum: 0
+            maximum: 255
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.Type.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.Type.Counter'
+      x-constants:
+        echo_reply: 0
+        echo_request: 8
+        destination_unreachable: 3
+        source_quench: 4
+        redirect_message: 5
+        time_exceeded: 11
+        parameter_problem: 12
+        timestamp: 13
+        timestamp_reply: 14
+        information_request: 15
+        information_reply: 16
+    Pattern.Flow.Icmp.Code.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      required:
+      - start
+      - step
+      properties:
+        start:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 255
+        step:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 255
+        count:
+          type: integer
+          default: 1
+    Pattern.Flow.Icmp.Code:
+      description: |-
+        ICMP subtype
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+          default: value
+        value:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            default: 0
+            minimum: 0
+            maximum: 255
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.Code.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.Code.Counter'
+    Pattern.Flow.Icmp.Checksum:
+      description: |-
+        ICMP checksum
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          description: |-
+            The type of checksum
+          type: string
+          enum:
+          - generated
+          - custom
+          default: generated
+        generated:
+          description: |-
+            A system generated checksum value
+          type: string
+          enum:
+          - good
+          - bad
+          default: good
+        custom:
+          description: |-
+            A custom checksum value
+          type: integer
+          minimum: 0
+          maximum: 65535
+    Pattern.Flow.Icmp.RestOfHeaders.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      required:
+      - start
+      - step
+      properties:
+        start:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 4294967295
+        step:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 4294967295
+        count:
+          type: integer
+          default: 1
+    Pattern.Flow.Icmp.RestOfHeaders:
+      description: |-
+        Contents vary based on the ICMP type and code
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+          default: value
+        value:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 4294967295
+        values:
+          type: array
+          items:
+            type: integer
+            default: 0
+            minimum: 0
+            maximum: 4294967295
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.RestOfHeaders.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Icmp.RestOfHeaders.Counter'
+    Pattern.Flow.Icmpv6.Type.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      required:
+      - start
+      - step
+      properties:
+        start:
+          type: integer
+          default: 128
+          minimum: 0
+          maximum: 255
+        step:
+          type: integer
+          default: 128
+          minimum: 0
+          maximum: 255
+        count:
+          type: integer
+          default: 1
+      x-constants:
+        destination_unreachable: 1
+        packet_too_big: 2
+        time_exceeded: 3
+        parameter_problem: 4
+        echo_reply: 129
+        echo_request: 128
+        multicast_listener_query: 130
+    Pattern.Flow.Icmpv6.Type:
+      description: |-
+        ICMPv6 Type
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+          default: value
+        value:
+          type: integer
+          default: 128
+          minimum: 0
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            default: 128
+            minimum: 0
+            maximum: 255
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Type.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Type.Counter'
+      x-constants:
+        destination_unreachable: 1
+        packet_too_big: 2
+        time_exceeded: 3
+        parameter_problem: 4
+        echo_reply: 129
+        echo_request: 128
+        multicast_listener_query: 130
+    Pattern.Flow.Icmpv6.Code.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      required:
+      - start
+      - step
+      properties:
+        start:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 255
+        step:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 255
+        count:
+          type: integer
+          default: 1
+    Pattern.Flow.Icmpv6.Code:
+      description: |-
+        ICMPv6 subtype
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+          default: value
+        value:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            default: 0
+            minimum: 0
+            maximum: 255
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Code.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Code.Counter'
+    Pattern.Flow.Icmpv6.Checksum:
+      description: |-
+        ICMPv6 checksum
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          description: |-
+            The type of checksum
+          type: string
+          enum:
+          - generated
+          - custom
+          default: generated
+        generated:
+          description: |-
+            A system generated checksum value
+          type: string
+          enum:
+          - good
+          - bad
+          default: good
+        custom:
+          description: |-
+            A custom checksum value
+          type: integer
+          minimum: 0
+          maximum: 65535
+    Pattern.Flow.Icmpv6.MessageBody.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      required:
+      - start
+      - step
+      properties:
+        start:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 4294967295
+        step:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 4294967295
+        count:
+          type: integer
+          default: 1
+    Pattern.Flow.Icmpv6.MessageBody:
+      description: |-
+        Contents vary based on the ICMPv6 type and code
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+          default: value
+        value:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 4294967295
+        values:
+          type: array
+          items:
+            type: integer
+            default: 0
+            minimum: 0
+            maximum: 4294967295
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.MessageBody.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.MessageBody.Counter'
     Pattern.Flow.Ppp.Address.Counter:
       description: |-
         integer counter pattern

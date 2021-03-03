@@ -1,11 +1,22 @@
 # Specifications
-- [OpenAPI specification](
-https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md)
+The Open Traffic Generator REST API is based on the [OpenAPI specification](
+https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md) which is a standard, language-agnostic interface to RESTful APIs.  
 
+This document includes additional details on the following topics that are specific to this effort:
+- [Best Practices](#Best-Practices)
+  - naming
+  - description
+  - nullable
+- [OpenAPI keyword limitations](#Keyword-Limitations)
+  - oneOf
+  - allOf
+- [OpenAPI keyword extensions](#Keyword-Extensions)
+  - x-status
+  - x-include
+  - x-constraint
+  - x-field-pattern
 
-# Keyword guide
-The build script will enforce the following keyword conventions.
-
+# Best Practices
 - `naming`
   - `property names` MUST be snake_case
   - `schema object names` MUST be PascalCase (upper camel case)
@@ -15,49 +26,54 @@ The build script will enforce the following keyword conventions.
     - NO: 100_gpbs
     - YES: one_hundred_gbps
   - `namespaces` MUST be PascalCase (upper camel case) and use a `.` separator
-
-- `oneOf`
-  - oneOf OpenAPI keyword support in generation tools is not very well supported at this time
-  - this repository uses the `choice` property to discriminate between multiple 
-  objects at the same level
-  - oneOf can be used when specifing primitive types
     ```yaml
-    # demonstrates how to model a choice and primitive oneOf
-    Choice.Object:
-      type: object
-      required: [choice]
-      properties:
-        choice:
-          type: string
-          enum: [a, b, c]
-        a:
-          $ref: '#/components/schemas/Choice.A'
-        b:
-          $ref: '#/components/schemas/Choice.B'
-        c:
-          $ref: '#/components/schemas/Choice.C'
-        one_of_sample:
-          oneOf:
-          - type: string
-          - type: number
+    # demonstrates how to specify an object within a namespace
+    components:
+      schemas:
+        Device.Bgp.Advanced:
+          type: object
     ```
-
-- `allOf`
-  - is not to be used
-  - use the x-include extension instead
-
-- `description`
-  - everything MUST have a `description keyword` filled in with a meaningful 
-  description
 
 - `schema`
     - top level `schema objects` should avoid properties as simple datatypes and 
     strive to encapsulate those properties in an object to allow for future 
     extensiblity
 
+# Keyword Limitations
+The build script will enforce the following keyword conventions.
+- `oneOf` keyword
+  - MUST not be used
+  - this repository uses the `choice` property to discriminate between multiple objects at the same level
+    ```yaml
+    # demonstrates how to model a choice
+    components:
+      schemas:
+      Choice.Object:
+        type: object
+        required: [choice]
+        properties:
+          choice:
+            type: string
+            enum: [a, b, c]
+          a:
+            $ref: '#/components/schemas/Choice.A'
+          b:
+            $ref: '#/components/schemas/Choice.B'
+          c:
+            $ref: '#/components/schemas/Choice.C'
+    ```
+
+- `allOf` keyword
+  - MUST not to be used
+  - use the x-include extension instead
+
+- `description` keyword
+  - MUST be included for every schema object and schema property and include a meaningful description
+
 - `nullable`
   - MUST NOT be used
 
+# Keyword Extensions
 - `x-status`: current | under-review | deprecated | obsolete
   - If no status is specified, the default is "current".
   - the `x-status` keyword takes as an argument one of the strings
@@ -118,8 +134,7 @@ The build script will enforce the following keyword conventions.
     ```
 
 
-## x-field-pattern extension
-### schema
+- `x-field-pattern`
 ```yaml
 x-field-pattern: 
   description: >-

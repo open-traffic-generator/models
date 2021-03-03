@@ -6,15 +6,15 @@
 [![Models CI/CD](https://github.com/open-traffic-generator/models/workflows/Models%20CI/CD/badge.svg)](https://github.com/open-traffic-generator/models/actions)
 
 This repository is a collaborative effort to develop agnostic data 
-models and APIs for managing traffic generators using a `model first` approach.
+models and APIs for managing traffic generators. The artifacts produced by this repository offer a foundation for other tools and/or implementations that want to use a `model first` approach.
 
 The focus of this repository is the following:
-- modeling best practices
-- consistent set of OpenAPI vendor-neutral data and API models
-- continuous build process that consolidates all model files into 
-a single openapi.yaml document and then validates the document
+- a [modeling guide](./MODEL-GUIDE.md) outlining best practices
+- a consistent set of OpenAPI vendor-neutral data and API models
+- [continuous build process](./.github/workflows/workflow.yml) that generates and validates artifacts
+- a [generated OpenAPI artifact](./artifacts/openapi.yaml)
 
-The models in this repo are under development and are subject to change, especially the models under the ‘device’ node.  All efforts will be made to keep them backwards compatible.
+> The models in this repo are under development and are subject to change, especially the models under the `device` node.  All efforts will be made to keep them backwards compatible.
 
 ## Setup
 

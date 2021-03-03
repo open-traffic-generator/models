@@ -75,7 +75,7 @@ class Bundler(object):
                       line_break='\n',
                       sort_keys=False)
         with open('openapi.json', 'w') as fp:
-            fp.write(json.dumps(self._content))         
+            fp.write(json.dumps(self._content, indent=4))         
         print('bundling complete')
 
     def _validate_file(self):

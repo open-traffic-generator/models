@@ -1,7 +1,11 @@
 name: Models CI/CD
 
 # Trigger everytime a push occurs
-on: [push]
+on:
+  push:
+  workflow_dispatch:
+    paths:
+    - '!artifacts/**'
 
 jobs:
   build:
@@ -11,8 +15,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
-          # Fetches entire history, so we can analyze all existing tags
-          fetch-depth: 0
+          ref: ${{ github.head_ref }}
 
       - name: Build container image
         run: docker build . -t models || exit 1
@@ -31,96 +34,75 @@ jobs:
           docker run -v $(pwd)/artifacts:/home/otg/models/artifacts/ models /bin/bash -c "./do.sh art" || exit 1
           echo "::set-output name=tag::$(cat artifacts/tag || echo 0)"
 
-        # Upload all artifacts zipped inside artifacts.zip downloadable from
-        # actions page. These are not permanent (probably removed after 90 days)
       - name: Upload artifacts
+        # upload all files in the artifacts directory
+        # the artifact zip is available using the following github API 
+        # curl https://api.github.com/repos/open-traffic-generator/models/actions/artifacts
+        # the artifact is only available for the amount of time dictated by the 
+        # repo settings which is defaulted to 90 days
         uses: actions/upload-artifact@v2
         with:
           path: artifacts
 
-        # Create a new GIT tag and corresponding release page
-        # Artifacts in releases are permanent
+      - name: Commit auto generated content
+        id: commit_generated
+        run: |
+          git config user.name "Github Actions Bot"
+          git config user.email "actions@github.com"
+          git add --force artifacts/openapi.yaml
+          git add --force artifacts/otg.proto
+          if git status --porcelain | grep .
+            then
+              git commit -m "Update auto generated content" 
+              git push
+            else
+              echo "No changed auto generated content"
+          fi
+
+      # to create a release it just needs a tag
+      # the tag name MUST be in the following format:
+      #   v<major>.<minor>.<build>
+      # git tag -a <tag name> -m "message"
+      # git push origin --tags
+      - name: Get git tag
+        run: echo "HEAD_TAG=$(git tag --points-at HEAD)" >> $GITHUB_ENV
+
       - name: Create Release
-        # Skip this step if tag already exists
-        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
-        uses: actions/create-release@v1
-        id: create_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: env.HEAD_TAG != ''
+        uses: actions/github-script@v2
         with:
-          tag_name: v${{ steps.gen_artifact.outputs.tag }}
-          release_name: Release ${{ steps.gen_artifact.outputs.tag }}
-          draft: false
-          prerelease: false
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            console.log('environment', process.versions);
+            const fs = require('fs').promises;
+            const { repo: { owner, repo }, sha } = context;
+            console.log({ owner, repo, sha });
+            const tag = process.env.GITHUB_REF.split('/').slice(-1)[0];
+            const release = await github.repos.createRelease({
+              owner, 
+              repo,
+              tag_name: tag,
+              name: `Release ${tag}`,
+              draft: false,
+              prerelease: false,
+              target_commitish: sha
+            });
 
-      - name: Upload YAML
-        # Skip this step if tag already exists
-        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/openapi.yaml
-          asset_name: openapi.yaml
-          asset_content_type: application/x-yaml
+            console.log('created release', { release });
+            let upload_files = [
+              'openapi.yaml',
+              'openapi.json',
+              'protobuf3.tar.gz',
+              'pyclient.tar.gz',
+              'goclient.tar.gz',
+              'goserver.tar.gz'
+            ]
+            for (let file of upload_files) {
+              await github.repos.uploadReleaseAsset({
+                owner, repo,
+                release_id: release.data.id,
+                name: file,
+                data: await fs.readFile(`./artifacts/${file}`)
+              });            
+            }
 
-      - name: Upload JSON
-        # Skip this step if tag already exists
-        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/openapi.json
-          asset_name: openapi.json
-          asset_content_type: application/json
-
-      - name: Upload Protobuf3 Spec
-        # Skip this step if tag already exists
-        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/protobuf3.tar.gz
-          asset_name: protobuf3.tar.gz
-          asset_content_type: application/tar+gzip
-
-      - name: Upload Python Client
-        # Skip this step if tag already exists
-        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/pyclient.tar.gz
-          asset_name: pyclient.tar.gz
-          asset_content_type: application/tar+gzip
-
-      - name: Upload Go Client
-        # Skip this step if tag already exists
-        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/goclient.tar.gz
-          asset_name: goclient.tar.gz
-          asset_content_type: application/tar+gzip
-
-      - name: Upload Go Server
-        # Skip this step if tag already exists
-        if: ${{ steps.gen_artifact.outputs.tag != '0' }}
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/goserver.tar.gz
-          asset_name: goserver.tar.gz
-          asset_content_type: application/tar+gzip

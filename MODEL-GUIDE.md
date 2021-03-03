@@ -118,7 +118,7 @@ The build script will enforce the following keyword conventions.
     ```
 
 
-## x-pattern extension
+## x-field-pattern extension
 ### schema
 ```yaml
 x-field-pattern: 
@@ -130,7 +130,7 @@ x-field-pattern:
   properties:
     description: 
       description: >-
-        Description of the parent property hosting the x-pattern extension
+        Description of the parent property hosting the extension
       type: string  
     format:
       description: >-
@@ -178,11 +178,101 @@ x-field-pattern:
 ```
 ### Sample property with extension before bundle
 ```yaml
+Flow.Ipv4:
+  type: object
+  properties:
+    src:
+      x-field-pattern:
+        format: ipv4
+        default: 0.0.0.0
+        count: false
+```
+### Sample property after bundle
+```yaml
+Flow.Ipv4:
+  type: object
+  properties:
+    address:
+      $ref: '#/components/schemas/Pattern.Flow.Ipv4.Address'
+
+Pattern.Flow.Ipv4.Address:
+  type: object
+  required: [choice]
+  properties:
+    choice:
+      type: string
+      enum: [value, values, increment, decrement]
+    value:
+      type: string
+      format: ipv4
+      default: 0.0.0.0
+    values:
+      type: array
+      items:
+        type: string
+        format: ipv4
+        default: 0.0.0.0
+    increment:
+      $ref: '#/components/schemas/Pattern.Flow.Ipv4.Address.Counter'
+    decrement:
+      $ref: '#/components/schemas/Pattern.Flow.Ipv4.Address.Counter'
+```
+### Sample instantiation
+```yaml
+ipv4:
+  address:
+    choice: value
+    value: 0.0.0.0
+```
+
+## x-device-pattern extension
+### schema
+```yaml
+x-field-pattern: 
+  description: >-
+    This extension is used by the bundler to generate a unique pattern schema
+    object for device field properties.
+  type: object
+  required: [description, format]
+  properties:
+    description: 
+      description: >-
+        Description of the parent property hosting the extension
+      type: string  
+    format:
+      description: >-
+        Controls the shape of the generated schema object.
+      type: string
+      enum:
+      - mac
+      - ipv4
+      - ipv6
+      - integer
+      - enum
+  length:
+    description: >-
+      The length of integer values in bits.
+      If the format is integer then the length MUST be specified as the size of
+      a packet field must be exact and not open to interpretation.
+      Pre-processing will write minimum and maximum values based on the length.
+      Length will be ignored for mac, ipv4, ipv6, enum formats.
+    type: integer
+  default:
+    description: >-
+      The default value of the pattern value. 
+      There is no specific type for this property as it is dependent on the 
+      format property.
+      For a format of mac, ipv4, ipv6, enum the default MUST be a string value.
+      For a format of integer the default MUST be a whole number falling within 
+      the bounds of the length property.
+```
+### Sample property with extension before bundle
+```yaml
 Device.Ipv4:
   type: object
   properties:
     address:
-      x-pattern:
+      x-device-pattern:
         format: ipv4
         default: 0.0.0.0
         count: false

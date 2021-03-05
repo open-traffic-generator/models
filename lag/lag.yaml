@@ -1,37 +1,88 @@
-openapi: 3.1.0
-
-info:
-  title: Link aggregation (LAG) models
-  version: ^0.0.0
-
 components:
   schemas:
     Lag:
+      x-include: 
+      - '../common/common.yaml#/components/schemas/Named.Object'
       description: >-
-        A container for LAG settings.
+        The container for multiple LAG ports
       type: object
-      required: [name, protocol]
       properties:
-        name: '../common/common.yaml#/components/x-inline/UniqueName'
-        port_names:
-          description: >- 
-            A list of unique names of port objects that will be part of the 
-            same lag. 
-            The value of the port_names property is the count for any child 
-            property in this hierarchy that is a container for a device pattern.
+        ports:
           type: array
           items:
-            type: string
-            x-constraint:
-            - '/components/schemas/Port/properties/name'
+            $ref: '#/components/schemas/Lag.Port'
+    
+    Lag.Port:
+      description: >-
+        The container for a port's ethernet interface and LAG protocol settings
+      type: object
+      required: [port_name, protocol, ethernet]
+      properties:
+        port_name:
+          description: >- 
+            The name of a port object that will be part of the LAG. 
+          type: string
+          x-constraint:
+          - '/components/schemas/Port/properties/name'
         protocol:
-          description: >-
-            Static lag or LACP protocol settings.
           $ref: '#/components/schemas/Lag.Protocol'
         ethernet:
+          $ref: '#/components/schemas/Lag.Ethernet'
+
+    Lag.Ethernet:
+      x-include: 
+      - '../common/common.yaml#/components/schemas/Named.Object'
+      description: >-
+        Base ethernet interface
+      type: object
+      properties:
+        mac:
           description: >-
-            Per port ethernet and vlan settings.
-          $ref: '../device/ethernet.yaml#/components/schemas/Device.Ethernet'
+            Media access control address
+          type: string
+          format: mac
+          default: 00:00:00:00:00:00
+        mtu:
+          description: >-
+            Maximum transmission unit
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 1500
+        vlans:
+          description: >-
+            List of VLANs
+          type: array
+          items:
+            $ref: '#/components/schemas/Lag.Vlan'
+
+    Lag.Vlan:
+      x-include: 
+        - '../common/common.yaml#/components/schemas/Named.Object'
+      description: >-
+        Emulated VLAN protocol
+      type: object
+      properties:
+        tpid:
+          description: >-
+            Tag protocol identifier
+          type: string
+          enum: [x8100, x88A8, x9100, x9200, x9300]
+          default: x8100
+        priority:
+          description: >-
+            Priority code point
+          type: integer
+          minimum: 0
+          maximum: 3
+          default: 0
+        id:
+          description: >-
+            VLAN identifier
+          type: integer
+          minimum: 0
+          maximum: 4095
+          default: 1
 
     Lag.Protocol:
       type: object
@@ -39,47 +90,100 @@ components:
       properties:
         choice:
           description: >-
-            The type of lag protocol.
+            The type of LAG protocol.
           type: string
           enum: [lacp, static]
+          default: lacp
         lacp:
-          description: >-
-            The container for link aggregation control protocol settings.
           $ref: '#/components/schemas/Lag.Lacp'
         static:
-          description: >-
-            The container for link aggregation static protocol settings.
           $ref: '#/components/schemas/Lag.Static'
 
     Lag.Static:
+      description: >-
+        The container for static link aggregation protocol settings.
       type: object
       properties:
         lag_id:
           description: >-
-            The static lag id.
-          $ref: '../device/patterns.yaml#/components/schemas/Device.Pattern'
+            The static lag id
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
 
     Lag.Lacp:
+      description: >-
+        The container for link aggregation control protocol settings.
       type: object
       properties:
         actor_key:
           description: >-
-            The actor key.
-          $ref: '../device/patterns.yaml#/components/schemas/Device.Pattern'
+            The actor key
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
         actor_port_number:
           description: >-
-            The actor port number.
-          $ref: '../device/patterns.yaml#/components/schemas/Device.Pattern'
+            The actor port number
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
         actor_port_priority:
           description: >-
-            The actor port priority.
-          $ref: '../device/patterns.yaml#/components/schemas/Device.Pattern'
+            The actor port priority
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 1
         actor_system_id:
           description: >-
-            The actor system id.
-          $ref: '../device/patterns.yaml#/components/schemas/Device.Pattern'
+            The actor system id
+          type: string
+          format: mac
+          default: 00:00:00:00:00:00
         actor_system_priority:
           description: >-
-            The actor system priority.
-          $ref: '../device/patterns.yaml#/components/schemas/Device.Pattern'
+            The actor system priority
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
+        lacpdu_periodic_time_interval:
+          x-constants:
+            fast: 1
+            slow: 30
+            auto: 0
+          description: >-
+            This field defines how frequently LACPDUs are sent to the link
+            partner
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
+        lacpdu_timeout:
+          x-constants:
+            short: 3
+            long: 90
+            auto: 0
+          description: >-
+            This timer is used to detect whether received protocol information
+            has expired
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
+        actor_activity:        
+          description: >-
+            Sets the value of LACP actor activity as either passive or active
 
+            Passive indicates the port's preference for not transmitting 
+            LACPDUs unless its partner's control is Active
+
+            Active indicates the port's preference to participate in the 
+            protocol regardless of the partner's control value
+          type: string
+          enum: [passive, active]
+          default: active

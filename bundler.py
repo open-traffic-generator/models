@@ -374,15 +374,6 @@ class Bundler(object):
         schema_object = jsonpath_ng.parse(json_path).find(schema_file)[0].value
         return schema_object
 
-    def _get_inline_ref(self, base_dir, filename, inline_key):
-        import jsonpath_ng
-        filename = os.path.join(base_dir, filename)
-        filename = os.path.abspath(os.path.normpath(filename))
-        base_dir = os.path.dirname(filename)
-        with open(filename) as fid:
-            yobject = yaml.safe_load(fid)
-        return jsonpath_ng.parse('$%s' % inline_key.replace('/', '.'), ).find(yobject)[0].value
-
     def _resolve_strings(self, content):
         """Fix up strings
         """

@@ -23,6 +23,12 @@ class Bundler(object):
         api_filename (str): The filename of the toplevel API
         output_filename (str): The filename of the resolved API
     """
+    class description(str):
+        pass
+
+    def description_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+
     def __init__(self):
         self.__python = os.path.normpath(sys.executable)
         self._content = {}
@@ -40,7 +46,11 @@ class Bundler(object):
             process = subprocess.Popen(process_args, shell=False)
             process.wait()
 
+        import yaml
+        yaml.add_representer(Bundler.description, Bundler.description_representer)
+
     def bundle(self):
+        import yaml
         output_dir = os.path.dirname(__file__)
         self._output_filename = os.path.join(output_dir, 'openapi.yaml')
         self._json_filename = os.path.join(output_dir, 'openapi.json')
@@ -76,6 +86,8 @@ class Bundler(object):
             print('Bypassed creation of static documentation [missing redoc-cli]: {}'.format(e))
 
     def _validate_file(self):
+        import yaml
+        import openapi_spec_validator
         print('validating {}...'.format(self._output_filename))
         with open(self._output_filename) as fid:
             yobject = yaml.safe_load(fid)
@@ -83,6 +95,7 @@ class Bundler(object):
         print('validating complete')
 
     def _read_file(self, base_dir, filename):
+        import yaml
         filename = os.path.join(base_dir, filename)
         filename = os.path.abspath(os.path.normpath(filename))
         base_dir = os.path.dirname(filename)
@@ -351,6 +364,7 @@ class Bundler(object):
 
     def _get_schema_object_from_file(self, base_dir, schema_path):
         import jsonpath_ng
+        import yaml
         paths = schema_path.split('#')
         filename = os.path.join(base_dir, paths[0])
         filename = os.path.abspath(os.path.normpath(filename))
@@ -377,21 +391,8 @@ class Bundler(object):
                 self._resolve_strings(value)
             elif key == 'description':
                 descr = copy.deepcopy(value)
-                content[key] = description(descr)
+                content[key] = Bundler.description(descr)
 
 
 if __name__ == '__main__':
-    import yaml
-    import openapi_spec_validator
-
-    class description(str):
-        pass
-
-    def description_representer(dumper, data):
-        return dumper.represent_scalar(u'tag:yaml.org,2002:str',
-                                       data,
-                                       style='|')
-
-    yaml.add_representer(description, description_representer)
-
     Bundler().bundle()

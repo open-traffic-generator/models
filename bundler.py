@@ -23,20 +23,11 @@ class Bundler(object):
         api_filename (str): The filename of the toplevel API
         output_filename (str): The filename of the resolved API
     """
-    def __init__(self,
-                 api_filename,
-                 output_filename,
-                 validate=True):
+    def __init__(self):
         self.__python = os.path.normpath(sys.executable)
-        self.__python_dir = os.path.dirname(self.__python)
         self._content = {}
         self._includes = {}
         self._resolved = []
-        self._validate = validate
-        self._output_filename = output_filename
-        api_filename = os.path.normpath(os.path.abspath(api_filename))
-        self._base_dir = os.path.dirname(api_filename)
-        self._api_filename = os.path.basename(api_filename)
         self._install_dependencies()
 
     def _install_dependencies(self):
@@ -50,38 +41,42 @@ class Bundler(object):
             process.wait()
 
     def bundle(self):
-        self._bundle(self._base_dir, self._api_filename, self._output_filename)
-        return self
-
-    def validate(self):
-        self._validate_file()
-        return self
-
-    def _bundle(self, base_dir, api_filename, output_filename):
-        """Start at the file that contains the paths and bundle all 
-        dependent files into one openapi.yaml file.
-        """
-        print('bundling started')
-        self._read_file(base_dir, api_filename)
+        output_dir = os.path.dirname(__file__)
+        self._output_filename = os.path.join(output_dir, 'openapi.yaml')
+        self._json_filename = os.path.join(output_dir, 'openapi.json')
+        self._content = {}
+        self._includes = {}
+        self._resolved = []
+        apis = [
+            './api/info.yaml',
+            './api/api.yaml',
+            './api/advanced-metrics.yaml'
+        ]
+        for api_filename in apis:
+            api_filename = os.path.normpath(os.path.abspath(api_filename))
+            self._base_dir = os.path.dirname(api_filename)
+            self._api_filename = os.path.basename(api_filename)
+            self._read_file(self._base_dir, self._api_filename)
         self._resolve_x_include()
         self._resolve_x_pattern('x-field-pattern')
         self._resolve_x_pattern('x-device-pattern')
         self._resolve_strings(self._content)
-        with open(self._output_filename, 'w') as fid:
-            yaml.dump(self._content,
-                      fid,
-                      indent=2,
-                      allow_unicode=True,
-                      line_break='\n',
-                      sort_keys=False)
-        with open('openapi.json', 'w') as fp:
-            fp.write(json.dumps(self._content, indent=4))         
-        print('bundling complete')
+        with open(self._output_filename, 'w') as fp:
+            yaml.dump(self._content, fp, indent=2, allow_unicode=True, line_break='\n', sort_keys=False)
+        self._validate_file()
+        with open(self._json_filename, 'w') as fp:
+            fp.write(json.dumps(self._content, indent=4))   
+        try:
+            process_args = [
+                'redoc-cli', 'bundle', 'openapi.yaml'
+            ]
+            process = subprocess.Popen(process_args, shell=True)
+            process.wait()
+        except Exception as e:
+            print('Bypassed creation of static documentation [missing redoc-cli]: {}'.format(e))
 
     def _validate_file(self):
-        if self._validate is False:
-            return
-        print('validating started')
+        print('validating {}...'.format(self._output_filename))
         with open(self._output_filename) as fid:
             yobject = yaml.safe_load(fid)
             openapi_spec_validator.validate_v3_spec(yobject)
@@ -386,10 +381,6 @@ class Bundler(object):
 
 
 if __name__ == '__main__':
-    bundler = Bundler(api_filename='./api/api.yaml',
-                      output_filename='./openapi.yaml',
-                      validate=True)
-
     import yaml
     import openapi_spec_validator
 
@@ -403,4 +394,4 @@ if __name__ == '__main__':
 
     yaml.add_representer(description, description_representer)
 
-    bundler.bundle().validate()
+    Bundler().bundle()

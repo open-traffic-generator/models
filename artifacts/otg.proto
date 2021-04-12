@@ -1595,27 +1595,15 @@ message CaptureState {
   } }
 }
 
-message Bgpv4RouteState {
+message RouteState {
   repeated string names = 1;
 
   State.Enum state = 2;
 
   message State { enum Enum {
-    withdraw_routes = 0;
+    withdraw = 0;
 
-    advertise_routes = 1;
-  } }
-}
-
-message Bgpv6RouteState {
-  repeated string names = 1;
-
-  State.Enum state = 2;
-
-  message State { enum Enum {
-    withdraw_routes = 0;
-
-    advertise_routes = 1;
+    advertise = 1;
   } }
 }
 
@@ -1922,14 +1910,30 @@ message CaptureRequest {
 }
 
 message AdvancedMetricsConfig {
-  AdvancedMetricsConfigEvents events = 1;
+  Choice.Enum choice = 1;
 
-  AdvancedMetricsConfigLatency latency = 2;
+  AdvancedMetricsConfigEvents events = 2;
 
   AdvancedMetricsConfigConvergence convergence = 3;
+
+  AdvancedMetricsConfigLatency latency = 4;
+
+  message Choice { enum Enum {
+    events = 0;
+
+    convergence = 1;
+
+    latency = 2;
+  } }
 }
 
 message AdvancedMetricsConfigEvents {
+  bool enable = 1;
+
+  float rx_rate_threshold = 2;
+}
+
+message AdvancedMetricsConfigConvergence {
   bool enable = 1;
 
   float rx_rate_threshold = 2;
@@ -1947,10 +1951,6 @@ message AdvancedMetricsConfigLatency {
   } }
 }
 
-message AdvancedMetricsConfigConvergence {
-  bool enable = 1;
-}
-
 message AdvancedMetricsRequest {
   Choice.Enum choice = 1;
 
@@ -1958,14 +1958,14 @@ message AdvancedMetricsRequest {
 
   AdvancedMetricsLatencyRequest latency = 3;
 
-  AdvancedMetricsBgpConvergenceRequest bgp_convergence = 4;
+  AdvancedMetricsConvergenceRequest convergence = 4;
 
   message Choice { enum Enum {
     event = 0;
 
     latency = 1;
 
-    bgp_convergence = 2;
+    convergence = 2;
   } }
 }
 
@@ -1997,16 +1997,18 @@ message AdvancedMetricsLatencyRequest {
   repeated string flow_names = 1;
 }
 
-message AdvancedMetricsBgpConvergenceRequest {
+message AdvancedMetricsConvergenceRequest {
   repeated string flow_names = 1;
 
-  repeated string route_names = 2;
+  repeated string event_sources = 2;
 }
 
 message AdvancedMetricsResponse {
-  AdvancedMetricsLatency latency = 1;
+  repeated AdvancedMetricsEvent event_metrics = 1;
 
-  AdvancedMetricsBgpConvergence bgp_convergence = 2;
+  repeated AdvancedMetricsLatency latency_metrics = 2;
+
+  repeated AdvancedMetricsConvergence convergence_metrics = 3;
 }
 
 message AdvancedMetricsLatency {
@@ -2020,19 +2022,9 @@ message AdvancedMetricsLatency {
 }
 
 message AdvancedMetricsConvergence {
-  double data_plane_convergence_ns = 1;
-
-  double data_plane_ramp_down_ns = 2;
-
-  double data_plane_ramp_up_ns = 3;
-
-  double control_plane_data_plane_convergence_ns = 4;
-}
-
-message AdvancedMetricsBgpConvergence {
   string flow_name = 1;
 
-  string route_name = 2;
+  string event_source_name = 2;
 
   Event.Enum event = 3;
 
@@ -2059,8 +2051,8 @@ message EventRequest {
   repeated string source = 1;
 }
 
-message EventOccurrence {
-  Event.Enum event = 1;
+message AdvancedMetricsEvent {
+  Type.Enum type = 1;
 
   string source = 2;
 
@@ -2068,7 +2060,7 @@ message EventOccurrence {
 
   double end_timestamp_ns = 4;
 
-  message Event { enum Enum {
+  message Type { enum Enum {
     link_down = 0;
 
     link_up = 1;
@@ -6542,6 +6534,10 @@ message SetCaptureStateParameters {
   CaptureState capture__state = 1;
 }
 
+message SetRouteStateParameters {
+  RouteState route__state = 1;
+}
+
 message GetMetricsParameters {
   MetricsRequest metrics__request = 1;
 }
@@ -6585,6 +6581,10 @@ service Openapi {
 
   rpc SetCaptureState ( SetCaptureStateParameters ) returns ( Details ) {
 //     option (google.api.http) = { post:"/control/capture"  };
+  }
+
+  rpc SetRouteState ( SetRouteStateParameters ) returns ( Details ) {
+//     option (google.api.http) = { post:"/control/routes"  };
   }
 
   rpc GetMetrics ( GetMetricsParameters ) returns ( MetricsResponse ) {

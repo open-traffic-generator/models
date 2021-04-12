@@ -130,6 +130,26 @@ paths:
           $ref: '#/components/responses/Conflict'
         '590':
           $ref: '#/components/responses/Fail'
+  /control/routes:
+    post:
+      tags:
+      - Traffic Generator
+      operationId: set_route_state
+      description: |-
+        Updates the state of configuration device resources on the traffic generator.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Route.State'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '590':
+          $ref: '#/components/responses/Fail'
   /results/metrics:
     description: |-
       Traffic metrics API
@@ -250,7 +270,7 @@ paths:
                 content:
                   application/json:
                     schema:
-                      $ref: '#/components/schemas/Event.Occurrence'
+                      $ref: '#/components/schemas/AdvancedMetrics.Event'
               responses:
                 '200':
                   $ref: '#/components/responses/Success'
@@ -2996,50 +3016,28 @@ components:
           enum:
           - start
           - stop
-    Bgpv4.Route.State:
+    Route.State:
       description: |-
-        BGPv4 route specific action
+        Sets the device route state
       type: object
       required:
       - state
       properties:
         names:
           description: |-
-            The names of Bgpv4RouteRange object to control.
+            The names of device route objects to control. If no names are specified then all route objects will be affected.
           type: array
           items:
             type: string
             x-constraint:
-            - /components/schemas/Device.Bgpv4RouteRange/properties/name
+            - /components/schemas/Device.Bgp.Route/properties/name
         state:
           description: |-
-            BGPv4 route specific state
+            Route specific states
           type: string
           enum:
-          - withdraw_routes
-          - advertise_routes
-    Bgpv6.Route.State:
-      description: |-
-        BGPv6 route specific action
-      type: object
-      required:
-      - state
-      properties:
-        names:
-          description: |-
-            The names of Bgpv6RouteRange object to control.
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - /components/schemas/Device.Bgpv6RouteRange/properties/name
-        state:
-          description: |-
-            BGPv6 route specific state
-          type: string
-          enum:
-          - withdraw_routes
-          - advertise_routes
+          - withdraw
+          - advertise
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice
@@ -3473,24 +3471,50 @@ components:
       description: |-
         The container for advanced metrics configuration.
       type: object
+      required:
+      - choice
       properties:
+        choice:
+          type: string
+          enum:
+          - events
+          - convergence
+          - latency
         events:
           $ref: '#/components/schemas/AdvancedMetrics.Config.Events'
-        latency:
-          $ref: '#/components/schemas/AdvancedMetrics.Config.Latency'
         convergence:
           $ref: '#/components/schemas/AdvancedMetrics.Config.Convergence'
+        latency:
+          $ref: '#/components/schemas/AdvancedMetrics.Config.Latency'
     AdvancedMetrics.Config.Events:
       type: object
       properties:
         enable:
-          description: "True to enable event metrics. \nSee the #/components/schemas/Event.Occurence/properties/event\n\
+          description: "True to enable raw event metrics. \nSee the #/components/schemas/Event.Occurence/properties/event\n\
             property for a list of all possible types of events."
           type: boolean
           default: false
         rx_rate_threshold:
           description: |-
-            An Event.Occurence will be generated when the rx rate passes
+            An event will be generated when the rx rate passes
+            above or below this value.
+          type: number
+          maximum: 100
+          format: float
+          default: 95
+    AdvancedMetrics.Config.Convergence:
+      description: |-
+        The optional container for convergence configuration options.
+      type: object
+      properties:
+        enable:
+          description: "True to enable convergence metrics. \nSee the #/components/schemas/Event.Occurence/properties/event\n\
+            property for a list of all possible types of events."
+          type: boolean
+          default: false
+        rx_rate_threshold:
+          description: |-
+            An event will be generated when the rx rate passes
             above or below this value.
           type: number
           maximum: 100
@@ -3505,27 +3529,19 @@ components:
           type: boolean
           default: false
         mode:
-          description: |-
-            Select the type of latency measurement. The different types of  latency measurements are:
-
-            store_forward: The time interval starting when the last bit of the frame leaves the sending port and ending when the first bit of the frame is seen on the receiving port (LIFO).  This is based on the RFC 1242 standard.
-
-            cut_through: The time interval starting when the first bit of the frame leaves the sending port and ending when the first bit of the frame is seen on the receiving port (FIFO).  This is based on the RFC 1242  standard.
+          description: "Select the type of latency measurement. The different types\
+            \ of \nlatency measurements are:\n\n\nstore_forward:\nThe time interval\
+            \ starting when the last bit of the frame leaves the\nsending port and\
+            \ ending when the first bit of the frame is seen on\nthe receiving port\
+            \ (LIFO).  This is based on the RFC 1242 standard.\n\n\ncut_through:\n\
+            The time interval starting when the first bit of the frame leaves\nthe\
+            \ sending port and ending when the first bit of the frame is seen\non\
+            \ the receiving port (FIFO).  This is based on the RFC 1242 \nstandard."
           type: string
           enum:
           - store_forward
           - cut_through
           default: store_forward
-    AdvancedMetrics.Config.Convergence:
-      description: |-
-        The container for convergence configuration options.
-      type: object
-      properties:
-        enable:
-          description: |-
-            True to enable convergence metrics
-          type: boolean
-          default: false
     AdvancedMetrics.Request:
       type: object
       properties:
@@ -3534,18 +3550,18 @@ components:
           enum:
           - event
           - latency
-          - bgp_convergence
+          - convergence
         event:
           $ref: '#/components/schemas/AdvancedMetrics.Event.Request'
         latency:
           $ref: '#/components/schemas/AdvancedMetrics.Latency.Request'
-        bgp_convergence:
-          $ref: '#/components/schemas/AdvancedMetrics.BgpConvergence.Request'
+        convergence:
+          $ref: '#/components/schemas/AdvancedMetrics.Convergence.Request'
     AdvancedMetrics.Event.Request:
       type: object
       properties:
         source:
-          description: "The source of the event.  If the list is empty then all events\
+          description: "The source of the event. \nIf the list is empty then all events\
             \ will be returned. "
           type: array
           items:
@@ -3582,7 +3598,7 @@ components:
             type: string
             x-constraint:
             - /components/schemas/Flow/properties/name
-    AdvancedMetrics.BgpConvergence.Request:
+    AdvancedMetrics.Convergence.Request:
       type: object
       properties:
         flow_names:
@@ -3593,7 +3609,7 @@ components:
             - /components/schemas/Flow/properties/name
             example:
             - Tx Port -> Rx Port
-        route_names:
+        event_sources:
           type: array
           items:
             type: string
@@ -3604,20 +3620,27 @@ components:
     AdvancedMetrics.Response:
       type: object
       properties:
-        latency:
+        event_metrics:
           type: array
-          $ref: '#/components/schemas/AdvancedMetrics.Latency'
-        bgp_convergence:
+          items:
+            $ref: '#/components/schemas/AdvancedMetrics.Event'
+        latency_metrics:
           type: array
-          $ref: '#/components/schemas/AdvancedMetrics.BgpConvergence'
+          items:
+            $ref: '#/components/schemas/AdvancedMetrics.Latency'
+        convergence_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdvancedMetrics.Convergence'
     AdvancedMetrics.Latency:
-      description: |-
-        The container for latency metrics. The min/max/avg values are dependent  on the type of latency measurement mode that is configured.
+      description: "The container for latency metrics. The min/max/avg values are\
+        \ dependent \non the type of latency measurement mode that is configured."
       type: object
       properties:
         flow_name:
           description: |-
-            The name of the source. Flow + metric group?
+            The name of the source.
+            Flow + metric group?
           type: string
           example: Tx Port -> Rx Port
         minimum_ns:
@@ -3640,29 +3663,6 @@ components:
         The container for data plane and control plane convergence metrics
       type: object
       properties:
-        data_plane_convergence_ns:
-          description: |-
-            The convergence time measured from the data plane perspective only.  It measures the time from BTT, when the rate on Test Port 2 crosses  below the Rx Threshold until an acceptable amount of traffic was  received at time ATT, when the rate crosses above the Rx Threshold.
-          type: number
-          format: double
-        data_plane_ramp_down_ns:
-          description: |-
-            The time required for the SUT to stop forwarding traffic, measured  from a data plane perspective only. It measures the time from BTT,  when the rate on Test Port 2 crosses below the Rx Threshold until  the rate drops to zero.
-          type: number
-          format: double
-        data_plane_ramp_up_ns:
-          description: |-
-            The time required for the SUT to forwarding traffic, measured from  a data plane perspective only. It measures the time from the start  of traffic until the rate on Test Port 3 crosses above the Rx  Threshold.
-          type: number
-          format: double
-        control_plane_data_plane_convergence_ns:
-          description: |-
-            The total convergence time, between the event that caused the switchover (at tEvent) until an acceptable amount of traffic was  received at time ATT, when the rate crosses above the Rx Threshold.
-          type: number
-          format: double
-    AdvancedMetrics.BgpConvergence:
-      type: object
-      properties:
         flow_name:
           description: |-
             The name of the flow that is affected by the trigger event.
@@ -3670,7 +3670,7 @@ components:
           x-constraint:
           - /components/schemas/Flow/properties/name
           example: Tx Port -> Rx Port
-        route_name:
+        event_source_name:
           description: |-
             The name of the BGP IPv4/IPv6 route that produced the trigger event.
           type: string
@@ -3696,32 +3696,37 @@ components:
           type: number
           format: double
         data_plane_convergence_ns:
-          description: |-
-            The convergence time measured from the data plane perspective only.  It measures the time from BTT, when the rate on Test Port 2 crosses  below the Rx Threshold until an acceptable amount of traffic was  received at time ATT, when the rate crosses above the Rx Threshold.
+          description: "The convergence time measured from the data plane perspective\
+            \ only. \nIt measures the time from BTT, when the rate on Test Port 2\
+            \ crosses \nbelow the Rx Threshold until an acceptable amount of traffic\
+            \ was \nreceived at time ATT, when the rate crosses above the Rx Threshold."
           type: number
           format: double
         data_plane_ramp_down_ns:
-          description: |-
-            The time required for the SUT to stop forwarding traffic, measured  from a data plane perspective only. It measures the time from BTT,  when the rate on Test Port 2 crosses below the Rx Threshold until  the rate drops to zero.
+          description: "The time required for the SUT to stop forwarding traffic,\
+            \ measured \nfrom a data plane perspective only. It measures the time\
+            \ from BTT, \nwhen the rate on Test Port 2 crosses below the Rx Threshold\
+            \ until \nthe rate drops to zero."
           type: number
           format: double
         data_plane_ramp_up_ns:
-          description: |-
-            The time required for the SUT to forwarding traffic, measured from  a data plane perspective only. It measures the time from the start  of traffic until the rate on Test Port 3 crosses above the Rx  Threshold.
+          description: "The time required for the SUT to forwarding traffic, measured\
+            \ from \na data plane perspective only. It measures the time from the\
+            \ start \nof traffic until the rate on Test Port 3 crosses above the Rx\
+            \ \nThreshold."
           type: number
           format: double
         control_plane_data_plane_convergence_ns:
-          description: |-
-            The total convergence time, between the event that caused the switchover (at tEvent) until an acceptable amount of traffic was  received at time ATT, when the rate crosses above the Rx Threshold.
+          description: "The total convergence time, between the event that caused\
+            \ the\nswitchover (at tEvent) until an acceptable amount of traffic was\
+            \ \nreceived at time ATT, when the rate crosses above the Rx Threshold."
           type: number
           format: double
-      description: |-
-        The container for data plane and control plane convergence metrics
     Event.Request:
       type: object
       properties:
         source:
-          description: "The source of the event.  If the list is empty then all events\
+          description: "The source of the event. \nIf the list is empty then all events\
             \ will be returned. "
           type: array
           items:
@@ -3730,12 +3735,12 @@ components:
             - '#/components/schemas/Port/properties/name'
             - '#/components/schemas/Device.Bgpv4Route/name'
             - '#/components/schemas/Device.Bgpv6Route/name'
-    Event.Occurrence:
+    AdvancedMetrics.Event:
       description: |-
         A container for an event that has occurred in the system.
       type: object
       properties:
-        event:
+        type:
           description: |-
             The type of event that occurred.
           type: string
@@ -3750,8 +3755,8 @@ components:
           - flow_rx_rate_below_threshold
           example: bgpv4_route_withdraw
         source:
-          description: "The source of the event.  The source MUST be the value of\
-            \ one of the x-constraint paths, which means the source MUST be a unique\
+          description: "The source of the event. \nThe source MUST be the value of\
+            \ one of the x-constraint paths,\nwhich means the source MUST be a unique\
             \ name in the configuration. "
           type: string
           x-constraint:
@@ -3772,12 +3777,15 @@ components:
           format: double
     Event.Subscription:
       description: "A container that describes what events a system should provide\
-        \ and  optionally where to publish them.  "
+        \ and \noptionally where to publish them.  "
       type: object
       properties:
         callbackUrl:
           description: |-
-            Indicates where a client wants to be notified of the events set in the events property. If this property is empty or null then no event notifications will be forwarded.
+            Indicates where a client wants to be notified of the events set in
+            the events property.
+            If this property is empty or null then no event notifications will
+            be forwarded.
           type: string
           format: uri
           example: https://127.0.0.1/event/notification

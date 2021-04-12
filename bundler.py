@@ -20,8 +20,8 @@ class Bundler(object):
     
     Args
     ----
-        api_filename (str): The filename of the toplevel API
-        output_filename (str): The filename of the resolved API
+        output_dir (str): The directory where files will be output
+        api_files (str): The top level api files
     """
     class description(str):
         pass
@@ -29,7 +29,9 @@ class Bundler(object):
     def description_representer(dumper, data):
         return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
 
-    def __init__(self):
+    def __init__(self, output_dir, api_files):
+        self._output_dir = output_dir
+        self._api_files = api_files
         self.__python = os.path.normpath(sys.executable)
         self._content = {}
         self._includes = {}
@@ -51,18 +53,12 @@ class Bundler(object):
 
     def bundle(self):
         import yaml
-        output_dir = os.path.dirname(__file__)
-        self._output_filename = os.path.join(output_dir, 'openapi.yaml')
-        self._json_filename = os.path.join(output_dir, 'openapi.json')
+        self._output_filename = os.path.join(self._output_dir, 'openapi.yaml')
+        self._json_filename = os.path.join(self._output_dir, 'openapi.json')
         self._content = {}
         self._includes = {}
         self._resolved = []
-        apis = [
-            './api/info.yaml',
-            './api/api.yaml',
-            './api/advanced-metrics.yaml'
-        ]
-        for api_filename in apis:
+        for api_filename in self._api_files:
             api_filename = os.path.normpath(os.path.abspath(api_filename))
             self._base_dir = os.path.dirname(api_filename)
             self._api_filename = os.path.basename(api_filename)

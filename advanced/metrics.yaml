@@ -2,84 +2,29 @@ components:
   schemas:
     AdvancedMetrics.Request:
       type: object
+      required: [flow_names, metric]
       properties:
-        choice:
+        flow_names:
+          type: array
+          items:
+            type: string
+            x-constraint:
+            - '/components/schemas/Flow/properties/name'
+        metric:
           type: string
-          enum: [event, latency, convergence]
-        event:
-          $ref: '#/components/schemas/AdvancedMetrics.Event.Request'
-        latency:
-          $ref: '#/components/schemas/AdvancedMetrics.Latency.Request'
-        convergence:
-          $ref: '#/components/schemas/AdvancedMetrics.Convergence.Request'
-
-    AdvancedMetrics.Event.Request:
-      type: object
-      properties:
-        source:
-          description: |-
-            The source of the event. 
-            If the list is empty then all events will be returned. 
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - '#/components/schemas/Port/properties/name'
-            - '#/components/schemas/Device.Bgpv4Route/name'
-            - '#/components/schemas/Device.Bgpv6Route/name'
-            example: ['BGP Route Range 1', 'Rx Port 1']
-        event:
-          description: |-
-            The type of event.
-            If the list is empty then all event types will be returned.
-          type: array
-          items:
-            type: string
-            enum:
-            - link_down
-            - link_up
-            - bgpv4_route_withdraw
-            - bgpv4_route_advertise
-            - bgpv6_route_withdraw
-            - bgpv6_route_advertise
-            - flow_rx_rate_above_threshold
-            - flow_rx_rate_below_threshold
-
-    AdvancedMetrics.Latency.Request:
-      type: object
-      properties:
-        flow_names:
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - '/components/schemas/Flow/properties/name'
-
-    AdvancedMetrics.Convergence.Request:
-      type: object
-      properties:
-        flow_names:
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - '/components/schemas/Flow/properties/name'
-            example: ['Tx Port -> Rx Port']
-        event_sources:
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - '/components/schemas/Device.BgpRoute/properties/name'
-            example: ['BGP Route Range 1']
+          enum: [timestamps, latency, convergence]
+          default: timestamps
 
     AdvancedMetrics.Response:
       type: object
       properties:
-        event_metrics:
+        choice:
+          type: string
+          enum: [timestamp_metrics, latency_metrics, convergence_metrics]
+        timestamp_metrics:
           type: array
           items:
-            $ref: './event.yaml#/components/schemas/AdvancedMetrics.Event'
+            $ref: '#/components/schemas/AdvancedMetrics.Timestamp'
         latency_metrics:
           type: array
           items:
@@ -88,6 +33,28 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AdvancedMetrics.Convergence'
+
+    AdvancedMetrics.Timestamp:
+      description: |-
+        The container for timestamp metrics.
+      type: object
+      properties:
+        flow_name:
+          description: |-
+            The name of the source.
+            Flow + metric group?
+          type: string
+          example: 'Tx Port -> Rx Port'
+        first_timestamp_ns:
+          description: |-
+            First timestamp in nanoseconds
+          type: number
+          format: double
+        last_timestamp_ns:
+          description: |-
+            Last timestamp in nanoseconds
+          type: number
+          format: double
 
     AdvancedMetrics.Latency:
       description: |-
@@ -129,31 +96,6 @@ components:
           x-constraint:
           - '/components/schemas/Flow/properties/name'
           example: 'Tx Port -> Rx Port'
-        event_source_name:
-          description: |-
-            The name of the BGP IPv4/IPv6 route that produced the trigger event.
-          type: string
-          x-constraint:
-          - '/components/schemas/Device.BgpRoute/properties/name'
-          example: 'BGP Route Range 1'
-        event:
-          description: |-
-            The type of event that triggered the BGP convergence.
-          type: string
-          enum:
-          - route_advertise
-          - route_withdraw
-          example: 'route_withdraw'
-        event_begin_ns:
-          description: |-
-            The timestamp of when the event began.
-          type: number
-          format: double
-        event_end_ns:
-          description: |-
-            The timestamp of when the event ended.
-          type: number
-          format: double
         data_plane_convergence_ns:
           description: |-
             The convergence time measured from the data plane perspective only. 
@@ -162,26 +104,16 @@ components:
             received at time ATT, when the rate crosses above the Rx Threshold.
           type: number
           format: double
-        data_plane_ramp_down_ns:
-          description: |-
-            The time required for the SUT to stop forwarding traffic, measured 
-            from a data plane perspective only. It measures the time from BTT, 
-            when the rate on Test Port 2 crosses below the Rx Threshold until 
-            the rate drops to zero.
-          type: number
-          format: double
-        data_plane_ramp_up_ns:
-          description: |-
-            The time required for the SUT to forwarding traffic, measured from 
-            a data plane perspective only. It measures the time from the start 
-            of traffic until the rate on Test Port 3 crosses above the Rx 
-            Threshold.
-          type: number
-          format: double
         control_plane_data_plane_convergence_ns:
           description: |-
             The total convergence time, between the event that caused the
             switchover (at tEvent) until an acceptable amount of traffic was 
             received at time ATT, when the rate crosses above the Rx Threshold.
+          type: number
+          format: double
+        service_interruption_time_ns:
+          description: |-
+            Service interruption time is the flow_rx_rate_above_threshold - the
+            flow_rx_rate_below_threshold.
           type: number
           format: double

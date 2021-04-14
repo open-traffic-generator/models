@@ -9,7 +9,8 @@ bundler = Bundler(
     api_files=[
         './api/info.yaml',
         './api/api.yaml',
-        './api/advanced-metrics.yaml']
+        './api/advanced-metrics.yaml',
+        './api/advanced-events.yaml']
 )
 
 bundler.bundle()

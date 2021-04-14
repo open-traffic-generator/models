@@ -229,6 +229,8 @@ paths:
           $ref: '#/components/responses/Conflict'
         '590':
           $ref: '#/components/responses/Fail'
+        '591':
+          $ref: '#/components/responses/NotSupported'
   /advanced/metrics:
     post:
       tags:
@@ -250,13 +252,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdvancedMetrics.Response'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '590':
+          $ref: '#/components/responses/Fail'
+        '591':
+          $ref: '#/components/responses/NotSupported'
   /event/subscribe:
     post:
       tags:
-      - Advanced Metrics
+      - Advanced Events
       operationId: subscribe_event
       description: |-
-        A consumer can provide an endpoint to receive notifications of events.
+        An API for subscribing to event notifications.
       requestBody:
         content:
           application/json:
@@ -266,17 +274,25 @@ paths:
         event_notification:
           '{$request.body#/callbackUrl}':
             post:
+              description: |-
+                The event notification that will be streamed to the subscriber.
               requestBody:
                 content:
                   application/json:
                     schema:
-                      $ref: '#/components/schemas/AdvancedMetrics.Event'
+                      $ref: '#/components/schemas/Event'
               responses:
                 '200':
                   $ref: '#/components/responses/Success'
       responses:
         '200':
           $ref: '#/components/responses/Success'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '590':
+          $ref: '#/components/responses/Fail'
+        '591':
+          $ref: '#/components/responses/NotSupported'
 components:
   responses:
     Success:
@@ -306,6 +322,13 @@ components:
     Fail:
       description: |-
         The request has failed. Detailed errors will be returned as a list.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Details'
+    NotSupported:
+      description: |-
+        The request is not supported. Detailed errors will be returned as a list.
       content:
         application/json:
           schema:
@@ -3473,40 +3496,34 @@ components:
       description: |-
         The container for advanced metrics configuration.
       type: object
-      required:
-      - choice
       properties:
-        choice:
-          type: string
-          enum:
-          - events
-          - convergence
-          - latency
-        events:
-          $ref: '#/components/schemas/AdvancedMetrics.Config.Events'
+        timestamps:
+          $ref: '#/components/schemas/AdvancedMetrics.Config.Timestamp'
         convergence:
           $ref: '#/components/schemas/AdvancedMetrics.Config.Convergence'
         latency:
           $ref: '#/components/schemas/AdvancedMetrics.Config.Latency'
-    AdvancedMetrics.Config.Events:
+    AdvancedMetrics.Config.Timestamp:
+      description: |-
+        The optional container for timestamp metric configuration.
       type: object
       properties:
         enable:
-          description: "True to enable raw event metrics. \nSee the #/components/schemas/Event.Occurence/properties/event\n\
-            property for a list of all possible types of events."
+          description: "True to enable timestamp metrics. "
           type: boolean
           default: false
-        rx_rate_threshold:
+        synchronization:
           description: |-
-            An event will be generated when the rx rate passes
-            above or below this value.
-          type: number
-          maximum: 100
-          format: float
-          default: 95
+            Timestamps will be synchronized to either the system clock or offset
+            from the start of the flow.
+          type: string
+          enum:
+          - start_of_flow
+          - system_clock
+          default: start_of_flow
     AdvancedMetrics.Config.Convergence:
       description: |-
-        The optional container for convergence configuration options.
+        The optional container for convergence metric configuration.
       type: object
       properties:
         enable:
@@ -3523,6 +3540,8 @@ components:
           format: float
           default: 95
     AdvancedMetrics.Config.Latency:
+      description: |-
+        The optional container for latency metric configuration.
       type: object
       properties:
         enable:
@@ -3546,86 +3565,36 @@ components:
           default: store_forward
     AdvancedMetrics.Request:
       type: object
+      required:
+      - flow_names
+      - metric
+      properties:
+        flow_names:
+          type: array
+          items:
+            type: string
+            x-constraint:
+            - /components/schemas/Flow/properties/name
+        metric:
+          type: string
+          enum:
+          - timestamps
+          - latency
+          - convergence
+          default: timestamps
+    AdvancedMetrics.Response:
+      type: object
       properties:
         choice:
           type: string
           enum:
-          - event
-          - latency
-          - convergence
-        event:
-          $ref: '#/components/schemas/AdvancedMetrics.Event.Request'
-        latency:
-          $ref: '#/components/schemas/AdvancedMetrics.Latency.Request'
-        convergence:
-          $ref: '#/components/schemas/AdvancedMetrics.Convergence.Request'
-    AdvancedMetrics.Event.Request:
-      type: object
-      properties:
-        source:
-          description: "The source of the event. \nIf the list is empty then all events\
-            \ will be returned. "
+          - timestamp_metrics
+          - latency_metrics
+          - convergence_metrics
+        timestamp_metrics:
           type: array
           items:
-            type: string
-            x-constraint:
-            - '#/components/schemas/Port/properties/name'
-            - '#/components/schemas/Device.Bgpv4Route/name'
-            - '#/components/schemas/Device.Bgpv6Route/name'
-            example:
-            - BGP Route Range 1
-            - Rx Port 1
-        event:
-          description: |-
-            The type of event.
-            If the list is empty then all event types will be returned.
-          type: array
-          items:
-            type: string
-            enum:
-            - link_down
-            - link_up
-            - bgpv4_route_withdraw
-            - bgpv4_route_advertise
-            - bgpv6_route_withdraw
-            - bgpv6_route_advertise
-            - flow_rx_rate_above_threshold
-            - flow_rx_rate_below_threshold
-    AdvancedMetrics.Latency.Request:
-      type: object
-      properties:
-        flow_names:
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - /components/schemas/Flow/properties/name
-    AdvancedMetrics.Convergence.Request:
-      type: object
-      properties:
-        flow_names:
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - /components/schemas/Flow/properties/name
-            example:
-            - Tx Port -> Rx Port
-        event_sources:
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - /components/schemas/Device.BgpRoute/properties/name
-            example:
-            - BGP Route Range 1
-    AdvancedMetrics.Response:
-      type: object
-      properties:
-        event_metrics:
-          type: array
-          items:
-            $ref: '#/components/schemas/AdvancedMetrics.Event'
+            $ref: '#/components/schemas/AdvancedMetrics.Timestamp'
         latency_metrics:
           type: array
           items:
@@ -3634,6 +3603,27 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AdvancedMetrics.Convergence'
+    AdvancedMetrics.Timestamp:
+      description: |-
+        The container for timestamp metrics.
+      type: object
+      properties:
+        flow_name:
+          description: |-
+            The name of the source.
+            Flow + metric group?
+          type: string
+          example: Tx Port -> Rx Port
+        first_timestamp_ns:
+          description: |-
+            First timestamp in nanoseconds
+          type: number
+          format: double
+        last_timestamp_ns:
+          description: |-
+            Last timestamp in nanoseconds
+          type: number
+          format: double
     AdvancedMetrics.Latency:
       description: "The container for latency metrics. The min/max/avg values are\
         \ dependent \non the type of latency measurement mode that is configured."
@@ -3672,50 +3662,11 @@ components:
           x-constraint:
           - /components/schemas/Flow/properties/name
           example: Tx Port -> Rx Port
-        event_source_name:
-          description: |-
-            The name of the BGP IPv4/IPv6 route that produced the trigger event.
-          type: string
-          x-constraint:
-          - /components/schemas/Device.BgpRoute/properties/name
-          example: BGP Route Range 1
-        event:
-          description: |-
-            The type of event that triggered the BGP convergence.
-          type: string
-          enum:
-          - route_advertise
-          - route_withdraw
-          example: route_withdraw
-        event_begin_ns:
-          description: |-
-            The timestamp of when the event began.
-          type: number
-          format: double
-        event_end_ns:
-          description: |-
-            The timestamp of when the event ended.
-          type: number
-          format: double
         data_plane_convergence_ns:
           description: "The convergence time measured from the data plane perspective\
             \ only. \nIt measures the time from BTT, when the rate on Test Port 2\
             \ crosses \nbelow the Rx Threshold until an acceptable amount of traffic\
             \ was \nreceived at time ATT, when the rate crosses above the Rx Threshold."
-          type: number
-          format: double
-        data_plane_ramp_down_ns:
-          description: "The time required for the SUT to stop forwarding traffic,\
-            \ measured \nfrom a data plane perspective only. It measures the time\
-            \ from BTT, \nwhen the rate on Test Port 2 crosses below the Rx Threshold\
-            \ until \nthe rate drops to zero."
-          type: number
-          format: double
-        data_plane_ramp_up_ns:
-          description: "The time required for the SUT to forwarding traffic, measured\
-            \ from \na data plane perspective only. It measures the time from the\
-            \ start \nof traffic until the rate on Test Port 3 crosses above the Rx\
-            \ \nThreshold."
           type: number
           format: double
         control_plane_data_plane_convergence_ns:
@@ -3724,12 +3675,32 @@ components:
             \ \nreceived at time ATT, when the rate crosses above the Rx Threshold."
           type: number
           format: double
+        service_interruption_time_ns:
+          description: |-
+            Service interruption time is the flow_rx_rate_above_threshold - the
+            flow_rx_rate_below_threshold.
+          type: number
+          format: double
     Event.Request:
       type: object
       properties:
+        type:
+          description: "Constrain the events being returned by specifying event types.\n\
+            If the list is empty then all event types will be returned. "
+          type: array
+          items:
+            type: string
+            enum:
+            - link_down
+            - link_up
+            - route_withdraw
+            - route_advertise
+            - flow_rx_rate_above_threshold
+            - flow_rx_rate_below_threshold
+            example: route_withdraw
         source:
-          description: "The source of the event. \nIf the list is empty then all events\
-            \ will be returned. "
+          description: "Constrain the events being returned by specifying event sources.\
+            \ \nIf the list is empty then all event sources will be returned. "
           type: array
           items:
             type: string
@@ -3737,7 +3708,7 @@ components:
             - '#/components/schemas/Port/properties/name'
             - '#/components/schemas/Device.Bgpv4Route/name'
             - '#/components/schemas/Device.Bgpv6Route/name'
-    AdvancedMetrics.Event:
+    Event:
       description: |-
         A container for an event that has occurred in the system.
       type: object
@@ -3780,8 +3751,8 @@ components:
         \ and \noptionally where to publish them.  "
       type: object
       properties:
-        metrics:
-          $ref: '#/components/schemas/AdvancedMetrics.Request'
+        events:
+          $ref: '#/components/schemas/Event.Request'
         callbackUrl:
           description: |-
             Indicates where a client wants to be notified of the events set in

@@ -1912,27 +1912,23 @@ message CaptureRequest {
 }
 
 message AdvancedMetricsConfig {
-  Choice.Enum choice = 1;
+  AdvancedMetricsConfigTimestamp timestamps = 1;
 
-  AdvancedMetricsConfigEvents events = 2;
+  AdvancedMetricsConfigConvergence convergence = 2;
 
-  AdvancedMetricsConfigConvergence convergence = 3;
-
-  AdvancedMetricsConfigLatency latency = 4;
-
-  message Choice { enum Enum {
-    events = 0;
-
-    convergence = 1;
-
-    latency = 2;
-  } }
+  AdvancedMetricsConfigLatency latency = 3;
 }
 
-message AdvancedMetricsConfigEvents {
+message AdvancedMetricsConfigTimestamp {
   bool enable = 1;
 
-  float rx_rate_threshold = 2;
+  Synchronization.Enum synchronization = 2;
+
+  message Synchronization { enum Enum {
+    start_of_flow = 0;
+
+    system_clock = 1;
+  } }
 }
 
 message AdvancedMetricsConfigConvergence {
@@ -1954,16 +1950,12 @@ message AdvancedMetricsConfigLatency {
 }
 
 message AdvancedMetricsRequest {
-  Choice.Enum choice = 1;
+  repeated string flow_names = 1;
 
-  AdvancedMetricsEventRequest event = 2;
+  Metric.Enum metric = 2;
 
-  AdvancedMetricsLatencyRequest latency = 3;
-
-  AdvancedMetricsConvergenceRequest convergence = 4;
-
-  message Choice { enum Enum {
-    event = 0;
+  message Metric { enum Enum {
+    timestamps = 0;
 
     latency = 1;
 
@@ -1971,46 +1963,30 @@ message AdvancedMetricsRequest {
   } }
 }
 
-message AdvancedMetricsEventRequest {
-  repeated string source = 1;
+message AdvancedMetricsResponse {
+  Choice.Enum choice = 1;
 
-  repeated Event event = 2;
+  repeated AdvancedMetricsTimestamp timestamp_metrics = 2;
 
-  message Event { enum Enum {
-    link_down = 0;
+  repeated AdvancedMetricsLatency latency_metrics = 3;
 
-    link_up = 1;
+  repeated AdvancedMetricsConvergence convergence_metrics = 4;
 
-    bgpv4_route_withdraw = 2;
+  message Choice { enum Enum {
+    timestamp_metrics = 0;
 
-    bgpv4_route_advertise = 3;
+    latency_metrics = 1;
 
-    bgpv6_route_withdraw = 4;
-
-    bgpv6_route_advertise = 5;
-
-    flow_rx_rate_above_threshold = 6;
-
-    flow_rx_rate_below_threshold = 7;
+    convergence_metrics = 2;
   } }
 }
 
-message AdvancedMetricsLatencyRequest {
-  repeated string flow_names = 1;
-}
+message AdvancedMetricsTimestamp {
+  string flow_name = 1;
 
-message AdvancedMetricsConvergenceRequest {
-  repeated string flow_names = 1;
+  double first_timestamp_ns = 2;
 
-  repeated string event_sources = 2;
-}
-
-message AdvancedMetricsResponse {
-  repeated AdvancedMetricsEvent event_metrics = 1;
-
-  repeated AdvancedMetricsLatency latency_metrics = 2;
-
-  repeated AdvancedMetricsConvergence convergence_metrics = 3;
+  double last_timestamp_ns = 3;
 }
 
 message AdvancedMetricsLatency {
@@ -2026,34 +2002,34 @@ message AdvancedMetricsLatency {
 message AdvancedMetricsConvergence {
   string flow_name = 1;
 
-  string event_source_name = 2;
+  double data_plane_convergence_ns = 2;
 
-  Event.Enum event = 3;
+  double control_plane_data_plane_convergence_ns = 3;
 
-  double event_begin_ns = 4;
-
-  double event_end_ns = 5;
-
-  double data_plane_convergence_ns = 6;
-
-  double data_plane_ramp_down_ns = 7;
-
-  double data_plane_ramp_up_ns = 8;
-
-  double control_plane_data_plane_convergence_ns = 9;
-
-  message Event { enum Enum {
-    route_advertise = 0;
-
-    route_withdraw = 1;
-  } }
+  double service_interruption_time_ns = 4;
 }
 
 message EventRequest {
-  repeated string source = 1;
+  repeated Type type = 1;
+
+  repeated string source = 2;
+
+  message Type { enum Enum {
+    link_down = 0;
+
+    link_up = 1;
+
+    route_withdraw = 2;
+
+    route_advertise = 3;
+
+    flow_rx_rate_above_threshold = 4;
+
+    flow_rx_rate_below_threshold = 5;
+  } }
 }
 
-message AdvancedMetricsEvent {
+message Event {
   Type.Enum type = 1;
 
   string source = 2;
@@ -2078,7 +2054,7 @@ message AdvancedMetricsEvent {
 }
 
 message EventSubscription {
-  AdvancedMetricsRequest metrics = 1;
+  EventRequest events = 1;
 
   string callback_url = 2;
 }

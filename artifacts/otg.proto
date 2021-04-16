@@ -1599,27 +1599,15 @@ message CaptureState {
   } }
 }
 
-message Bgpv4RouteState {
+message RouteState {
   repeated string names = 1;
 
   State.Enum state = 2;
 
   message State { enum Enum {
-    withdraw_routes = 0;
+    withdraw = 0;
 
-    advertise_routes = 1;
-  } }
-}
-
-message Bgpv6RouteState {
-  repeated string names = 1;
-
-  State.Enum state = 2;
-
-  message State { enum Enum {
-    withdraw_routes = 0;
-
-    advertise_routes = 1;
+    advertise = 1;
   } }
 }
 
@@ -1662,6 +1650,8 @@ message MetricsResponse {
     flow_metrics = 1;
 
     bgpv4_metrics = 2;
+
+    bgpv6_metrics = 3;
   } }
 }
 
@@ -1761,13 +1751,9 @@ message FlowMetricsRequest {
 
     frames_rx_rate = 8;
 
-    min_latency_ns = 9;
+    loss = 9;
 
-    max_latency_ns = 10;
-
-    avg_latency_ns = 11;
-
-    loss = 12;
+    latency = 10;
   } }
 }
 
@@ -1798,15 +1784,9 @@ message FlowMetric {
 
   float frames_rx_rate = 10;
 
-  float min_latency_ns = 11;
+  float loss = 11;
 
-  float max_latency_ns = 12;
-
-  float avg_latency_ns = 13;
-
-  float loss = 14;
-
-  repeated FlowMetricGroup metric_groups = 15;
+  repeated FlowMetricGroup metric_groups = 12;
 
   message Transmit { enum Enum {
     started = 0;
@@ -1929,14 +1909,156 @@ message FlowState {
   } }
 }
 
-message Capabilities {
-  repeated string unsupported = 1;
-
-  repeated string formats = 2;
-}
-
 message CaptureRequest {
   string port_name = 1;
+}
+
+message AdvancedMetricsConfig {
+  AdvancedMetricsConfigTimestamp timestamps = 1;
+
+  AdvancedMetricsConfigConvergence convergence = 2;
+
+  AdvancedMetricsConfigLatency latency = 3;
+}
+
+message AdvancedMetricsConfigTimestamp {
+  bool enable = 1;
+
+  Synchronization.Enum synchronization = 2;
+
+  message Synchronization { enum Enum {
+    start_of_flow = 0;
+
+    system_clock = 1;
+  } }
+}
+
+message AdvancedMetricsConfigConvergence {
+  bool enable = 1;
+
+  float rx_rate_threshold = 2;
+}
+
+message AdvancedMetricsConfigLatency {
+  bool enable = 1;
+
+  Mode.Enum mode = 2;
+
+  message Mode { enum Enum {
+    store_forward = 0;
+
+    cut_through = 1;
+  } }
+}
+
+message AdvancedMetricsRequest {
+  repeated string flow_names = 1;
+
+  Metric.Enum metric = 2;
+
+  message Metric { enum Enum {
+    timestamps = 0;
+
+    latency = 1;
+
+    convergence = 2;
+  } }
+}
+
+message AdvancedMetricsResponse {
+  Choice.Enum choice = 1;
+
+  repeated AdvancedMetricsTimestamp timestamp_metrics = 2;
+
+  repeated AdvancedMetricsLatency latency_metrics = 3;
+
+  repeated AdvancedMetricsConvergence convergence_metrics = 4;
+
+  message Choice { enum Enum {
+    timestamp_metrics = 0;
+
+    latency_metrics = 1;
+
+    convergence_metrics = 2;
+  } }
+}
+
+message AdvancedMetricsTimestamp {
+  string flow_name = 1;
+
+  double first_timestamp_ns = 2;
+
+  double last_timestamp_ns = 3;
+}
+
+message AdvancedMetricsLatency {
+  string flow_name = 1;
+
+  double minimum_ns = 2;
+
+  double maximum_ns = 3;
+
+  double average_ns = 4;
+}
+
+message AdvancedMetricsConvergence {
+  string flow_name = 1;
+
+  double data_plane_convergence_ns = 2;
+
+  double control_plane_data_plane_convergence_ns = 3;
+
+  double service_interruption_time_ns = 4;
+}
+
+message EventRequest {
+  repeated Type type = 1;
+
+  repeated string source = 2;
+
+  message Type { enum Enum {
+    link_down = 0;
+
+    link_up = 1;
+
+    route_withdraw = 2;
+
+    route_advertise = 3;
+
+    flow_rx_rate_above_threshold = 4;
+
+    flow_rx_rate_below_threshold = 5;
+  } }
+}
+
+message Event {
+  Type.Enum type = 1;
+
+  string source = 2;
+
+  double begin_timestamp_ns = 3;
+
+  double end_timestamp_ns = 4;
+
+  message Type { enum Enum {
+    link_down = 0;
+
+    link_up = 1;
+
+    route_withdraw = 2;
+
+    route_advertise = 3;
+
+    flow_rx_rate_above_threshold = 4;
+
+    flow_rx_rate_below_threshold = 5;
+  } }
+}
+
+message EventSubscription {
+  EventRequest events = 1;
+
+  string callback_url = 2;
 }
 
 message PatternFlowEthernetDstCounter {
@@ -6390,12 +6512,28 @@ message SetCaptureStateParameters {
   CaptureState capture__state = 1;
 }
 
+message SetRouteStateParameters {
+  RouteState route__state = 1;
+}
+
 message GetMetricsParameters {
   MetricsRequest metrics__request = 1;
 }
 
 message GetCaptureParameters {
   CaptureRequest capture__request = 1;
+}
+
+message SetAdvancedMetricsParameters {
+  AdvancedMetricsConfig advanced_metrics__config = 1;
+}
+
+message GetAdvancedMetricsParameters {
+  AdvancedMetricsRequest advanced_metrics__request = 1;
+}
+
+message SubscribeEventParameters {
+  EventSubscription event__subscription = 1;
 }
 
 service Openapi {
@@ -6423,6 +6561,10 @@ service Openapi {
 //     option (google.api.http) = { post:"/control/capture"  };
   }
 
+  rpc SetRouteState ( SetRouteStateParameters ) returns ( Details ) {
+//     option (google.api.http) = { post:"/control/routes"  };
+  }
+
   rpc GetMetrics ( GetMetricsParameters ) returns ( MetricsResponse ) {
 //     option (google.api.http) = { post:"/results/metrics"  };
   }
@@ -6431,12 +6573,20 @@ service Openapi {
 //     option (google.api.http) = { post:"/results/state"  };
   }
 
-  rpc GetCapabilities ( google.protobuf.Empty ) returns ( Capabilities ) {
-//     option (google.api.http) = { post:"/results/capabilities"  };
-  }
-
   rpc GetCapture ( GetCaptureParameters ) returns ( google.protobuf.Empty ) {
 //     option (google.api.http) = { post:"/results/capture"  };
+  }
+
+  rpc SetAdvancedMetrics ( SetAdvancedMetricsParameters ) returns ( Details ) {
+//     option (google.api.http) = { post:"/advanced/config"  };
+  }
+
+  rpc GetAdvancedMetrics ( GetAdvancedMetricsParameters ) returns ( AdvancedMetricsResponse ) {
+//     option (google.api.http) = { post:"/advanced/metrics"  };
+  }
+
+  rpc SubscribeEvent ( SubscribeEventParameters ) returns ( Details ) {
+//     option (google.api.http) = { post:"/event/subscribe"  };
   }
 }
 

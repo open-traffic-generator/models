@@ -3074,13 +3074,10 @@ components:
           type: string
           enum:
           - port
-          - flow
           - bgpv4
           - bgpv6
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
-        flow:
-          $ref: '#/components/schemas/Flow.Metrics.Request'
         bgpv4:
           $ref: '#/components/schemas/Bgpv4.Metrics.Request'
         bgpv6:
@@ -3096,17 +3093,12 @@ components:
           type: string
           enum:
           - port_metrics
-          - flow_metrics
           - bgpv4_metrics
           - bgpv6_metrics
         port_metrics:
           type: array
           items:
             $ref: '#/components/schemas/Port.Metric'
-        flow_metrics:
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Metric'
         bgpv4_metrics:
           type: array
           items:
@@ -3204,124 +3196,6 @@ components:
           description: |-
             The current rate of bytes received
           type: number
-    Flow.Metrics.Request:
-      description: |-
-        The request to the traffic generator for flow results.
-      type: object
-      properties:
-        flow_names:
-          description: |-
-            The names of flow objects to return results for. An empty list will return results for all flows.
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - /components/schemas/Flow/properties/name
-        column_names:
-          description: |-
-            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the flow cannot be excluded.
-          type: array
-          items:
-            type: string
-            enum:
-            - transmit
-            - port_tx
-            - port_rx
-            - frames_tx
-            - frames_rx
-            - bytes_tx
-            - bytes_rx
-            - frames_tx_rate
-            - frames_rx_rate
-            - loss
-            - latency
-        metric_group_names:
-          description: |-
-            Extend the details of flow metrics by specifying any configured  flow packet header field metric_group names.
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - /components/schemas/Flow.Pattern/properties/metric_group
-    Flow.MetricGroup:
-      description: |-
-        A metric group
-      type: object
-      required:
-      - name
-      - value
-      properties:
-        name:
-          description: |-
-            Name provided as part of a flow packet header field metric group
-          type: string
-        value:
-          description: |-
-            The value of the flow packet header field
-          type: number
-    Flow.Metric:
-      type: object
-      properties:
-        name:
-          description: |-
-            The name of a configured flow.
-          type: string
-        transmit:
-          description: |-
-            The transmit state of the flow.
-          type: string
-          enum:
-          - started
-          - stopped
-          - paused
-        port_tx:
-          description: |-
-            The name of a configured port
-          type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-        port_rx:
-          description: |-
-            The name of a configured port
-          type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-        frames_tx:
-          description: |-
-            The current total number of frames transmitted
-          type: integer
-        frames_rx:
-          description: |-
-            The current total number of valid frames received
-          type: integer
-        bytes_tx:
-          description: |-
-            The current total number of bytes transmitted
-          type: integer
-        bytes_rx:
-          description: |-
-            The current total number of bytes received
-          type: integer
-        frames_tx_rate:
-          description: |-
-            The current rate of frames transmitted
-          type: number
-        frames_rx_rate:
-          description: |-
-            The current rate of valid frames received
-          type: number
-        loss:
-          description: |-
-            The percentage of lost frames
-          type: number
-        metric_groups:
-          description: |-
-            Any configured flow packet header field metric_group names will  appear as additional name/value pairs.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.MetricGroup'
-          x-constraint:
-          - /components/schemas/Flow.Pattern/properties/result_group
     Bgpv4.Metrics.Request:
       description: |-
         The request to retrieve BGPv4 Router statistics and learned routing information
@@ -3494,22 +3368,37 @@ components:
           - /components/schemas/Port/properties/name
     AdvancedMetrics.Config:
       description: |-
-        The container for advanced metrics configuration.
+        The container for advanced flow metrics configuration.
       type: object
       properties:
+        flows:
+          $ref: '#/components/schemas/AdvancedMetrics.Config.Flows'
         timestamps:
           $ref: '#/components/schemas/AdvancedMetrics.Config.Timestamp'
         convergence:
           $ref: '#/components/schemas/AdvancedMetrics.Config.Convergence'
         latency:
           $ref: '#/components/schemas/AdvancedMetrics.Config.Latency'
-    AdvancedMetrics.Config.Timestamp:
+    AdvancedMetrics.Config.Flows:
       description: |-
-        The optional container for timestamp metric configuration.
+        The optional container for flows metric configuration.
       type: object
       properties:
         enable:
-          description: "True to enable timestamp metrics. "
+          description: "True to enable metrics for configured flows.\nEnabling this\
+            \ option could possibly change the packet payload as \nimplementations\
+            \ may add instrumentation values to identify which \nflow a packet is\
+            \ associated with."
+          type: boolean
+          default: false
+    AdvancedMetrics.Config.Timestamp:
+      description: |-
+        The optional container for flow timestamp metric configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable timestamp metrics. \nThis adds first and last\
+            \ timestamp metrics to individual flows."
           type: boolean
           default: false
         synchronization:
@@ -3527,8 +3416,7 @@ components:
       type: object
       properties:
         enable:
-          description: "True to enable convergence metrics. \nSee the #/components/schemas/Event.Occurence/properties/event\n\
-            property for a list of all possible types of events."
+          description: "True to enable convergence metrics. "
           type: boolean
           default: false
         rx_rate_threshold:
@@ -3564,56 +3452,117 @@ components:
           - cut_through
           default: store_forward
     AdvancedMetrics.Request:
+      description: |-
+        The request container for flow metrics.
       type: object
-      required:
-      - flow_names
-      - metric
       properties:
         flow_names:
+          description: |-
+            The names of flow objects to return results for. An empty list will return results for all flows.
           type: array
           items:
             type: string
             x-constraint:
             - /components/schemas/Flow/properties/name
-        metric:
-          type: string
-          enum:
-          - timestamps
-          - latency
-          - convergence
-          default: timestamps
-    AdvancedMetrics.Response:
+        metric_names:
+          description: |-
+            The list of metric names that the returned result set will contain. If the list is empty then all metrics will be returned but will be aggregated by flow name, the metrics will not be broken down by  additional metric group names. The name of the flow cannot be excluded from the response.
+          type: array
+          items:
+            type: string
+            enum:
+            - transmit
+            - port_tx
+            - port_rx
+            - frames_tx
+            - frames_rx
+            - bytes_tx
+            - bytes_rx
+            - frames_tx_rate
+            - frames_rx_rate
+            - loss
+            - timestamps
+            - latency
+            - convergence
+        metric_group_names:
+          description: |-
+            Extend the advanced flow metrics response by specifying any  configured flow packet header field metric_group names.
+          type: array
+          items:
+            type: string
+            x-constraint:
+            - /components/schemas/Flow.Pattern/properties/metric_group
+    AdvancedMetrics.Flow:
       type: object
       properties:
-        choice:
+        name:
+          description: |-
+            The name of the advanced flow metric response.  The name includes the flow name by default along with any requested  metric_group_names.
+          type: string
+          example: Tx -> Rx
+        transmit:
+          description: |-
+            The transmit state of the flow.
           type: string
           enum:
-          - timestamp_metrics
-          - latency_metrics
-          - convergence_metrics
-        timestamp_metrics:
-          type: array
-          items:
-            $ref: '#/components/schemas/AdvancedMetrics.Timestamp'
-        latency_metrics:
-          type: array
-          items:
-            $ref: '#/components/schemas/AdvancedMetrics.Latency'
-        convergence_metrics:
-          type: array
-          items:
-            $ref: '#/components/schemas/AdvancedMetrics.Convergence'
+          - started
+          - stopped
+          - paused
+        port_tx:
+          description: |-
+            The name of a configured port that the flow is being transmitted  from.
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        port_rx:
+          description: |-
+            The name of a configured port that the flow is being recevied on.
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        frames_tx:
+          description: |-
+            The current total number of frames transmitted
+          type: integer
+        frames_rx:
+          description: |-
+            The current total number of valid frames received
+          type: integer
+        bytes_tx:
+          description: |-
+            The current total number of bytes transmitted
+          type: integer
+        bytes_rx:
+          description: |-
+            The current total number of bytes received
+          type: integer
+        frames_tx_rate:
+          description: |-
+            The current rate of frames transmitted
+          type: number
+        frames_rx_rate:
+          description: |-
+            The current rate of valid frames received
+          type: number
+        loss:
+          description: |-
+            The percentage of lost frames
+          type: number
+        timestamps:
+          $ref: '#/components/schemas/AdvancedMetrics.Timestamp'
+        latency:
+          $ref: '#/components/schemas/AdvancedMetrics.Latency'
+        convergence:
+          $ref: '#/components/schemas/AdvancedMetrics.Convergence'
+    AdvancedMetrics.Response:
+      type: array
+      items:
+        $ref: '#/components/schemas/AdvancedMetrics.Flow'
     AdvancedMetrics.Timestamp:
       description: |-
         The container for timestamp metrics.
       type: object
       properties:
-        flow_name:
-          description: |-
-            The name of the source.
-            Flow + metric group?
-          type: string
-          example: Tx Port -> Rx Port
         first_timestamp_ns:
           description: |-
             First timestamp in nanoseconds
@@ -3629,12 +3578,6 @@ components:
         \ dependent \non the type of latency measurement mode that is configured."
       type: object
       properties:
-        flow_name:
-          description: |-
-            The name of the source.
-            Flow + metric group?
-          type: string
-          example: Tx Port -> Rx Port
         minimum_ns:
           description: |-
             Minimum latency in nanoseconds
@@ -3655,13 +3598,6 @@ components:
         The container for data plane and control plane convergence metrics
       type: object
       properties:
-        flow_name:
-          description: |-
-            The name of the flow that is affected by the trigger event.
-          type: string
-          x-constraint:
-          - /components/schemas/Flow/properties/name
-          example: Tx Port -> Rx Port
         data_plane_convergence_ns:
           description: "The convergence time measured from the data plane perspective\
             \ only. \nIt measures the time from BTT, when the rate on Test Port 2\

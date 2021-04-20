@@ -1,0 +1,90 @@
+components:
+  schemas:
+    AdvancedAnalytics.Request:
+      description: >-
+        The request container for analytics.
+      type: object
+      properties:
+        flow_names:
+          description: >-
+            The names of flow objects to return results for.
+            An empty list will return results for all flows.
+          type: array
+          items:
+            type: string
+            x-constraint:
+            - "/components/schemas/Flow/properties/name"
+        metric_group_names:
+          description: >-
+            Extend the analytics response by specifying any 
+            configured flow packet header field metric_group names.
+          type: array
+          items:
+            type: string
+            x-constraint:
+              - "/components/schemas/Flow.Pattern/properties/metric_group"
+        metric_names:
+          description: >-
+            The list of metric names that the returned result set will contain.
+            If the list is empty then all metrics will be returned.
+            The name of the flow cannot be excluded from the response.
+          type: array
+          items:
+            type: string
+            enum:
+              - convergence
+            
+    AdvancedAnalytics.Response:
+      type: array
+      items:
+        $ref: '#/components/schemas/Analytics.Flow'
+
+    Analytics.Flow:
+      description: |-
+        The container for advanced analytics
+      type: object
+      properties:
+        name:
+          description: >-
+            The name of the flow. 
+            The name includes the flow name by default along with any requested 
+            metric_group_names.
+          type: string
+          example: 'Tx -> Rx'
+        convergence:
+          $ref: '#/components/schemas/Analytics.Convergence'
+
+    Analytics.Convergence:
+      description: |-
+        The container for data plane and control plane convergence analytics
+      type: object
+      properties:
+        data_plane_convergence_ns:
+          description: |-
+            The convergence time measured from the data plane perspective only. 
+            It measures the time from BTT, when the rate on Test Port 2 crosses 
+            below the Rx Threshold until an acceptable amount of traffic was 
+            received at time ATT, when the rate crosses above the configured 
+            rx_rate_threshold.
+          type: number
+          format: double
+        control_plane_data_plane_convergence_ns:
+          description: |-
+            The total convergence time, between the event that caused the
+            switchover (at tEvent) until an acceptable amount of traffic was 
+            received at time ATT, when the rate crosses above the configured 
+            rx_rate_threshold.
+          type: number
+          format: double
+        service_interruption_time_ns:
+          description: |-
+            Service interruption time is the flow_rx_rate_above_threshold minus 
+            the flow_rx_rate_below_threshold.
+          type: number
+          format: double
+        events:
+          description: |-
+            The events that were used to determine the convergence analytics.
+          type: array
+          items:
+            $ref: './event.yaml#/components/schemas/Event'

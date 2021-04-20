@@ -152,7 +152,7 @@ paths:
           $ref: '#/components/responses/Fail'
   /results/metrics:
     description: |-
-      Traffic metrics API
+      Metrics API
     post:
       tags:
       - Traffic Generator
@@ -212,16 +212,16 @@ paths:
   /advanced/config:
     post:
       tags:
-      - Advanced Metrics
-      operationId: set_advanced_metrics
-      description: |-
-        An API that extends the base Traffic Generator configuration with advanced metric configuration.
+      - Advanced
+      operationId: set_advanced_config
+      description: "An API that extends the base Traffic Generator configuration with\
+        \ \nadvanced feature configuration."
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdvancedMetrics.Config'
+              $ref: '#/components/schemas/Advanced.Config'
       responses:
         '200':
           $ref: '#/components/responses/Success'
@@ -234,7 +234,7 @@ paths:
   /advanced/metrics:
     post:
       tags:
-      - Advanced Metrics
+      - Advanced
       operationId: get_advanced_metrics
       description: |-
         An API that retrieves advanced metrics.
@@ -258,10 +258,37 @@ paths:
           $ref: '#/components/responses/Fail'
         '591':
           $ref: '#/components/responses/NotSupported'
+  /advanced/analytics:
+    post:
+      tags:
+      - Advanced
+      operationId: get_advanced_analytics
+      description: |-
+        An API that retrieves advanced analytics.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvancedAnalytics.Request'
+      responses:
+        '200':
+          description: |-
+            Advanced analytics response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvancedAnalytics.Response'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '590':
+          $ref: '#/components/responses/Fail'
+        '591':
+          $ref: '#/components/responses/NotSupported'
   /event/subscribe:
     post:
       tags:
-      - Advanced Events
+      - Advanced
       operationId: subscribe_event
       description: |-
         An API for subscribing to event notifications.
@@ -3366,20 +3393,22 @@ components:
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
-    AdvancedMetrics.Config:
+    Advanced.Config:
       description: |-
-        The container for advanced flow metrics configuration.
+        The container for the configuration of advanced features.
       type: object
       properties:
         flows:
-          $ref: '#/components/schemas/AdvancedMetrics.Config.Flows'
+          $ref: '#/components/schemas/Advanced.Config.Flows'
         timestamps:
-          $ref: '#/components/schemas/AdvancedMetrics.Config.Timestamp'
-        convergence:
-          $ref: '#/components/schemas/AdvancedMetrics.Config.Convergence'
+          $ref: '#/components/schemas/Advanced.Config.Timestamp'
         latency:
-          $ref: '#/components/schemas/AdvancedMetrics.Config.Latency'
-    AdvancedMetrics.Config.Flows:
+          $ref: '#/components/schemas/Advanced.Config.Latency'
+        event:
+          $ref: '#/components/schemas/Advanced.Config.Event'
+        convergence:
+          $ref: '#/components/schemas/Advanced.Config.Convergence'
+    Advanced.Config.Flows:
       description: |-
         The optional container for flows metric configuration.
       type: object
@@ -3391,7 +3420,7 @@ components:
             \ associated with."
           type: boolean
           default: false
-    AdvancedMetrics.Config.Timestamp:
+    Advanced.Config.Timestamp:
       description: |-
         The optional container for flow timestamp metric configuration.
       type: object
@@ -3410,24 +3439,7 @@ components:
           - start_of_flow
           - system_clock
           default: start_of_flow
-    AdvancedMetrics.Config.Convergence:
-      description: |-
-        The optional container for convergence metric configuration.
-      type: object
-      properties:
-        enable:
-          description: "True to enable convergence metrics. "
-          type: boolean
-          default: false
-        rx_rate_threshold:
-          description: |-
-            An event will be generated when the rx rate passes
-            above or below this value.
-          type: number
-          maximum: 100
-          format: float
-          default: 95
-    AdvancedMetrics.Config.Latency:
+    Advanced.Config.Latency:
       description: |-
         The optional container for latency metric configuration.
       type: object
@@ -3451,6 +3463,32 @@ components:
           - store_forward
           - cut_through
           default: store_forward
+    Advanced.Config.Convergence:
+      description: |-
+        The optional container for convergence analytics configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable convergence analytics. "
+          type: boolean
+          default: false
+    Advanced.Config.Event:
+      description: |-
+        The optional container for event configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable events. "
+          type: boolean
+          default: false
+        rx_rate_threshold:
+          description: |-
+            An event will be generated when the rx rate passes
+            above or below this value.
+          type: number
+          maximum: 100
+          format: float
+          default: 95
     AdvancedMetrics.Request:
       description: |-
         The request container for flow metrics.
@@ -3483,7 +3521,6 @@ components:
             - loss
             - timestamps
             - latency
-            - convergence
         metric_group_names:
           description: |-
             Extend the advanced flow metrics response by specifying any  configured flow packet header field metric_group names.
@@ -3492,6 +3529,10 @@ components:
             type: string
             x-constraint:
             - /components/schemas/Flow.Pattern/properties/metric_group
+    AdvancedMetrics.Response:
+      type: array
+      items:
+        $ref: '#/components/schemas/AdvancedMetrics.Flow'
     AdvancedMetrics.Flow:
       type: object
       properties:
@@ -3552,12 +3593,6 @@ components:
           $ref: '#/components/schemas/AdvancedMetrics.Timestamp'
         latency:
           $ref: '#/components/schemas/AdvancedMetrics.Latency'
-        convergence:
-          $ref: '#/components/schemas/AdvancedMetrics.Convergence'
-    AdvancedMetrics.Response:
-      type: array
-      items:
-        $ref: '#/components/schemas/AdvancedMetrics.Flow'
     AdvancedMetrics.Timestamp:
       description: |-
         The container for timestamp metrics.
@@ -3593,9 +3628,54 @@ components:
             Average latency in nanoseconds
           type: number
           format: double
-    AdvancedMetrics.Convergence:
+    AdvancedAnalytics.Request:
       description: |-
-        The container for data plane and control plane convergence metrics
+        The request container for analytics.
+      type: object
+      properties:
+        flow_names:
+          description: |-
+            The names of flow objects to return results for. An empty list will return results for all flows.
+          type: array
+          items:
+            type: string
+            x-constraint:
+            - /components/schemas/Flow/properties/name
+        metric_group_names:
+          description: |-
+            Extend the analytics response by specifying any  configured flow packet header field metric_group names.
+          type: array
+          items:
+            type: string
+            x-constraint:
+            - /components/schemas/Flow.Pattern/properties/metric_group
+        metric_names:
+          description: |-
+            The list of metric names that the returned result set will contain. If the list is empty then all metrics will be returned. The name of the flow cannot be excluded from the response.
+          type: array
+          items:
+            type: string
+            enum:
+            - convergence
+    AdvancedAnalytics.Response:
+      type: array
+      items:
+        $ref: '#/components/schemas/Analytics.Flow'
+    Analytics.Flow:
+      description: |-
+        The container for advanced analytics
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of the flow.  The name includes the flow name by default along with any requested  metric_group_names.
+          type: string
+          example: Tx -> Rx
+        convergence:
+          $ref: '#/components/schemas/Analytics.Convergence'
+    Analytics.Convergence:
+      description: |-
+        The container for data plane and control plane convergence analytics
       type: object
       properties:
         data_plane_convergence_ns:
@@ -3620,7 +3700,7 @@ components:
           format: double
         events:
           description: |-
-            The events that were used to determine the convergence measurements.
+            The events that were used to determine the convergence analytics.
           type: array
           items:
             $ref: '#/components/schemas/Event'

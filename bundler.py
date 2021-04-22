@@ -66,6 +66,7 @@ class Bundler(object):
         self._resolve_x_include()
         self._resolve_x_pattern('x-field-pattern')
         self._resolve_x_pattern('x-device-pattern')
+        self._resolve_x_constraint()
         self._resolve_strings(self._content)
         with open(self._output_filename, 'w') as fp:
             yaml.dump(self._content, fp, indent=2, allow_unicode=True, line_break='\n', sort_keys=False)
@@ -329,6 +330,20 @@ class Bundler(object):
                 include_schema_object = self._includes[xinclude]
                 self._merge(copy.deepcopy(include_schema_object), parent_schema_object)
             del parent_schema_object['x-include']
+
+    def _resolve_x_constraint(self):
+        """Find all instances of x-constraint in the openapi content
+        and merge the x-constraint content into the parent object description
+        """
+        import jsonpath_ng
+        for xconstraint in jsonpath_ng.parse('$..x-constraint').find(self._content):
+            print('resolving %s...' % (str(xconstraint.full_path)))
+            parent_schema_object = jsonpath_ng.Parent().find(xconstraint)[0].value
+            if 'description' not in parent_schema_object:
+                parent_schema_object['description'] = 'TBD'
+            parent_schema_object['description'] += '\n\nx-constraint:\n'
+            for constraint in xconstraint.value:
+                parent_schema_object['description'] += '- {}\n'.format(constraint)
 
     def _merge(self, src, dst):
         """

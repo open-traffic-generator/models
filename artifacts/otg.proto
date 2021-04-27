@@ -21,7 +21,9 @@ message Config {
 
   repeated Flow flows = 6;
 
-  ConfigOptions options = 7;
+  AdvancedConfig advanced = 7;
+
+  ConfigOptions options = 8;
 }
 
 message ConfigOptions {
@@ -906,7 +908,9 @@ message Flow {
 
   FlowDuration duration = 5;
 
-  string name = 6;
+  bool metrics = 6;
+
+  string name = 7;
 }
 
 message FlowTxRx {
@@ -1543,7 +1547,55 @@ message FlowDurationInterBurstGap {
   } }
 }
 
-message PendingDetail {
+message AdvancedConfig {
+  AdvancedConfigLatency latency = 1;
+
+  AdvancedConfigEvent event = 2;
+
+  AdvancedConfigConvergence convergence = 3;
+}
+
+message AdvancedConfigLatency {
+  bool enable = 1;
+
+  Mode.Enum mode = 2;
+
+  message Mode { enum Enum {
+    store_forward = 0;
+
+    cut_through = 1;
+  } }
+}
+
+message AdvancedConfigConvergence {
+  bool enable = 1;
+}
+
+message AdvancedConfigEvent {
+  bool enable = 1;
+
+  AdvancedConfigLinkUpDown link_up_down = 2;
+
+  AdvancedConfigRxRateThreshold rx_rate_threshold = 3;
+
+  AdvancedConfigRouteAdvertiseWithdraw route_advertise_withdraw = 4;
+}
+
+message AdvancedConfigRxRateThreshold {
+  bool enable = 1;
+
+  float threshold = 2;
+}
+
+message AdvancedConfigLinkUpDown {
+  bool enable = 1;
+}
+
+message AdvancedConfigRouteAdvertiseWithdraw {
+  bool enable = 1;
+}
+
+message ResponsePending {
   State.Enum state = 1;
 
   string url = 2;
@@ -1555,10 +1607,12 @@ message PendingDetail {
   } }
 }
 
-message Details {
+message ResponseError {
   repeated string errors = 1;
+}
 
-  repeated string warnings = 2;
+message ResponseWarning {
+  repeated string warnings = 1;
 }
 
 message LinkState {
@@ -1599,27 +1653,15 @@ message CaptureState {
   } }
 }
 
-message Bgpv4RouteState {
+message RouteState {
   repeated string names = 1;
 
   State.Enum state = 2;
 
   message State { enum Enum {
-    withdraw_routes = 0;
+    withdraw = 0;
 
-    advertise_routes = 1;
-  } }
-}
-
-message Bgpv6RouteState {
-  repeated string names = 1;
-
-  State.Enum state = 2;
-
-  message State { enum Enum {
-    withdraw_routes = 0;
-
-    advertise_routes = 1;
+    advertise = 1;
   } }
 }
 
@@ -1628,20 +1670,16 @@ message MetricsRequest {
 
   PortMetricsRequest port = 2;
 
-  FlowMetricsRequest flow = 3;
+  Bgpv4MetricsRequest bgpv4 = 3;
 
-  Bgpv4MetricsRequest bgpv4 = 4;
-
-  Bgpv6MetricsRequest bgpv6 = 5;
+  Bgpv6MetricsRequest bgpv6 = 4;
 
   message Choice { enum Enum {
     port = 0;
 
-    flow = 1;
+    bgpv4 = 1;
 
-    bgpv4 = 2;
-
-    bgpv6 = 3;
+    bgpv6 = 2;
   } }
 }
 
@@ -1650,18 +1688,16 @@ message MetricsResponse {
 
   repeated PortMetric port_metrics = 2;
 
-  repeated FlowMetric flow_metrics = 3;
+  repeated Bgpv4Metric bgpv4_metrics = 3;
 
-  repeated Bgpv4Metric bgpv4_metrics = 4;
-
-  repeated Bgpv6Metric bgpv6_metrics = 5;
+  repeated Bgpv6Metric bgpv6_metrics = 4;
 
   message Choice { enum Enum {
     port_metrics = 0;
 
-    flow_metrics = 1;
+    bgpv4_metrics = 1;
 
-    bgpv4_metrics = 2;
+    bgpv6_metrics = 2;
   } }
 }
 
@@ -1732,88 +1768,6 @@ message PortMetric {
     started = 0;
 
     stopped = 1;
-  } }
-}
-
-message FlowMetricsRequest {
-  repeated string flow_names = 1;
-
-  repeated Column_names column_names = 2;
-
-  repeated string metric_group_names = 3;
-
-  message Column_names { enum Enum {
-    transmit = 0;
-
-    port_tx = 1;
-
-    port_rx = 2;
-
-    frames_tx = 3;
-
-    frames_rx = 4;
-
-    bytes_tx = 5;
-
-    bytes_rx = 6;
-
-    frames_tx_rate = 7;
-
-    frames_rx_rate = 8;
-
-    min_latency_ns = 9;
-
-    max_latency_ns = 10;
-
-    avg_latency_ns = 11;
-
-    loss = 12;
-  } }
-}
-
-message FlowMetricGroup {
-  string name = 1;
-
-  float value = 2;
-}
-
-message FlowMetric {
-  string name = 1;
-
-  Transmit.Enum transmit = 2;
-
-  string port_tx = 3;
-
-  string port_rx = 4;
-
-  int32 frames_tx = 5;
-
-  int32 frames_rx = 6;
-
-  int32 bytes_tx = 7;
-
-  int32 bytes_rx = 8;
-
-  float frames_tx_rate = 9;
-
-  float frames_rx_rate = 10;
-
-  float min_latency_ns = 11;
-
-  float max_latency_ns = 12;
-
-  float avg_latency_ns = 13;
-
-  float loss = 14;
-
-  repeated FlowMetricGroup metric_groups = 15;
-
-  message Transmit { enum Enum {
-    started = 0;
-
-    stopped = 1;
-
-    paused = 2;
   } }
 }
 
@@ -1929,14 +1883,178 @@ message FlowState {
   } }
 }
 
-message Capabilities {
-  repeated string unsupported = 1;
-
-  repeated string formats = 2;
-}
-
 message CaptureRequest {
   string port_name = 1;
+}
+
+message AdvancedMetricsRequest {
+  repeated string flow_names = 1;
+
+  repeated Metric_names metric_names = 2;
+
+  repeated string metric_group_names = 3;
+
+  message Metric_names { enum Enum {
+    transmit = 0;
+
+    port_tx = 1;
+
+    port_rx = 2;
+
+    frames_tx = 3;
+
+    frames_rx = 4;
+
+    bytes_tx = 5;
+
+    bytes_rx = 6;
+
+    frames_tx_rate = 7;
+
+    frames_rx_rate = 8;
+
+    loss = 9;
+
+    timestamps = 10;
+
+    latency = 11;
+  } }
+}
+
+message AdvancedMetricsResponse {
+  repeated AdvancedMetricsFlow value = 1;
+}
+
+message AdvancedMetricsFlow {
+  string name = 1;
+
+  Transmit.Enum transmit = 2;
+
+  string port_tx = 3;
+
+  string port_rx = 4;
+
+  int32 frames_tx = 5;
+
+  int32 frames_rx = 6;
+
+  int32 bytes_tx = 7;
+
+  int32 bytes_rx = 8;
+
+  float frames_tx_rate = 9;
+
+  float frames_rx_rate = 10;
+
+  float loss = 11;
+
+  AdvancedMetricsTimestamp timestamps = 12;
+
+  AdvancedMetricsLatency latency = 13;
+
+  message Transmit { enum Enum {
+    started = 0;
+
+    stopped = 1;
+
+    paused = 2;
+  } }
+}
+
+message AdvancedMetricsTimestamp {
+  double first_timestamp_ns = 1;
+
+  double last_timestamp_ns = 2;
+}
+
+message AdvancedMetricsLatency {
+  double minimum_ns = 1;
+
+  double maximum_ns = 2;
+
+  double average_ns = 3;
+}
+
+message AdvancedAnalyticsRequest {
+  repeated string flow_names = 1;
+
+  repeated string metric_group_names = 2;
+
+  repeated Metric_names metric_names = 3;
+
+  message Metric_names { enum Enum {
+    convergence = 0;
+  } }
+}
+
+message AdvancedAnalyticsResponse {
+  repeated AnalyticsFlow value = 1;
+}
+
+message AnalyticsFlow {
+  string name = 1;
+
+  AnalyticsConvergence convergence = 2;
+}
+
+message AnalyticsConvergence {
+  double data_plane_convergence_ns = 1;
+
+  double control_plane_data_plane_convergence_ns = 2;
+
+  double service_interruption_time_ns = 3;
+
+  repeated Event events = 4;
+}
+
+message EventRequest {
+  repeated Type type = 1;
+
+  repeated string source = 2;
+
+  message Type { enum Enum {
+    link_down = 0;
+
+    link_up = 1;
+
+    route_withdraw = 2;
+
+    route_advertise = 3;
+
+    flow_rx_rate_above_threshold = 4;
+
+    flow_rx_rate_below_threshold = 5;
+  } }
+}
+
+message Event {
+  Type.Enum type = 1;
+
+  string source = 2;
+
+  double begin_timestamp_ns = 3;
+
+  double end_timestamp_ns = 4;
+
+  message Type { enum Enum {
+    link_down = 0;
+
+    link_up = 1;
+
+    route_withdraw = 2;
+
+    route_advertise = 3;
+
+    flow_rx_rate_above_threshold = 4;
+
+    flow_rx_rate_below_threshold = 5;
+  } }
+}
+
+message EventSubscription {
+  EventRequest events = 1;
+
+  string callback_url = 2;
 }
 
 message PatternFlowEthernetDstCounter {
@@ -6363,13 +6481,6 @@ message PatternFlowIgmpv1GroupAddress {
   } }
 }
 
-message SuccessNoContent {
-}
-
-message Pending {
-  PendingDetail pending__detail = 1;
-}
-
 message SetConfigParameters {
   Config config = 1;
 }
@@ -6390,6 +6501,10 @@ message SetCaptureStateParameters {
   CaptureState capture__state = 1;
 }
 
+message SetRouteStateParameters {
+  RouteState route__state = 1;
+}
+
 message GetMetricsParameters {
   MetricsRequest metrics__request = 1;
 }
@@ -6398,29 +6513,45 @@ message GetCaptureParameters {
   CaptureRequest capture__request = 1;
 }
 
+message GetFlowMetricsParameters {
+  AdvancedMetricsRequest advanced_metrics__request = 1;
+}
+
+message GetAnalyticsParameters {
+  AdvancedAnalyticsRequest advanced_analytics__request = 1;
+}
+
+message SubscribeEventParameters {
+  EventSubscription event__subscription = 1;
+}
+
 service Openapi {
   rpc GetConfig ( google.protobuf.Empty ) returns ( Config ) {
 //     option (google.api.http) = { get:"/config"  };
   }
 
-  rpc SetConfig ( SetConfigParameters ) returns ( Details ) {
+  rpc SetConfig ( SetConfigParameters ) returns ( ResponseWarning ) {
 //     option (google.api.http) = { post:"/config"  };
   }
 
-  rpc UpdateConfig ( UpdateConfigParameters ) returns ( Details ) {
+  rpc UpdateConfig ( UpdateConfigParameters ) returns ( ResponseWarning ) {
 //     option (google.api.http) = { patch:"/config"  };
   }
 
-  rpc SetTransmitState ( SetTransmitStateParameters ) returns ( Details ) {
+  rpc SetTransmitState ( SetTransmitStateParameters ) returns ( ResponseWarning ) {
 //     option (google.api.http) = { post:"/control/transmit"  };
   }
 
-  rpc SetLinkState ( SetLinkStateParameters ) returns ( Details ) {
+  rpc SetLinkState ( SetLinkStateParameters ) returns ( ResponseWarning ) {
 //     option (google.api.http) = { post:"/control/link"  };
   }
 
-  rpc SetCaptureState ( SetCaptureStateParameters ) returns ( Details ) {
+  rpc SetCaptureState ( SetCaptureStateParameters ) returns ( ResponseWarning ) {
 //     option (google.api.http) = { post:"/control/capture"  };
+  }
+
+  rpc SetRouteState ( SetRouteStateParameters ) returns ( ResponseWarning ) {
+//     option (google.api.http) = { post:"/control/routes"  };
   }
 
   rpc GetMetrics ( GetMetricsParameters ) returns ( MetricsResponse ) {
@@ -6431,12 +6562,20 @@ service Openapi {
 //     option (google.api.http) = { post:"/results/state"  };
   }
 
-  rpc GetCapabilities ( google.protobuf.Empty ) returns ( Capabilities ) {
-//     option (google.api.http) = { post:"/results/capabilities"  };
-  }
-
   rpc GetCapture ( GetCaptureParameters ) returns ( google.protobuf.Empty ) {
 //     option (google.api.http) = { post:"/results/capture"  };
+  }
+
+  rpc GetFlowMetrics ( GetFlowMetricsParameters ) returns ( AdvancedMetricsResponse ) {
+//     option (google.api.http) = { post:"/advanced/metrics"  };
+  }
+
+  rpc GetAnalytics ( GetAnalyticsParameters ) returns ( AdvancedAnalyticsResponse ) {
+//     option (google.api.http) = { post:"/advanced/analytics"  };
+  }
+
+  rpc SubscribeEvent ( SubscribeEventParameters ) returns ( ResponseWarning ) {
+//     option (google.api.http) = { post:"/event/subscribe"  };
   }
 }
 

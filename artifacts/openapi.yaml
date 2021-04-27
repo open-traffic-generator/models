@@ -2,11 +2,16 @@ openapi: 3.0.3
 info:
   title: Open Traffic Generator API
   description: |-
-    The open traffic generator API
-  version: 0.3.6
+    The Open Traffic Generator API consists of the following features:
+    - a common Traffic Generator API
+    - an Advanced Metrics API feature (under review)
+
+    Contributions can be made in the following ways:
+    - [open an issue](https://github.com/open-traffic-generator/models/issues) in the models repository
+    - [fork the models repository](https://github.com/open-traffic-generator/models) and submit a PR
+  version: 0.4.0
   contact:
-    name: Open Traffic Generator Project Team
-    email: andy.balogh@keysight.com
+    url: https://github.com/open-traffic-generator/models
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -30,10 +35,8 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '590':
-          $ref: '#/components/responses/Fail'
+          $ref: '#/components/responses/Error'
     patch:
       tags:
       - Configuration
@@ -49,10 +52,8 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '590':
-          $ref: '#/components/responses/Fail'
+          $ref: '#/components/responses/Error'
     get:
       tags:
       - Configuration
@@ -65,6 +66,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Config'
+        '590':
+          $ref: '#/components/responses/Error'
   /control/transmit:
     post:
       tags:
@@ -81,10 +84,8 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '590':
-          $ref: '#/components/responses/Fail'
+          $ref: '#/components/responses/Error'
   /control/link:
     post:
       tags:
@@ -101,10 +102,8 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '590':
-          $ref: '#/components/responses/Fail'
+          $ref: '#/components/responses/Error'
   /control/capture:
     post:
       tags:
@@ -121,16 +120,32 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '590':
-          $ref: '#/components/responses/Fail'
-  /results/metrics:
-    description: |-
-      Traffic metrics API
+          $ref: '#/components/responses/Error'
+  /control/routes:
     post:
       tags:
-      - Results
+      - Control
+      operationId: set_route_state
+      description: |-
+        Updates the state of configuration device resources on the traffic generator.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Route.State'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '590':
+          $ref: '#/components/responses/Error'
+  /results/metrics:
+    description: |-
+      Metrics API
+    post:
+      tags:
+      - Metrics
       operationId: get_metrics
       requestBody:
         description: |-
@@ -148,10 +163,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Metrics.Response'
+        '590':
+          $ref: '#/components/responses/Error'
   /results/state:
     post:
       tags:
-      - Results
+      - Metrics
       operationId: get_state_metrics
       responses:
         '200':
@@ -161,27 +178,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/State.Metrics'
-  /results/capabilities:
-    description: |-
-      Capability results API
-    post:
-      tags:
-      - Results
-      operationId: get_capabilities
-      responses:
-        '200':
-          description: |-
-            Capability results response from the traffic generator
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Capabilities'
+        '590':
+          $ref: '#/components/responses/Error'
   /results/capture:
     description: |-
       Capture results API
     post:
       tags:
-      - Results
+      - Metrics
       operationId: get_capture
       requestBody:
         description: |-
@@ -199,6 +203,85 @@ paths:
               schema:
                 type: string
                 format: binary
+        '590':
+          $ref: '#/components/responses/Error'
+  /advanced/metrics:
+    post:
+      tags:
+      - Advanced Metrics
+      operationId: get_flow_metrics
+      description: |-
+        An API that retrieves advanced flow metrics.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvancedMetrics.Request'
+      responses:
+        '200':
+          description: |-
+            Response from traffic generator for flow metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvancedMetrics.Response'
+        '590':
+          $ref: '#/components/responses/Error'
+  /advanced/analytics:
+    post:
+      tags:
+      - Advanced Metrics
+      operationId: get_analytics
+      description: |-
+        An API that retrieves advanced analytics.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvancedAnalytics.Request'
+      responses:
+        '200':
+          description: |-
+            Advanced analytics response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvancedAnalytics.Response'
+        '590':
+          $ref: '#/components/responses/Error'
+  /event/subscribe:
+    post:
+      tags:
+      - Advanced Metrics
+      operationId: subscribe_event
+      description: |-
+        An API for subscribing to event notifications.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event.Subscription'
+      callbacks:
+        event_notification:
+          '{$request.body#/callbackUrl}':
+            post:
+              description: |-
+                The event notification that will be streamed to the subscriber.
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Event'
+              responses:
+                '200':
+                  $ref: '#/components/responses/Success'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '590':
+          $ref: '#/components/responses/Error'
 components:
   responses:
     Success:
@@ -207,31 +290,14 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Details'
-    SuccessNoContent:
+            $ref: '#/components/schemas/Response.Warning'
+    Error:
       description: |-
-        The traffic generator has successfully completed the request and there is no content to return.
-    Pending:
-      description: |-
-        The traffic generator is currently processing the request which has  not yet completed. If a traffic generator implementation follows an asynchronous model it  should use this response to indicate that an operation has been  accepted but has not completed.
+        The request has failed and the reasons for failure are in the response.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Pending.Detail'
-    Conflict:
-      description: |-
-        The request is denied as the traffic generator is currently processing  another request.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Details'
-    Fail:
-      description: |-
-        The request has failed. Detailed errors will be returned as a list.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Details'
+            $ref: '#/components/schemas/Response.Error'
   schemas:
     Config:
       description: |-
@@ -274,6 +340,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Flow'
+        advanced:
+          $ref: '#/components/schemas/Advanced.Config'
         options:
           $ref: '#/components/schemas/Config.Options'
     Config.Options:
@@ -342,7 +410,8 @@ components:
       - ethernet
       properties:
         port_name:
-          description: "The name of a port object that will be part of the LAG. "
+          description: "The name of a port object that will be part of the LAG. \n\
+            \nx-constraint:\n- /components/schemas/Port/properties/name\n"
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
@@ -1607,12 +1676,12 @@ components:
       properties:
         port_names:
           description: "A list of unique names of port objects that will share the\
-            \ choice settings. "
+            \ choice settings. \n\nx-constraint:\n- /components/schemas/Port/properties/name\n"
           type: array
           items:
             type: string
-            x-constraint:
-            - /components/schemas/Port/properties/name
+          x-constraint:
+          - /components/schemas/Port/properties/name
         speed:
           description: |-
             Set the speed if supported.
@@ -1783,13 +1852,16 @@ components:
       - name
       properties:
         port_names:
-          description: |-
+          description: |
             The unique names of ports that the capture settings will apply to. Port_names cannot be duplicated between capture objects.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
           type: array
           items:
             type: string
-            x-constraint:
-            - /components/schemas/Port/properties/name
+          x-constraint:
+          - /components/schemas/Port/properties/name
         filters:
           description: |-
             A list of filters to apply to the capturing ports. If no filters are specified then all packets will be captured. A capture can have multiple filters. The number of filters supported is determined by the implementation which can be retrieved using the capabilities API.
@@ -1942,8 +2014,12 @@ components:
       - name
       properties:
         container_name:
-          description: |-
+          description: |
             The unique name of a Port or Lag object that will contain the  emulated interfaces and/or protocol devices.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+            - /components/schemas/Lag/properties/name
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
@@ -1959,7 +2035,7 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
     Flow:
       description: |-
-        A high level data plane traffic flow. Acts as a container for endpoints, packet headers, packet size,  transmit rate and transmit duration.
+        A high level data plane traffic flow.
       type: object
       required:
       - tx_rx
@@ -1971,7 +2047,9 @@ components:
           $ref: '#/components/schemas/Flow.TxRx'
         packet:
           description: |-
-            The header is a list of traffic protocol headers. The order of traffic protocol headers assigned to the list is the order they will appear on the wire.
+            The header is a list of traffic protocol headers.
+            The order of traffic protocol headers assigned to the list is the
+            order they will appear on the wire.
           type: array
           items:
             $ref: '#/components/schemas/Flow.Header'
@@ -1987,6 +2065,11 @@ components:
           description: |-
             The transmit duration of the packets.
           $ref: '#/components/schemas/Flow.Duration'
+        metrics:
+          description: "Enable flow metrics. \nEnabling this option may affect the\
+            \ resultant packet payload due to \nadditional instrumentation data."
+          type: boolean
+          default: false
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -2022,15 +2105,23 @@ components:
       - tx_name
       properties:
         tx_name:
-          description: |-
+          description: |
             The unique name of a port that is the transmit port.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+            - /components/schemas/Lag/properties/name
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
           - /components/schemas/Lag/properties/name
         rx_name:
-          description: |-
+          description: |
             The unique name of a port that is the intended receive port.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+            - /components/schemas/Lag/properties/name
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
@@ -2060,31 +2151,49 @@ components:
             description: |-
               The unique name of an emulated device that will be transmitting.
             type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+          - /components/schemas/Device.Ipv4/properties/name
+          - /components/schemas/Device.Ipv6/properties/name
+          - /components/schemas/Device.Bgpv4RouteRange/properties/name
+          - /components/schemas/Device.Bgpv6RouteRange/properties/name
+          example:
+          - Eth 1
+          - Eth 2
+          - Eth 3
+          description: |
+            TBD
+
             x-constraint:
             - /components/schemas/Device.Ethernet/properties/name
             - /components/schemas/Device.Ipv4/properties/name
             - /components/schemas/Device.Ipv6/properties/name
             - /components/schemas/Device.Bgpv4RouteRange/properties/name
             - /components/schemas/Device.Bgpv6RouteRange/properties/name
-            example:
-            - Eth 1
-            - Eth 2
-            - Eth 3
         rx_names:
           type: array
           items:
             description: |-
               The unique name of an emulated device that will be receiving.
             type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+          - /components/schemas/Device.Ipv4/properties/name
+          - /components/schemas/Device.Ipv6/properties/name
+          - /components/schemas/Device.Bgpv4RouteRange/properties/name
+          - /components/schemas/Device.Bgpv6RouteRange/properties/name
+          example:
+          - Eth 1
+          - Eth 2
+          description: |
+            TBD
+
             x-constraint:
             - /components/schemas/Device.Ethernet/properties/name
             - /components/schemas/Device.Ipv4/properties/name
             - /components/schemas/Device.Ipv6/properties/name
             - /components/schemas/Device.Bgpv4RouteRange/properties/name
             - /components/schemas/Device.Bgpv6RouteRange/properties/name
-            example:
-            - Eth 1
-            - Eth 2
     Flow.Header:
       description: |-
         Container for all traffic packet headers
@@ -2870,7 +2979,110 @@ components:
           type: number
           format: double
           default: 0.096
-    Pending.Detail:
+    Advanced.Config:
+      description: |-
+        An optional container for the configuration of advanced features.
+      type: object
+      properties:
+        latency:
+          $ref: '#/components/schemas/Advanced.Config.Latency'
+        event:
+          $ref: '#/components/schemas/Advanced.Config.Event'
+        convergence:
+          $ref: '#/components/schemas/Advanced.Config.Convergence'
+    Advanced.Config.Latency:
+      description: |-
+        The optional container for latency metric configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable latency metrics using timestamps.\n\n\nEnabling\
+            \ this option requires enabling flow metrics using the \n/components/schemas/Flow/properties/metrics\
+            \ option.\n\n\nEnabling this option may affect the resultant packet payload\
+            \ due to \nadditional instrumentation data."
+          type: boolean
+          default: false
+        mode:
+          description: "Select the type of latency measurement. The different types\
+            \ of \nlatency measurements are:\n\n\nstore_forward:\nThe time interval\
+            \ starting when the last bit of the frame leaves the\nsending port and\
+            \ ending when the first bit of the frame is seen on\nthe receiving port\
+            \ (LIFO).  This is based on the RFC 1242 standard.\n\n\ncut_through:\n\
+            The time interval starting when the first bit of the frame leaves\nthe\
+            \ sending port and ending when the first bit of the frame is seen\non\
+            \ the receiving port (FIFO).  This is based on the RFC 1242 \nstandard."
+          type: string
+          enum:
+          - store_forward
+          - cut_through
+          default: store_forward
+    Advanced.Config.Convergence:
+      description: |-
+        The optional container for convergence analytics configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable convergence analytics. \n\n\nEnabling this\
+            \ option requires enabling the rx_rate_threshold event \nusing the /components/schemas/Advanced.Config.Event/properties/rx_rate_threshold\
+            \ option.\n\n\nEnabling this option may affect the resultant packet payload\
+            \ due to \nadditional instrumentation data."
+          type: boolean
+          default: false
+    Advanced.Config.Event:
+      description: |-
+        The optional container for event configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable all events. \nEnabling this option may affect\
+            \ the resultant packet payload due to \nadditional instrumentation data."
+          type: boolean
+          default: false
+        link_up_down:
+          $ref: '#/components/schemas/Advanced.Config.LinkUpDown'
+        rx_rate_threshold:
+          $ref: '#/components/schemas/Advanced.Config.RxRateThreshold'
+        route_advertise_withdraw:
+          $ref: '#/components/schemas/Advanced.Config.RouteAdvertiseWithdraw'
+    Advanced.Config.RxRateThreshold:
+      description: |-
+        The optional container for rx rate threshold event configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable the rx_rate_threshold event. \nEnabling this\
+            \ option may affect the resultant packet payload due to \nadditional instrumentation\
+            \ data."
+          type: boolean
+          default: false
+        threshold:
+          description: "True to enable notifications when the rx rate of a flow passes\
+            \ above \nor below the threshold value. "
+          type: number
+          format: float
+          maximum: 100
+          minimum: 0
+          default: 95
+    Advanced.Config.LinkUpDown:
+      description: |-
+        The optional container for link up/down event configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable notifications when a link up/down event occurs. "
+          type: boolean
+          default: false
+    Advanced.Config.RouteAdvertiseWithdraw:
+      description: |-
+        The optional container for route advertise/withdraw event configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable notifications when a route advertise/withdraw\
+            \ \nevent occurs. "
+          type: boolean
+          default: false
+    Response.Pending:
       description: |-
         The standard response to any request. This allows an implementation to be either async or sync.
       type: object
@@ -2884,18 +3096,28 @@ components:
           description: |-
             The url to poll while the state is pending.
           type: string
-    Details:
+    Response.Error:
+      description: |-
+        A list of errors that may have occurred while executing the request.
       type: object
       properties:
         errors:
-          description: |-
-            A list of any errors that may have occurred while executing the request.
+          description: "A list of any errors that may have occurred while executing\
+            \ the request.\n\nPossible errors are:\n  - The request is not supported\
+            \ by system. In this case the system \n    MUST specify exactly what part\
+            \ of the request is not supported\n  - 4xx errors https://tools.ietf.org/html/rfc2616#section-10.4\n\
+            \  - Any other system specific errors"
           type: array
           items:
             type: string
+    Response.Warning:
+      description: |-
+        A list of warnings that may have occurred while executing the request.
+      type: object
+      properties:
         warnings:
-          description: |-
-            A list of any warnings generated while executing the request.
+          description: "A list of system specific warnings that may have occurred\
+            \ while \nexecuting the request."
           type: array
           items:
             type: string
@@ -2907,13 +3129,16 @@ components:
       - state
       properties:
         port_names:
-          description: |-
+          description: |
             The names of port objects to. An empty or null list will control all port objects.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
           type: array
           items:
             type: string
-            x-constraint:
-            - /components/schemas/Port/properties/name
+          x-constraint:
+          - /components/schemas/Port/properties/name
         state:
           description: |-
             The link state.
@@ -2929,13 +3154,16 @@ components:
       - state
       properties:
         flow_names:
-          description: |-
+          description: |
             The names of flows to which the transmit state will be applied to. If the list of flow_names is empty or null the state will be applied to all configured flows.
+
+            x-constraint:
+            - /components/schemas/Flow/properties/name
           type: array
           items:
             type: string
-            x-constraint:
-            - /components/schemas/Flow/properties/name
+          x-constraint:
+          - /components/schemas/Flow/properties/name
         state:
           description: |-
             The transmit state.
@@ -2953,13 +3181,16 @@ components:
       - state
       properties:
         port_names:
-          description: |-
+          description: |
             The name of ports to start capturing packets on. An empty or null list will control all port objects.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
           type: array
           items:
             type: string
-            x-constraint:
-            - /components/schemas/Port/properties/name
+          x-constraint:
+          - /components/schemas/Port/properties/name
         state:
           description: |-
             The capture state.
@@ -2967,50 +3198,31 @@ components:
           enum:
           - start
           - stop
-    Bgpv4.Route.State:
+    Route.State:
       description: |-
-        BGPv4 route specific action
+        Sets the device route state
       type: object
       required:
       - state
       properties:
         names:
-          description: |-
-            The names of Bgpv4RouteRange object to control.
+          description: |
+            The names of device route objects to control. If no names are specified then all route objects will be affected.
+
+            x-constraint:
+            - /components/schemas/Device.Bgp.Route/properties/name
           type: array
           items:
             type: string
-            x-constraint:
-            - /components/schemas/Device.Bgpv4RouteRange/properties/name
+          x-constraint:
+          - /components/schemas/Device.Bgp.Route/properties/name
         state:
           description: |-
-            BGPv4 route specific state
+            Route specific states
           type: string
           enum:
-          - withdraw_routes
-          - advertise_routes
-    Bgpv6.Route.State:
-      description: |-
-        BGPv6 route specific action
-      type: object
-      required:
-      - state
-      properties:
-        names:
-          description: |-
-            The names of Bgpv6RouteRange object to control.
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - /components/schemas/Device.Bgpv6RouteRange/properties/name
-        state:
-          description: |-
-            BGPv6 route specific state
-          type: string
-          enum:
-          - withdraw_routes
-          - advertise_routes
+          - withdraw
+          - advertise
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice
@@ -3022,13 +3234,10 @@ components:
           type: string
           enum:
           - port
-          - flow
           - bgpv4
           - bgpv6
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
-        flow:
-          $ref: '#/components/schemas/Flow.Metrics.Request'
         bgpv4:
           $ref: '#/components/schemas/Bgpv4.Metrics.Request'
         bgpv6:
@@ -3044,16 +3253,12 @@ components:
           type: string
           enum:
           - port_metrics
-          - flow_metrics
           - bgpv4_metrics
+          - bgpv6_metrics
         port_metrics:
           type: array
           items:
             $ref: '#/components/schemas/Port.Metric'
-        flow_metrics:
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Metric'
         bgpv4_metrics:
           type: array
           items:
@@ -3068,13 +3273,16 @@ components:
       type: object
       properties:
         port_names:
-          description: |-
+          description: |
             The names of objects to return results for. An empty list will return all port row results.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
           type: array
           items:
             type: string
-            x-constraint:
-            - /components/schemas/Port/properties/name
+          x-constraint:
+          - /components/schemas/Port/properties/name
         column_names:
           description: |-
             The list of column names that the returned result set will contain. If the list is empty then all columns will be returned. The name of the port cannot be excluded.
@@ -3098,9 +3306,14 @@ components:
       type: object
       properties:
         name:
-          description: |-
+          description: |
             The name of a configured port
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
           type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
         location:
           description: |-
             The state of the connection to the test port location. The format should be the configured port location along with  any custom connection state message.
@@ -3151,151 +3364,22 @@ components:
           description: |-
             The current rate of bytes received
           type: number
-    Flow.Metrics.Request:
-      description: |-
-        The request to the traffic generator for flow results.
-      type: object
-      properties:
-        flow_names:
-          description: |-
-            The names of flow objects to return results for. An empty list will return results for all flows.
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - /components/schemas/Flow/properties/name
-        column_names:
-          description: |-
-            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the flow cannot be excluded.
-          type: array
-          items:
-            type: string
-            enum:
-            - transmit
-            - port_tx
-            - port_rx
-            - frames_tx
-            - frames_rx
-            - bytes_tx
-            - bytes_rx
-            - frames_tx_rate
-            - frames_rx_rate
-            - min_latency_ns
-            - max_latency_ns
-            - avg_latency_ns
-            - loss
-        metric_group_names:
-          description: |-
-            Extend the details of flow metrics by specifying any configured  flow packet header field metric_group names.
-          type: array
-          items:
-            type: string
-            x-constraint:
-            - /components/schemas/Flow.Pattern/properties/metric_group
-    Flow.MetricGroup:
-      description: |-
-        A metric group
-      type: object
-      required:
-      - name
-      - value
-      properties:
-        name:
-          description: |-
-            Name provided as part of a flow packet header field metric group
-          type: string
-        value:
-          description: |-
-            The value of the flow packet header field
-          type: number
-    Flow.Metric:
-      type: object
-      properties:
-        name:
-          description: |-
-            The name of a configured flow.
-          type: string
-        transmit:
-          description: |-
-            The transmit state of the flow.
-          type: string
-          enum:
-          - started
-          - stopped
-          - paused
-        port_tx:
-          description: |-
-            The name of a configured port
-          type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-        port_rx:
-          description: |-
-            The name of a configured port
-          type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-        frames_tx:
-          description: |-
-            The current total number of frames transmitted
-          type: integer
-        frames_rx:
-          description: |-
-            The current total number of valid frames received
-          type: integer
-        bytes_tx:
-          description: |-
-            The current total number of bytes transmitted
-          type: integer
-        bytes_rx:
-          description: |-
-            The current total number of bytes received
-          type: integer
-        frames_tx_rate:
-          description: |-
-            The current rate of frames transmitted
-          type: number
-        frames_rx_rate:
-          description: |-
-            The current rate of valid frames received
-          type: number
-        min_latency_ns:
-          description: |-
-            The minimum latency in nanoseconds for valid frames received
-          type: number
-        max_latency_ns:
-          description: |-
-            The maximum latency in nanoseconds for valid frames received
-          type: number
-        avg_latency_ns:
-          description: |-
-            The avarage latency in nanoseconds for valid frames received
-          type: number
-        loss:
-          description: |-
-            The percentage of lost frames
-          type: number
-        metric_groups:
-          description: |-
-            Any configured flow packet header field metric_group names will  appear as additional name/value pairs.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.MetricGroup'
-          x-constraint:
-          - /components/schemas/Flow.Pattern/properties/result_group
     Bgpv4.Metrics.Request:
       description: |-
         The request to retrieve BGPv4 Router statistics and learned routing information
       type: object
       properties:
         device_names:
-          description: |-
+          description: |
             The names of BGPv4 device to return results for. An empty list will return results for all BGPv4 devices.
+
+            x-constraint:
+            - /components/schemas/Device.Bgpv4/properties/name
           type: array
           items:
             type: string
-            x-constraint:
-            - /components/schemas/Device.Bgpv4/properties/name
+          x-constraint:
+          - /components/schemas/Device.Bgpv4/properties/name
         column_names:
           description: |-
             The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the BGPv4 device cannot be excluded.
@@ -3348,13 +3432,16 @@ components:
       type: object
       properties:
         device_names:
-          description: |-
+          description: |
             The names of BGPv6 device to return results for. An empty list will return results for all BGPv6 devices.
+
+            x-constraint:
+            - /components/schemas/Device.Bgpv6/properties/name
           type: array
           items:
             type: string
-            x-constraint:
-            - /components/schemas/Device.Bgpv6/properties/name
+          x-constraint:
+          - /components/schemas/Device.Bgpv6/properties/name
         column_names:
           description: |-
             The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the BGPv6 device cannot be excluded.
@@ -3440,23 +3527,6 @@ components:
           - started
           - stopped
           - paused
-    Capabilities:
-      description: |-
-        A list of capabilities of the implementation
-      type: object
-      properties:
-        unsupported:
-          description: |-
-            A list of /components/schemas/... paths that are not supported.
-          type: array
-          items:
-            type: string
-        formats:
-          description: |-
-            A /components/schemas/... path and specific format  details regarding the path. Specific model format details can be additional objects and properties represented as a hashmap. For example layer1 models are defined as a hashmap key to object with  each object consisting of a specific name/value property pairs. This list of items will detail any specific formats, properties, enums.
-          type: array
-          items:
-            type: string
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.
@@ -3465,11 +3535,332 @@ components:
       - port_name
       properties:
         port_name:
-          description: |-
+          description: |
             The name of a port a capture is started on.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
+    AdvancedMetrics.Request:
+      description: |-
+        The request container for flow metrics. These metrics will not be available if the property  /components/schemas/Flow/properties/metrics is false.
+      type: object
+      properties:
+        flow_names:
+          description: |
+            The names of flow objects to return results for. An empty list will return results for all flows.
+
+            x-constraint:
+            - /components/schemas/Flow/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Flow/properties/name
+        metric_names:
+          description: |-
+            The list of metric names that the returned result set will contain. If the list is empty then all metrics will be returned but will be aggregated by flow name, the metrics will not be broken down by  additional metric group names. The name of the flow cannot be excluded from the response.
+          type: array
+          items:
+            type: string
+            enum:
+            - transmit
+            - port_tx
+            - port_rx
+            - frames_tx
+            - frames_rx
+            - bytes_tx
+            - bytes_rx
+            - frames_tx_rate
+            - frames_rx_rate
+            - loss
+            - timestamps
+            - latency
+        metric_group_names:
+          description: |
+            Extend the advanced flow metrics response by specifying any  configured flow packet header field metric_group names.
+
+            x-constraint:
+            - /components/schemas/Flow.Pattern/properties/metric_group
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Flow.Pattern/properties/metric_group
+    AdvancedMetrics.Response:
+      type: array
+      items:
+        $ref: '#/components/schemas/AdvancedMetrics.Flow'
+    AdvancedMetrics.Flow:
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of the advanced flow metric response.  The name includes the flow name by default along with any requested  metric_group_names.
+          type: string
+          example: Tx -> Rx
+        transmit:
+          description: |-
+            The transmit state of the flow.
+          type: string
+          enum:
+          - started
+          - stopped
+          - paused
+        port_tx:
+          description: |
+            The name of a configured port that the flow is being transmitted  from.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        port_rx:
+          description: |
+            The name of a configured port that the flow is being recevied on.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        frames_tx:
+          description: |-
+            The current total number of frames transmitted
+          type: integer
+        frames_rx:
+          description: |-
+            The current total number of valid frames received
+          type: integer
+        bytes_tx:
+          description: |-
+            The current total number of bytes transmitted
+          type: integer
+        bytes_rx:
+          description: |-
+            The current total number of bytes received
+          type: integer
+        frames_tx_rate:
+          description: |-
+            The current rate of frames transmitted
+          type: number
+        frames_rx_rate:
+          description: |-
+            The current rate of valid frames received
+          type: number
+        loss:
+          description: |-
+            The percentage of lost frames
+          type: number
+        timestamps:
+          $ref: '#/components/schemas/AdvancedMetrics.Timestamp'
+        latency:
+          $ref: '#/components/schemas/AdvancedMetrics.Latency'
+    AdvancedMetrics.Timestamp:
+      description: |-
+        The container for timestamp metrics.
+      type: object
+      properties:
+        first_timestamp_ns:
+          description: |-
+            First timestamp in nanoseconds
+          type: number
+          format: double
+        last_timestamp_ns:
+          description: |-
+            Last timestamp in nanoseconds
+          type: number
+          format: double
+    AdvancedMetrics.Latency:
+      description: "The container for latency metrics. The min/max/avg values are\
+        \ dependent \non the type of latency measurement mode that is configured."
+      type: object
+      properties:
+        minimum_ns:
+          description: |-
+            Minimum latency in nanoseconds
+          type: number
+          format: double
+        maximum_ns:
+          description: |-
+            Maximum latency in nanoseconds
+          type: number
+          format: double
+        average_ns:
+          description: |-
+            Average latency in nanoseconds
+          type: number
+          format: double
+    AdvancedAnalytics.Request:
+      description: |-
+        The request container for analytics.
+      type: object
+      properties:
+        flow_names:
+          description: |
+            The names of flow objects to return results for. An empty list will return results for all flows.
+
+            x-constraint:
+            - /components/schemas/Flow/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Flow/properties/name
+        metric_group_names:
+          description: |
+            Extend the analytics response by specifying any  configured flow packet header field metric_group names.
+
+            x-constraint:
+            - /components/schemas/Flow.Pattern/properties/metric_group
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Flow.Pattern/properties/metric_group
+        metric_names:
+          description: |-
+            The list of metric names that the returned result set will contain. If the list is empty then all metrics will be returned. The name of the flow cannot be excluded from the response.
+          type: array
+          items:
+            type: string
+            enum:
+            - convergence
+    AdvancedAnalytics.Response:
+      type: array
+      items:
+        $ref: '#/components/schemas/Analytics.Flow'
+    Analytics.Flow:
+      description: |-
+        The container for advanced analytics
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of the flow.  The name includes the flow name by default along with any requested  metric_group_names.
+          type: string
+          example: Tx -> Rx
+        convergence:
+          $ref: '#/components/schemas/Analytics.Convergence'
+    Analytics.Convergence:
+      description: |-
+        The container for data plane and control plane convergence analytics
+      type: object
+      properties:
+        data_plane_convergence_ns:
+          description: "The convergence time measured from the data plane perspective\
+            \ only. \nIt measures the time from BTT, when the rate on Test Port 2\
+            \ crosses \nbelow the Rx Threshold until an acceptable amount of traffic\
+            \ was \nreceived at time ATT, when the rate crosses above the configured\
+            \ \nrx_rate_threshold."
+          type: number
+          format: double
+        control_plane_data_plane_convergence_ns:
+          description: "The total convergence time, between the event that caused\
+            \ the\nswitchover (at tEvent) until an acceptable amount of traffic was\
+            \ \nreceived at time ATT, when the rate crosses above the configured \n\
+            rx_rate_threshold."
+          type: number
+          format: double
+        service_interruption_time_ns:
+          description: "Service interruption time is the flow_rx_rate_above_threshold\
+            \ minus \nthe flow_rx_rate_below_threshold."
+          type: number
+          format: double
+        events:
+          description: |-
+            The events that were used to determine the convergence analytics.
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+    Event.Request:
+      type: object
+      properties:
+        type:
+          description: "Constrain the events being returned by specifying event types.\n\
+            If the list is empty then all event types will be returned. "
+          type: array
+          items:
+            type: string
+            enum:
+            - link_down
+            - link_up
+            - route_withdraw
+            - route_advertise
+            - flow_rx_rate_above_threshold
+            - flow_rx_rate_below_threshold
+            example: route_withdraw
+        source:
+          description: "Constrain the events being returned by specifying event sources.\
+            \ \nIf the list is empty then all event sources will be returned. \n\n\
+            x-constraint:\n- /components/schemas/Port/properties/name\n- /components/schemas/Device.Bgpv4Route/name\n\
+            - /components/schemas/Device.Bgpv6Route/name\n"
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          - /components/schemas/Device.Bgpv4Route/name
+          - /components/schemas/Device.Bgpv6Route/name
+    Event:
+      description: |-
+        A container for an event that has occurred in the system.
+      type: object
+      properties:
+        type:
+          description: |-
+            The type of event that occurred.
+          type: string
+          enum:
+          - link_down
+          - link_up
+          - route_withdraw
+          - route_advertise
+          - flow_rx_rate_above_threshold
+          - flow_rx_rate_below_threshold
+          example: route_withdraw
+        source:
+          description: "The source of the event. \nThe source MUST be the value of\
+            \ one of the x-constraint paths,\nwhich means the source MUST be a unique\
+            \ name in the configuration. \n\nx-constraint:\n- /components/schemas/Port/properties/name\n\
+            - /components/schemas/Flow/properties/name\n- /components/schemas/Device.Bgpv4Route/properties/name\n\
+            - /components/schemas/Device.Bgpv6Route/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          - /components/schemas/Flow/properties/name
+          - /components/schemas/Device.Bgpv4Route/properties/name
+          - /components/schemas/Device.Bgpv6Route/properties/name
+          example: Bgpv4 Route Range 1
+        begin_timestamp_ns:
+          description: |-
+            The time in nanoseconds at which the event began
+          type: number
+          format: double
+        end_timestamp_ns:
+          description: |-
+            The time in nanoseconds at which the event ended
+          type: number
+          format: double
+    Event.Subscription:
+      description: "A container that describes what events a system should provide\
+        \ and \noptionally where to publish them.  "
+      type: object
+      properties:
+        events:
+          $ref: '#/components/schemas/Event.Request'
+        callbackUrl:
+          description: |-
+            Indicates where a client wants to be notified of the events set in
+            the events property.
+            If this property is empty or null then no event notifications will
+            be forwarded.
+          type: string
+          format: uri
+          example: https://127.0.0.1/event/notification
     Pattern.Flow.Ethernet.Dst.Counter:
       description: |-
         mac counter pattern

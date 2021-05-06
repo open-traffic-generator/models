@@ -30,10 +30,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '590':
-          $ref: '#/components/responses/Fail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     patch:
       tags:
       - Configuration
@@ -49,10 +49,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '590':
-          $ref: '#/components/responses/Fail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     get:
       tags:
       - Configuration
@@ -65,6 +65,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Config'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /control/transmit:
     post:
       tags:
@@ -81,10 +85,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '590':
-          $ref: '#/components/responses/Fail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /control/link:
     post:
       tags:
@@ -101,10 +105,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '590':
-          $ref: '#/components/responses/Fail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /control/capture:
     post:
       tags:
@@ -121,10 +125,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '590':
-          $ref: '#/components/responses/Fail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /results/metrics:
     description: |-
       Traffic metrics API
@@ -148,6 +152,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Metrics.Response'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /results/state:
     post:
       tags:
@@ -161,6 +169,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/State.Metrics'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /results/capabilities:
     description: |-
       Capability results API
@@ -176,6 +188,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Capabilities'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /results/capture:
     description: |-
       Capture results API
@@ -199,39 +215,35 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
   responses:
     Success:
-      description: |-
-        The request has succeeded. Detailed warnings if any will be returned as a list.
+      description: "The request has succeeded with no application content but the\
+        \ server \nmay return a list of detailed warnings."
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Details'
-    SuccessNoContent:
-      description: |-
-        The traffic generator has successfully completed the request and there is no content to return.
-    Pending:
-      description: |-
-        The traffic generator is currently processing the request which has  not yet completed. If a traffic generator implementation follows an asynchronous model it  should use this response to indicate that an operation has been  accepted but has not completed.
+            $ref: '#/components/schemas/Response.Warning'
+    BadRequest:
+      description: "This indicates that the server cannot or will not process the\
+        \ request \ndue to something that is perceived to be a client error.\nAdditional\
+        \ details are in the errors."
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Pending.Detail'
-    Conflict:
-      description: |-
-        The request is denied as the traffic generator is currently processing  another request.
+            $ref: '#/components/schemas/Response.Error'
+    InternalServerError:
+      description: "This indicates that the server encountered an unexpected condition\
+        \ that \nprevented it from fulfilling the request.\nAdditional details are\
+        \ in the errors."
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Details'
-    Fail:
-      description: |-
-        The request has failed. Detailed errors will be returned as a list.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Details'
+            $ref: '#/components/schemas/Response.Error'
   schemas:
     Config:
       description: |-
@@ -2870,32 +2882,25 @@ components:
           type: number
           format: double
           default: 0.096
-    Pending.Detail:
+    Response.Error:
       description: |-
-        The standard response to any request. This allows an implementation to be either async or sync.
-      type: object
-      properties:
-        state:
-          type: string
-          enum:
-          - pending
-          - success
-        url:
-          description: |-
-            The url to poll while the state is pending.
-          type: string
-    Details:
+        A list of errors that may have occurred while executing the request.
       type: object
       properties:
         errors:
-          description: |-
-            A list of any errors that may have occurred while executing the request.
+          description: "A list of any system specific errors that have occurred while\
+            \ \nexecuting the request."
           type: array
           items:
             type: string
+    Response.Warning:
+      description: |-
+        A list of warnings that have occurred while executing the request.
+      type: object
+      properties:
         warnings:
-          description: |-
-            A list of any warnings generated while executing the request.
+          description: "A list of any system specific warnings that have occurred\
+            \ while \nexecuting the request."
           type: array
           items:
             type: string

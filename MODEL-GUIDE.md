@@ -5,8 +5,9 @@ https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md) whic
 This document includes additional details on the following topics that are specific to this effort:
 - [Best Practices](#Best-Practices)
   - naming
+  - schema
   - description
-  - nullable
+  - versioning and creating a release
 - [OpenAPI keyword limitations](#Keyword-Limitations)
   - oneOf
   - allOf
@@ -39,6 +40,17 @@ This document includes additional details on the following topics that are speci
     strive to encapsulate those properties in an object to allow for future 
     extensiblity
 
+- `description` keyword
+  - MUST exist for every schema object and property and include a meaningful description
+
+- `versioning` and `creating a release`
+  - on every successful workflow run the openapi.yaml and otg.proto artifacts get posted back into the repo so others can gain visibility into those post processed artifacts without having to run the bundler process
+  - as a result a developer can update the value of the api.yaml#/info/version property value without the workflow creating a release
+  - once it is determined that a release needs to be created the following manual process can be executed which will trigger the release steps in the workflow:
+    ```
+    git tag -a v<api.yaml#/info/version> -m "Release <api.yaml#/info/version>"
+    git push --follow-tags
+    ```
 # Keyword Limitations
 The build script will enforce the following keyword conventions.
 - `oneOf` keyword
@@ -66,12 +78,6 @@ The build script will enforce the following keyword conventions.
 - `allOf` keyword
   - MUST not to be used
   - use the x-include extension instead
-
-- `description` keyword
-  - MUST be included for every schema object and schema property and include a meaningful description
-
-- `nullable`
-  - MUST NOT be used
 
 # Keyword Extensions
 - `x-status`: current | under-review | deprecated | obsolete

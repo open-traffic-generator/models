@@ -20,16 +20,14 @@ components:
           description: >-
             The list of metric names that the returned result set will contain.
             If the list is empty then all metrics will be returned but will be
-            aggregated by flow name, the metrics will not be broken down by 
-            additional metric group names.
+            aggregated by flow name, the metrics will not be disaggregated by 
+            metric group names.
             The name of the flow cannot be excluded from the response.
           type: array
           items:
             type: string
             enum:
               - transmit
-              - port_tx
-              - port_rx
               - frames_tx
               - frames_rx
               - bytes_tx
@@ -39,20 +37,62 @@ components:
               - loss
               - timestamps
               - latency
-        metric_group_names:
+        metric_groups:
           description: >-
-            Extend the advanced flow metrics response by specifying any 
-            configured flow packet header field metric_group names.
+            Disaggregate the advanced flow metrics response by specifying 
+            additional metric group filters.
+          $ref: '#/components/schemas/Flow.Group.Request'
+
+    Flow.Group.Request:
+      type: object
+      properties:
+        port:
+          description: |-
+            Disaggregate flow metrics by transmit port and receive port
+          type: boolean
+          default: false
+        ingress_packet_field_names:
+          description: |-
+            Disaggregate flow metrics by ingress packet header field names 
           type: array
           items:
             type: string
-          x-constraint:
-            - "/components/schemas/Flow.Pattern/properties/metric_group"
-            
+        egress_packet_field_names:
+          description: |-
+            Disaggregate flow metrics by egress packet header field names 
+          type: array
+          items:
+            type: string
+
+
     AdvancedMetrics.Response:
       type: array
       items:
         $ref: '#/components/schemas/AdvancedMetrics.Flow'
+
+    Flow.Group.Response:
+      type: object
+      properties:
+        port_tx:
+          type: string
+        port_rx:
+          type: string
+        ingress:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Field.Group'
+        egress:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Field.Group'
+
+    Flow.Field.Group:
+      type: object
+      properties:
+        name:
+          type: string
+        value: 
+          type: string
 
     AdvancedMetrics.Flow:
       type: object
@@ -64,24 +104,15 @@ components:
             metric_group_names.
           type: string
           example: 'Tx -> Rx'
+        groups:
+          description: |-
+            Flow disaggregation groups.
+          $ref: '#/components/schemas/Flow.Group.Response'
         transmit:
           description: >-
             The transmit state of the flow.
           type: string
           enum: [started, stopped, paused]
-        port_tx:
-          description: >-
-            The name of a configured port that the flow is being transmitted 
-            from.
-          type: string
-          x-constraint:
-          - "/components/schemas/Port/properties/name"
-        port_rx:
-          description: >-
-            The name of a configured port that the flow is being recevied on.
-          type: string
-          x-constraint:
-          - "/components/schemas/Port/properties/name"
         frames_tx:
           description: >-
             The current total number of frames transmitted
@@ -120,14 +151,14 @@ components:
         The container for timestamp metrics.
       type: object
       properties:
-        first_timestamp_ns:
+        first_timestamp_us:
           description: |-
-            First timestamp in nanoseconds
+            First timestamp in microseconds
           type: number
           format: double
-        last_timestamp_ns:
+        last_timestamp_us:
           description: |-
-            Last timestamp in nanoseconds
+            Last timestamp in microseconds
           type: number
           format: double
 
@@ -137,18 +168,18 @@ components:
         on the type of latency measurement mode that is configured.
       type: object
       properties:
-        minimum_ns:
+        minimum_us:
           description: |-
-            Minimum latency in nanoseconds
+            Minimum latency in microseconds
           type: number
           format: double
-        maximum_ns:
+        maximum_us:
           description: |-
-            Maximum latency in nanoseconds
+            Maximum latency in microseconds
           type: number
           format: double
-        average_ns:
+        average_us:
           description: |-
-            Average latency in nanoseconds
+            Average latency in microseconds
           type: number
           format: double

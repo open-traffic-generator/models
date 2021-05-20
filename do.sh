@@ -40,8 +40,8 @@ install_deps() {
     apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
     && apt-get -y install curl git python3 python3-pip \
-    && ln -s /usr/bin/python3 /usr/bin/python \
-    && ln -s /usr/bin/pip3 /usr/bin/pip \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip \
     && python -m pip install flake8 \
     && get_java \
     && get_openapi_gen

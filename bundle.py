@@ -8,8 +8,7 @@ bundler = Bundler(
     output_dir=os.path.dirname(__file__),
     api_files=[
         './api/info.yaml',
-        './api/api.yaml',
-        './api/advanced-api.yaml']
+        './api/api.yaml']
 )
 
 bundler.bundle()

@@ -21,7 +21,7 @@ message Config {
 
   repeated Flow flows = 6;
 
-  AdvancedConfig advanced = 7;
+  Event events = 7;
 
   ConfigOptions options = 8;
 }
@@ -1571,38 +1571,54 @@ message FlowDurationInterBurstGap {
   } }
 }
 
-message AdvancedConfig {
-  AdvancedConfigEvent event = 1;
-
-  AdvancedConfigConvergence convergence = 2;
-}
-
-message AdvancedConfigConvergence {
-  bool enable = 1;
-}
-
-message AdvancedConfigEvent {
+message Event {
   bool enable = 1;
 
-  AdvancedConfigLinkUpDown link_up_down = 2;
+  EventLink link = 2;
 
-  AdvancedConfigRxRateThreshold rx_rate_threshold = 3;
+  EventRxRateThreshold rx_rate_threshold = 3;
 
-  AdvancedConfigRouteAdvertiseWithdraw route_advertise_withdraw = 4;
+  EventRouteAdvertiseWithdraw route_advertise_withdraw = 4;
 }
 
-message AdvancedConfigRxRateThreshold {
+message EventRxRateThreshold {
   bool enable = 1;
 
   float threshold = 2;
 }
 
-message AdvancedConfigLinkUpDown {
+message EventLink {
   bool enable = 1;
 }
 
-message AdvancedConfigRouteAdvertiseWithdraw {
+message EventRouteAdvertiseWithdraw {
   bool enable = 1;
+}
+
+message EventRequest {
+  repeated Type type = 1;
+
+  repeated string source = 2;
+
+  message Type { enum Enum {
+    link_down = 0;
+
+    link_up = 1;
+
+    route_withdraw = 2;
+
+    route_advertise = 3;
+
+    flow_rx_rate_above_threshold = 4;
+
+    flow_rx_rate_below_threshold = 5;
+  } }
+}
+
+message EventSubscription {
+  EventRequest events = 1;
+
+  string callback_url = 2;
 }
 
 message ResponsePending {
@@ -1702,7 +1718,7 @@ message MetricsResponse {
 
   repeated PortMetric port_metrics = 2;
 
-  repeated AdvancedMetricsFlow flow_metrics = 3;
+  repeated FlowMetric flow_metrics = 3;
 
   repeated Bgpv4Metric bgpv4_metrics = 4;
 
@@ -1821,11 +1837,7 @@ message FlowMetricGroup {
   repeated string egress_packet_field_names = 4;
 }
 
-message AdvancedMetricsResponse {
-  repeated AdvancedMetricsFlow value = 1;
-}
-
-message FlowGroupResponse {
+message FlowGroup {
   string port_tx = 1;
 
   string port_rx = 2;
@@ -1841,10 +1853,10 @@ message FlowFieldGroup {
   string value = 2;
 }
 
-message AdvancedMetricsFlow {
+message FlowMetric {
   string name = 1;
 
-  FlowGroupResponse groups = 2;
+  FlowGroup groups = 2;
 
   Transmit.Enum transmit = 3;
 
@@ -1862,9 +1874,9 @@ message AdvancedMetricsFlow {
 
   float loss = 10;
 
-  AdvancedMetricsTimestamp timestamps = 11;
+  MetricTimestamp timestamps = 11;
 
-  AdvancedMetricsLatency latency = 12;
+  MetricLatency latency = 12;
 
   message Transmit { enum Enum {
     started = 0;
@@ -1875,13 +1887,13 @@ message AdvancedMetricsFlow {
   } }
 }
 
-message AdvancedMetricsTimestamp {
+message MetricTimestamp {
   double first_timestamp_us = 1;
 
   double last_timestamp_us = 2;
 }
 
-message AdvancedMetricsLatency {
+message MetricLatency {
   double minimum_us = 1;
 
   double maximum_us = 2;
@@ -2005,59 +2017,7 @@ message CaptureRequest {
   string port_name = 1;
 }
 
-message AdvancedAnalyticsRequest {
-  repeated FlowMetricGroup flow_groups = 1;
-
-  repeated Metric_names metric_names = 2;
-
-  message Metric_names { enum Enum {
-    convergence = 0;
-  } }
-}
-
-message AdvancedAnalyticsResponse {
-  repeated AnalyticsFlow value = 1;
-}
-
-message AnalyticsFlow {
-  string name = 1;
-
-  FlowGroupResponse groups = 2;
-
-  AnalyticsConvergence convergence = 3;
-}
-
-message AnalyticsConvergence {
-  double data_plane_convergence_us = 1;
-
-  double control_plane_data_plane_convergence_us = 2;
-
-  double service_interruption_time_us = 3;
-
-  repeated Event events = 4;
-}
-
-message EventRequest {
-  repeated Type type = 1;
-
-  repeated string source = 2;
-
-  message Type { enum Enum {
-    link_down = 0;
-
-    link_up = 1;
-
-    route_withdraw = 2;
-
-    route_advertise = 3;
-
-    flow_rx_rate_above_threshold = 4;
-
-    flow_rx_rate_below_threshold = 5;
-  } }
-}
-
-message Event {
+message MetricEvent {
   Type.Enum type = 1;
 
   string source = 2;
@@ -2079,12 +2039,6 @@ message Event {
 
     flow_rx_rate_below_threshold = 5;
   } }
-}
-
-message EventSubscription {
-  EventRequest events = 1;
-
-  string callback_url = 2;
 }
 
 message PatternFlowEthernetDstCounter {
@@ -6543,10 +6497,6 @@ message GetCaptureParameters {
   CaptureRequest capture__request = 1;
 }
 
-message GetAnalyticsParameters {
-  AdvancedAnalyticsRequest advanced_analytics__request = 1;
-}
-
 message SubscribeEventParameters {
   EventSubscription event__subscription = 1;
 }
@@ -6590,10 +6540,6 @@ service Openapi {
 
   rpc GetCapture ( GetCaptureParameters ) returns ( google.protobuf.Empty ) {
 //     option (google.api.http) = { post:"/results/capture"  };
-  }
-
-  rpc GetAnalytics ( GetAnalyticsParameters ) returns ( AdvancedAnalyticsResponse ) {
-//     option (google.api.http) = { post:"/advanced/analytics"  };
   }
 
   rpc SubscribeEvent ( SubscribeEventParameters ) returns ( ResponseWarning ) {

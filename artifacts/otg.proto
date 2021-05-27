@@ -908,9 +908,33 @@ message Flow {
 
   FlowDuration duration = 5;
 
-  bool metrics = 6;
+  FlowMetrics metrics = 6;
 
   string name = 7;
+}
+
+message FlowMetrics {
+  bool enable = 1;
+
+  bool loss = 2;
+
+  bool timestamps = 3;
+
+  bool ports = 4;
+
+  FlowLatencyMetrics latency = 5;
+}
+
+message FlowLatencyMetrics {
+  bool enable = 1;
+
+  Mode.Enum mode = 2;
+
+  message Mode { enum Enum {
+    store_forward = 0;
+
+    cut_through = 1;
+  } }
 }
 
 message FlowTxRx {
@@ -1548,23 +1572,9 @@ message FlowDurationInterBurstGap {
 }
 
 message AdvancedConfig {
-  AdvancedConfigLatency latency = 1;
+  AdvancedConfigEvent event = 1;
 
-  AdvancedConfigEvent event = 2;
-
-  AdvancedConfigConvergence convergence = 3;
-}
-
-message AdvancedConfigLatency {
-  bool enable = 1;
-
-  Mode.Enum mode = 2;
-
-  message Mode { enum Enum {
-    store_forward = 0;
-
-    cut_through = 1;
-  } }
+  AdvancedConfigConvergence convergence = 2;
 }
 
 message AdvancedConfigConvergence {
@@ -1670,16 +1680,20 @@ message MetricsRequest {
 
   PortMetricsRequest port = 2;
 
-  Bgpv4MetricsRequest bgpv4 = 3;
+  FlowMetricsRequest flow = 3;
 
-  Bgpv6MetricsRequest bgpv6 = 4;
+  Bgpv4MetricsRequest bgpv4 = 4;
+
+  Bgpv6MetricsRequest bgpv6 = 5;
 
   message Choice { enum Enum {
     port = 0;
 
-    bgpv4 = 1;
+    flow = 1;
 
-    bgpv6 = 2;
+    bgpv4 = 2;
+
+    bgpv6 = 3;
   } }
 }
 
@@ -1688,16 +1702,20 @@ message MetricsResponse {
 
   repeated PortMetric port_metrics = 2;
 
-  repeated Bgpv4Metric bgpv4_metrics = 3;
+  repeated AdvancedMetricsFlow flow_metrics = 3;
 
-  repeated Bgpv6Metric bgpv6_metrics = 4;
+  repeated Bgpv4Metric bgpv4_metrics = 4;
+
+  repeated Bgpv6Metric bgpv6_metrics = 5;
 
   message Choice { enum Enum {
-    port_metrics = 0;
+    flow_metrics = 0;
 
-    bgpv4_metrics = 1;
+    port_metrics = 1;
 
-    bgpv6_metrics = 2;
+    bgpv4_metrics = 2;
+
+    bgpv6_metrics = 3;
   } }
 }
 
@@ -1769,6 +1787,106 @@ message PortMetric {
 
     stopped = 1;
   } }
+}
+
+message FlowMetricsRequest {
+  repeated FlowMetricGroup flow_groups = 1;
+
+  repeated Metric_names metric_names = 2;
+
+  message Metric_names { enum Enum {
+    transmit = 0;
+
+    frames_tx = 1;
+
+    frames_rx = 2;
+
+    bytes_tx = 3;
+
+    bytes_rx = 4;
+
+    frames_tx_rate = 5;
+
+    frames_rx_rate = 6;
+  } }
+}
+
+message FlowMetricGroup {
+  string flow_name = 1;
+
+  bool ports = 2;
+
+  repeated string ingress_packet_field_names = 3;
+
+  repeated string egress_packet_field_names = 4;
+}
+
+message AdvancedMetricsResponse {
+  repeated AdvancedMetricsFlow value = 1;
+}
+
+message FlowGroupResponse {
+  string port_tx = 1;
+
+  string port_rx = 2;
+
+  repeated FlowFieldGroup ingress = 3;
+
+  repeated FlowFieldGroup egress = 4;
+}
+
+message FlowFieldGroup {
+  string name = 1;
+
+  string value = 2;
+}
+
+message AdvancedMetricsFlow {
+  string name = 1;
+
+  FlowGroupResponse groups = 2;
+
+  Transmit.Enum transmit = 3;
+
+  int32 frames_tx = 4;
+
+  int32 frames_rx = 5;
+
+  int32 bytes_tx = 6;
+
+  int32 bytes_rx = 7;
+
+  float frames_tx_rate = 8;
+
+  float frames_rx_rate = 9;
+
+  float loss = 10;
+
+  AdvancedMetricsTimestamp timestamps = 11;
+
+  AdvancedMetricsLatency latency = 12;
+
+  message Transmit { enum Enum {
+    started = 0;
+
+    stopped = 1;
+
+    paused = 2;
+  } }
+}
+
+message AdvancedMetricsTimestamp {
+  double first_timestamp_us = 1;
+
+  double last_timestamp_us = 2;
+}
+
+message AdvancedMetricsLatency {
+  double minimum_us = 1;
+
+  double maximum_us = 2;
+
+  double average_us = 3;
 }
 
 message Bgpv4MetricsRequest {
@@ -1887,100 +2005,10 @@ message CaptureRequest {
   string port_name = 1;
 }
 
-message AdvancedMetricsRequest {
-  repeated string flow_names = 1;
+message AdvancedAnalyticsRequest {
+  repeated FlowMetricGroup flow_groups = 1;
 
   repeated Metric_names metric_names = 2;
-
-  repeated string metric_group_names = 3;
-
-  message Metric_names { enum Enum {
-    transmit = 0;
-
-    port_tx = 1;
-
-    port_rx = 2;
-
-    frames_tx = 3;
-
-    frames_rx = 4;
-
-    bytes_tx = 5;
-
-    bytes_rx = 6;
-
-    frames_tx_rate = 7;
-
-    frames_rx_rate = 8;
-
-    loss = 9;
-
-    timestamps = 10;
-
-    latency = 11;
-  } }
-}
-
-message AdvancedMetricsResponse {
-  repeated AdvancedMetricsFlow value = 1;
-}
-
-message AdvancedMetricsFlow {
-  string name = 1;
-
-  Transmit.Enum transmit = 2;
-
-  string port_tx = 3;
-
-  string port_rx = 4;
-
-  int32 frames_tx = 5;
-
-  int32 frames_rx = 6;
-
-  int32 bytes_tx = 7;
-
-  int32 bytes_rx = 8;
-
-  float frames_tx_rate = 9;
-
-  float frames_rx_rate = 10;
-
-  float loss = 11;
-
-  AdvancedMetricsTimestamp timestamps = 12;
-
-  AdvancedMetricsLatency latency = 13;
-
-  message Transmit { enum Enum {
-    started = 0;
-
-    stopped = 1;
-
-    paused = 2;
-  } }
-}
-
-message AdvancedMetricsTimestamp {
-  double first_timestamp_ns = 1;
-
-  double last_timestamp_ns = 2;
-}
-
-message AdvancedMetricsLatency {
-  double minimum_ns = 1;
-
-  double maximum_ns = 2;
-
-  double average_ns = 3;
-}
-
-message AdvancedAnalyticsRequest {
-  repeated string flow_names = 1;
-
-  repeated string metric_group_names = 2;
-
-  repeated Metric_names metric_names = 3;
 
   message Metric_names { enum Enum {
     convergence = 0;
@@ -1994,15 +2022,17 @@ message AdvancedAnalyticsResponse {
 message AnalyticsFlow {
   string name = 1;
 
-  AnalyticsConvergence convergence = 2;
+  FlowGroupResponse groups = 2;
+
+  AnalyticsConvergence convergence = 3;
 }
 
 message AnalyticsConvergence {
-  double data_plane_convergence_ns = 1;
+  double data_plane_convergence_us = 1;
 
-  double control_plane_data_plane_convergence_ns = 2;
+  double control_plane_data_plane_convergence_us = 2;
 
-  double service_interruption_time_ns = 3;
+  double service_interruption_time_us = 3;
 
   repeated Event events = 4;
 }
@@ -6513,10 +6543,6 @@ message GetCaptureParameters {
   CaptureRequest capture__request = 1;
 }
 
-message GetFlowMetricsParameters {
-  AdvancedMetricsRequest advanced_metrics__request = 1;
-}
-
 message GetAnalyticsParameters {
   AdvancedAnalyticsRequest advanced_analytics__request = 1;
 }
@@ -6564,10 +6590,6 @@ service Openapi {
 
   rpc GetCapture ( GetCaptureParameters ) returns ( google.protobuf.Empty ) {
 //     option (google.api.http) = { post:"/results/capture"  };
-  }
-
-  rpc GetFlowMetrics ( GetFlowMetricsParameters ) returns ( AdvancedMetricsResponse ) {
-//     option (google.api.http) = { post:"/advanced/metrics"  };
   }
 
   rpc GetAnalytics ( GetAnalyticsParameters ) returns ( AdvancedAnalyticsResponse ) {

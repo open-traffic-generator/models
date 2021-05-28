@@ -35,8 +35,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '590':
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     patch:
       tags:
       - Configuration
@@ -52,8 +54,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '590':
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     get:
       tags:
       - Configuration
@@ -66,8 +70,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Config'
-        '590':
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /control/transmit:
     post:
       tags:
@@ -84,8 +90,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '590':
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /control/link:
     post:
       tags:
@@ -102,8 +110,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '590':
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /control/capture:
     post:
       tags:
@@ -120,26 +130,10 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Success'
-        '590':
-          $ref: '#/components/responses/Error'
-  /control/routes:
-    post:
-      tags:
-      - Control
-      operationId: set_route_state
-      description: |-
-        Updates the state of configuration device resources on the traffic generator.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Route.State'
-      responses:
-        '200':
-          $ref: '#/components/responses/Success'
-        '590':
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /results/metrics:
     description: |-
       Metrics API
@@ -163,8 +157,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Metrics.Response'
-        '590':
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /results/state:
     post:
       tags:
@@ -178,8 +174,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/State.Metrics'
-        '590':
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /results/capabilities:
+    description: |-
+      Capability results API
+    post:
+      tags:
+      - Results
+      operationId: get_capabilities
+      responses:
+        '200':
+          description: |-
+            Capability results response from the traffic generator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capabilities'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /results/capture:
     description: |-
       Capture results API
@@ -203,51 +220,31 @@ paths:
               schema:
                 type: string
                 format: binary
-        '590':
-          $ref: '#/components/responses/Error'
-  /event/subscribe:
-    post:
-      tags:
-      - Metrics
-      operationId: subscribe_event
-      description: |-
-        An API for subscribing to event notifications.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Event.Subscription'
-      callbacks:
-        event_notification:
-          '{$request.body#/callbackUrl}':
-            post:
-              description: |-
-                The event notification that will be streamed to the subscriber.
-              requestBody:
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/Metric.Event'
-              responses:
-                '200':
-                  $ref: '#/components/responses/Success'
-      responses:
-        '200':
-          $ref: '#/components/responses/Success'
-        '590':
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
   responses:
     Success:
-      description: |-
-        The request has succeeded. Detailed warnings if any will be returned as a list.
+      description: "The request has succeeded with no application content but the\
+        \ server \nmay return a list of detailed warnings."
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Response.Warning'
-    Error:
-      description: |-
-        The request has failed and the reasons for failure are in the response.
+    BadRequest:
+      description: "This indicates that the server cannot or will not process the\
+        \ request \ndue to something that is perceived to be a client error.\nAdditional\
+        \ details are in the errors."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Response.Error'
+    InternalServerError:
+      description: "This indicates that the server encountered an unexpected condition\
+        \ that \nprevented it from fulfilling the request.\nAdditional details are\
+        \ in the errors."
       content:
         application/json:
           schema:
@@ -3087,41 +3084,24 @@ components:
           type: string
           format: uri
           example: https://127.0.0.1/event/notification
-    Response.Pending:
-      description: |-
-        The standard response to any request. This allows an implementation to be either async or sync.
-      type: object
-      properties:
-        state:
-          type: string
-          enum:
-          - pending
-          - success
-        url:
-          description: |-
-            The url to poll while the state is pending.
-          type: string
     Response.Error:
       description: |-
         A list of errors that may have occurred while executing the request.
       type: object
       properties:
         errors:
-          description: "A list of any errors that may have occurred while executing\
-            \ the request.\n\nPossible errors are:\n  - The request is not supported\
-            \ by system. In this case the system \n    MUST specify exactly what part\
-            \ of the request is not supported\n  - 4xx errors https://tools.ietf.org/html/rfc2616#section-10.4\n\
-            \  - Any other system specific errors"
+          description: "A list of any system specific errors that have occurred while\
+            \ \nexecuting the request."
           type: array
           items:
             type: string
     Response.Warning:
       description: |-
-        A list of warnings that may have occurred while executing the request.
+        A list of warnings that have occurred while executing the request.
       type: object
       properties:
         warnings:
-          description: "A list of system specific warnings that may have occurred\
+          description: "A list of any system specific warnings that have occurred\
             \ while \nexecuting the request."
           type: array
           items:
@@ -3718,6 +3698,23 @@ components:
           - started
           - stopped
           - paused
+    Capabilities:
+      description: |-
+        A list of capabilities of the implementation
+      type: object
+      properties:
+        unsupported:
+          description: |-
+            A list of /components/schemas/... paths that are not supported.
+          type: array
+          items:
+            type: string
+        formats:
+          description: |-
+            A /components/schemas/... path and specific format  details regarding the path. Specific model format details can be additional objects and properties represented as a hashmap. For example layer1 models are defined as a hashmap key to object with  each object consisting of a specific name/value property pairs. This list of items will detail any specific formats, properties, enums.
+          type: array
+          items:
+            type: string
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.
@@ -3734,46 +3731,6 @@ components:
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
-    Metric.Event:
-      description: |-
-        A container for an event that has occurred in the system.
-      type: object
-      properties:
-        type:
-          description: |-
-            The type of event that occurred.
-          type: string
-          enum:
-          - link_down
-          - link_up
-          - route_withdraw
-          - route_advertise
-          - flow_rx_rate_above_threshold
-          - flow_rx_rate_below_threshold
-          example: route_withdraw
-        source:
-          description: "The source of the event. \nThe source MUST be the value of\
-            \ one of the x-constraint paths,\nwhich means the source MUST be a unique\
-            \ name in the configuration. \n\nx-constraint:\n- /components/schemas/Port/properties/name\n\
-            - /components/schemas/Flow/properties/name\n- /components/schemas/Device.Bgpv4Route/properties/name\n\
-            - /components/schemas/Device.Bgpv6Route/properties/name\n"
-          type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-          - /components/schemas/Flow/properties/name
-          - /components/schemas/Device.Bgpv4Route/properties/name
-          - /components/schemas/Device.Bgpv6Route/properties/name
-          example: Bgpv4 Route Range 1
-        begin_timestamp_ns:
-          description: |-
-            The time in nanoseconds at which the event began
-          type: number
-          format: double
-        end_timestamp_ns:
-          description: |-
-            The time in nanoseconds at which the event ended
-          type: number
-          format: double
     Pattern.Flow.Ethernet.Dst.Counter:
       description: |-
         mac counter pattern

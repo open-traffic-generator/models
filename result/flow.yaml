@@ -2,16 +2,24 @@ components:
   schemas:
     Flow.Metrics.Request:
       description: >-
-        The request container for flow metrics.
+        The container for a flow metric request.
       type: object
       properties:
-        flow_groups:
-          description: >-
-            A list of flow groups to apply to all flow metrics.
-            An empty list will return metrics for all flows.
+        flow_names:
+          description: |-
+            Flow metrics will be retrieved for these flow names.
+            If no flow names are specified then all flows will be returned.
           type: array
-          items:
-            $ref: '#/components/schemas/Flow.Metric.Group'
+          items: 
+            type: string
+          x-constraint:
+          - "/components/schemas/Flow/properties/name"
+        metric_groups:
+          description: >-
+            A list of metric groups used to disaggregate flows.
+            A metric group that does not exist for a flow group MUST return
+            an error.
+          $ref: '#/components/schemas/Flow.MetricGroup.Request'
         metric_names:
           description: >-
             The list of metric names that the returned result set will contain.
@@ -28,84 +36,62 @@ components:
               - frames_tx_rate
               - frames_rx_rate
 
-    Flow.Metric.Group:
-      type: object
-      required: [flow_name]
-      properties:
-        flow_name:
-          description: |-
-            Flow metrics will be retrieved for this flow name
-          type: string
-          x-constraint:
-          - "/components/schemas/Flow/properties/name"
-        ports:
-          description: |-
-            Disaggregate the flow metrics by transmit port and receive port
-          type: boolean
-          default: false
-        ingress_packet_field_names:
-          description: |-
-            Disaggregate the flow metrics by ingress packet header field names 
-          type: array
-          default: []
-          items:
-            type: string
-        egress_packet_field_names:
-          description: |-
-            Disaggregate the flow metrics by egress packet header field names 
-          type: array
-          default: []
-          items:
-            type: string
-
-    Flow.Group:
+    Flow.MetricGroup.Request:
       type: object
       properties:
-        port_tx:
+        choice:
           description: |-
-            Name of the transmit port
+            The type of disaggregation to be applied to the flow metrics.
           type: string
-        port_rx:
-          description: |-
-            Name of the receive port
-          type: string
+          enum: [ingress, egress]
+          default: ingress
         ingress:
           description: |-
-            Names of flow packet field metric group
+            Disaggregate the flow metrics by ingress packet header field names.
+            If the items is empty then no disaggregation will be done. 
           type: array
+          default: []
           items:
-            $ref: '#/components/schemas/Flow.Field.Group'
+            type: string
+          x-constraint:
+          - "/components/schemas/Flow/properties/packet/../metric_group"
         egress:
           description: |-
-            Names of flow egress packet field metric group
+            Disaggregate the flow metrics by egress packet header field names 
+            If the items is empty then no disaggregation will be done. 
           type: array
+          default: []
           items:
-            $ref: '#/components/schemas/Flow.Field.Group'
-
-    Flow.Field.Group:
-      type: object
-      properties:
-        name:
-          description: |-
-            Name of packet field metric group
-          type: string
-        value: 
-          description: |-
-            Value of named packet field metric group
-          type: string
+            type: string
+          x-constraint:
+          - "/components/schemas/Flow/properties/egress/../metric_group"
 
     Flow.Metric:
+      description: |-
+        A container for flow metrics.
+        The container is keyed by the name, port_tx, port_rx and metric_groups
+        values.
       type: object
       properties:
         name:
           description: >-
-            The name of the advanced flow metric response. 
+            The name of the flow
           type: string
           example: 'Tx -> Rx'
-        groups:
+        port_tx:
+          description: |-
+            The name of the transmit port
+          type: string
+        port_rx:
+          description: |-
+            The name of the receive port
+          type: string
+        metric_groups:
           description: |-
             Flow disaggregation groups.
-          $ref: '#/components/schemas/Flow.Group'
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.MetricGroup'
         transmit:
           description: >-
             The transmit state of the flow.
@@ -144,9 +130,23 @@ components:
         latency:
           $ref: '#/components/schemas/Metric.Latency'
 
+    Flow.MetricGroup:
+      type: object
+      properties:
+        name:
+          description: |-
+            Name of packet field metric group
+          type: string
+        value: 
+          description: |-
+            Value of named packet field metric group
+          type: string
+
     Metric.Timestamp:
       description: |-
         The container for timestamp metrics.
+        The container will be empty if the timestamp has not been configured for
+        the flow.
       type: object
       properties:
         first_timestamp_ns:
@@ -162,8 +162,11 @@ components:
 
     Metric.Latency:
       description: |-
-        The container for latency metrics. The min/max/avg values are dependent 
-        on the type of latency measurement mode that is configured.
+        The container for latency metrics. 
+        The min/max/avg values are dependent on the type of latency measurement 
+        mode that is configured.
+        The container will be empty if the latency has not been configured for
+        the flow.
       type: object
       properties:
         minimum_ns:

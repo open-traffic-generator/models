@@ -2026,61 +2026,6 @@ components:
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Flow.Metrics:
-      description: |-
-        The optional container for configuring flow metrics.
-      type: object
-      properties:
-        enable:
-          description: "Enables flow metrics.\nEnabling this option may affect the\
-            \ resultant packet payload due to \nadditional instrumentation data."
-          type: boolean
-          default: false
-        loss:
-          description: |-
-            Enables additional flow metric loss calculation.
-          type: boolean
-          default: false
-        timestamps:
-          description: |-
-            Enables additional flow metric first and last timestamps.
-          type: boolean
-          default: false
-        ports:
-          description: |-
-            Enables disaggregation of flow metrics by including metric groups of
-            transmit and receive port names.
-          type: boolean
-          default: false
-        latency:
-          description: |-
-            Latency metrics.
-          $ref: '#/components/schemas/Flow.Latency.Metrics'
-    Flow.Latency.Metrics:
-      description: |-
-        The optional container for per flow latency metric configuration.
-      type: object
-      properties:
-        enable:
-          description: "True to enable latency metrics using timestamps.\n\nEnabling\
-            \ this option may affect the resultant packet payload due to \nadditional\
-            \ instrumentation data."
-          type: boolean
-          default: false
-        mode:
-          description: "Select the type of latency measurement. The different types\
-            \ of \nlatency measurements are:\n\n\nstore_forward:\nThe time interval\
-            \ starting when the last bit of the frame leaves the\nsending port and\
-            \ ending when the first bit of the frame is seen on\nthe receiving port\
-            \ (LIFO).  This is based on the RFC 1242 standard.\n\n\ncut_through:\n\
-            The time interval starting when the first bit of the frame leaves\nthe\
-            \ sending port and ending when the first bit of the frame is seen\non\
-            \ the receiving port (FIFO).  This is based on the RFC 1242 \nstandard."
-          type: string
-          enum:
-          - store_forward
-          - cut_through
-          default: store_forward
     Flow.TxRx:
       description: |-
         A container for different types of transmit and receive  endpoint containers.
@@ -2986,6 +2931,55 @@ components:
           type: number
           format: double
           default: 0.096
+    Flow.Metrics:
+      description: |-
+        The optional container for configuring flow metrics.
+      type: object
+      properties:
+        enable:
+          description: "Enables flow metrics.\nEnabling this option may affect the\
+            \ resultant packet payload due to \nadditional instrumentation data."
+          type: boolean
+          default: false
+        loss:
+          description: |-
+            Enables additional flow metric loss calculation.
+          type: boolean
+          default: false
+        timestamps:
+          description: |-
+            Enables additional flow metric first and last timestamps.
+          type: boolean
+          default: false
+        latency:
+          description: |-
+            Latency metrics.
+          $ref: '#/components/schemas/Flow.Latency.Metrics'
+    Flow.Latency.Metrics:
+      description: |-
+        The optional container for per flow latency metric configuration.
+      type: object
+      properties:
+        enable:
+          description: "True to enable latency metrics using timestamps.\n\nEnabling\
+            \ this option may affect the resultant packet payload due to \nadditional\
+            \ instrumentation data."
+          type: boolean
+          default: false
+        mode:
+          description: "Select the type of latency measurement. The different types\
+            \ of \nlatency measurements are:\n\n\nstore_forward:\nThe time interval\
+            \ starting when the last bit of the frame leaves the\nsending port and\
+            \ ending when the first bit of the frame is seen on\nthe receiving port\
+            \ (LIFO).  This is based on the RFC 1242 standard.\n\n\ncut_through:\n\
+            The time interval starting when the first bit of the frame leaves\nthe\
+            \ sending port and ending when the first bit of the frame is seen\non\
+            \ the receiving port (FIFO).  This is based on the RFC 1242 \nstandard."
+          type: string
+          enum:
+          - store_forward
+          - cut_through
+          default: store_forward
     Event:
       description: |-
         The optional container for event configuration.
@@ -3362,15 +3356,25 @@ components:
           type: number
     Flow.Metrics.Request:
       description: |-
-        The request container for flow metrics.
+        The container for a flow metric request.
       type: object
       properties:
-        flow_groups:
-          description: |-
-            A list of flow groups to apply to all flow metrics. An empty list will return metrics for all flows.
+        flow_names:
+          description: |
+            Flow metrics will be retrieved for these flow names.
+            If no flow names are specified then all flows will be returned.
+
+            x-constraint:
+            - /components/schemas/Flow/properties/name
           type: array
           items:
-            $ref: '#/components/schemas/Flow.Metric.Group'
+            type: string
+          x-constraint:
+          - /components/schemas/Flow/properties/name
+        metric_groups:
+          description: |-
+            A list of metric groups used to disaggregate flows. A metric group that does not exist for a flow group MUST return an error.
+          $ref: '#/components/schemas/Flow.MetricGroup.Request'
         metric_names:
           description: |-
             The list of metric names that the returned result set will contain. If the list is empty then all metrics will be returned.
@@ -3385,84 +3389,63 @@ components:
             - bytes_rx
             - frames_tx_rate
             - frames_rx_rate
-    Flow.Metric.Group:
+    Flow.MetricGroup.Request:
       type: object
-      required:
-      - flow_name
       properties:
-        flow_name:
-          description: |
-            Flow metrics will be retrieved for this flow name
-
-            x-constraint:
-            - /components/schemas/Flow/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Flow/properties/name
-        ports:
+        choice:
           description: |-
-            Disaggregate the flow metrics by transmit port and receive port
-          type: boolean
-          default: false
-        ingress_packet_field_names:
+            The type of disaggregation to be applied to the flow metrics.
+          type: string
+          enum:
+          - ingress
+          - egress
+          default: ingress
+        ingress:
           description: "Disaggregate the flow metrics by ingress packet header field\
-            \ names "
+            \ names.\nIf the items is empty then no disaggregation will be done. \n\
+            \nx-constraint:\n- /components/schemas/Flow/properties/packet/../metric_group\n"
           type: array
           default: []
           items:
             type: string
-        egress_packet_field_names:
+          x-constraint:
+          - /components/schemas/Flow/properties/packet/../metric_group
+        egress:
           description: "Disaggregate the flow metrics by egress packet header field\
-            \ names "
+            \ names \nIf the items is empty then no disaggregation will be done. \n\
+            \nx-constraint:\n- /components/schemas/Flow/properties/egress/../metric_group\n"
           type: array
           default: []
           items:
             type: string
-    Flow.Group:
+          x-constraint:
+          - /components/schemas/Flow/properties/egress/../metric_group
+    Flow.Metric:
+      description: |-
+        A container for flow metrics.
+        The container is keyed by the name, port_tx, port_rx and metric_groups
+        values.
       type: object
       properties:
+        name:
+          description: |-
+            The name of the flow
+          type: string
+          example: Tx -> Rx
         port_tx:
           description: |-
-            Name of the transmit port
+            The name of the transmit port
           type: string
         port_rx:
           description: |-
-            Name of the receive port
+            The name of the receive port
           type: string
-        ingress:
-          description: |-
-            Names of flow packet field metric group
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Field.Group'
-        egress:
-          description: |-
-            Names of flow egress packet field metric group
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Field.Group'
-    Flow.Field.Group:
-      type: object
-      properties:
-        name:
-          description: |-
-            Name of packet field metric group
-          type: string
-        value:
-          description: |-
-            Value of named packet field metric group
-          type: string
-    Flow.Metric:
-      type: object
-      properties:
-        name:
-          description: "The name of the advanced flow metric response. "
-          type: string
-          example: Tx -> Rx
-        groups:
+        metric_groups:
           description: |-
             Flow disaggregation groups.
-          $ref: '#/components/schemas/Flow.Group'
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.MetricGroup'
         transmit:
           description: |-
             The transmit state of the flow.
@@ -3503,9 +3486,22 @@ components:
           $ref: '#/components/schemas/Metric.Timestamp'
         latency:
           $ref: '#/components/schemas/Metric.Latency'
+    Flow.MetricGroup:
+      type: object
+      properties:
+        name:
+          description: |-
+            Name of packet field metric group
+          type: string
+        value:
+          description: |-
+            Value of named packet field metric group
+          type: string
     Metric.Timestamp:
       description: |-
         The container for timestamp metrics.
+        The container will be empty if the timestamp has not been configured for
+        the flow.
       type: object
       properties:
         first_timestamp_ns:
@@ -3519,8 +3515,10 @@ components:
           type: number
           format: double
     Metric.Latency:
-      description: "The container for latency metrics. The min/max/avg values are\
-        \ dependent \non the type of latency measurement mode that is configured."
+      description: "The container for latency metrics. \nThe min/max/avg values are\
+        \ dependent on the type of latency measurement \nmode that is configured.\n\
+        The container will be empty if the latency has not been configured for\nthe\
+        \ flow."
       type: object
       properties:
         minimum_ns:

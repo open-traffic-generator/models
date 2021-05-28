@@ -913,30 +913,6 @@ message Flow {
   string name = 7;
 }
 
-message FlowMetrics {
-  bool enable = 1;
-
-  bool loss = 2;
-
-  bool timestamps = 3;
-
-  bool ports = 4;
-
-  FlowLatencyMetrics latency = 5;
-}
-
-message FlowLatencyMetrics {
-  bool enable = 1;
-
-  Mode.Enum mode = 2;
-
-  message Mode { enum Enum {
-    store_forward = 0;
-
-    cut_through = 1;
-  } }
-}
-
 message FlowTxRx {
   Choice.Enum choice = 1;
 
@@ -1571,6 +1547,28 @@ message FlowDurationInterBurstGap {
   } }
 }
 
+message FlowMetrics {
+  bool enable = 1;
+
+  bool loss = 2;
+
+  bool timestamps = 3;
+
+  FlowLatencyMetrics latency = 4;
+}
+
+message FlowLatencyMetrics {
+  bool enable = 1;
+
+  Mode.Enum mode = 2;
+
+  message Mode { enum Enum {
+    store_forward = 0;
+
+    cut_through = 1;
+  } }
+}
+
 message Event {
   bool enable = 1;
 
@@ -1794,9 +1792,11 @@ message PortMetric {
 }
 
 message FlowMetricsRequest {
-  repeated FlowMetricGroup flow_groups = 1;
+  repeated string flow_names = 1;
 
-  repeated Metric_names metric_names = 2;
+  FlowMetricGroupRequest metric_groups = 2;
+
+  repeated Metric_names metric_names = 3;
 
   message Metric_names { enum Enum {
     transmit = 0;
@@ -1815,56 +1815,48 @@ message FlowMetricsRequest {
   } }
 }
 
-message FlowMetricGroup {
-  string flow_name = 1;
+message FlowMetricGroupRequest {
+  Choice.Enum choice = 1;
 
-  bool ports = 2;
+  repeated string ingress = 2;
 
-  repeated string ingress_packet_field_names = 3;
+  repeated string egress = 3;
 
-  repeated string egress_packet_field_names = 4;
-}
+  message Choice { enum Enum {
+    ingress = 0;
 
-message FlowGroup {
-  string port_tx = 1;
-
-  string port_rx = 2;
-
-  repeated FlowFieldGroup ingress = 3;
-
-  repeated FlowFieldGroup egress = 4;
-}
-
-message FlowFieldGroup {
-  string name = 1;
-
-  string value = 2;
+    egress = 1;
+  } }
 }
 
 message FlowMetric {
   string name = 1;
 
-  FlowGroup groups = 2;
+  string port_tx = 2;
 
-  Transmit.Enum transmit = 3;
+  string port_rx = 3;
 
-  int32 frames_tx = 4;
+  repeated FlowMetricGroup metric_groups = 4;
 
-  int32 frames_rx = 5;
+  Transmit.Enum transmit = 5;
 
-  int32 bytes_tx = 6;
+  int32 frames_tx = 6;
 
-  int32 bytes_rx = 7;
+  int32 frames_rx = 7;
 
-  float frames_tx_rate = 8;
+  int32 bytes_tx = 8;
 
-  float frames_rx_rate = 9;
+  int32 bytes_rx = 9;
 
-  float loss = 10;
+  float frames_tx_rate = 10;
 
-  MetricTimestamp timestamps = 11;
+  float frames_rx_rate = 11;
 
-  MetricLatency latency = 12;
+  float loss = 12;
+
+  MetricTimestamp timestamps = 13;
+
+  MetricLatency latency = 14;
 
   message Transmit { enum Enum {
     started = 0;
@@ -1873,6 +1865,12 @@ message FlowMetric {
 
     paused = 2;
   } }
+}
+
+message FlowMetricGroup {
+  string name = 1;
+
+  string value = 2;
 }
 
 message MetricTimestamp {

@@ -8,6 +8,8 @@
 This repository is a collaborative effort to develop agnostic data 
 models and APIs for managing traffic generators. The artifacts produced by this repository offer a foundation for other tools and/or implementations that want to use a `model first` approach.
 
+[Ixia-c](https://github.com/open-traffic-generator/ixia-c) is a reference implementation of traffic generator described by these data models and API.
+
 The focus of this repository is the following:
 - a [modeling guide](./MODEL-GUIDE.md) outlining best practices
 - a consistent set of OpenAPI vendor-neutral data and API models

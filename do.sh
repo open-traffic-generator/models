@@ -69,7 +69,7 @@ install_deps() {
 
 gen_open_api() {
     echo "\nGenerating Open API v3 YAML/JSON ...\n"
-    python bundler.py
+    python bundle.py
 }
 
 gen_proto() {

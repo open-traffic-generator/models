@@ -21,23 +21,22 @@ class Bundler(object):
     
     Args
     ----
-        api_filename (str): The filename of the toplevel API
-        output_filename (str): The filename of the resolved API
+        output_dir (str): The directory where files will be output
+        api_files (str): The top level api files
     """
-    def __init__(self,
-                 api_filename,
-                 output_filename,
-                 validate=True):
+    class description(str):
+        pass
+
+    def description_representer(dumper, data):
+        return dumper.represent_scalar(u'tag:yaml.org,2002:str', data, style='|')
+
+    def __init__(self, output_dir, api_files):
+        self._output_dir = output_dir
+        self._api_files = api_files
         self.__python = os.path.normpath(sys.executable)
-        self.__python_dir = os.path.dirname(self.__python)
         self._content = {}
         self._includes = {}
         self._resolved = []
-        self._validate = validate
-        self._output_filename = output_filename
-        api_filename = os.path.normpath(os.path.abspath(api_filename))
-        self._base_dir = os.path.dirname(api_filename)
-        self._api_filename = os.path.basename(api_filename)
         self._install_dependencies()
 
     def _install_dependencies(self):
@@ -50,45 +49,51 @@ class Bundler(object):
             process = subprocess.Popen(process_args, shell=False)
             process.wait()
 
+        import yaml
+        yaml.add_representer(Bundler.description, Bundler.description_representer)
+
     def bundle(self):
-        self._bundle(self._base_dir, self._api_filename, self._output_filename)
-        return self
-
-    def validate(self):
-        self._validate_file()
-        return self
-
-    def _bundle(self, base_dir, api_filename, output_filename):
-        """Start at the file that contains the paths and bundle all 
-        dependent files into one openapi.yaml file.
-        """
-        print('bundling started')
-        self._read_file(base_dir, api_filename)
+        import yaml
+        self._output_filename = os.path.join(self._output_dir, 'openapi.yaml')
+        self._json_filename = os.path.join(self._output_dir, 'openapi.json')
+        self._content = {}
+        self._includes = {}
+        self._resolved = []
+        for api_filename in self._api_files:
+            api_filename = os.path.normpath(os.path.abspath(api_filename))
+            self._base_dir = os.path.dirname(api_filename)
+            self._api_filename = os.path.basename(api_filename)
+            self._read_file(self._base_dir, self._api_filename)
         self._resolve_x_include()
         self._resolve_x_pattern('x-field-pattern')
         self._resolve_x_pattern('x-device-pattern')
+        self._resolve_x_constraint()
         self._resolve_strings(self._content)
-        with open(self._output_filename, 'w') as fid:
-            yaml.dump(self._content,
-                      fid,
-                      indent=2,
-                      allow_unicode=True,
-                      line_break='\n',
-                      sort_keys=False)
-        with open('openapi.json', 'w') as fp:
-            fp.write(json.dumps(self._content, indent=4))         
-        print('bundling complete')
+        with open(self._output_filename, 'w') as fp:
+            yaml.dump(self._content, fp, indent=2, allow_unicode=True, line_break='\n', sort_keys=False)
+        self._validate_file()
+        with open(self._json_filename, 'w') as fp:
+            fp.write(json.dumps(self._content, indent=4))   
+        try:
+            process_args = [
+                'redoc-cli', 'bundle', 'openapi.yaml'
+            ]
+            process = subprocess.Popen(process_args, shell=True)
+            process.wait()
+        except Exception as e:
+            print('Bypassed creation of static documentation [missing redoc-cli]: {}'.format(e))
 
     def _validate_file(self):
-        if self._validate is False:
-            return
-        print('validating started')
+        import yaml
+        import openapi_spec_validator
+        print('validating {}...'.format(self._output_filename))
         with open(self._output_filename) as fid:
             yobject = yaml.safe_load(fid)
             openapi_spec_validator.validate_v3_spec(yobject)
         print('validating complete')
 
     def _read_file(self, base_dir, filename):
+        import yaml
         filename = os.path.join(base_dir, filename)
         filename = os.path.abspath(os.path.normpath(filename))
         base_dir = os.path.dirname(filename)
@@ -343,6 +348,20 @@ class Bundler(object):
                 self._merge(copy.deepcopy(include_schema_object), parent_schema_object)
             del parent_schema_object['x-include']
 
+    def _resolve_x_constraint(self):
+        """Find all instances of x-constraint in the openapi content
+        and merge the x-constraint content into the parent object description
+        """
+        import jsonpath_ng
+        for xconstraint in jsonpath_ng.parse('$..x-constraint').find(self._content):
+            print('resolving %s...' % (str(xconstraint.full_path)))
+            parent_schema_object = jsonpath_ng.Parent().find(xconstraint)[0].value
+            if 'description' not in parent_schema_object:
+                parent_schema_object['description'] = 'TBD'
+            parent_schema_object['description'] += '\n\nx-constraint:\n'
+            for constraint in xconstraint.value:
+                parent_schema_object['description'] += '- {}\n'.format(constraint)
+
     def _merge(self, src, dst):
         """
         Recursively update a dict.
@@ -373,6 +392,7 @@ class Bundler(object):
 
     def _get_schema_object_from_file(self, base_dir, schema_path):
         import jsonpath_ng
+        import yaml
         paths = schema_path.split('#')
         filename = os.path.join(base_dir, paths[0])
         filename = os.path.abspath(os.path.normpath(filename))
@@ -382,15 +402,6 @@ class Bundler(object):
         schema_object = jsonpath_ng.parse(json_path).find(schema_file)[0].value
         return schema_object
 
-    def _get_inline_ref(self, base_dir, filename, inline_key):
-        import jsonpath_ng
-        filename = os.path.join(base_dir, filename)
-        filename = os.path.abspath(os.path.normpath(filename))
-        base_dir = os.path.dirname(filename)
-        with open(filename) as fid:
-            yobject = yaml.safe_load(fid)
-        return jsonpath_ng.parse('$%s' % inline_key.replace('/', '.'), ).find(yobject)[0].value
-
     def _resolve_strings(self, content):
         """Fix up strings
         """
@@ -399,25 +410,8 @@ class Bundler(object):
                 self._resolve_strings(value)
             elif key == 'description':
                 descr = copy.deepcopy(value)
-                content[key] = description(descr)
+                content[key] = Bundler.description(descr)
 
 
 if __name__ == '__main__':
-    bundler = Bundler(api_filename='./api/api.yaml',
-                      output_filename='./openapi.yaml',
-                      validate=True)
-
-    import yaml
-    import openapi_spec_validator
-
-    class description(str):
-        pass
-
-    def description_representer(dumper, data):
-        return dumper.represent_scalar(u'tag:yaml.org,2002:str',
-                                       data,
-                                       style='|')
-
-    yaml.add_representer(description, description_representer)
-
-    bundler.bundle().validate()
+    Bundler().bundle()

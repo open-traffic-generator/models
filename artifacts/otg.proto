@@ -21,7 +21,9 @@ message Config {
 
   repeated Flow flows = 6;
 
-  ConfigOptions options = 7;
+  Event events = 7;
+
+  ConfigOptions options = 8;
 }
 
 message ConfigOptions {
@@ -906,7 +908,9 @@ message Flow {
 
   FlowDuration duration = 5;
 
-  string name = 6;
+  FlowMetrics metrics = 6;
+
+  string name = 7;
 }
 
 message FlowTxRx {
@@ -1543,6 +1547,78 @@ message FlowDurationInterBurstGap {
   } }
 }
 
+message FlowMetrics {
+  bool enable = 1;
+
+  bool loss = 2;
+
+  bool timestamps = 3;
+
+  FlowLatencyMetrics latency = 4;
+}
+
+message FlowLatencyMetrics {
+  bool enable = 1;
+
+  Mode.Enum mode = 2;
+
+  message Mode { enum Enum {
+    store_forward = 0;
+
+    cut_through = 1;
+  } }
+}
+
+message Event {
+  bool enable = 1;
+
+  EventLink link = 2;
+
+  EventRxRateThreshold rx_rate_threshold = 3;
+
+  EventRouteAdvertiseWithdraw route_advertise_withdraw = 4;
+}
+
+message EventRxRateThreshold {
+  bool enable = 1;
+
+  float threshold = 2;
+}
+
+message EventLink {
+  bool enable = 1;
+}
+
+message EventRouteAdvertiseWithdraw {
+  bool enable = 1;
+}
+
+message EventRequest {
+  repeated Type type = 1;
+
+  repeated string source = 2;
+
+  message Type { enum Enum {
+    link_down = 0;
+
+    link_up = 1;
+
+    route_withdraw = 2;
+
+    route_advertise = 3;
+
+    flow_rx_rate_above_threshold = 4;
+
+    flow_rx_rate_below_threshold = 5;
+  } }
+}
+
+message EventSubscription {
+  EventRequest events = 1;
+
+  string callback_url = 2;
+}
+
 message ResponseError {
   repeated string errors = 1;
 }
@@ -1589,27 +1665,15 @@ message CaptureState {
   } }
 }
 
-message Bgpv4RouteState {
+message RouteState {
   repeated string names = 1;
 
   State.Enum state = 2;
 
   message State { enum Enum {
-    withdraw_routes = 0;
+    withdraw = 0;
 
-    advertise_routes = 1;
-  } }
-}
-
-message Bgpv6RouteState {
-  repeated string names = 1;
-
-  State.Enum state = 2;
-
-  message State { enum Enum {
-    withdraw_routes = 0;
-
-    advertise_routes = 1;
+    advertise = 1;
   } }
 }
 
@@ -1647,11 +1711,13 @@ message MetricsResponse {
   repeated Bgpv6Metric bgpv6_metrics = 5;
 
   message Choice { enum Enum {
-    port_metrics = 0;
+    flow_metrics = 0;
 
-    flow_metrics = 1;
+    port_metrics = 1;
 
     bgpv4_metrics = 2;
+
+    bgpv6_metrics = 3;
   } }
 }
 
@@ -1728,75 +1794,69 @@ message PortMetric {
 message FlowMetricsRequest {
   repeated string flow_names = 1;
 
-  repeated Column_names column_names = 2;
+  FlowMetricGroupRequest metric_groups = 2;
 
-  repeated string metric_group_names = 3;
+  repeated Metric_names metric_names = 3;
 
-  message Column_names { enum Enum {
+  message Metric_names { enum Enum {
     transmit = 0;
 
-    port_tx = 1;
+    frames_tx = 1;
 
-    port_rx = 2;
+    frames_rx = 2;
 
-    frames_tx = 3;
+    bytes_tx = 3;
 
-    frames_rx = 4;
+    bytes_rx = 4;
 
-    bytes_tx = 5;
+    frames_tx_rate = 5;
 
-    bytes_rx = 6;
-
-    frames_tx_rate = 7;
-
-    frames_rx_rate = 8;
-
-    min_latency_ns = 9;
-
-    max_latency_ns = 10;
-
-    avg_latency_ns = 11;
-
-    loss = 12;
+    frames_rx_rate = 6;
   } }
 }
 
-message FlowMetricGroup {
-  string name = 1;
+message FlowMetricGroupRequest {
+  Choice.Enum choice = 1;
 
-  float value = 2;
+  repeated string ingress = 2;
+
+  repeated string egress = 3;
+
+  message Choice { enum Enum {
+    ingress = 0;
+
+    egress = 1;
+  } }
 }
 
 message FlowMetric {
   string name = 1;
 
-  Transmit.Enum transmit = 2;
+  string port_tx = 2;
 
-  string port_tx = 3;
+  string port_rx = 3;
 
-  string port_rx = 4;
+  repeated FlowMetricGroup metric_groups = 4;
 
-  int32 frames_tx = 5;
+  Transmit.Enum transmit = 5;
 
-  int32 frames_rx = 6;
+  int32 frames_tx = 6;
 
-  int32 bytes_tx = 7;
+  int32 frames_rx = 7;
 
-  int32 bytes_rx = 8;
+  int32 bytes_tx = 8;
 
-  float frames_tx_rate = 9;
+  int32 bytes_rx = 9;
 
-  float frames_rx_rate = 10;
+  float frames_tx_rate = 10;
 
-  float min_latency_ns = 11;
+  float frames_rx_rate = 11;
 
-  float max_latency_ns = 12;
+  float loss = 12;
 
-  float avg_latency_ns = 13;
+  MetricTimestamp timestamps = 13;
 
-  float loss = 14;
-
-  repeated FlowMetricGroup metric_groups = 15;
+  MetricLatency latency = 14;
 
   message Transmit { enum Enum {
     started = 0;
@@ -1805,6 +1865,26 @@ message FlowMetric {
 
     paused = 2;
   } }
+}
+
+message FlowMetricGroup {
+  string name = 1;
+
+  string value = 2;
+}
+
+message MetricTimestamp {
+  double first_timestamp_ns = 1;
+
+  double last_timestamp_ns = 2;
+}
+
+message MetricLatency {
+  double minimum_ns = 1;
+
+  double maximum_ns = 2;
+
+  double average_ns = 3;
 }
 
 message Bgpv4MetricsRequest {
@@ -1917,12 +1997,6 @@ message FlowState {
 
     paused = 2;
   } }
-}
-
-message Capabilities {
-  repeated string unsupported = 1;
-
-  repeated string formats = 2;
 }
 
 message CaptureRequest {
@@ -6373,6 +6447,10 @@ message SetCaptureStateParameters {
   CaptureState capture__state = 1;
 }
 
+message SetRouteStateParameters {
+  RouteState route__state = 1;
+}
+
 message GetMetricsParameters {
   MetricsRequest metrics__request = 1;
 }
@@ -6406,16 +6484,16 @@ service Openapi {
 //     option (google.api.http) = { post:"/control/capture"  };
   }
 
+  rpc SetRouteState ( SetRouteStateParameters ) returns ( ResponseWarning ) {
+//     option (google.api.http) = { post:"/control/routes"  };
+  }
+
   rpc GetMetrics ( GetMetricsParameters ) returns ( MetricsResponse ) {
 //     option (google.api.http) = { post:"/results/metrics"  };
   }
 
   rpc GetStateMetrics ( google.protobuf.Empty ) returns ( StateMetrics ) {
 //     option (google.api.http) = { post:"/results/state"  };
-  }
-
-  rpc GetCapabilities ( google.protobuf.Empty ) returns ( Capabilities ) {
-//     option (google.api.http) = { post:"/results/capabilities"  };
   }
 
   rpc GetCapture ( GetCaptureParameters ) returns ( google.protobuf.Empty ) {

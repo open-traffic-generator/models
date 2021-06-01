@@ -1,97 +1,102 @@
-openapi: 3.1.0
-
-info:
-  title: Flow results models
-  version: ^0.0.0
-
 components:
   schemas:
     Flow.Metrics.Request:
       description: >-
-        The request to the traffic generator for flow results.
+        The container for a flow metric request.
       type: object
       properties:
         flow_names:
-          description: >-
-            The names of flow objects to return results for.
-            An empty list will return results for all flows.
+          description: |-
+            Flow metrics will be retrieved for these flow names.
+            If no flow names are specified then all flows will be returned.
           type: array
-          items:
+          items: 
             type: string
-            x-constraint:
-              - "/components/schemas/Flow/properties/name"
-        column_names:
+          x-constraint:
+          - "/components/schemas/Flow/properties/name"
+        metric_groups:
           description: >-
-            The list of column names that the returned result set will contain.
-            If the list is empty then all columns will be returned except for
-            any result_groups.
-            The name of the flow cannot be excluded.
+            A list of metric groups used to disaggregate flows.
+            A metric group that does not exist for a flow group MUST return
+            an error.
+          $ref: '#/components/schemas/Flow.MetricGroup.Request'
+        metric_names:
+          description: >-
+            The list of metric names that the returned result set will contain.
+            If the list is empty then all metrics will be returned.
           type: array
           items:
             type: string
             enum:
               - transmit
-              - port_tx
-              - port_rx
               - frames_tx
               - frames_rx
               - bytes_tx
               - bytes_rx
               - frames_tx_rate
               - frames_rx_rate
-              - min_latency_ns
-              - max_latency_ns
-              - avg_latency_ns
-              - loss
-        metric_group_names:
-          description: >-
-            Extend the details of flow metrics by specifying any configured 
-            flow packet header field metric_group names.
+
+    Flow.MetricGroup.Request:
+      type: object
+      properties:
+        choice:
+          description: |-
+            The type of disaggregation to be applied to the flow metrics.
+          type: string
+          enum: [ingress, egress]
+          default: ingress
+        ingress:
+          description: |-
+            Disaggregate the flow metrics by ingress packet header field names.
+            If the items is empty then no disaggregation will be done. 
           type: array
+          default: []
           items:
             type: string
-            x-constraint:
-              - "/components/schemas/Flow.Pattern/properties/metric_group"
-    
-    Flow.MetricGroup:
-      description: >-
-        A metric group
-      type: object
-      required: [name, value]
-      properties:
-        name:
-          description: >-
-            Name provided as part of a flow packet header field metric group
-          type: string
-        value:
-          description: >-
-            The value of the flow packet header field
-          type: number
+          x-constraint:
+          - "/components/schemas/Flow/properties/packet/../metric_group"
+        egress:
+          description: |-
+            Disaggregate the flow metrics by egress packet header field names 
+            If the items is empty then no disaggregation will be done. 
+          type: array
+          default: []
+          items:
+            type: string
+          x-constraint:
+          - "/components/schemas/Flow/properties/egress/../metric_group"
 
     Flow.Metric:
+      description: |-
+        A container for flow metrics.
+        The container is keyed by the name, port_tx, port_rx and metric_groups
+        values.
       type: object
       properties:
         name:
           description: >-
-            The name of a configured flow.
+            The name of the flow
           type: string
+          example: 'Tx -> Rx'
+        port_tx:
+          description: |-
+            The name of the transmit port
+          type: string
+        port_rx:
+          description: |-
+            The name of the receive port
+          type: string
+        metric_groups:
+          description: |-
+            Flow disaggregation groups.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.MetricGroup'
         transmit:
           description: >-
             The transmit state of the flow.
           type: string
           enum: [started, stopped, paused]
-        port_tx:
-          description: >-
-            The name of a configured port
-          type: string
-          x-constraint:
-            - "/components/schemas/Port/properties/name"
-        port_rx:
-          description: >-
-            The name of a configured port
-          type: string
-          x-constraint:
-            - "/components/schemas/Port/properties/name"
         frames_tx:
           description: >-
             The current total number of frames transmitted
@@ -116,28 +121,66 @@ components:
           description: >-
             The current rate of valid frames received
           type: number
-        min_latency_ns:
-          description: >-
-            The minimum latency in nanoseconds for valid frames received
-          type: number
-        max_latency_ns:
-          description: >-
-            The maximum latency in nanoseconds for valid frames received
-          type: number
-        avg_latency_ns:
-          description: >-
-            The avarage latency in nanoseconds for valid frames received
-          type: number
         loss:
           description: >-
             The percentage of lost frames
           type: number
-        metric_groups:
-          description: >-
-            Any configured flow packet header field metric_group names will 
-            appear as additional name/value pairs.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.MetricGroup'
-          x-constraint:
-            - "/components/schemas/Flow.Pattern/properties/result_group"
+        timestamps:
+          $ref: '#/components/schemas/Metric.Timestamp'
+        latency:
+          $ref: '#/components/schemas/Metric.Latency'
+
+    Flow.MetricGroup:
+      type: object
+      properties:
+        name:
+          description: |-
+            Name of packet field metric group
+          type: string
+        value: 
+          description: |-
+            Value of named packet field metric group
+          type: string
+
+    Metric.Timestamp:
+      description: |-
+        The container for timestamp metrics.
+        The container will be empty if the timestamp has not been configured for
+        the flow.
+      type: object
+      properties:
+        first_timestamp_ns:
+          description: |-
+            First timestamp in nanoseconds
+          type: number
+          format: double
+        last_timestamp_ns:
+          description: |-
+            Last timestamp in nanoseconds
+          type: number
+          format: double
+
+    Metric.Latency:
+      description: |-
+        The container for latency metrics. 
+        The min/max/avg values are dependent on the type of latency measurement 
+        mode that is configured.
+        The container will be empty if the latency has not been configured for
+        the flow.
+      type: object
+      properties:
+        minimum_ns:
+          description: |-
+            Minimum latency in nanoseconds
+          type: number
+          format: double
+        maximum_ns:
+          description: |-
+            Maximum latency in nanoseconds
+          type: number
+          format: double
+        average_ns:
+          description: |-
+            Average latency in nanoseconds
+          type: number
+          format: double

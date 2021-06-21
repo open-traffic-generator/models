@@ -60,7 +60,7 @@ install_deps() {
     && apt-get -y install curl git python3 python3-pip \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && ln -sf /usr/bin/pip3 /usr/bin/pip \
-    && python -m pip install flake8 grpcio_tools \
+    && python -m pip install flake8 grpcio_tools openapiart \
     && get_go \
     && get_go_deps \
     && get_java \

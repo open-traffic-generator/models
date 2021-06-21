@@ -8,5 +8,5 @@ openapiart.OpenApiArt(
     python_module_name="otg_core",
     protobuf_file_name="otg_core",
     protobuf_package_name="otg",
-    output_dir=".openapiart",
+    output_dir="openapiart",
 )

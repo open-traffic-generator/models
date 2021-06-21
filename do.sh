@@ -9,8 +9,8 @@ OPENAPI_GEN_VERSION=4.3.1
 OPENAPI_GEN=/opt/openapi-gen.jar
 
 BASE_YAML=api/api.yaml
-OPENAPI_YAML=openapi.yaml
-OPENAPI_JSON=openapi.json
+OPENAPI_YAML=openapiart/openapi.yaml
+OPENAPI_JSON=openapiart/openapi.json
 
 OPENAPI_PROTO_PKG=otg
 PROTO_DIR=protobuf3

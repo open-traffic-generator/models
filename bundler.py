@@ -232,7 +232,6 @@ class Bundler(object):
         schema = {
             'description': description,
             'type': 'object',
-            'required': ['choice'],
             'properties': {
                 'choice': {
                     'type': 'string',

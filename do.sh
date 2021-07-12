@@ -44,7 +44,7 @@ get_openapi_gen() {
 install_deps() {
     apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
-    && apt-get -y install curl git python3-is-python python3-pip \
+    && apt-get -y install curl git python-is-python3 python3-pip \
     && python -m pip install -r requirements.txt \
     && get_go \
     && get_go_deps

@@ -24,9 +24,10 @@ Please make sure that the client setup meets [Python Prerequisites](#python-prer
 
 - Clone this project, `cd` inside it and make changes to spec as needed.
 
-- Generate bundled spec called `openapi.yaml`. This will automatically install required dependencies.
+- Generate bundled spec called `openapi.yaml`.
   ```sh
-  python bundler.py
+  python -m pip install -r requirements.txt
+  python build.py
   ```
 
 - To preview documentation and interact with schema, copy contents of `openapi.yaml` inside https://editor.swagger.io/.

@@ -77,8 +77,10 @@ create_artifacts() {
     # already tagged
     version=$(get_version)
     tar czvf art/${GO_CLIENT_DIR}.tar.gz ${GO_CLIENT_DIR} \
-    && tar czvf art/protobuf3.tar.gz art/otg/otg_pb2* \
-    && rm -rf art/otg
+    && mkdir -p art/protobuf3 \
+    && cp art/otg/otg_pb2* art/protobuf3/ \
+    && tar -C art/ -czvf art/protobuf3.tar.gz protobuf3 \
+    && rm -rf art/otg art/protobuf3
 }
 
 get_version() {

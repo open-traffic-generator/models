@@ -9,8 +9,8 @@ OPENAPI_GEN_VERSION=4.3.1
 OPENAPI_GEN=/opt/openapi-gen.jar
 
 BASE_YAML=api/info.yaml
-OPENAPI_YAML=openapi.yaml
-OPENAPI_JSON=openapi.json
+OPENAPI_YAML=art/openapi.yaml
+OPENAPI_JSON=art/openapi.json
 
 GO_CLIENT_PKG=otgclient
 GO_CLIENT_DIR=goclient

@@ -280,12 +280,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Capture'
-        devices:
+        interfaces:
           description: |-
-            The emulated device settings that will be configured on the traffic generator.
+            The emulated interfce settings that will be configured on the traffic generator.
+            Each of this defines one Ethernet, Loopback Ipv4 or Loopback Ipv6 interfaces.
           type: array
           items:
-            $ref: '#/components/schemas/Device'
+            $ref: '#/components/schemas/Interface'
+        routers:
+          description: |-
+            The emulated one or more router settings that will be configured for testing.
+          type: array
+          items:
+            $ref: '#/components/schemas/Router'
         flows:
           description: |-
             The flows that will be configured on the traffic generator.
@@ -370,7 +377,7 @@ components:
         protocol:
           $ref: '#/components/schemas/Lag.Protocol'
         ethernet:
-          $ref: '#/components/schemas/Device.EthernetBase'
+          $ref: '#/components/schemas/Interface.EthernetBase'
     Lag.Protocol:
       type: object
       required:
@@ -471,7 +478,7 @@ components:
           - passive
           - active
           default: active
-    Device.EthernetBase:
+    Interface.EthernetBase:
       description: |-
         Base ethernet interface
       type: object
@@ -494,7 +501,7 @@ components:
             List of VLANs
           type: array
           items:
-            $ref: '#/components/schemas/Device.Vlan'
+            $ref: '#/components/schemas/Interface.Vlan'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -502,18 +509,16 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
       required:
       - name
-    Device.Ethernet:
+    Interface.Ethernet:
       description: |-
         An ethernet interface with an IPv4 and IPv6 interface stack
         Base ethernet interface
       type: object
       properties:
         ipv4:
-          $ref: '#/components/schemas/Device.Ipv4'
+          $ref: '#/components/schemas/Interface.Ipv4'
         ipv6:
-          $ref: '#/components/schemas/Device.Ipv6'
-        isis:
-          $ref: '#/components/schemas/Device.Isis'
+          $ref: '#/components/schemas/Interface.Ipv6'
         mac:
           description: |-
             Media access control address
@@ -532,7 +537,7 @@ components:
             List of VLANs
           type: array
           items:
-            $ref: '#/components/schemas/Device.Vlan'
+            $ref: '#/components/schemas/Interface.Vlan'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -540,7 +545,7 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
       required:
       - name
-    Device.Vlan:
+    Interface.Vlan:
       description: |-
         Emulated VLAN protocol
       type: object
@@ -577,34 +582,7 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
       required:
       - name
-    Device.Ipv4Base:
-      description: |-
-        A base IPv4 interface
-      type: object
-      properties:
-        address:
-          description: |-
-            The IPv4 address
-          type: string
-          format: ipv4
-          default: 0.0.0.0
-        prefix:
-          description: |-
-            The prefix of the IPv4 address
-          type: integer
-          minimum: 1
-          maximum: 32
-          default: 24
-        bgpv4:
-          $ref: '#/components/schemas/Device.Bgpv4'
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-      required:
-      - name
-    Device.Ipv4:
+    Interface.Ipv4:
       description: |-
         An IPv4 interface with gateway
         A base IPv4 interface
@@ -629,8 +607,6 @@ components:
           minimum: 1
           maximum: 32
           default: 24
-        bgpv4:
-          $ref: '#/components/schemas/Device.Bgpv4'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -638,6 +614,1581 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
       required:
       - name
+    Interface.LoopbackIpv4:
+      description: |-
+        An IPv4 loopback interface
+      type: object
+      required:
+      - interface_name
+      - name
+      properties:
+        interface_name:
+          description: "The unique name of ethernet object behind which this loopback\
+            \ \n interface will be created.\n\nx-constraint:\n- /components/schemas/Interface.Ethernet/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Interface.Ethernet/properties/name
+        address:
+          description: |-
+            The Loopback IPv4 address
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        prefix:
+          description: |-
+            The prefix of the Loopback IPv4 address
+          type: integer
+          minimum: 1
+          maximum: 32
+          default: 32
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Interface.Ipv6:
+      description: |-
+        An IPv6 interface with gateway
+        A base IPv6 interface
+      type: object
+      properties:
+        gateway:
+          description: |-
+            The IPv6 gateway address
+          type: string
+          format: ipv6
+          default: ::0
+        address:
+          description: |-
+            The IPv6 address.
+          type: string
+          format: ipv6
+          default: ::0
+        prefix:
+          description: |-
+            The network prefix.
+          type: integer
+          minimum: 1
+          maximum: 128
+          default: 64
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      x-status: under-review
+      required:
+      - name
+    Interface.LoopbackIpv6:
+      description: |-
+        An IPv6 loopback interface
+      type: object
+      required:
+      - interface_name
+      - name
+      properties:
+        interface_name:
+          description: "The unique name of ethernet object behind which this loopback\
+            \ \n interface will be created.\n\nx-constraint:\n- /components/schemas/Interface.Ethernet/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Interface.Ethernet/properties/name
+        address:
+          description: |-
+            The Loopback IPv6 address
+          type: string
+          format: ipv6
+          default: ::0
+        prefix:
+          description: |-
+            The prefix of the Loopback IPv6 address
+          type: integer
+          minimum: 1
+          maximum: 128
+          default: 128
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Layer1:
+      description: |-
+        A container for layer1 settings.
+      type: object
+      required:
+      - port_names
+      - name
+      properties:
+        port_names:
+          description: "A list of unique names of port objects that will share the\
+            \ choice settings. \n\nx-constraint:\n- /components/schemas/Port/properties/name\n"
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        speed:
+          description: |-
+            Set the speed if supported.
+          type: string
+          enum:
+          - speed_10_fd_mbps
+          - speed_10_hd_mbps
+          - speed_100_fd_mbps
+          - speed_100_hd_mbps
+          - speed_1_gbps
+          - speed_10_gbps
+          - speed_25_gbps
+          - speed_40_gbps
+          - speed_100_gbps
+          - speed_200_gbps
+          - speed_400_gbps
+          default: speed_10_gbps
+        media:
+          description: |-
+            Set the type of media interface if supported.
+          type: string
+          enum:
+          - copper
+          - fiber
+          - sgmii
+        promiscuous:
+          description: |-
+            Enable promiscuous mode if supported.
+          type: boolean
+          default: true
+        mtu:
+          description: |-
+            Set the maximum transmission unit size if supported.
+          type: integer
+          default: 1500
+        ieee_media_defaults:
+          description: |-
+            Set to true to override the auto_negotiate, link_training and rs_fec settings for gigabit ethernet interfaces.
+          type: boolean
+          default: true
+        auto_negotiate:
+          description: |-
+            Enable/disable auto negotiation.
+          type: boolean
+          default: true
+        auto_negotiation:
+          $ref: '#/components/schemas/Layer1.AutoNegotiation'
+        flow_control:
+          $ref: '#/components/schemas/Layer1.FlowControl'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Layer1.AutoNegotiation:
+      description: |-
+        Container for auto negotiation settings
+      type: object
+      properties:
+        advertise_1000_mbps:
+          description: |-
+            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
+          type: boolean
+          default: true
+        advertise_100_fd_mbps:
+          description: |-
+            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
+          type: boolean
+          default: true
+        advertise_100_hd_mbps:
+          description: |-
+            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
+          type: boolean
+          default: true
+        advertise_10_fd_mbps:
+          description: |-
+            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
+          type: boolean
+          default: true
+        advertise_10_hd_mbps:
+          description: |-
+            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
+          type: boolean
+          default: true
+        link_training:
+          description: |-
+            Enable/disable gigabit ethernet link training.
+          type: boolean
+          default: false
+        rs_fec:
+          description: |-
+            Enable/disable gigabit ethernet reed solomon forward error correction (RS FEC).
+          type: boolean
+          default: false
+    Layer1.FlowControl:
+      description: |-
+        A container for layer1 receive flow control settings. To enable flow control settings on ports this object must be a valid object not a null value.
+      type: object
+      properties:
+        directed_address:
+          description: "The 48bit mac address that the layer1 port names will listen\
+            \ on for a directed pause.  "
+          type: string
+          default: 0180C2000001
+        choice:
+          description: |-
+            The type of priority flow control.
+          type: string
+          enum:
+          - ieee_802_1qbb
+          - ieee_802_3x
+        ieee_802_1qbb:
+          $ref: '#/components/schemas/Layer1.Ieee8021qbb'
+        ieee_802_3x:
+          $ref: '#/components/schemas/Layer1.Ieee8023x'
+    Layer1.Ieee8023x:
+      description: |-
+        A container for ieee 802.3x rx pause settings
+      type: object
+    Layer1.Ieee8021qbb:
+      description: "These settings enhance the existing 802.3x pause priority capabilities\
+        \  to enable flow control based on 802.1p priorities (classes of service). "
+      type: object
+      properties:
+        pfc_delay:
+          description: "The upper limit on the transmit time of a queue after receiving\
+            \ a  message to pause a specified priority. A value of 0 or null indicates\
+            \ that pfc delay will not be enabled. "
+          type: integer
+        pfc_class_0:
+          description: |-
+            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
+          type: integer
+        pfc_class_1:
+          description: |-
+            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
+          type: integer
+        pfc_class_2:
+          description: |-
+            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
+          type: integer
+        pfc_class_3:
+          description: |-
+            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
+          type: integer
+        pfc_class_4:
+          description: |-
+            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
+          type: integer
+        pfc_class_5:
+          description: |-
+            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
+          type: integer
+        pfc_class_6:
+          description: |-
+            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
+          type: integer
+        pfc_class_7:
+          description: |-
+            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
+          type: integer
+    Capture:
+      x-status: under-review
+      description: |-
+        Container for capture settings.
+      type: object
+      required:
+      - name
+      properties:
+        port_names:
+          description: |
+            The unique names of ports that the capture settings will apply to. Port_names cannot be duplicated between capture objects.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        filters:
+          description: |-
+            A list of filters to apply to the capturing ports. If no filters are specified then all packets will be captured. A capture can have multiple filters. The number of filters supported is determined by the implementation which can be retrieved using the capabilities API.
+            When multiple filters are specified the capture implementation  must && (and) all the filters.
+          type: array
+          items:
+            $ref: '#/components/schemas/Capture.Filter'
+        overwrite:
+          description: |-
+            Overwrite the capture buffer.
+          type: boolean
+          default: false
+        packet_size:
+          description: |-
+            The maximum size of each captured packet. If no value is specified or it is null then the entire packet will be captured.
+          type: integer
+        format:
+          description: |-
+            The format of the capture file.
+          type: string
+          enum:
+          - pcap
+          - pcapng
+          default: pcap
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Capture.Filter:
+      description: |-
+        Container for capture filters
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          enum:
+          - custom
+          - ethernet
+          - vlan
+          - ipv4
+        custom:
+          description: |-
+            Offset from last filter in the list. If no filters are present it is offset from position 0. Multiple custom filters can be present, the length of each custom filter is the length of the value being filtered.
+          $ref: '#/components/schemas/Capture.Custom'
+        ethernet:
+          $ref: '#/components/schemas/Capture.Ethernet'
+        vlan:
+          $ref: '#/components/schemas/Capture.Vlan'
+        ipv4:
+          $ref: '#/components/schemas/Capture.Ipv4'
+    Capture.Custom:
+      properties:
+        offset:
+          description: |-
+            The byte offset to filter on
+          type: integer
+        value:
+          type: string
+          format: hex
+        mask:
+          type: string
+          format: hex
+        negate:
+          type: boolean
+          default: false
+      type: object
+    Capture.Field:
+      type: object
+      properties:
+        value:
+          type: string
+          format: hex
+        mask:
+          type: string
+          format: hex
+        negate:
+          type: boolean
+          default: false
+    Capture.Ethernet:
+      type: object
+      properties:
+        src:
+          $ref: '#/components/schemas/Capture.Field'
+        dst:
+          $ref: '#/components/schemas/Capture.Field'
+        ether_type:
+          $ref: '#/components/schemas/Capture.Field'
+        pfc_queue:
+          $ref: '#/components/schemas/Capture.Field'
+    Capture.Vlan:
+      type: object
+      properties:
+        priority:
+          $ref: '#/components/schemas/Capture.Field'
+        cfi:
+          $ref: '#/components/schemas/Capture.Field'
+        id:
+          $ref: '#/components/schemas/Capture.Field'
+        protocol:
+          $ref: '#/components/schemas/Capture.Field'
+    Capture.Ipv4:
+      type: object
+      properties:
+        version:
+          $ref: '#/components/schemas/Capture.Field'
+        headeer_length:
+          $ref: '#/components/schemas/Capture.Field'
+        priority:
+          $ref: '#/components/schemas/Capture.Field'
+        total_length:
+          $ref: '#/components/schemas/Capture.Field'
+        identification:
+          $ref: '#/components/schemas/Capture.Field'
+        reserved:
+          $ref: '#/components/schemas/Capture.Field'
+        dont_fragment:
+          $ref: '#/components/schemas/Capture.Field'
+        more_fragments:
+          $ref: '#/components/schemas/Capture.Field'
+        fragment_offset:
+          $ref: '#/components/schemas/Capture.Field'
+        time_to_live:
+          $ref: '#/components/schemas/Capture.Field'
+        protocol:
+          $ref: '#/components/schemas/Capture.Field'
+        header_checksum:
+          $ref: '#/components/schemas/Capture.Field'
+        src:
+          $ref: '#/components/schemas/Capture.Field'
+        dst:
+          $ref: '#/components/schemas/Capture.Field'
+    Interface:
+      description: |-
+        A container for emulated interfaces and protocol devices.
+      type: object
+      required:
+      - container_name
+      - name
+      properties:
+        container_name:
+          description: |
+            The unique name of a Port or Lag object that will contain the  emulated interfaces and/or protocol devices.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+            - /components/schemas/Lag/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          - /components/schemas/Lag/properties/name
+        choice:
+          description: |-
+            ethernet - This is a layer 2 interface defined by unique Mac address and optional vlans.
+            loopback_ipv4  - This is a layer 3 interface with Ipv4 address connected to layer 2 interface, example ethernet.
+            loopback_ipv6  - This is a layer 3 interface with Ipv6 address connected to layer 2 interface, example ethernet.
+          type: string
+          enum:
+          - ethernet
+          - loopback_ipv4
+          - loopback_ipv6
+          default: ethernet
+        ethernet:
+          description: |-
+            The ethernet stack.
+          $ref: '#/components/schemas/Interface.Ethernet'
+        loopback_ipv4:
+          type: object
+          description: |-
+            loopback ipv4 attached to one ethernet stack.
+          $ref: '#/components/schemas/Interface.LoopbackIpv4'
+        loopback_ipv6:
+          description: |-
+            loopback ipv6 attached to one ethernet stack.
+          $ref: '#/components/schemas/Interface.LoopbackIpv6'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Router:
+      description: |-
+        This is emulating a single router running one or more protocols,  example - ISIS, BGP, OSPF, RSVP etc.
+      type: object
+      properties:
+        isis:
+          description: "This contains the properties of one Isis router and its children,\
+            \  example Isis interface, Isis route range.  "
+          $ref: '#/components/schemas/Router.IsisRouter'
+        bgp_ipv4_peers:
+          description: "This contains the properties of one or more Ipv4 peers.   "
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.Bgpv4PeerList'
+        bgp_ipv6_peers:
+          description: |-
+            This contains the properties of one or more Ipv6 peers.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.Bgpv6PeerList'
+        ospf:
+          description: |-
+            This contains the properties of one Ospf router and its children,  example Ospf interface, Ospf route range.
+          $ref: '#/components/schemas/Device.OspfRouter'
+        rsvp:
+          description: |-
+            This contains the properties of one Ospf router and its children,  example Ospf interface, Ospf route range
+          $ref: '#/components/schemas/Device.RsvpRouter'
+        simulated_topologies:
+          description: |-
+            This contains the properties of the nodes and links  of a set of simulated routers connected behind this router.
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.SimulatedTopology'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Router.IsisRouter:
+      x-status: under-review
+      description: |-
+        A container of properties for a ISIS router
+      type: object
+      properties:
+        system_id:
+          description: "The system identifier of the NET address.           For example,\
+            \ for ip address 192.168.1.1 the NET address can be  configured as 49.0001.1921.6800.1001.00\
+            \ which consists of the  following parts:\n  AFI: 49\n  Area ID: 0001\n\
+            \  System Identifier: 1921.6800.1001 \n  Selector: 00"
+          type: string
+          format: hex
+          default: 0
+        ipv4_te_router_id:
+          description: |-
+            IPv4 TE (traffic engineering) router id. If null then TE is not enabled.
+          type: string
+          format: ipv4
+          default: 1.1.1.1
+        hostname:
+          description: |-
+            The Dynamic hostname TLV is defined here as TLV type 137
+          type: string
+        router_advanced:
+          description: |-
+            Isis Router advance properties.
+          $ref: '#/components/schemas/Router.IsisRouter.Advanced'
+        router_auth:
+          description: |-
+            Isis Router authentication properties.
+          $ref: '#/components/schemas/Router.IsisRouter.Authentication'
+        multi_instance:
+          description: |-
+            This contains the properties of a Multi-Instance-capable routers or MI-RTR.
+          $ref: '#/components/schemas/Router.IsisRouter.MultiInstance'
+        lsp_mggroup_pdu_rate_control:
+          description: |-
+            This contains LSP/ MGROUP-PDUs control parameters.
+          $ref: '#/components/schemas/Router.IsisRouter.LspMgGroupPduControl'
+        prefix_attributues_flags:
+          description: |-
+            This contains the properties of IS-IS Prefix Attribute Flags Sub-Tlv.
+          $ref: '#/components/schemas/Router.Isis.PrefixAttributes'
+        sr_algorithms:
+          description: |-
+            This contains supporte algorithms supported by a Isis router node. These algorithms are advertised through the SR-Algorithm Sub-TLV in the router capability advertisement.
+          type: array
+          items:
+            type: integer
+            default: 0
+            minimum: 0
+            maximum: 255
+        router_srmpls:
+          description: |-
+            This contains properties of the Segment Routing (SR) for a Isis Router Node.
+          $ref: '#/components/schemas/Router.IsisRouter.SegmentRoutingMPLS'
+        sr_local_block:
+          description: |-
+            This contains list of Segment Routing Local Block properties. type: array items:
+              $ref: './routersrlb.yaml#/components/schemas/Router.IsisRouter.SegmentRoutingLocalBlock'
+        interfaces:
+          description: |-
+            List of Isis interfaces for this router
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.IsisInterface'
+        isisv4_routes:
+          description: |-
+            Emulated Isis Ipv4 routes
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.IsisV4Route'
+        isisv6_routes:
+          description: |-
+            Emulated Isis Ipv6 routes
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.IsisV6Route'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Router.IsisRouter.Advanced:
+      description: |-
+        This contains Isis router advanced properties.
+      type: object
+      properties:
+        enable_hello_padding:
+          description: |-
+            It turns on a padded Hello message.
+          type: boolean
+          default: true
+    Router.IsisRouter.Authentication:
+      description: |-
+        This contains Isis router advanced properties.
+      type: object
+      properties:
+        ignore_receive_md5:
+          description: |-
+            The sequence number received for an MD5 key
+          type: boolean
+          default: true
+        area_auth_type:
+          description: "The Area authentication method used for the emulated ISISv4/v6\
+            \ router.\nPassword-cleartext password authentication \nMD5-Message Digest\
+            \ 5 algorithm. Refer to MD5 Authentication for additional information."
+          $ref: '#/components/schemas/Router.IsisRouter.AuthenticationBase'
+        domain_auth_type:
+          description: |-
+            The Domain authentication password or MD5 key.
+            This field is available only if Domain Authentication Type is set to Password or MD5.
+          $ref: '#/components/schemas/Router.IsisRouter.AuthenticationBase'
+    Router.IsisRouter.AuthenticationBase:
+      description: |-
+        Optional container for circuit authentication properties.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          description: |-
+            The circuit authentication method.
+          type: string
+          enum:
+          - md5
+          - password
+        md5:
+          description: |-
+            Authentication as an MD5 key.
+          type: string
+          minimum: 0
+          maximum: 255
+        password:
+          description: |-
+            Authentication as a clear text password.
+          type: string
+          minimum: 0
+          maximum: 255
+    Router.IsisRouter.MultiInstance:
+      x-status: under-review
+      description: "This contains the properties of a Multi-Instance-capable routers\
+        \ or MI-RTR. "
+      type: object
+      properties:
+        enable_mi:
+          description: |-
+            If it is enabled then IID TLV will be added in its Hellos, LSPs, and SNPs.
+          type: boolean
+          default: false
+        iid:
+          description: |-
+            Instance indentifier (IID) TLV will associate a PDU with an IS-IS instance  by using a unique 16-bit number and including one or more ITIDs.
+          type: integer
+          default: 1
+          minimum: 0
+          maximum: 65535
+        itids:
+          description: |-
+            This contains one or more Instance-Specific Topology Identifier that  will be advertised in (IID) TLV.
+          type: integer
+          items:
+            type: integer
+            default: 0
+            minimum: 0
+            maximum: 65535
+    Router.IsisRouter.LspMgGroupPduControl:
+      description: |-
+        This contains LSP/ MGROUP-PDUs control parameters.
+      type: object
+      properties:
+        max_lsp_mggroup_pdu_per_burst:
+          description: |-
+            The maximum number of LSP/ MGROUP-PDUs to be sent for each burst.
+          type: integer
+          default: 1
+        inter_lsps_mggroup_puds_burst_gap:
+          description: |-
+            The gap between each LSP/MGROUP-PDU Burst in millisecond.
+          type: integer
+          default: 33
+    Router.Isis.PrefixAttributes:
+      description: |-
+        This contains the properties of IS-IS Prefix attributes for  the extended Ipv4 and Ipv6 reachability.
+      type: object
+      properties:
+        x_flag:
+          description: |-
+            External Prefix Flag (Bit 0)
+          type: boolean
+          default: false
+        r_flag:
+          description: |-
+            Re-advertisement Flag (Bit 1)
+          type: boolean
+          default: false
+        n_flag:
+          description: |-
+            Node Flag (Bit 2)
+          type: boolean
+          default: false
+        advertise_source_router_id:
+          description: |
+            If this is enabled then Source Router Id will be advertised.
+          type: boolean
+          default: false
+        source_router_id_type:
+          description: |-
+            This choise opting the advertising Ipv4 and Ipv6 Source Router IDs that the IS-IS instance thats originated the advertisement provided advertise_source_router_id  is selected true.
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          - ipv4_and_ipv6
+          default: ipv4
+        v4_source_router_id:
+          description: |-
+            Ipv4 Source Router ID
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        v6_source_router_id:
+          description: |-
+            Ipv4 Source Router ID
+          type: string
+          format: ipv6
+          default: ::0
+    Router.IsisRouter.SegmentRoutingMPLS:
+      description: "Segment Routing (SR) turns on any node to select any path (explicit\
+        \ or derived from IGPs SPT computations) \nfor each of its traffic classes.\
+        \ The path does not depend on a hop-by-hop \nsignaling technique (unlike LDP\
+        \ or RSVP). \nIt only depends on a set of segments that are advertised by\
+        \ the IS-IS routing protocol. \nThese segments act as topological sub-paths\
+        \ that can be combined together to form the required path."
+      type: object
+      properties:
+        enable_srmpls:
+          description: |-
+            This enable SRMPLS on ISIS emulated router.
+          type: boolean
+          default: false
+        router_capability_id:
+          description: "A unique identifier (IPv4 /32 bit address format) for the\
+            \ ISIS router advertising. \nIn the context of ISIS segment routing, it\
+            \ helps to uniquely associate specific ISIS \ncapabilities related to\
+            \ segment routing (For example, SRGB, Algorithm, and so on.) with a specific\
+            \ ISIS router."
+          type: string
+          format: ipv4
+          default: 1.1.1.1
+        d_flag:
+          description: "D Bit is added to prevent TLV looping. Refer RFC 4971 for\
+            \ more details.\nIf D bit is set (that is, 1), Router Capability TLV 242\
+            \ must not be leaked \nfrom Level 1 to Level 2."
+          type: boolean
+          default: false
+        s_flag:
+          description: "If S bit is not set (that is, 0), ISIS Router Capability TLV\
+            \ 242 will \nnot be leaked through ISIS inter-area attachment points.\
+            \ Refer to RFC 4971 for more details.\nIf S bt is set (that is, 1), ISIS\
+            \ Router Capability TLV 242 is flooded in the entire \nrouting domains\
+            \ (that is, across several inter-level attachment points)."
+          type: boolean
+          default: false
+        ipv4_flag:
+          description: |-
+            Indicates that all interfaces of the router are supporting IPv4.
+          type: boolean
+          default: true
+        ipv6_flag:
+          description: |-
+            Indicates that all interfaces of the router are supporting IPv6.
+          type: boolean
+          default: false
+        node_prefix:
+          description: |-
+            The node prefix taken in IPv4 format.
+          type: string
+          format: ipv4
+          default: 1.1.1.1
+        node_prefix_length:
+          type: integer
+          default: 32
+        redistribution:
+          description: "Defines the Up/Down (Redistribution) bit defined for TLVs\
+            \ 128 and 130 by RFC 2966.\nIt is used for domain-wide advertisement of\
+            \ prefix information.\nIf up - used when a prefix is initially advertised\
+            \ within the ISIS L3 hierarchy, and for all other prefixes in L1 and L2\
+            \ LSPs. (default)\nWhen down - used when an L1/L2 router advertises L2\
+            \ prefixes in L1 LSPs. \nThe prefixes are being advertised from a higher\
+            \ level (L2) down to a lower level (L1)."
+          type: string
+          enum:
+          - up
+          - down
+          default: up
+        prefix_sid_algorithms:
+          description: |-
+            This contains one or more segement identifiers, its
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.Isis.PrefixSegmentIdentifier'
+        srgb_ranges:
+          description: |-
+            This contains the list of SRGB.
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.IsisRouter.SrgbRange'
+    Router.IsisRouter.SrgbRange:
+      description: |-
+        This contains the propeties of SRGB range.
+      type: object
+      properties:
+        start_sid:
+          description: |-
+            Start SID is allocated to the Emulated router and rest of the SIDs  are allocated to Ipv4/IPv6 prefix pools SIDs in the same order as the prefixes  appear in the prefix pool.
+          type: integer
+          default: 16000
+        sid_count:
+          description: "This represents the number of SID in a SRGB range. "
+          type: integer
+          default: 8000
+    Router.Isis.PrefixSegmentIdentifier:
+      description: |-
+        This contains the properties of IS-IS Prefix-SID and its attributes for  the extended Ipv4 and Ipv6 reachability.
+      type: object
+      properties:
+        prefix_sid:
+          description: |-
+            SID/Index is the SID/Label value associated  with the IGP Prefix segment attached to the specific IPv4 or IPv6 prefix.
+          type: integer
+          default: 0
+        r_flag:
+          description: |-
+            R-Flag:Re-advertisement flag
+          type: boolean
+          default: false
+        n_flag:
+          description: |-
+            N-Flag: Node-SID flag.  If set, then the Prefix-SID refers to
+            the router identified by the prefix
+          type: boolean
+          default: false
+        p_flag:
+          description: |-
+            P-Flag: no-PHP flag.
+          type: boolean
+          default: false
+        e_flag:
+          description: |-
+            E-Flag: Explicit-Null Flag.
+          type: boolean
+          default: false
+        v_flag:
+          description: |-
+            The value flag. If set, then the Prefix-SID carries a value instead of an index.
+          type: boolean
+          default: false
+        l_flag:
+          description: |-
+            The local flag.  If set, then the value/index carried by
+            the Prefix-SID has local significance.
+          type: boolean
+          default: false
+        algorithm:
+          description: "The Isis may use various algorithms when calculating\nreachability\
+            \ to other nodes or to prefixes attached to these\nnodes. "
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 255
+    Router.IsisInterface:
+      description: |-
+        Container for single Isis interface.
+      type: object
+      required:
+      - eth_name
+      properties:
+        eth_name:
+          description: "The unique name of ethernet object on which Isis interface\
+            \ is running. Two Isis interfaces cannot share the same ethernet.    \
+            \     \n\nx-constraint:\n- /components/schemas/Device.Ethernet/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+        metric:
+          description: |-
+            The default metric cost for using this interface.
+          type: integer
+          default: 10
+        network_type:
+          description: |-
+            The type of network link.
+          type: string
+          enum:
+          - broadcast
+          - point_to_point
+          default: broadcast
+        level_type:
+          description: |-
+            The level of HELLO messages.
+          type: string
+          enum:
+          - level_1
+          - level_2
+          - level_1_2
+          default: level_1
+        level_1_priority:
+          description: |-
+            The Priority setting in Level 1 LAN Hellos for Designated Router elections.
+          type: integer
+          default: 0
+        level_2_priority:
+          description: |-
+            The Priority setting in Level 2 LAN Hellos for Designated Router elections.
+          type: integer
+          default: 0
+        level_1_hello_interval:
+          description: |-
+            The Hello interval for Level 1 Hello messages, in seconds.
+          type: integer
+          default: 10
+        level_2_hello_interval:
+          description: |-
+            The Hello interval for Level 2 Hello messages, in seconds.
+          type: integer
+          default: 10
+        level_1_dead_interval:
+          description: |-
+            The Dead (Holding Time) interval for Level 1 Hello messages, in seconds.
+          type: integer
+          default: 30
+        level_2_dead_interval:
+          description: |-
+            The Dead (Holding Time) interval for Level 2 Hello messages, in seconds.
+          type: integer
+          default: 30
+        multi_topology_ids:
+          description: |-
+            This contains the properties of one or more multiple topologies attributes.
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.IsisInterface.Multitopology'
+        traffic_engineering_profiles:
+          description: |-
+            This contains a list of one or more Traffic Engineering attributes.
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.Linkstate.TeProfile'
+        segment_routing_mpls:
+          description: "Contaioner for the Adjacency Service Instance Identifier (SID). "
+          $ref: '#/components/schemas/Router.IsisInterface.SegmentRoutingMPLS'
+        authentication:
+          description: |-
+            The Circuit authentication method used for the interfaces on this emulated ISIS v4/v6 router
+          $ref: '#/components/schemas/Router.IsisInterface.Authentication'
+        advanced:
+          description: |-
+            Optional container for advanced interface properties
+          $ref: '#/components/schemas/Router.IsisInterface.Advanced'
+        link_protection:
+          description: |-
+            Link protection on the ISIS link between two mentioned interfaces.
+          $ref: '#/components/schemas/Router.IsisInterface.LinkProtection'
+        prefix_attributues_flags:
+          description: |-
+            This contains the properties of IS-IS Prefix Attribute Flags Sub-Tlv.
+          $ref: '#/components/schemas/Router.Isis.PrefixAttributes'
+        srlg_values:
+          description: |-
+            This contains one or more SRLG value for the link between two mentioned interfaces.
+          type: array
+          items:
+            type: integer
+            default: 0
+    Router.IsisInterface.Multitopology:
+      x-status: under-review
+      description: "Multi-Topology TLV(229). The serial number or identifier of the\
+        \ topology in a scenario \nthat contains an arrangement of the network elements\
+        \ used for configuring the protocol. \nFor example, Topology 1, Topology 2,\
+        \ and so on."
+      type: object
+      properties:
+        mt_id:
+          description: |-
+            The multitopology ID for the emulated ISIS-L3 router. By default, it is set to 0.
+          type: integer
+          default: 0
+        link_metric:
+          description: "Specifies the link metric between the nodes in the network\
+            \ grid going to the nodes \nthat are configured on the port of the device.\
+            \ \nFor each individual node, you can update the metric."
+          type: integer
+          default: 10
+          minimum: 0
+          maximum: 16777215
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Router.Linkstate.TeProfile:
+      description: |-
+        A container for ISIS interface traffic engineering properties
+      type: object
+      properties:
+        administrative_group:
+          description: "The Administrative group sub-TLV (sub-TLV 3). It is a 4-octet\
+            \ \nuser-defined bit mask used to assign administrative group numbers\
+            \ \nto the interface, for use in assigning colors and resource classes.\
+            \ \nEach set bit corresponds to a single administrative group for this\
+            \ \ninterface. The settings translate into Group numbers, which range\
+            \ \nfrom 0 to 31 (integers)."
+          type: string
+          format: hex
+          default: 00 00 00 00
+        metric_level:
+          description: |-
+            The user-assigned link metric for traffic engineering.
+          type: integer
+          default: 0
+        max_bandwith:
+          description: "The maximum link bandwidth (sub-TLV 9) in bytes/sec allowed\
+            \ for this \nlink in this direction."
+          type: number
+          format: double
+          default: 125000000
+        max_reservable_bandwidth:
+          description: "The maximum link bandwidth (sub-TLV 10) in bytes/sec allowed\
+            \ for this \nlink in this direction."
+          type: number
+          format: double
+          default: 125000000
+        priority_0_bandwith:
+          description: |-
+            Specify the amount of bandwidth that can be reserved.
+          type: integer
+          default: 125000000
+        priority_1_bandwith:
+          description: |-
+            Specify the amount of bandwidth that can be reserved.
+          type: integer
+          default: 125000000
+        priority_2_bandwith:
+          description: |-
+            Specify the amount of bandwidth that can be reserved.
+          type: integer
+          default: 125000000
+        priority_3_bandwith:
+          description: |-
+            Specify the amount of bandwidth that can be reserved.
+          type: integer
+          default: 125000000
+        priority_4_bandwith:
+          description: |-
+            Specify the amount of bandwidth that can be reserved.
+          type: integer
+          default: 125000000
+        priority_5_bandwith:
+          description: |-
+            Specify the amount of bandwidth that can be reserved.
+          type: integer
+          default: 125000000
+        priority_6_bandwith:
+          description: |-
+            Specify the amount of bandwidth that can be reserved.
+          type: integer
+          default: 125000000
+        priority_7_bandwith:
+          description: |-
+            Specify the amount of bandwidth that can be reserved.
+          type: integer
+          default: 125000000
+        extended_administrative_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.Linkstate.ExtendedAdminGroup'
+    Router.Linkstate.ExtendedAdminGroup:
+      description: |-
+        Additonal administrative group sub tlvs.
+      type: object
+      externalDocs:
+        url: https://datatracker.ietf.org/doc/html/rfc7308
+      properties:
+        group:
+          description: |-
+            By convention, the existing Administrative Group sub-TLVs are
+            numbered 0 (least significant bit) to 31 (most significant bit).  The
+            EAG values are a superset of AG.  That is, bits 0-31 in the EAG have
+            the same meaning and MUST have the same values as an AG flooded for
+            the same link.  If an EAG's length is more than 4 bytes, numbering
+            for these additional bytes picks up where the previous byte left off.
+            For example, the least significant bit in the fifth byte of an 8-byte
+            EAG is referred to as bit 32.
+          type: string
+          format: hex
+          default: 00 00 00 00
+    Router.IsisInterface.SegmentRoutingMPLS:
+      description: |-
+        Optional container for segment routing MPLS settings.
+        If the container exists then the adjacency SID (segment identifier)
+        sub TLV will be part of the packet.
+      externalDocs:
+        url: https://datatracker.ietf.org/doc/html/draft-ietf-isis-segment-routing-extensions-15
+      type: object
+      properties:
+        adjacency_sid:
+          description: |-
+            The corresponding adjacency SID for a link.
+          type: integer
+          default: 9001
+          minimum: 1
+          maximum: 1048575
+        f_flag:
+          description: |-
+            The address family flag. If unset, then the Adj-SID refers
+            to an adjacency with outgoing IPv4 encapsulation.  If set then
+            the Adj-SID refers to an adjacency with outgoing IPv6
+            encapsulation.
+          type: boolean
+          default: false
+        b_flag:
+          description: |-
+            The backup flag. If set, the Adj-SID is eligible for protection.
+          type: boolean
+          default: false
+        v_flag:
+          description: |-
+            The value flag. If set, then the Adj-SID carries a value.
+          type: boolean
+          default: true
+        l_flag:
+          description: |-
+            The local flag.  If set, then the value/index carried by
+            the Adj-SID has local significance.
+          type: boolean
+          default: true
+        s_flag:
+          description: |-
+            The set flag. When set, the S-Flag indicates that the
+            Adj-SID refers to a set of adjacencies (and therefore MAY be
+            assigned to other adjacencies as well).
+          type: boolean
+          default: false
+        p_flag:
+          description: |-
+            The persistent flag. When set, the P-Flag indicates that
+            the Adj-SID is persistently allocated, i.e., the Adj-SID value
+            remains consistent across router restart and/or interface flap.
+          type: boolean
+          default: false
+        weight:
+          description: "The value represents the weight of the Adj-SID for the purpose\
+            \ of \nload balancing. "
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 255
+    Router.IsisInterface.Authentication:
+      description: |-
+        Optional container for circuit authentication properties.
+      type: object
+      properties:
+        choice:
+          description: |-
+            The circuit authentication method.
+          type: string
+          enum:
+          - md5
+          - password
+        md5:
+          description: |-
+            Authentication as an MD5 key.
+          type: string
+          minimum: 0
+          maximum: 255
+        password:
+          description: |-
+            Authentication as a clear text password.
+          type: string
+          minimum: 0
+          maximum: 255
+    Router.IsisInterface.Advanced:
+      description: |-
+        Optional container for advanced interface properties.
+      type: object
+      properties:
+        auto_adjust_mtu:
+          description: "If a padded Hello message is received on the interface, the\
+            \ length of \nthe Hello packets sent out on that interface is adjusted\
+            \ to match."
+          type: boolean
+          default: true
+        auto_adjust_area:
+          description: "If a Level 1 Hello is received on this emulated router for\
+            \ an area \nnot currently in its area list, an area in the received Hello\
+            \ is \nadded to that list. This ensures an area match for all future \n\
+            Level 1 Hellos from the source L1 router."
+          type: boolean
+          default: true
+        auto_adjust_supported_protocols:
+          description: "If a Hello message listing supported protocols is received\
+            \ on this \nemulated router, the supported protocols advertised by this\
+            \ router \nis changed to an exact match."
+          type: boolean
+          default: false
+    Router.IsisInterface.LinkProtection:
+      description: |-
+        Optional container for the link protection sub TLV (type 20).
+      type: object
+      properties:
+        extra_traffic:
+          description: "Enable this to protect other link or links. The LSPs on a\
+            \ link of \nthis type is lost if any of the links fail."
+          type: boolean
+          default: false
+        unprotected:
+          description: "Enabling this signifies that there is no other link protecting\
+            \ this \nlink. The LSPs on a link of this type is lost if the link fails."
+          type: boolean
+          default: false
+        shared:
+          description: "Enable this to share the Extra Traffic links between one or\
+            \ more \nlinks of type Shared.There are one or more disjoint links of\
+            \ type \nExtra Traffic that are protecting this link."
+          type: boolean
+          default: false
+        dedicated_1_to_1:
+          description: "Enabling this signifies that there is one dedicated disjoint\
+            \ link \nof type Extra Traffic that is protecting this link."
+          type: boolean
+          default: false
+        dedicated_1_plus_1:
+          description: "Enabling this signifies that a dedicated disjoint link is\
+            \ protecting \nthis link. However, the protecting link is not advertised\
+            \ in the \nlink state database and is therefore not available for the\
+            \ routing \nof LSPs."
+          type: boolean
+          default: false
+        enhanced:
+          description: "Enabling this signifies that a protection scheme that is more\
+            \ \nreliable than Dedicated 1+1."
+          type: boolean
+          default: false
+        reserved_40:
+          description: "This is a Protection Scheme with value 0x40. "
+          type: boolean
+          default: false
+        reserved_80:
+          description: "This is a Protection Scheme with value 0x80. "
+          type: boolean
+          default: false
+    Router.IsisV4Route:
+      description: |-
+        Emulated ISIS v4 route
+        Container for ISIS route ranges.
+        This contains the properties of IS-IS Prefix attributes for  the extended Ipv4 and Ipv6 reachability.
+      type: object
+      properties:
+        addresses:
+          description: |-
+            A list of symmetrical or asymmetrical route addresses for a route range.
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.Isis.V4RouteAddress'
+        link_metric:
+          description: |-
+            The user-defined metric associated with this route range.
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 16777215
+        route_orgin:
+          description: "The origin of the advertised route-internal or external to\
+            \ the ISIS area. Options include the following: \n  Internal-for intra-area\
+            \ routes, through Level 1 LSPs. \n  External-for inter-area routes redistributed\
+            \ within L1, through Level 1 LSPs."
+          type: string
+          enum:
+          - internal
+          - external
+          default: internal
+        redistribution:
+          description: "Defines the Up/Down (Redistribution) bit defined for TLVs\
+            \ 128 and 130 by RFC 2966.  It is used for domain-wide advertisement of\
+            \ prefix information. \n  Up (0)-used when a prefix is initially advertised\
+            \ within the ISIS L3 hierarchy, \n          and for all other prefixes\
+            \ in L1 and L2 LSPs. (default) \n  Down (1)-used when an L1/L2 router\
+            \ advertises L2 prefixes in L1 LSPs. \nThe prefixes are being advertised\
+            \ from a higher level (L2) down to a lower level (L1). "
+          type: string
+          enum:
+          - up
+          - down
+          default: up
+        prefixsidsalgorithms:
+          description: |-
+            A prefix can be associated with one or more number of segment identifiers (SIDs).
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.Isis.PrefixSidAlgorithm'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        x_flag:
+          description: |-
+            External Prefix Flag (Bit 0)
+          type: boolean
+          default: false
+        r_flag:
+          description: |-
+            Re-advertisement Flag (Bit 1)
+          type: boolean
+          default: false
+        n_flag:
+          description: |-
+            Node Flag (Bit 2)
+          type: boolean
+          default: false
+        advertise_source_router_id:
+          description: |
+            If this is enabled then Source Router Id will be advertised.
+          type: boolean
+          default: false
+        source_router_id_type:
+          description: |-
+            This choise opting the advertising Ipv4 and Ipv6 Source Router IDs that the IS-IS instance thats originated the advertisement provided advertise_source_router_id  is selected true.
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          - ipv4_and_ipv6
+          default: ipv4
+        v4_source_router_id:
+          description: |-
+            Ipv4 Source Router ID
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        v6_source_router_id:
+          description: |-
+            Ipv4 Source Router ID
+          type: string
+          format: ipv6
+          default: ::0
+      required:
+      - name
+    Router.Isis.V4RouteAddress:
+      description: |-
+        A container for BGPv4 route addresses
+      type: object
+      properties:
+        address:
+          description: |-
+            The starting address of the network
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        prefix:
+          description: "The IPv4 network prefix to be applied to the address. "
+          type: integer
+          default: 24
+          minimum: 0
+          maximum: 32
+        count:
+          description: |-
+            The total number of addresses in the range
+          type: string
+          format: integer
+          default: 1
+        step:
+          description: |-
+            The amount to increase each address by
+          type: string
+          format: integer
+          default: 1
+    Router.Isis.PrefixSidAlgorithm:
+      description: |-
+        This contains the properties of IS-IS Prefix-SID and its attributes for  the extended Ipv4 and Ipv6 reachability.
+      type: object
+      properties:
+        prefix_sid:
+          description: |-
+            SID/Index is the SID/Label value associated  with the IGP Prefix segment attached to the specific IPv4 or IPv6 prefix.
+          type: integer
+          default: 0
+        r_flag:
+          description: |-
+            R-Flag:Re-advertisement flag
+          type: boolean
+          default: false
+        n_flag:
+          description: |-
+            N-Flag: Node-SID flag.  If set, then the Prefix-SID refers to
+            the router identified by the prefix
+          type: boolean
+          default: false
+        p_flag:
+          description: |-
+            P-Flag: no-PHP flag.
+          type: boolean
+          default: false
+        e_flag:
+          description: |-
+            E-Flag: Explicit-Null Flag.
+          type: boolean
+          default: false
+        v_flag:
+          description: |-
+            The value flag. If set, then the Prefix-SID carries a value instead of an index.
+          type: boolean
+          default: false
+        l_flag:
+          description: |-
+            The local flag.  If set, then the value/index carried by
+            the Prefix-SID has local significance.
+          type: boolean
+          default: false
+        algorithm:
+          description: "The Isis may use various algorithms when calculating\nreachability\
+            \ to other nodes or to prefixes attached to these\nnodes. "
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 255
+    Router.IsisV6Route:
+      description: |-
+        Emulated ISIS v6 route
+        Container for ISIS route ranges.
+        This contains the properties of IS-IS Prefix attributes for  the extended Ipv4 and Ipv6 reachability.
+      type: object
+      properties:
+        addresses:
+          description: |-
+            A list of symmetrical or asymmetrical route addresses
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.Isis.V6RouteAddress'
+        link_metric:
+          description: |-
+            The user-defined metric associated with this route range.
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 16777215
+        route_orgin:
+          description: "The origin of the advertised route-internal or external to\
+            \ the ISIS area. Options include the following: \n  Internal-for intra-area\
+            \ routes, through Level 1 LSPs. \n  External-for inter-area routes redistributed\
+            \ within L1, through Level 1 LSPs."
+          type: string
+          enum:
+          - internal
+          - external
+          default: internal
+        redistribution:
+          description: "Defines the Up/Down (Redistribution) bit defined for TLVs\
+            \ 128 and 130 by RFC 2966.  It is used for domain-wide advertisement of\
+            \ prefix information. \n  Up (0)-used when a prefix is initially advertised\
+            \ within the ISIS L3 hierarchy, \n          and for all other prefixes\
+            \ in L1 and L2 LSPs. (default) \n  Down (1)-used when an L1/L2 router\
+            \ advertises L2 prefixes in L1 LSPs. \nThe prefixes are being advertised\
+            \ from a higher level (L2) down to a lower level (L1). "
+          type: string
+          enum:
+          - up
+          - down
+          default: up
+        prefixsidsalgorithms:
+          description: |-
+            A prefix can be associated with one or more number of segment identifiers (SIDs).
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.Isis.PrefixSidAlgorithm'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        x_flag:
+          description: |-
+            External Prefix Flag (Bit 0)
+          type: boolean
+          default: false
+        r_flag:
+          description: |-
+            Re-advertisement Flag (Bit 1)
+          type: boolean
+          default: false
+        n_flag:
+          description: |-
+            Node Flag (Bit 2)
+          type: boolean
+          default: false
+        advertise_source_router_id:
+          description: |
+            If this is enabled then Source Router Id will be advertised.
+          type: boolean
+          default: false
+        source_router_id_type:
+          description: |-
+            This choise opting the advertising Ipv4 and Ipv6 Source Router IDs that the IS-IS instance thats originated the advertisement provided advertise_source_router_id  is selected true.
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          - ipv4_and_ipv6
+          default: ipv4
+        v4_source_router_id:
+          description: |-
+            Ipv4 Source Router ID
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        v6_source_router_id:
+          description: |-
+            Ipv4 Source Router ID
+          type: string
+          format: ipv6
+          default: ::0
+      required:
+      - name
+    Router.Isis.V6RouteAddress:
+      description: |-
+        A container for Isis Ipv6 route addressses
+      type: object
+      properties:
+        address:
+          description: |-
+            The starting address of the network
+          type: string
+          format: ipv6
+          default: ::0
+        prefix:
+          description: |-
+            The IPv6 network prefix to be applied to the address
+          type: integer
+          default: 64
+          minimum: 0
+          maximum: 128
+        count:
+          description: |-
+            The total number of addresses in the range
+          type: string
+          format: integer
+          default: 1
+        step:
+          description: |-
+            The amount to increase each address by
+          type: string
+          format: integer
+          default: 1
     Device.Bgpv4:
       x-status: under-review
       description: |-
@@ -645,12 +2196,6 @@ components:
         Container for basic emulated BGP peer settings.
       type: object
       properties:
-        local_address:
-          description: |-
-            Local IPv4 address of the emulated router
-          type: string
-          format: ipv4
-          default: 0.0.0.0
         dut_address:
           description: |-
             IPv4 address of the BGP peer for the session
@@ -730,6 +2275,30 @@ components:
           default: true
       required:
       - name
+    Device.Bgpv4PeerList:
+      description: |-
+        Container for emulated BGPv4 peers and routes on a single Ipv4 interface.
+      type: object
+      required:
+      - ipv4_name
+      properties:
+        ipv4_name:
+          description: |
+            The unique name of ipv4 or loopback object  used as the source Ip this list of Bgp peers.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv4/properties/name
+            - /components/schemas/Device.LoopbackIpv4/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+          - /components/schemas/Device.LoopbackIpv4/properties/name
+        bgp_peers:
+          description: |-
+            This contains the list of BGPv4 peers configured on this interface.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.Bgpv4'
     Device.BgpAdvanced:
       x-status: under-review
       description: |-
@@ -1417,69 +2986,6 @@ components:
           type: string
           format: integer
           default: 1
-    Device.Ipv6Base:
-      x-status: under-review
-      description: |-
-        A base IPv6 interface
-      type: object
-      properties:
-        address:
-          description: |-
-            The IPv6 address.
-          type: string
-          format: ipv6
-          default: ::0
-        prefix:
-          description: |-
-            The network prefix.
-          type: integer
-          minimum: 1
-          maximum: 128
-          default: 64
-        bgpv6:
-          $ref: '#/components/schemas/Device.Bgpv6'
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-      required:
-      - name
-    Device.Ipv6:
-      description: |-
-        An IPv6 interface with gateway
-        A base IPv6 interface
-      type: object
-      properties:
-        gateway:
-          description: |-
-            The IPv6 gateway address
-          type: string
-          format: ipv6
-          default: ::0
-        address:
-          description: |-
-            The IPv6 address.
-          type: string
-          format: ipv6
-          default: ::0
-        prefix:
-          description: |-
-            The network prefix.
-          type: integer
-          minimum: 1
-          maximum: 128
-          default: 64
-        bgpv6:
-          $ref: '#/components/schemas/Device.Bgpv6'
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-      x-status: under-review
-      required:
-      - name
     Device.Bgpv6:
       x-status: under-review
       description: |-
@@ -1487,12 +2993,6 @@ components:
         Container for basic emulated BGP peer settings.
       type: object
       properties:
-        local_address:
-          description: |-
-            Local IPv6 address of the emulated router
-          type: string
-          format: ipv6
-          default: ::0
         dut_address:
           description: |-
             IPv6 address of the BGP peer for the session
@@ -1574,6 +3074,30 @@ components:
           default: true
       required:
       - name
+    Device.Bgpv6PeerList:
+      description: |-
+        Container for emulated BGPv6 peers and routes on a single Ipv6 interface.
+      type: object
+      required:
+      - ipv6_name
+      properties:
+        ipv6_name:
+          description: |
+            The unique name of Ipv6 or Loopback Ipv6 object  used as the source Ip this list of Bgp peers.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv6/properties/name
+            - /components/schemas/Device.LoopbackIpv6/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv6/properties/name
+          - /components/schemas/Device.LoopbackIpv6/properties/name
+        bgp_peers:
+          description: |-
+            This contains the list of BGPv6 peers configured on this interface.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.Bgpv6'
     Device.Bgpv6SegmentRouting:
       x-status: under-review
       description: |-
@@ -1620,48 +3144,280 @@ components:
             TBD
           type: boolean
           default: false
-    Device.Isis:
+    Device.OspfRouter:
+      x-status: under-review
       description: |-
-        A container for the Intermediate System to Intermediate System  (IS-IS, ISIS) routing protocol.
-        interface
-          traffic_engineering
-          multi_topology
-          segment_routing_mpls
-          segment_routing_v6
-          link_protection
-          authentication
-          advanced
-          shared_risk_link_group (srlg)
-        router
-          multi_topology
-          advanced
-          authentication
-          multi_instance
-          lsp_mgroup_pdu_rate_control
-          segment_routing_mpls
-          segment_routing_v6
-          supported_algorithms
-          segment_routing_mapping_server
-          segment_routing_local_block
-          bier (bit index explicit replication)
+        A container of properties for a Ospf router
       type: object
       required:
-      - interface
-      - router
+      - ipv4_name
       - name
       properties:
-        interface:
-          $ref: '#/components/schemas/Device.Isis.Interface'
-        router:
-          $ref: '#/components/schemas/Device.Isis.Router'
+        ipv4_name:
+          description: |
+            The unique name of ipv4 or loopback object  used as the source Ip this list of Ospf peer.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv4/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+        property_dummy:
+          description: |-
+            TBD
+          type: string
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Device.Isis.Interface:
+    Device.RsvpRouter:
+      x-status: under-review
       description: |-
-        A container for ISIS interface properties
+        A container of properties for a RSVP router.
+      type: object
+      properties:
+        rsvp_neighbour:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.RsvpNeighbour'
+        rsvp_lsp:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.RsvpLsp'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Device.RsvpNeighbour:
+      description: |-
+        Container for emulated BGPv4 peers and routes on a single Ipv4 interface.
+      type: object
+      required:
+      - ipv4_name
+      properties:
+        ipv4_name:
+          description: "The unique name of ipv4 interface on top which neigbour is\
+            \ configured.     \n\nx-constraint:\n- /components/schemas/Device.Ipv4/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+        dut_address:
+          description: |-
+            IPv4 address of the RSVP neighbour.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+    Device.RsvpLsp:
+      description: |-
+        Container for emulated BGPv4 peers and routes on a single Ipv4 interface.
+      type: object
+      required:
+      - ipv4_name
+      properties:
+        ipv4_name:
+          description: "The unique name of ipv4 interface on top which neigbour is\
+            \ configured.     \n\nx-constraint:\n- /components/schemas/Device.Ipv4/properties/name\n\
+            - /components/schemas/Device.LoopbackIpv4/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+          - /components/schemas/Device.LoopbackIpv4/properties/name
+        p2p_ingress:
+          description: |-
+            This contains the list of P2P ingress Lsps orginating from this endpoint.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.RsvpRouter.P2pIngressLsp'
+        p2p_egress:
+          description: |-
+            This contains the properties of the RSVP egress endpoint and define how the incoming P2P PATH messages should be handled.
+          $ref: '#/components/schemas/Device.RsvpRouter.P2pEgress'
+    Device.RsvpRouter.P2pIngressLsp:
+      x-status: under-review
+      description: |-
+        A container of properties for a P2p Ingress Lsp.
+      type: object
+      properties:
+        remote_address:
+          description: |-
+            IPv4 address of the RSVP egress for this Lsp.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        tunnel_id:
+          description: "Tunnel Id of the P2P Lsp. "
+          type: integer
+          default: 1
+        lsp_id:
+          description: "Lsp Id of the P2P Lsp. "
+          type: integer
+          default: 1
+          minimum: 0
+          maximum: 65535
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Device.RsvpRouter.P2pEgress:
+      x-status: under-review
+      description: |-
+        A container of properties for a RSVP Egress endpoint which will reply to  all P2P requests from RSVP ingresses for this endpoint.
+      type: object
+      properties:
+        refresh_interval:
+          description: |-
+            Refresh interval at which RESV messages will be sent for all the Lsps terminated
+            at this egress.
+          type: integer
+          default: 3000
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Router.SimulatedTopology:
+      x-status: under-review
+      description: |-
+        This contains the properties of a simulated topology.
+      type: object
+      properties:
+        nodes:
+          description: |-
+            This contains one or more simulated node.
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.SimulatedTopologyNode'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Router.SimulatedTopologyNode:
+      description: |-
+        A container of properties for a simulated node.
+      type: object
+      properties:
+        links:
+          description: |-
+            This contains the properties of one or more links to other nodes.
+          type: array
+          items:
+            $ref: '#/components/schemas/Router.SimulatedTopologyLink'
+        isis_sim_router:
+          description: |-
+            This contains the properties of a simulated isis router.
+          $ref: '#/components/schemas/Router.IsisSimulatedTopology.Router'
+        ospf_sim_router:
+          description: |-
+            This contains the properties of a simulated ospf router.
+          $ref: '#/components/schemas/Router.OspfSimulatedTopology.Router'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Router.SimulatedTopologyLink:
+      description: |-
+        This defines a two way link with the peer node. If the peer node also has a link to this node it will be treated as a separate link between the nodes.
+      type: object
+      properties:
+        connected_node_type:
+          description: |-
+            It defines whether this link is connected to an emulated router or a simulated router. If the type is emulated router then the connected router is automatically determined based on the Router of which this simulated topology is a part.
+          type: string
+          enum:
+          - connected_to_st_router
+          - connected_to_em_router
+          - connected_to_external_router
+          default: connected_to_st_router
+        st_router_name:
+          description: "The unique name of the simulated router to which this link\
+            \ is conected.  Note that it can only be connected to another node of\
+            \ the same topology.  \n\nx-constraint:\n- /components/schemas/Router.SimulatedTopologyNode/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Router.SimulatedTopologyNode/properties/name
+        external_router_name:
+          description: "The unique name of the simulated router or emulated router\
+            \ in another topology to\n which this link is conected. \n\nx-constraint:\n\
+            - /components/schemas/Router.SimulatedTopologyNode/properties/name\n-\
+            \ /components/schemas/Router/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Router.SimulatedTopologyNode/properties/name
+          - /components/schemas/Router/name
+        enable_ipv4_address:
+          description: |-
+            If this is enabled then endpoints of this link will have the Ipv4 To and From addresses.
+          type: boolean
+          default: true
+        ipv4_from_address:
+          description: |-
+            The IPv4 From address.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        ipv4_to_address:
+          description: |-
+            The IPv6 To address.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        ipv4_prefix_lenght:
+          description: |-
+            Ipv4 prefix lenght of the From and To address
+          type: integer
+          minimum: 1
+          maximum: 32
+          default: 16
+        enable_ipv6_address:
+          description: |-
+            If this is enabled then endpoints of this link will have the Ipv6 To and From addresses.
+          type: boolean
+          default: false
+        ipv6_from_address:
+          description: |-
+            The IPv6 From address.
+          type: string
+          format: ipv6
+          default: ::0
+        ipv6_to_address:
+          description: |-
+            The IPv6 To address.
+          type: string
+          format: ipv6
+          default: ::0
+        ipv6_prefix_length:
+          description: |-
+            Ipv6 prefix lenght of the From and To address.
+          type: integer
+          minimum: 1
+          maximum: 128
+          default: 64
+        isis_sim_link:
+          description: |-
+            This contains the properties of a simulated Isis Link.
+          $ref: '#/components/schemas/Router.IsisSimulatedTopology.Link'
+        ospf_sim_link:
+          description: |-
+            This contains the properties of a simulated Ospf Link.
+          $ref: '#/components/schemas/Router.OspfSimulatedTopology.Link'
+    Router.IsisSimulatedTopology.Router:
+      x-status: under-review
+      description: "This contains the "
       type: object
       properties:
         system_id:
@@ -1672,27 +3428,48 @@ components:
           type: string
           format: hex
           default: 0
-        metric:
+        ipv4_te_router_id:
           description: |-
-            The default metric cost for using this interface.
-          type: integer
-          default: 10
-        enable_holdtime:
-          description: "Enable the configured hold_time which overrides the received\
-            \ \nhold time from the DUT."
+            IPv4 TE (traffic engineering) router id. If null then TE is not enabled.
+          type: string
+          format: ipv4
+          nullable: true
+          default: null
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Router.OspfSimulatedTopology.Router:
+      x-status: under-review
+      description: "This contains properties of Ospf router. "
+      type: object
+      properties:
+        router_lsa_b_bit:
+          description: |-
+            Router LSA B bit
           type: boolean
           default: false
-        hold_time:
-          description: "The amount of time that a neighbor will be considered alive\
-            \ \nwithout it receiving a hello packet. This does not indicate the \n\
-            hold time sent by the DUT."
-          type: integer
-          default: 30
-        supress_hello:
-          description: "When suppress_hello is turned on, ISIS does not send out any\
-            \ \nprotocol messages starting from HELLO."
+        router_lsa_e_bit:
+          description: |-
+            Router LSA E bit
           type: boolean
           default: false
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Router.IsisSimulatedTopology.Link:
+      x-status: under-review
+      description: |-
+        This contains the properties of the bidirectional link including  that of the neighbour node.
+      type: object
+      properties:
         network_type:
           description: |-
             The type of network link.
@@ -1701,786 +3478,40 @@ components:
           - broadcast
           - point_to_point
           default: broadcast
-        level_type:
+        to_link_metric:
           description: |-
-            The level of HELLO messages.
-          type: string
-          enum:
-          - level_1
-          - level_2
-          - level_1_2
-          default: level_1
-        level_1_priority:
-          description: |-
-            The Priority setting in Level 1 LAN Hellos for Designated Router elections.
-          type: integer
-          default: 0
-        level_2_priority:
-          description: |-
-            The Priority setting in Level 2 LAN Hellos for Designated Router elections.
-          type: integer
-          default: 0
-        level_1_hello_interval:
-          description: |-
-            The Hello interval for Level 1 Hello messages, in seconds.
+            The link metric cost for using this link To a peer node.
           type: integer
           default: 10
-        level_2_hello_interval:
+        from_link_metric:
           description: |-
-            The Hello interval for Level 2 Hello messages, in seconds.
+            The link metric cost for using this link From a peer node.
           type: integer
           default: 10
-        level_1_dead_interval:
-          description: |-
-            The Dead (Holding Time) interval for Level 1 Hello messages, in seconds.
-          type: integer
-          default: 30
-        level_2_dead_interval:
-          description: |-
-            The Dead (Holding Time) interval for Level 2 Hello messages, in seconds.
-          type: integer
-          default: 30
-        traffic_engineering_profiles:
-          description: |-
-            Traffic engineering profiles.
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.Isis.TEProfile'
-        segment_routing_mpls:
-          $ref: '#/components/schemas/Device.Isis.SegmentRoutingMPLS'
-        segment_routing_v6:
-          $ref: '#/components/schemas/Device.Isis.SegmentRoutingV6'
-        authentication:
-          $ref: '#/components/schemas/Device.Isis.Authentication'
-        link_protection:
-          $ref: '#/components/schemas/Device.Isis.LinkProtection'
-        shared_risk_link_groups:
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.Isis.SharedRiskLinkGroup'
-        advanced:
-          $ref: '#/components/schemas/Device.Isis.Interface.Advanced'
-    Device.Isis.TEProfile:
-      description: |-
-        A container for ISIS interface traffic engineering properties
-      type: object
-      properties:
-        administrative_group:
-          description: "The Administrative group sub-TLV (sub-TLV 3). It is a 4-octet\
-            \ \nuser-defined bit mask used to assign administrative group numbers\
-            \ \nto the interface, for use in assigning colors and resource classes.\
-            \ \nEach set bit corresponds to a single administrative group for this\
-            \ \ninterface. The settings translate into Group numbers, which range\
-            \ \nfrom 0 to 31 (integers)."
-          type: string
-          format: hex
-          default: 00 00 00 00
-        metric_level:
-          description: |-
-            The user-assigned link metric for traffic engineering.
-          type: integer
-          default: 0
-        max_bandwith:
-          description: "The maximum link bandwidth (sub-TLV 9) in bytes/sec allowed\
-            \ for this \nlink in this direction."
-          type: number
-          format: double
-          default: 0
-        max_reservable_bandwidth:
-          description: "The maximum link bandwidth (sub-TLV 10) in bytes/sec allowed\
-            \ for this \nlink in this direction."
-          type: number
-          format: double
-          default: 125000000
-        priority_0_bandwith:
-          description: |-
-            Specify the amount of bandwidth that can be reserved.
-          type: integer
-          default: 0
-        priority_1_bandwith:
-          description: |-
-            Specify the amount of bandwidth that can be reserved.
-          type: integer
-          default: 0
-        priority_2_bandwith:
-          description: |-
-            Specify the amount of bandwidth that can be reserved.
-          type: integer
-          default: 0
-        priority_3_bandwith:
-          description: |-
-            Specify the amount of bandwidth that can be reserved.
-          type: integer
-          default: 0
-        priority_4_bandwith:
-          description: |-
-            Specify the amount of bandwidth that can be reserved.
-          type: integer
-          default: 0
-        priority_5_bandwith:
-          description: |-
-            Specify the amount of bandwidth that can be reserved.
-          type: integer
-          default: 0
-        priority_6_bandwith:
-          description: |-
-            Specify the amount of bandwidth that can be reserved.
-          type: integer
-          default: 0
-        priority_7_bandwith:
-          description: |-
-            Specify the amount of bandwidth that can be reserved.
-          type: integer
-          default: 0
-        extended_administrative_groups:
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.Isis.ExtendedAdminGroup'
-    Device.Isis.ExtendedAdminGroup:
-      description: |-
-        Additonal administrative group sub tlvs.
-      type: object
-      externalDocs:
-        url: https://datatracker.ietf.org/doc/html/rfc7308
-      properties:
-        group:
-          description: |-
-            By convention, the existing Administrative Group sub-TLVs are
-            numbered 0 (least significant bit) to 31 (most significant bit).  The
-            EAG values are a superset of AG.  That is, bits 0-31 in the EAG have
-            the same meaning and MUST have the same values as an AG flooded for
-            the same link.  If an EAG's length is more than 4 bytes, numbering
-            for these additional bytes picks up where the previous byte left off.
-            For example, the least significant bit in the fifth byte of an 8-byte
-            EAG is referred to as bit 32.
-          type: string
-          format: hex
-          default: 00 00 00 00
-    Device.Isis.SegmentRoutingMPLS:
-      description: |-
-        Optional container for segment routing MPLS settings.
-        If the container exists then the adjacency SID (segment identifier)
-        sub TLV will be part of the packet.
-      externalDocs:
-        url: https://datatracker.ietf.org/doc/html/draft-ietf-isis-segment-routing-extensions-15
-      type: object
-      properties:
-        adjacency_sid:
-          description: |-
-            The corresponding adjacency SID for a link.
-          type: integer
-          default: 9001
-          minimum: 1
-          maximum: 1048575
-        f_flag:
-          description: |-
-            The address family flag. If unset, then the Adj-SID refers
-            to an adjacency with outgoing IPv4 encapsulation.  If set then
-            the Adj-SID refers to an adjacency with outgoing IPv6
-            encapsulation.
-          type: boolean
-          default: false
-        b_flag:
-          description: |-
-            The backup flag. If set, the Adj-SID is eligible for protection.
-          type: boolean
-          default: false
-        v_flag:
-          description: |-
-            The value flag. If set, then the Adj-SID carries a value.
-          type: boolean
-          default: true
-        l_flag:
-          description: |-
-            The local flag.  If set, then the value/index carried by
-            the Adj-SID has local significance.
-          type: boolean
-          default: true
-        s_flag:
-          description: |-
-            The set flag. When set, the S-Flag indicates that the
-            Adj-SID refers to a set of adjacencies (and therefore MAY be
-            assigned to other adjacencies as well).
-          type: boolean
-          default: false
-        p_flag:
-          description: |-
-            The persistent flag. When set, the P-Flag indicates that
-            the Adj-SID is persistently allocated, i.e., the Adj-SID value
-            remains consistent across router restart and/or interface flap.
-          type: boolean
-          default: false
-        weight:
-          description: "The value represents the weight of the Adj-SID for the purpose\
-            \ of \nload balancing. "
-          type: integer
-          default: 0
-          minimum: 0
-          maximum: 255
-    Device.Isis.SegmentRoutingV6:
-      description: "Optional container for segment routing version 6 settings such\
-        \ as the \nlink MSD (maximum segment depth) sub TLV and the IPv6 adjacency\n\
-        SID (segment identifier)."
-      externalDocs:
-        url: https://datatracker.ietf.org/doc/html/draft-ietf-lsr-isis-srv6-extensions-11
-      type: object
-      properties:
-        advertise_adjacency_sid:
-          description: |-
-            Advertises the IPv6 adjacency SID.
-          type: boolean
-          default: false
-        adjacent_sid_count:
-          description: |-
-            The count of Adjacent SIDs in a SRv6 End.X/LAN End.X SID sub-TLV
-          type: integer
-          default: 1
-          minimum: 1
-          maximum: 255
-        advertise_link_msd:
-          description: |-
-            Advertises the link MSD sub TLV.
-          type: boolean
-          default: true
-        max_sl_msd:
-          description: |-
-            If not null includes the maximum segment left MSD in the link sub TLV.
-          type: integer
-          nullable: true
-          minimum: 0
-          maximum: 255
-          default: 3
-        max_end_pop_msd:
-          description: |-
-            If not null includes the maximum end pop MSD in the link sub TLV.
-          type: integer
-          nullable: true
-          minimum: 0
-          maximum: 255
-          default: 3
-        include_max_t_insert_msd:
-          description: |-
-            If not null includes the maximum t insert MSD in the link sub TLV.
-          type: integer
-          nullable: true
-          minimum: 0
-          maximum: 255
-          default: 3
-        include_max_t_encap_msd:
-          description: |-
-            If not null includes the maximum t encap MSD in the link sub TLV.
-          type: integer
-          nullable: true
-          minimum: 0
-          maximum: 255
-          default: 3
-        include_max_end_d_msd:
-          description: |-
-            If not null includes the maximum end d MSD in the link sub TLV.
-          type: integer
-          nullable: true
-          minimum: 0
-          maximum: 255
-          default: 3
-    Device.Isis.Authentication:
-      description: |-
-        Optional container for circuit authentication properties.
-      type: object
-      properties:
-        choice:
-          description: |-
-            The circuit authentication method.
-          type: string
-          enum:
-          - md5
-          - password
-        md5:
-          description: |-
-            Authentication as an MD5 key.
-          type: string
-          minimum: 0
-          maximum: 255
-        password:
-          description: |-
-            Authentication as a clear text password.
-          type: string
-          minimum: 0
-          maximum: 255
-    Device.Isis.LinkProtection:
-      description: |-
-        Optional container for the link protection sub TLV (type 20).
-      type: object
-      properties:
-        extra_traffic:
-          description: "Enable this to protect other link or links. The LSPs on a\
-            \ link of \nthis type is lost if any of the links fail."
-          type: boolean
-          default: false
-        unprotected:
-          description: "Enabling this signifies that there is no other link protecting\
-            \ this \nlink. The LSPs on a link of this type is lost if the link fails."
-          type: boolean
-          default: false
-        shared:
-          description: "Enable this to share the Extra Traffic links between one or\
-            \ more \nlinks of type Shared.There are one or more disjoint links of\
-            \ type \nExtra Traffic that are protecting this link."
-          type: boolean
-          default: false
-        dedicated_1_to_1:
-          description: "Enabling this signifies that there is one dedicated disjoint\
-            \ link \nof type Extra Traffic that is protecting this link."
-          type: boolean
-          default: false
-        dedicated_1_plus_1:
-          description: "Enabling this signifies that a dedicated disjoint link is\
-            \ protecting \nthis link. However, the protecting link is not advertised\
-            \ in the \nlink state database and is therefore not available for the\
-            \ routing \nof LSPs."
-          type: boolean
-          default: false
-        enhanced:
-          description: "Enabling this signifies that a protection scheme that is more\
-            \ \nreliable than Dedicated 1+1."
-          type: boolean
-          default: false
-        reserved_40:
-          description: "This is a Protection Scheme with value 0x40. "
-          type: boolean
-          default: false
-        reserved_80:
-          description: "This is a Protection Scheme with value 0x80. "
-          type: boolean
-          default: false
-    Device.Isis.SharedRiskLinkGroup:
-      description: |-
-        Container for SRLG (shared risk link group) properties.
-      type: object
-      properties:
-        value:
-          description: |-
-            This is the SRLG value for the link between two interfaces.
-          type: integer
-          default: 0
-          minimum: 0
-          maximum: 5
-    Device.Isis.Interface.Advanced:
-      description: |-
-        Optional container for advanced interface properties.
-      type: object
-      properties:
-        auto_adjust_mtu:
-          description: "If a padded Hello message is received on the interface, the\
-            \ length of \nthe Hello packets sent out on that interface is adjusted\
-            \ to match."
-          type: boolean
-          default: true
-        auto_adjust_area:
-          description: "If a Level 1 Hello is received on this emulated router for\
-            \ an area \nnot currently in its area list, an area in the received Hello\
-            \ is \nadded to that list. This ensures an area match for all future \n\
-            Level 1 Hellos from the source L1 router."
-          type: boolean
-          default: true
-        auto_adjust_supported_protocols:
-          description: "If a Hello message listing supported protocols is received\
-            \ on this \nemulated router, the supported protocols advertised by this\
-            \ router \nis changed to an exact match."
-          type: boolean
-    Device.Isis.Router:
-      description: |-
-        A container for ISIS router properties
-      type: object
-      properties:
-        enable_ipv4_te:
-          description: |-
-            Enable IPv4 traffic engineering
-          type: boolean
-          default: false
-        ipv4_te_router_id:
-          description: |-
-            IPv4 traffic engineering router id
-          type: string
-          format: ipv4
-          default: 0.0.0.0
-        enable_ipv6_te:
-          description: |-
-            Enable IPv6 traffic engineering
-          type: boolean
-          default: false
-        ipv6_te_router_id:
-          description: |-
-            IPv6 traffic engineering router id
-          type: string
-          format: ipv6
-          default: ::0
-    Layer1:
-      description: |-
-        A container for layer1 settings.
-      type: object
-      required:
-      - port_names
-      - name
-      properties:
-        port_names:
-          description: "A list of unique names of port objects that will share the\
-            \ choice settings. \n\nx-constraint:\n- /components/schemas/Port/properties/name\n"
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-        speed:
-          description: |-
-            Set the speed if supported.
-          type: string
-          enum:
-          - speed_10_fd_mbps
-          - speed_10_hd_mbps
-          - speed_100_fd_mbps
-          - speed_100_hd_mbps
-          - speed_1_gbps
-          - speed_10_gbps
-          - speed_25_gbps
-          - speed_40_gbps
-          - speed_100_gbps
-          - speed_200_gbps
-          - speed_400_gbps
-          default: speed_10_gbps
-        media:
-          description: |-
-            Set the type of media interface if supported.
-          type: string
-          enum:
-          - copper
-          - fiber
-          - sgmii
-        promiscuous:
-          description: |-
-            Enable promiscuous mode if supported.
-          type: boolean
-          default: true
-        mtu:
-          description: |-
-            Set the maximum transmission unit size if supported.
-          type: integer
-          default: 1500
-        ieee_media_defaults:
-          description: |-
-            Set to true to override the auto_negotiate, link_training and rs_fec settings for gigabit ethernet interfaces.
-          type: boolean
-          default: true
-        auto_negotiate:
-          description: |-
-            Enable/disable auto negotiation.
-          type: boolean
-          default: true
-        auto_negotiation:
-          $ref: '#/components/schemas/Layer1.AutoNegotiation'
-        flow_control:
-          $ref: '#/components/schemas/Layer1.FlowControl'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Layer1.AutoNegotiation:
-      description: |-
-        Container for auto negotiation settings
-      type: object
-      properties:
-        advertise_1000_mbps:
-          description: |-
-            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
-          type: boolean
-          default: true
-        advertise_100_fd_mbps:
-          description: |-
-            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
-          type: boolean
-          default: true
-        advertise_100_hd_mbps:
-          description: |-
-            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
-          type: boolean
-          default: true
-        advertise_10_fd_mbps:
-          description: |-
-            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
-          type: boolean
-          default: true
-        advertise_10_hd_mbps:
-          description: |-
-            If auto_negotiate is true and the interface supports this option then this speed will be advertised.
-          type: boolean
-          default: true
-        link_training:
-          description: |-
-            Enable/disable gigabit ethernet link training.
-          type: boolean
-          default: false
-        rs_fec:
-          description: |-
-            Enable/disable gigabit ethernet reed solomon forward error correction (RS FEC).
-          type: boolean
-          default: false
-    Layer1.FlowControl:
-      description: |-
-        A container for layer1 receive flow control settings. To enable flow control settings on ports this object must be a valid object not a null value.
-      type: object
-      properties:
-        directed_address:
-          description: "The 48bit mac address that the layer1 port names will listen\
-            \ on for a directed pause.  "
-          type: string
-          default: 0180C2000001
-        choice:
-          description: |-
-            The type of priority flow control.
-          type: string
-          enum:
-          - ieee_802_1qbb
-          - ieee_802_3x
-        ieee_802_1qbb:
-          $ref: '#/components/schemas/Layer1.Ieee8021qbb'
-        ieee_802_3x:
-          $ref: '#/components/schemas/Layer1.Ieee8023x'
-    Layer1.Ieee8023x:
-      description: |-
-        A container for ieee 802.3x rx pause settings
-      type: object
-    Layer1.Ieee8021qbb:
-      description: "These settings enhance the existing 802.3x pause priority capabilities\
-        \  to enable flow control based on 802.1p priorities (classes of service). "
-      type: object
-      properties:
-        pfc_delay:
-          description: "The upper limit on the transmit time of a queue after receiving\
-            \ a  message to pause a specified priority. A value of 0 or null indicates\
-            \ that pfc delay will not be enabled. "
-          type: integer
-        pfc_class_0:
-          description: |-
-            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
-          type: integer
-        pfc_class_1:
-          description: |-
-            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
-          type: integer
-        pfc_class_2:
-          description: |-
-            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
-          type: integer
-        pfc_class_3:
-          description: |-
-            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
-          type: integer
-        pfc_class_4:
-          description: |-
-            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
-          type: integer
-        pfc_class_5:
-          description: |-
-            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
-          type: integer
-        pfc_class_6:
-          description: |-
-            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
-          type: integer
-        pfc_class_7:
-          description: |-
-            The valid values are null, 0 - 7. A null value indicates there is no setting for this pfc class.
-          type: integer
-    Capture:
+      required:
+      - name
+    Router.OspfSimulatedTopology.Link:
       x-status: under-review
-      description: |-
-        Container for capture settings.
+      description: "This contains the "
       type: object
-      required:
-      - name
       properties:
-        port_names:
-          description: |
-            The unique names of ports that the capture settings will apply to. Port_names cannot be duplicated between capture objects.
-
-            x-constraint:
-            - /components/schemas/Port/properties/name
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-        filters:
+        te_enabled:
           description: |-
-            A list of filters to apply to the capturing ports. If no filters are specified then all packets will be captured. A capture can have multiple filters. The number of filters supported is determined by the implementation which can be retrieved using the capabilities API.
-            When multiple filters are specified the capture implementation  must && (and) all the filters.
-          type: array
-          items:
-            $ref: '#/components/schemas/Capture.Filter'
-        overwrite:
-          description: |-
-            Overwrite the capture buffer.
+            If enable is true Traffic Engineering properties will be advertised for this ospf interface.
           type: boolean
           default: false
-        packet_size:
-          description: |-
-            The maximum size of each captured packet. If no value is specified or it is null then the entire packet will be captured.
-          type: integer
-        format:
-          description: |-
-            The format of the capture file.
-          type: string
-          enum:
-          - pcap
-          - pcapng
-          default: pcap
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Capture.Filter:
-      description: |-
-        Container for capture filters
-      type: object
       required:
-      - choice
-      properties:
-        choice:
-          type: string
-          enum:
-          - custom
-          - ethernet
-          - vlan
-          - ipv4
-        custom:
-          description: |-
-            Offset from last filter in the list. If no filters are present it is offset from position 0. Multiple custom filters can be present, the length of each custom filter is the length of the value being filtered.
-          $ref: '#/components/schemas/Capture.Custom'
-        ethernet:
-          $ref: '#/components/schemas/Capture.Ethernet'
-        vlan:
-          $ref: '#/components/schemas/Capture.Vlan'
-        ipv4:
-          $ref: '#/components/schemas/Capture.Ipv4'
-    Capture.Custom:
-      properties:
-        offset:
-          description: |-
-            The byte offset to filter on
-          type: integer
-        value:
-          type: string
-          format: hex
-        mask:
-          type: string
-          format: hex
-        negate:
-          type: boolean
-          default: false
-      type: object
-    Capture.Field:
-      type: object
-      properties:
-        value:
-          type: string
-          format: hex
-        mask:
-          type: string
-          format: hex
-        negate:
-          type: boolean
-          default: false
-    Capture.Ethernet:
-      type: object
-      properties:
-        src:
-          $ref: '#/components/schemas/Capture.Field'
-        dst:
-          $ref: '#/components/schemas/Capture.Field'
-        ether_type:
-          $ref: '#/components/schemas/Capture.Field'
-        pfc_queue:
-          $ref: '#/components/schemas/Capture.Field'
-    Capture.Vlan:
-      type: object
-      properties:
-        priority:
-          $ref: '#/components/schemas/Capture.Field'
-        cfi:
-          $ref: '#/components/schemas/Capture.Field'
-        id:
-          $ref: '#/components/schemas/Capture.Field'
-        protocol:
-          $ref: '#/components/schemas/Capture.Field'
-    Capture.Ipv4:
-      type: object
-      properties:
-        version:
-          $ref: '#/components/schemas/Capture.Field'
-        headeer_length:
-          $ref: '#/components/schemas/Capture.Field'
-        priority:
-          $ref: '#/components/schemas/Capture.Field'
-        total_length:
-          $ref: '#/components/schemas/Capture.Field'
-        identification:
-          $ref: '#/components/schemas/Capture.Field'
-        reserved:
-          $ref: '#/components/schemas/Capture.Field'
-        dont_fragment:
-          $ref: '#/components/schemas/Capture.Field'
-        more_fragments:
-          $ref: '#/components/schemas/Capture.Field'
-        fragment_offset:
-          $ref: '#/components/schemas/Capture.Field'
-        time_to_live:
-          $ref: '#/components/schemas/Capture.Field'
-        protocol:
-          $ref: '#/components/schemas/Capture.Field'
-        header_checksum:
-          $ref: '#/components/schemas/Capture.Field'
-        src:
-          $ref: '#/components/schemas/Capture.Field'
-        dst:
-          $ref: '#/components/schemas/Capture.Field'
-    Device.Active:
-      type: object
-      properties:
-        active:
-          description: |-
-            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
-          type: boolean
-          default: true
-    Device:
-      description: |-
-        A container for emulated interfaces and protocol devices.
-      type: object
-      required:
-      - container_name
-      - ethernet
       - name
-      properties:
-        container_name:
-          description: |
-            The unique name of a Port or Lag object that will contain the  emulated interfaces and/or protocol devices.
-
-            x-constraint:
-            - /components/schemas/Port/properties/name
-            - /components/schemas/Lag/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-          - /components/schemas/Lag/properties/name
-        ethernet:
-          description: |-
-            The ethernet stack.
-          $ref: '#/components/schemas/Device.Ethernet'
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
     Flow:
       description: |-
         A high level data plane traffic flow.
@@ -3090,22 +4121,6 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Identifier'
         sequence_number:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.SequenceNumber'
-    Flow.Icmp.Common:
-      description: |-
-        Common properties for ICMP packet headers that require checksum
-      type: object
-      properties:
-        checksum:
-          $ref: '#/components/schemas/Pattern.Flow.Icmp.Common.Checksum'
-    Flow.Icmp.NextFields:
-      description: |-
-        Common properties for ICMP packet headers that require identifier and sequence number properties
-      type: object
-      properties:
-        identifier:
-          $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.Identifier'
-        sequence_number:
-          $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.SequenceNumber'
     Flow.Icmpv6:
       description: |-
         ICMPv6 packet header
@@ -3135,13 +4150,6 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.SequenceNumber'
         checksum:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Checksum'
-    Flow.Icmpv6.Common:
-      description: |-
-        Common properties for ICMPv6 packet headers that require checksum
-      type: object
-      properties:
-        checksum:
-          $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Common.Checksum'
     Flow.Ppp:
       description: |-
         PPP packet header
@@ -4218,9 +5226,6 @@ components:
       description: |-
         mac counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -4237,8 +5242,6 @@ components:
       description: |-
         Destination MAC address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4271,9 +5274,6 @@ components:
       description: |-
         mac counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -4290,8 +5290,6 @@ components:
       description: |-
         Source MAC address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4324,9 +5322,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4351,8 +5346,6 @@ components:
       description: |-
         Ethernet type
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4399,9 +5392,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4420,8 +5410,6 @@ components:
       description: |-
         Priority flow control queue
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4456,9 +5444,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4477,8 +5462,6 @@ components:
       description: |-
         Priority code point
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4513,9 +5496,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4534,8 +5514,6 @@ components:
       description: |-
         Canonical format indicator or drop elegible indicator
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4570,9 +5548,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4591,8 +5566,6 @@ components:
       description: |-
         Vlan identifier
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4627,9 +5600,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4654,8 +5624,6 @@ components:
       description: |-
         Protocol identifier
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4696,9 +5664,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4717,8 +5682,6 @@ components:
       description: |-
         Flags field with a bit format of RRRRIRRR. The I flag MUST be set to 1 for a valid vxlan network id (VNI).   The other 7 bits (designated "R") are reserved fields and MUST be  set to zero on transmission and ignored on receipt.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4753,9 +5716,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4774,8 +5734,6 @@ components:
       description: |-
         Reserved field
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4810,9 +5768,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4831,8 +5786,6 @@ components:
       description: |-
         VXLAN network id
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4867,9 +5820,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4888,8 +5838,6 @@ components:
       description: |-
         Reserved field
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4924,9 +5872,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -4945,8 +5890,6 @@ components:
       description: |-
         Version
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -4981,9 +5924,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5002,8 +5942,6 @@ components:
       description: |-
         Header length
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5044,9 +5982,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5065,8 +6000,6 @@ components:
       description: |-
         Total length
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5107,9 +6040,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5128,8 +6058,6 @@ components:
       description: |-
         Identification
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5164,9 +6092,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5185,8 +6110,6 @@ components:
       description: |-
         Reserved flag.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5221,9 +6144,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5242,8 +6162,6 @@ components:
       description: |-
         Dont fragment flag If the dont_fragment flag is set and fragmentation is required to route the packet then the packet is dropped.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5278,9 +6196,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5299,8 +6214,6 @@ components:
       description: |-
         More fragments flag
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5335,9 +6248,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5356,8 +6266,6 @@ components:
       description: |-
         Fragment offset
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5392,9 +6300,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5413,8 +6318,6 @@ components:
       description: |-
         Time to live
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5449,9 +6352,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5470,8 +6370,6 @@ components:
       description: |-
         Protocol, default is 61 any host internal protocol
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5535,9 +6433,6 @@ components:
       description: |-
         ipv4 counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -5554,8 +6449,6 @@ components:
       description: |-
         Source address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5588,9 +6481,6 @@ components:
       description: |-
         ipv4 counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -5607,8 +6497,6 @@ components:
       description: |-
         Destination address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5641,9 +6529,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5662,8 +6547,6 @@ components:
       description: |-
         Raw priority
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5698,9 +6581,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5741,8 +6621,6 @@ components:
       description: |-
         Per hop behavior
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5799,9 +6677,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5825,8 +6700,6 @@ components:
       description: |-
         Explicit congestion notification
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5866,9 +6739,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5896,8 +6766,6 @@ components:
       description: |-
         Precedence
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -5941,9 +6809,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -5965,8 +6830,6 @@ components:
       description: |-
         Delay
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6004,9 +6867,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6028,8 +6888,6 @@ components:
       description: |-
         Throughput
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6067,9 +6925,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6091,8 +6946,6 @@ components:
       description: |-
         Reliability
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6130,9 +6983,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6154,8 +7004,6 @@ components:
       description: |-
         Monetary
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6193,9 +7041,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6214,8 +7059,6 @@ components:
       description: |-
         Unused
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6250,9 +7093,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6271,8 +7111,6 @@ components:
       description: |-
         Version number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6307,9 +7145,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6328,8 +7163,6 @@ components:
       description: |-
         Traffic class
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6364,9 +7197,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6385,8 +7215,6 @@ components:
       description: |-
         Flow label
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6421,9 +7249,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6442,8 +7267,6 @@ components:
       description: |-
         Payload length
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6484,9 +7307,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6517,8 +7337,6 @@ components:
       description: |-
         Next header
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6565,9 +7383,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6586,8 +7401,6 @@ components:
       description: |-
         Hop limit
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6622,9 +7435,6 @@ components:
       description: |-
         ipv6 counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -6641,8 +7451,6 @@ components:
       description: |-
         Source address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6675,9 +7483,6 @@ components:
       description: |-
         ipv6 counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -6694,8 +7499,6 @@ components:
       description: |-
         Destination address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6728,9 +7531,6 @@ components:
       description: |-
         mac counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -6747,8 +7547,6 @@ components:
       description: |-
         Destination MAC address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6781,9 +7579,6 @@ components:
       description: |-
         mac counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -6800,8 +7595,6 @@ components:
       description: |-
         Source MAC address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6834,9 +7627,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6857,8 +7647,6 @@ components:
       description: |-
         Ethernet type
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6895,9 +7683,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6916,8 +7701,6 @@ components:
       description: |-
         Control operation code
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -6952,9 +7735,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -6973,8 +7753,6 @@ components:
       description: |-
         Destination
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7009,9 +7787,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7030,8 +7805,6 @@ components:
       description: |-
         Pause class 0
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7066,9 +7839,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7087,8 +7857,6 @@ components:
       description: |-
         Pause class 1
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7123,9 +7891,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7144,8 +7909,6 @@ components:
       description: |-
         Pause class 2
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7180,9 +7943,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7201,8 +7961,6 @@ components:
       description: |-
         Pause class 3
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7237,9 +7995,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7258,8 +8013,6 @@ components:
       description: |-
         Pause class 4
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7294,9 +8047,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7315,8 +8065,6 @@ components:
       description: |-
         Pause class 5
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7351,9 +8099,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7372,8 +8117,6 @@ components:
       description: |-
         Pause class 6
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7408,9 +8151,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7429,8 +8169,6 @@ components:
       description: |-
         Pause class 7
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7465,9 +8203,6 @@ components:
       description: |-
         mac counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -7484,8 +8219,6 @@ components:
       description: |-
         Destination MAC address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7518,9 +8251,6 @@ components:
       description: |-
         mac counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -7537,8 +8267,6 @@ components:
       description: |-
         Source MAC address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7571,9 +8299,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7594,8 +8319,6 @@ components:
       description: |-
         Ethernet type
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7632,9 +8355,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7653,8 +8373,6 @@ components:
       description: |-
         Control operation code
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7689,9 +8407,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7710,8 +8425,6 @@ components:
       description: |-
         Time
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7746,9 +8459,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7767,8 +8477,6 @@ components:
       description: |-
         Source port
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7803,9 +8511,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7824,8 +8529,6 @@ components:
       description: |-
         Destination port
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7860,9 +8563,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7881,8 +8581,6 @@ components:
       description: |-
         Sequence number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7917,9 +8615,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7938,8 +8633,6 @@ components:
       description: |-
         Acknowledgement number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -7974,9 +8667,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -7995,8 +8685,6 @@ components:
       description: |-
         The number of 32 bit words in the TCP header. This indicates where the data begins.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8031,9 +8719,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8052,8 +8737,6 @@ components:
       description: |-
         Explicit congestion notification, concealment protection.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8088,9 +8771,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8109,8 +8789,6 @@ components:
       description: |-
         Explicit congestion notification, congestion window reduced.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8145,9 +8823,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8166,8 +8841,6 @@ components:
       description: |-
         Explicit congestion notification, echo. 1 indicates the peer is ecn capable. 0 indicates that a packet with ipv4.ecn = 11 in the ip header was  received during normal transmission.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8202,9 +8875,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8223,8 +8893,6 @@ components:
       description: |-
         A value of 1 indicates that the urgent pointer field is significant.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8259,9 +8927,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8280,8 +8945,6 @@ components:
       description: |-
         A value of 1 indicates that the ackknowledgment field is significant.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8316,9 +8979,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8336,8 +8996,6 @@ components:
     Pattern.Flow.Tcp.CtlPsh:
       description: "Asks to push the buffered data to the receiving application. "
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8372,9 +9030,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8392,8 +9047,6 @@ components:
     Pattern.Flow.Tcp.CtlRst:
       description: "Reset the connection. "
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8428,9 +9081,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8448,8 +9098,6 @@ components:
     Pattern.Flow.Tcp.CtlSyn:
       description: "Synchronize sequenece numbers. "
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8484,9 +9132,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8504,8 +9149,6 @@ components:
     Pattern.Flow.Tcp.CtlFin:
       description: "Last packet from the sender. "
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8540,9 +9183,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8561,8 +9201,6 @@ components:
       description: |-
         Tcp connection window.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8597,9 +9235,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8618,8 +9253,6 @@ components:
       description: |-
         Source port
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8654,9 +9287,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8675,8 +9305,6 @@ components:
       description: |-
         Destination port
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8711,9 +9339,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8732,8 +9357,6 @@ components:
       description: |-
         Length
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8797,9 +9420,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8818,8 +9438,6 @@ components:
       description: |-
         Checksum present bit
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8854,9 +9472,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8875,8 +9490,6 @@ components:
       description: |-
         Reserved bits
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8911,9 +9524,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8932,8 +9542,6 @@ components:
       description: |-
         GRE version number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -8968,9 +9576,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -8992,8 +9597,6 @@ components:
       description: |-
         Protocol type of encapsulated payload
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9060,9 +9663,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9081,8 +9681,6 @@ components:
       description: |-
         Optional reserved field. Only present if the checksum_present bit is set.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9117,9 +9715,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9138,8 +9733,6 @@ components:
       description: |-
         GTPv1 version
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9174,9 +9767,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9195,8 +9785,6 @@ components:
       description: |-
         Protocol type, GTP is 1, GTP' is 0
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9231,9 +9819,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9252,8 +9837,6 @@ components:
       description: |-
         Reserved field
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9288,9 +9871,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9309,8 +9889,6 @@ components:
       description: |-
         Extension header field present
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9345,9 +9923,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9366,8 +9941,6 @@ components:
       description: |-
         Sequence number field present
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9402,9 +9975,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9423,8 +9993,6 @@ components:
       description: |-
         N-PDU field present
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9459,9 +10027,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9480,8 +10045,6 @@ components:
       description: |-
         The type of GTP message Different types of messages are defined in 3GPP TS 29.060 section 7.1
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9516,9 +10079,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9537,8 +10097,6 @@ components:
       description: |-
         The length of the payload (the bytes following the mandatory 8-byte GTP header) in bytes that includes any optional fields
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9573,9 +10131,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9594,8 +10149,6 @@ components:
       description: |-
         Tunnel endpoint identifier (TEID) used to multiplex connections in the same GTP tunnel
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9630,9 +10183,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9651,8 +10201,6 @@ components:
       description: |-
         Sequence number. Exists if any of the e_flag, s_flag, or pn_flag bits are on.  Must be interpreted only if the s_flag bit is on.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9687,9 +10235,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9708,8 +10253,6 @@ components:
       description: |-
         N-PDU number. Exists if any of the e_flag, s_flag, or pn_flag bits are on.  Must be interpreted only if the pn_flag bit is on.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9744,9 +10287,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9765,8 +10305,6 @@ components:
       description: |-
         Next extension header. Exists if any of the e_flag, s_flag, or pn_flag bits are on.  Must be interpreted only if the e_flag bit is on.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9801,9 +10339,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9822,8 +10357,6 @@ components:
       description: |-
         This field states the length of this extension header,  including the length, the contents, and the next extension header field, in 4-octet units, so the length of the extension must  always be a multiple of 4.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9858,9 +10391,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9879,8 +10409,6 @@ components:
       description: |-
         The extension header contents
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9915,9 +10443,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9936,8 +10461,6 @@ components:
       description: |-
         It states the type of the next extension, or 0 if no next  extension exists.  This permits chaining several next extension headers.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -9972,9 +10495,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -9993,8 +10513,6 @@ components:
       description: |-
         Version number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10029,9 +10547,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10050,8 +10565,6 @@ components:
       description: |-
         If piggybacking_flag is set to 1 then another GTP-C message with its own header shall be present at the end of the current message
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10086,9 +10599,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10107,8 +10617,6 @@ components:
       description: |-
         If teid_flag is set to 1 then the TEID field will be present  between the message length and the sequence number. All messages except Echo and Echo reply require TEID to be present
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10143,9 +10651,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10164,8 +10669,6 @@ components:
       description: |-
         A 3-bit reserved field (must be 0).
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10200,9 +10703,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10221,8 +10721,6 @@ components:
       description: |-
         An 8-bit field that indicates the type of GTP message. Different types of messages are defined in 3GPP TS 29.060 section 7.1
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10257,9 +10755,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10278,8 +10773,6 @@ components:
       description: |-
         A 16-bit field that indicates the length of the payload in bytes, excluding the mandatory GTP-c header (first 4 bytes). Includes the TEID and sequence_number if they are present.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10314,9 +10807,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10335,8 +10825,6 @@ components:
       description: |-
         Tunnel endpoint identifier. A 32-bit (4-octet) field used to multiplex different connections in the same GTP tunnel. Is present only if the teid_flag is set.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10371,9 +10859,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10392,8 +10877,6 @@ components:
       description: |-
         The sequence number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10428,9 +10911,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10449,8 +10929,6 @@ components:
       description: |-
         Reserved field
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10485,9 +10963,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10508,8 +10983,6 @@ components:
       description: |-
         Network link protocol type
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10546,9 +11019,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10570,8 +11040,6 @@ components:
       description: |-
         The internetwork protocol for which the ARP request is intended
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10609,9 +11077,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10630,8 +11095,6 @@ components:
       description: |-
         Length (in octets) of a hardware address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10666,9 +11129,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10687,8 +11147,6 @@ components:
       description: |-
         Length (in octets) of internetwork addresses
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10723,9 +11181,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -10747,8 +11202,6 @@ components:
       description: |-
         The operation that the sender is performing
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10786,9 +11239,6 @@ components:
       description: |-
         mac counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -10805,8 +11255,6 @@ components:
       description: |-
         Media address of the sender
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10839,9 +11287,6 @@ components:
       description: |-
         ipv4 counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -10858,8 +11303,6 @@ components:
       description: |-
         Internetwork address of the sender
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10892,9 +11335,6 @@ components:
       description: |-
         mac counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -10911,8 +11351,6 @@ components:
       description: |-
         Media address of the target
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10945,9 +11383,6 @@ components:
       description: |-
         ipv4 counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -10964,8 +11399,6 @@ components:
       description: |-
         Internetwork address of the target
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -10998,9 +11431,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11022,8 +11452,6 @@ components:
       description: |-
         The type of ICMP echo packet
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11061,9 +11489,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11082,8 +11507,6 @@ components:
       description: |-
         The ICMP subtype.  The default code for ICMP echo request and reply is 0.
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11147,9 +11570,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11168,8 +11588,6 @@ components:
       description: |-
         ICMP identifier
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11204,9 +11622,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11225,8 +11640,6 @@ components:
       description: |-
         ICMP sequence number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11290,9 +11703,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11311,8 +11721,6 @@ components:
       description: |-
         ICMP identifier
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11347,9 +11755,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11368,8 +11773,6 @@ components:
       description: |-
         ICMP sequence number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11404,9 +11807,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11428,8 +11828,6 @@ components:
       description: |-
         ICMPv6 echo type
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11467,9 +11865,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11488,8 +11883,6 @@ components:
       description: |-
         ICMPv6 echo sub type
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11524,9 +11917,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11545,8 +11935,6 @@ components:
       description: |-
         ICMPv6 echo identifier
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11581,9 +11969,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11602,8 +11987,6 @@ components:
       description: |-
         ICMPv6 echo sequence number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11696,9 +12079,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11719,8 +12099,6 @@ components:
       description: |-
         PPP address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11757,9 +12135,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11780,8 +12155,6 @@ components:
       description: |-
         PPP control
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11818,9 +12191,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11837,8 +12207,6 @@ components:
       description: |-
         PPP protocol type
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11876,9 +12244,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11897,8 +12262,6 @@ components:
       description: |-
         Version number
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11933,9 +12296,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -11957,8 +12317,6 @@ components:
       description: |-
         Type of message
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -11996,9 +12354,6 @@ components:
       description: |-
         integer counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: integer
@@ -12017,8 +12372,6 @@ components:
       description: |-
         Unused
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string
@@ -12082,9 +12435,6 @@ components:
       description: |-
         ipv4 counter pattern
       type: object
-      required:
-      - start
-      - step
       properties:
         start:
           type: string
@@ -12105,8 +12455,6 @@ components:
       description: |-
         Group address
       type: object
-      required:
-      - choice
       properties:
         choice:
           type: string

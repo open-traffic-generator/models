@@ -30,7 +30,7 @@ This document includes additional details on the following topics that are speci
     # demonstrates how to specify an object within a namespace
     components:
       schemas:
-        Device.Bgp.Advanced:
+        Router.Bgp.Advanced:
           type: object
     ```
 
@@ -283,7 +283,7 @@ x-field-pattern:
 ```
 ### Sample property with extension before bundle
 ```yaml
-Device.Ipv4:
+Router.Ipv4:
   type: object
   properties:
     address:
@@ -294,13 +294,13 @@ Device.Ipv4:
 ```
 ### Sample property after bundle
 ```yaml
-Device.Ipv4:
+Router.Ipv4:
   type: object
   properties:
     address:
-      $ref: '#/components/schemas/Pattern.Device.Ipv4.Address'
+      $ref: '#/components/schemas/Pattern.Router.Ipv4.Address'
 
-Pattern.Device.Ipv4.Address:
+Pattern.Router.Ipv4.Address:
   type: object
   required: [choice]
   properties:
@@ -318,9 +318,9 @@ Pattern.Device.Ipv4.Address:
         format: ipv4
         default: 0.0.0.0
     increment:
-      $ref: '#/components/schemas/Pattern.Device.Ipv4.Address.Counter'
+      $ref: '#/components/schemas/Pattern.Router.Ipv4.Address.Counter'
     decrement:
-      $ref: '#/components/schemas/Pattern.Device.Ipv4.Address.Counter'
+      $ref: '#/components/schemas/Pattern.Router.Ipv4.Address.Counter'
 ```
 ### Sample instantiation
 ```yaml

@@ -22,17 +22,11 @@ jobs:
 
       - name: Generate artifacts
         id: gen_artifact
-        # 1. Mount local dir to a dir inside container where build artifacts are
-        #    generated so that we don't have to actually get inside the container.
-        # 2. 'artifacts/tag' file containing version number is generated if there's
-        #    no tag for current API version.
-        # 3. Set 'tag' variable to '0' if 'artifacts/tag' is not generated (i.e.
-        #    tag for that version already exists), otherwise store version.
-        #    This will be used later to indicate whether we need to create new tag/release or not.
+        # Mount local dir to a dir inside container where build artifacts are
+        # generated so that we don't have to actually get inside the container.
         run: |
-          mkdir -p artifacts
-          docker run -v $(pwd)/artifacts:/home/otg/models/artifacts/ models /bin/bash -c "./do.sh art" || exit 1
-          echo "::set-output name=tag::$(cat artifacts/tag || echo 0)"
+          mkdir -p art
+          docker run -v $(pwd)/art:/home/otg/models/art/ models /bin/bash -c "./do.sh art" || exit 1
 
       - name: Upload artifacts
         # upload all files in the artifacts directory
@@ -42,13 +36,15 @@ jobs:
         # repo settings which is defaulted to 90 days
         uses: actions/upload-artifact@v2
         with:
-          path: artifacts
+          path: art
 
       - name: Commit auto generated content
         id: commit_generated
         run: |
           git config user.name "Github Actions Bot"
           git config user.email "actions@github.com"
+          cp $(pwd)/art/openapi.yaml artifacts/openapi.yaml
+          cp $(pwd)/art/otg.proto artifacts/otg.proto
           git add --force artifacts/openapi.yaml
           git add --force artifacts/otg.proto
           if git status --porcelain | grep .
@@ -59,51 +55,25 @@ jobs:
               echo "No changed auto generated content"
           fi
 
-      # to create a release it just needs a tag
-      # the tag name MUST be in the following format:
-      #   v<major>.<minor>.<build>
-      # git tag -a <tag name> -m "message"
-      # git push origin --tags
-      - name: Get git tag
-        run: echo "HEAD_TAG=$(git tag --points-at HEAD)" >> $GITHUB_ENV
+      - name: Get version
+        id: get_version
+        run: |
+          echo "::set-output name=version::v$(./do.sh version)"
 
-      - name: Create Release
-        if: env.HEAD_TAG != ''
-        uses: actions/github-script@v2
+      - name: Check tag for current version
+        uses: mukunku/tag-exists-action@v1.0.0
+        id: check_tag
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            console.log('environment', process.versions);
-            const fs = require('fs').promises;
-            const { repo: { owner, repo }, sha } = context;
-            console.log({ owner, repo, sha });
-            const tag = process.env.GITHUB_REF.split('/').slice(-1)[0];
-            const release = await github.repos.createRelease({
-              owner, 
-              repo,
-              tag_name: tag,
-              name: `Release ${tag}`,
-              body: `View openapi.yaml spec at https://redocly.github.io/redoc/?url=https://github.com/open-traffic-generator/models/releases/download/${tag}/openapi.yaml`,
-              draft: false,
-              prerelease: false,
-              target_commitish: sha
-            });
+          tag: ${{ steps.get_version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            console.log('created release', { release });
-            let upload_files = [
-              'openapi.yaml',
-              'openapi.json',
-              'protobuf3.tar.gz',
-              'pyclient.tar.gz',
-              'goclient.tar.gz',
-              'goserver.tar.gz'
-            ]
-            for (let file of upload_files) {
-              await github.repos.uploadReleaseAsset({
-                owner, repo,
-                release_id: release.data.id,
-                name: file,
-                data: await fs.readFile(`./artifacts/${file}`)
-              });            
-            }
-
+      - name: Create release and publish artifacts
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: ncipollo/release-action@v1
+        with:
+          name: "Release ${{ steps.get_version.outputs.version }}"
+          body: "View openapi.yaml spec at https://redocly.github.io/redoc/?url=https://github.com/open-traffic-generator/models/releases/download/${{ steps.get_version.outputs.version }}/openapi.yaml"
+          artifacts: "art/*"
+          tag: ${{ steps.get_version.outputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}

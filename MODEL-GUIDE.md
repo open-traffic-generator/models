@@ -50,11 +50,11 @@ The build script will enforce the following keyword conventions.
       schemas:
       Choice.Object:
         type: object
-        required: [choice]
         properties:
           choice:
             type: string
             enum: [a, b, c]
+            default: a
           a:
             $ref: '#/components/schemas/Choice.A'
           b:
@@ -212,11 +212,11 @@ Flow.Ipv4:
 
 Pattern.Flow.Ipv4.Address:
   type: object
-  required: [choice]
   properties:
     choice:
       type: string
       enum: [value, values, increment, decrement]
+      default: value
     value:
       type: string
       format: ipv4
@@ -302,11 +302,11 @@ Router.Ipv4:
 
 Pattern.Router.Ipv4.Address:
   type: object
-  required: [choice]
   properties:
     choice:
       type: string
       enum: [value, values, increment, decrement]
+      default: value
     value:
       type: string
       format: ipv4

@@ -3109,6 +3109,25 @@ message CaptureState {
   ];
 }
 
+message FlowsUpdate {
+  option (msg_meta).description = "A container of flows with associated properties to be updated without affecting the transmit state";
+
+  message PropertyNames {
+    enum Enum {
+      unspecified = 0;
+      rate = 1;
+      size = 2;
+    }
+  }
+  PropertyNames.Enum property_names = 1 [
+    (fld_meta).description = "Flow properties to be updated without affecting the transmit state"
+  ];
+
+  repeated Flow flows = 2 [
+    (fld_meta).description = "The list of configured flows for which given properties will be updated. An empty or null list will cause the update to be applied to all configured flows."
+  ];
+}
+
 message RouteState {
   option (msg_meta).description = "Sets the device route state";
 
@@ -11736,28 +11755,7 @@ message SetConfigRequest {
   Config config = 1;
 }
 
-message UpdateConfigRequest {
-  Config config = 1;
-}
-
 message SetConfigResponse {
-  message StatusCode200 {
-    Success success = 1;
-  }
-  message StatusCode400 {
-    BadRequest bad_request = 1;
-  }
-  message StatusCode500 {
-    InternalServerError internal_server_error = 1;
-  }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
-}
-
-message UpdateConfigResponse {
   message StatusCode200 {
     Success success = 1;
   }
@@ -11840,6 +11838,27 @@ message SetCaptureStateRequest {
 message SetCaptureStateResponse {
   message StatusCode200 {
     Success success = 1;
+  }
+  message StatusCode400 {
+    BadRequest bad_request = 1;
+  }
+  message StatusCode500 {
+    InternalServerError internal_server_error = 1;
+  }
+  oneof statuscode {
+    StatusCode200 status_code_200 = 1;
+    StatusCode400 status_code_400 = 2;
+    StatusCode500 status_code_500 = 3;
+  }
+}
+
+message UpdateFlowsRequest {
+  FlowsUpdate flows_update = 1;
+}
+
+message UpdateFlowsResponse {
+  message StatusCode200 {
+    Config config = 1;
   }
   message StatusCode400 {
     BadRequest bad_request = 1;
@@ -11940,9 +11959,6 @@ service Openapi {
   rpc SetConfig(SetConfigRequest) returns (SetConfigResponse) {
     option (rpc_meta).description = "Sets configuration resources on the traffic generator.";
   }
-  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse) {
-    option (rpc_meta).description = "Updates configuration resources on the traffic generator.";
-  }
   rpc GetConfig(google.protobuf.Empty) returns (GetConfigResponse) {
     option (rpc_meta).description = "Description missing in models";
   }
@@ -11954,6 +11970,9 @@ service Openapi {
   }
   rpc SetCaptureState(SetCaptureStateRequest) returns (SetCaptureStateResponse) {
     option (rpc_meta).description = "Updates the state of configuration resources on the traffic generator.";
+  }
+  rpc UpdateFlows(UpdateFlowsRequest) returns (UpdateFlowsResponse) {
+    option (rpc_meta).description = "Updates flow properties without disruption of transmit state.";
   }
   rpc SetRouteState(SetRouteStateRequest) returns (SetRouteStateResponse) {
     option (rpc_meta).description = "Updates the state of configuration resources on the traffic generator.";

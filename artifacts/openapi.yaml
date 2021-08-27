@@ -280,7 +280,9 @@ components:
             $ref: '#/components/schemas/Capture'
         devices:
           description: |-
-            The emulated one or more router settings that will be configured for testing.
+            The devices that will be configured on the traffic generator.
+            Each of the devices can contain multiple interfaces and protocol configuration
+            to run on these interfaces.
           type: array
           items:
             $ref: '#/components/schemas/Device'
@@ -863,30 +865,30 @@ components:
       properties:
         ethernets:
           description: |-
-            The zero or more ethernet stacks.
+            The emulated Ethernet settings.
           type: array
           items:
             $ref: '#/components/schemas/Device.Ethernet'
         ipv4_loopbacks:
           description: |-
-            The zero or more loopback ipv4 attached to some ethernet stack.
+            IPv4 Loopback interface settings which is attached to an Ethernet interface.
           type: array
           items:
-            $ref: '#/components/schemas/Device.LoopbackIpv4'
+            $ref: '#/components/schemas/Device.Ipv4Loopback'
         ipv6_loopbacks:
           description: |-
-            The zero or more loopback ipv6 attached to some ethernet stack.
+            IPv6 Loopback interface settings which is attached to an Ethernet interface.
           type: array
           items:
-            $ref: '#/components/schemas/Device.LoopbackIpv6'
+            $ref: '#/components/schemas/Device.Ipv6Loopback'
         isis:
           description: |-
-            This contains the properties of one or more Isis router instances  and its children, example Isis interface, Isis route range.
-          $ref: '#/components/schemas/Router.IsisRouter'
+            This contains the properties of an ISIS router and its children; for example ISIS interface and ISIS route range.
+          $ref: '#/components/schemas/Device.IsisRouter'
         bgp:
           description: |-
-            This contains the properties of one or more Ipv4 and or Ipv6 Bgp peers.
-          $ref: '#/components/schemas/Router.BgpRouter'
+            This contains the properties of one or more IPv4 and IPv6 Bgp peers.
+          $ref: '#/components/schemas/Device.BgpRouter'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -896,8 +898,8 @@ components:
       - name
     Device.Ethernet:
       description: |-
-        An ethernet interface with an IPv4 and IPv6 interface stack
-        Base ethernet interface
+        An Ethernet interface with IPv4 and IPv6 addresses.
+        Base Ethernet interface.
       type: object
       required:
       - port_name
@@ -906,23 +908,27 @@ components:
       properties:
         port_name:
           description: "The unique name of a Port or Lag object that will contain\
-            \ this \nemulated interface.\n\nx-constraint:\n- /components/schemas/Port/properties/name\n\
+            \ this \nemulated Ethernet interface.\n\nx-constraint:\n- /components/schemas/Port/properties/name\n\
             - /components/schemas/Lag/properties/name\n"
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
           - /components/schemas/Lag/properties/name
-        ipv4s:
+        ipv4_addresses:
+          description: "List of IPv4 addresses and their gateways. "
           type: array
           items:
             $ref: '#/components/schemas/Device.Ipv4'
-        ipv6s:
+        ipv6_addresses:
+          description: |-
+            List of global IPv6 addresses and their gateways.
+            The Link Local IPv6 address will be automatically generated.
           type: array
           items:
             $ref: '#/components/schemas/Device.Ipv6'
         mac:
           description: |-
-            Media access control address
+            Media Access Control address
           type: string
           format: mac
         mtu:
@@ -945,7 +951,7 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
     Device.Vlan:
       description: |-
-        Emulated VLAN protocol
+        Emulated VLAN protocol.
       type: object
       properties:
         tpid:
@@ -983,7 +989,7 @@ components:
     Device.Ipv4:
       description: |-
         An IPv4 interface with gateway
-        A base IPv4 interface
+        A base IPv4 interface.
       type: object
       required:
       - gateway
@@ -1003,7 +1009,7 @@ components:
           format: ipv4
         prefix:
           description: |-
-            The prefix of the IPv4 address
+            The prefix of the IPv4 address.
           type: integer
           minimum: 1
           maximum: 32
@@ -1013,29 +1019,32 @@ components:
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Device.LoopbackIpv4:
+    Device.Ipv4Loopback:
       description: |-
-        An IPv4 loopback interface
+        An IPv4 Loopback interface.
       type: object
       required:
-      - interface_name
+      - eth_name
       - name
       properties:
-        interface_name:
-          description: "The unique name of ethernet object behind which this loopback\
-            \ \n interface will be created.\n\nx-constraint:\n- /components/schemas/Interface.Ethernet/properties/name\n"
+        eth_name:
+          description: |
+            The unique name of the Ethernet interface behind which this Loopback  interface will be created.
+
+            x-constraint:
+            - /components/schemas/Interface.Ethernet/properties/name
           type: string
           x-constraint:
           - /components/schemas/Interface.Ethernet/properties/name
         address:
           description: |-
-            The Loopback IPv4 address
+            The IPv4 Loopback address.
           type: string
           format: ipv4
           default: 0.0.0.0
         prefix:
           description: |-
-            The prefix of the Loopback IPv4 address
+            The prefix length of the Loopback IPv4 address.
           type: integer
           minimum: 1
           maximum: 32
@@ -1047,8 +1056,8 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
     Device.Ipv6:
       description: |-
-        An IPv6 interface with gateway
-        A base IPv6 interface
+        An IPv6 interface with gateway.
+        A base IPv6 interface.
       type: object
       required:
       - gateway
@@ -1057,7 +1066,7 @@ components:
       properties:
         gateway:
           description: |-
-            The IPv6 gateway address
+            The IPv6 gateway address.
           type: string
           format: ipv6
           default: ::0
@@ -1079,29 +1088,29 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
       x-status: under-review
-    Device.LoopbackIpv6:
+    Device.Ipv6Loopback:
       description: |-
-        An IPv6 loopback interface
+        An IPv6 Loopback interface
       type: object
       required:
-      - interface_name
+      - eth_name
       - name
       properties:
-        interface_name:
-          description: "The unique name of ethernet object behind which this loopback\
+        eth_name:
+          description: "The unique name of Ethernet interface behind which this Loopback\
             \ \n interface will be created.\n\nx-constraint:\n- /components/schemas/Interface.Ethernet/properties/name\n"
           type: string
           x-constraint:
           - /components/schemas/Interface.Ethernet/properties/name
         address:
           description: |-
-            The Loopback IPv6 address
+            The IPv6 Loopback address.
           type: string
           format: ipv6
           default: ::0
         prefix:
           description: |-
-            The prefix of the Loopback IPv6 address
+            The prefix length of the IPv6 Loopback address.
           type: integer
           minimum: 1
           maximum: 128
@@ -1111,10 +1120,10 @@ components:
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Router.IsisRouter:
+    Device.IsisRouter:
       x-status: under-review
       description: |-
-        A container of properties for a ISIS router
+        A container of properties for a ISIS router and its interfaces.
       type: object
       required:
       - system_id
@@ -1123,462 +1132,90 @@ components:
       properties:
         instance:
           description: |-
-            This contains the properties of a Multi-Instance-capable routers or MI-RTR.
-          $ref: '#/components/schemas/Router.IsisRouter.MultiInstance'
+            This contains the properties of a Multi-Instance-capable routers or MI-RTR. Each router can emulate one ISIS instance at a time.
+          $ref: '#/components/schemas/Device.IsisMultiInstance'
         system_id:
-          description: "The system identifier of the NET address.           For example,\
-            \ for ip address 192.168.1.1 the NET address can be  configured as 49.0001.1921.6800.1001.00\
-            \ which consists of the  following parts:\n  AFI: 49\n  Area ID: 0001\n\
-            \  System Identifier: 1921.6800.1001 \n  Selector: 00"
+          description: |-
+            The System ID for this emulated ISIS router, e.g. "640100010000".
           type: string
           format: hex
-          default: 0
-        router_basic:
-          description: "This conatains basic properties of an Isis Router. "
-          $ref: '#/components/schemas/Router.IsisRouter.Basic'
-        router_advanced:
-          description: |-
-            Isis Router advance properties.
-          $ref: '#/components/schemas/Router.IsisRouter.Advanced'
-        router_auth:
-          description: |-
-            Isis Router authentication properties.
-          $ref: '#/components/schemas/Router.IsisRouter.Authentication'
-        lsp_mggroup_pdu_rate_control:
-          description: |-
-            This contains LSP/ MGROUP-PDUs control parameters.
-          $ref: '#/components/schemas/Router.IsisRouter.LspMgGroupPduControl'
-        prefix_attributues_flags:
-          description: |-
-            This contains the properties of IS-IS Prefix Attribute Flags Sub-Tlv.
-          $ref: '#/components/schemas/Router.Isis.PrefixAttributes'
-        sr_algorithms:
-          description: |-
-            This contains supporte algorithms supported by a Isis router node. These algorithms are advertised through the SR-Algorithm Sub-TLV in the router capability advertisement.
-          type: array
-          items:
-            type: integer
-            default: 0
-            minimum: 0
-            maximum: 255
-        router_srmpls:
-          description: |-
-            This contains properties of the Segment Routing (SR) for a Isis Router Node.
-          $ref: '#/components/schemas/Router.IsisRouter.SegmentRoutingMPLS'
-        sr_local_block:
-          description: |-
-            This contains list of Segment Routing Local Block properties.
-          type: array
-          items:
-            $ref: '#/components/schemas/Router.IsisRouter.SegmentRoutingLocalBlock'
         interfaces:
           description: |-
-            List of Isis interfaces for this router
+            List of ISIS interfaces for this router.
           type: array
           items:
-            $ref: '#/components/schemas/Router.IsisInterface'
-        isisv4_routes:
+            $ref: '#/components/schemas/Isis.Interface'
+        basic:
+          description: "Contains basic properties of an ISIS Router. "
+          $ref: '#/components/schemas/Isis.Basic'
+        advanced:
           description: |-
-            Emulated Isis Ipv4 routes
-          type: array
-          items:
-            $ref: '#/components/schemas/Router.IsisV4Route'
-        isisv6_routes:
+            Contains advance properties of an ISIS Router..
+          $ref: '#/components/schemas/Isis.Advanced'
+        router_auth:
           description: |-
-            Emulated Isis Ipv6 routes
+            ISIS Router authentication properties.
+          $ref: '#/components/schemas/Isis.Authentication'
+        v4_routes:
+          description: |-
+            Emulated ISIS IPv4 routes.
           type: array
           items:
-            $ref: '#/components/schemas/Router.IsisV6Route'
+            $ref: '#/components/schemas/Isis.V4Route'
+        v6_routes:
+          description: |-
+            Emulated ISIS IPv6 routes.
+          type: array
+          items:
+            $ref: '#/components/schemas/Isis.V6Route'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Router.IsisRouter.MultiInstance:
+    Device.IsisMultiInstance:
       x-status: under-review
       description: "This contains the properties of a Multi-Instance-capable routers\
         \ or MI-RTR. "
       type: object
       properties:
-        enable_mi:
-          description: |-
-            If it is enabled then IID TLV will be added in its Hellos, LSPs, and SNPs.
-          type: boolean
-          default: false
         iid:
           description: |-
-            Instance indentifier (IID) TLV will associate a PDU with an IS-IS instance  by using a unique 16-bit number and including one or more ITIDs.
+            Instance Identifier (IID) TLV will associate a PDU with an ISIS instance  by using a unique 16-bit number and including one or more  Instance-Specific Topology Identifiers (ITIDs).
           type: integer
           default: 1
           minimum: 0
           maximum: 65535
         itids:
           description: |-
-            This contains one or more Instance-Specific Topology Identifier that  will be advertised in (IID) TLV.
+            This contains one or more ITIDs that will be advertised in IID TLV.
           type: array
           items:
             type: integer
             default: 0
             minimum: 0
             maximum: 65535
-    Router.IsisRouter.Basic:
+    Isis.Interface:
       description: |-
-        This contains Isis router Basic properties.
-      type: object
-      properties:
-        ipv4_te_router_id:
-          description: |-
-            IPv4 TE (traffic engineering) router id. If null then TE is not enabled.
-          type: string
-          format: ipv4
-          default: 1.1.1.1
-        hostname:
-          description: |-
-            The Dynamic hostname TLV is defined here as TLV type 137
-          type: string
-          default: ixia
-    Router.IsisRouter.Advanced:
-      description: |-
-        This contains Isis router advanced properties.
-      type: object
-      properties:
-        enable_hello_padding:
-          description: |-
-            It turns on a padded Hello message.
-          type: boolean
-          default: true
-        lsp_refresh_rate:
-          description: |-
-            The rate at which LSPs are re-sent in second.
-          type: integer
-          default: 900
-        lsp_lifetime:
-          description: |-
-            The MaxAge for retaining a learned LSP on this router in second.
-          type: integer
-          default: 1200
-        psnp_interval:
-          description: |-
-            The number of milli-seconds between transmissions of Partial Sequence Number PDU.
-          type: integer
-          default: 2000
-        csnp_interval:
-          description: |-
-            The number of milli-seconds between transmissions of Partial Sequence Number PDU.
-          type: integer
-          default: 10000
-        max_lsp_size:
-          description: "This is the maximum size in bytes of any LSP that can be transmitted\
-            \ over a link of equal or less  than maximum MTU size. The minimum value\
-            \ is 64 bytes, the maximum is 9216 and the default is 1,492 bytes. "
-          type: integer
-          default: 1492
-        lsp_mgroup_min_trans_interval:
-          description: |-
-            The number of seconds between transmissions of LSPs/MGROUP-PDUs.
-          type: integer
-          default: 5000
-    Router.IsisRouter.Authentication:
-      description: |-
-        This contains Isis router advanced properties.
-      type: object
-      properties:
-        ignore_receive_md5:
-          description: |-
-            The sequence number received for an MD5 key
-          type: boolean
-          default: true
-        area_auth_type:
-          description: "The Area authentication method used for the emulated ISISv4/v6\
-            \ router.\nPassword-cleartext password authentication \nMD5-Message Digest\
-            \ 5 algorithm. Refer to MD5 Authentication for additional information."
-          $ref: '#/components/schemas/Router.IsisRouter.AuthenticationBase'
-        domain_auth_type:
-          description: |-
-            The Domain authentication password or MD5 key.
-            This field is available only if Domain Authentication Type is set to Password or MD5.
-          $ref: '#/components/schemas/Router.IsisRouter.AuthenticationBase'
-    Router.IsisRouter.AuthenticationBase:
-      description: |-
-        Optional container for circuit authentication properties.
-      type: object
-      required:
-      - choice
-      properties:
-        choice:
-          description: |-
-            The circuit authentication method.
-          type: string
-          enum:
-          - md5
-          - password
-        md5:
-          description: |-
-            Authentication as an MD5 key.
-          type: string
-          minimum: 0
-          maximum: 255
-        password:
-          description: |-
-            Authentication as a clear text password.
-          type: string
-          minimum: 0
-          maximum: 255
-    Router.IsisRouter.LspMgGroupPduControl:
-      description: |-
-        This contains LSP/ MGROUP-PDUs control parameters.
-      type: object
-      properties:
-        max_lsp_mggroup_pdu_per_burst:
-          description: |-
-            The maximum number of LSP/ MGROUP-PDUs to be sent for each burst.
-          type: integer
-          default: 1
-        inter_lsps_mggroup_puds_burst_gap:
-          description: |-
-            The gap between each LSP/MGROUP-PDU Burst in millisecond.
-          type: integer
-          default: 33
-    Router.Isis.PrefixAttributes:
-      description: |-
-        This contains the properties of IS-IS Prefix attributes for  the extended Ipv4 and Ipv6 reachability.
-      type: object
-      properties:
-        x_flag:
-          description: |-
-            External Prefix Flag (Bit 0)
-          type: boolean
-          default: false
-        r_flag:
-          description: |-
-            Re-advertisement Flag (Bit 1)
-          type: boolean
-          default: false
-        n_flag:
-          description: |-
-            Node Flag (Bit 2)
-          type: boolean
-          default: false
-        advertise_source_router_id:
-          description: |
-            If this is enabled then Source Router Id will be advertised.
-          type: boolean
-          default: false
-        source_router_id_type:
-          description: |-
-            This choise opting the advertising Ipv4 and Ipv6 Source Router IDs that the IS-IS instance thats originated the advertisement provided advertise_source_router_id  is selected true.
-          type: string
-          enum:
-          - ipv4
-          - ipv6
-          - ipv4_and_ipv6
-          default: ipv4
-        v4_source_router_id:
-          description: |-
-            Ipv4 Source Router ID
-          type: string
-          format: ipv4
-          default: 0.0.0.0
-        v6_source_router_id:
-          description: |-
-            Ipv4 Source Router ID
-          type: string
-          format: ipv6
-          default: ::0
-    Router.IsisRouter.SegmentRoutingMPLS:
-      description: "Segment Routing (SR) turns on any node to select any path (explicit\
-        \ or derived from IGPs SPT computations) \nfor each of its traffic classes.\
-        \ The path does not depend on a hop-by-hop \nsignaling technique (unlike LDP\
-        \ or RSVP). \nIt only depends on a set of segments that are advertised by\
-        \ the IS-IS routing protocol. \nThese segments act as topological sub-paths\
-        \ that can be combined together to form the required path."
-      type: object
-      properties:
-        router_capability_id:
-          description: "A unique identifier (IPv4 /32 bit address format) for the\
-            \ ISIS router advertising. \nIn the context of ISIS segment routing, it\
-            \ helps to uniquely associate specific ISIS \ncapabilities related to\
-            \ segment routing (For example, SRGB, Algorithm, and so on.) with a specific\
-            \ ISIS router."
-          type: string
-          format: ipv4
-          default: 1.1.1.1
-        d_flag:
-          description: "D Bit is added to prevent TLV looping. Refer RFC 4971 for\
-            \ more details.\nIf D bit is set (that is, 1), Router Capability TLV 242\
-            \ must not be leaked \nfrom Level 1 to Level 2."
-          type: boolean
-          default: false
-        s_flag:
-          description: "If S bit is not set (that is, 0), ISIS Router Capability TLV\
-            \ 242 will \nnot be leaked through ISIS inter-area attachment points.\
-            \ Refer to RFC 4971 for more details.\nIf S bt is set (that is, 1), ISIS\
-            \ Router Capability TLV 242 is flooded in the entire \nrouting domains\
-            \ (that is, across several inter-level attachment points)."
-          type: boolean
-          default: false
-        ipv4_flag:
-          description: |-
-            Indicates that all interfaces of the router are supporting IPv4.
-          type: boolean
-          default: true
-        ipv6_flag:
-          description: |-
-            Indicates that all interfaces of the router are supporting IPv6.
-          type: boolean
-          default: false
-        node_prefix:
-          description: |-
-            The node prefix taken in IPv4 format.
-          type: string
-          format: ipv4
-          default: 1.1.1.1
-        node_prefix_length:
-          type: integer
-          default: 32
-        redistribution:
-          description: "Defines the Up/Down (Redistribution) bit defined for TLVs\
-            \ 128 and 130 by RFC 2966.\nIt is used for domain-wide advertisement of\
-            \ prefix information.\nIf up - used when a prefix is initially advertised\
-            \ within the ISIS L3 hierarchy, and for all other prefixes in L1 and L2\
-            \ LSPs. (default)\nWhen down - used when an L1/L2 router advertises L2\
-            \ prefixes in L1 LSPs. \nThe prefixes are being advertised from a higher\
-            \ level (L2) down to a lower level (L1)."
-          type: string
-          enum:
-          - up
-          - down
-          default: up
-        prefix_sid_algorithms:
-          description: |-
-            This contains one or more segement identifiers, its
-          type: array
-          items:
-            $ref: '#/components/schemas/Router.Isis.PrefixSegmentIdentifier'
-        srgb_ranges:
-          description: |-
-            This contains the list of SRGB.
-          type: array
-          items:
-            $ref: '#/components/schemas/Router.IsisRouter.SrgbRange'
-    Router.IsisRouter.SrgbRange:
-      description: |-
-        This contains the propeties of SRGB range.
-      type: object
-      properties:
-        start_sid:
-          description: |-
-            Start SID is allocated to the Emulated router and rest of the SIDs  are allocated to Ipv4/IPv6 prefix pools SIDs in the same order as the prefixes  appear in the prefix pool.
-          type: integer
-          default: 16000
-        sid_count:
-          description: "This represents the number of SID in a SRGB range. "
-          type: integer
-          default: 8000
-    Router.Isis.PrefixSegmentIdentifier:
-      description: |-
-        This contains the properties of IS-IS Prefix-SID and its attributes for  the extended Ipv4 and Ipv6 reachability.
-      type: object
-      properties:
-        prefix_sid:
-          description: |-
-            SID/Index is the SID/Label value associated  with the IGP Prefix segment attached to the specific IPv4 or IPv6 prefix.
-          type: integer
-          default: 0
-        r_flag:
-          description: |-
-            R-Flag:Re-advertisement flag
-          type: boolean
-          default: false
-        n_flag:
-          description: |-
-            N-Flag: Node-SID flag.  If set, then the Prefix-SID refers to
-            the router identified by the prefix
-          type: boolean
-          default: false
-        p_flag:
-          description: |-
-            P-Flag: no-PHP flag.
-          type: boolean
-          default: false
-        e_flag:
-          description: |-
-            E-Flag: Explicit-Null Flag.
-          type: boolean
-          default: false
-        v_flag:
-          description: |-
-            The value flag. If set, then the Prefix-SID carries a value instead of an index.
-          type: boolean
-          default: false
-        l_flag:
-          description: |-
-            The local flag.  If set, then the value/index carried by
-            the Prefix-SID has local significance.
-          type: boolean
-          default: false
-        algorithm:
-          description: "The Isis may use various algorithms when calculating\nreachability\
-            \ to other nodes or to prefixes attached to these\nnodes. "
-          type: integer
-          default: 0
-          minimum: 0
-          maximum: 255
-    Router.IsisRouter.SegmentRoutingLocalBlock:
-      description: |-
-        This contains the properties of Segment Routing Local Block.  The SR Local Block (SRLB) sub-TLV contains the range of labels the node has reserved for Local SIDs.
-      type: object
-      properties:
-        srlb_flag:
-          description: |-
-            SRLB Flags
-          type: string
-          format: hex
-          default: '00'
-        srlb_descriptors:
-          description: |-
-            This contains one or more SRLB Descriptor entries.
-          type: array
-          items:
-            $ref: '#/components/schemas/Router.IsisRouter.SegmentRoutingLocalBlockDescriptor'
-    Router.IsisRouter.SegmentRoutingLocalBlockDescriptor:
-      description: |-
-        This contains the properties SRLB Descriptor entries.
-      type: object
-      properties:
-        start_sid_label:
-          description: |-
-            Start SID/Label and SID Count that to be add in SRLB.
-          type: integer
-        sid_count:
-          description: |-
-            SID count that to be add in SRLB.
-          type: integer
-          default: 1
-          minimum: 1
-          maximum: 16777215
-    Router.IsisInterface:
-      description: |-
-        Container for single Isis interface.
+        Container for single ISIS interface.
       type: object
       required:
       - eth_name
       properties:
         eth_name:
-          description: "The unique name of ethernet object on which Isis interface\
-            \ is running. Two Isis interfaces cannot share the same ethernet.    \
-            \     \n\nx-constraint:\n- /components/schemas/Router.Ethernet/properties/name\n"
+          description: "The unique name of the Ethernet interface on which ISIS is\
+            \ running. Two ISIS interfaces cannot share the same Ethernet.       \
+            \  \n\nx-constraint:\n- /components/schemas/Router.Ethernet/properties/name\n"
           type: string
           x-constraint:
           - /components/schemas/Router.Ethernet/properties/name
         metric:
           description: |-
-            The default metric cost for using this interface.
+            The default metric cost for the interface.
           type: integer
           default: 10
         network_type:
-          description: |-
-            The type of network link.
+          description: "The type of network link. "
           type: string
           enum:
           - broadcast
@@ -1595,12 +1232,12 @@ components:
           default: level_2
         level_1_priority:
           description: |-
-            The Priority setting in Level 1 LAN Hellos for Designated Router elections.
+            The Priority setting in Level 1 LAN Hellos for Designated Router election.
           type: integer
           default: 0
         level_2_priority:
           description: |-
-            The Priority setting in Level 2 LAN Hellos for Designated Router elections.
+            The Priority setting in Level 2 LAN Hellos for Designated Router election.
           type: integer
           default: 0
         level_1_hello_interval:
@@ -1625,73 +1262,57 @@ components:
           default: 30
         multi_topology_ids:
           description: |-
-            This contains the properties of one or more multiple topologies attributes.
+            Contains the properties of multiple topologies.
           type: array
           items:
-            $ref: '#/components/schemas/Router.IsisInterface.Multitopology'
-        traffic_engineering_profiles:
+            $ref: '#/components/schemas/Isis.Multitopology'
+        traffic_engineering:
           description: |-
-            This contains a list of one or more Traffic Engineering attributes.
+            Contains a list of Traffic Engineering attributes.
           type: array
           items:
-            $ref: '#/components/schemas/Router.Linkstate.TeProfile'
-        segment_routing_mpls:
-          description: "Contaioner for the Adjacency Service Instance Identifier (SID). "
-          $ref: '#/components/schemas/Router.IsisInterface.SegmentRoutingMPLS'
+            $ref: '#/components/schemas/LinkState.TE'
         authentication:
           description: |-
             The Circuit authentication method used for the interfaces on this emulated ISIS v4/v6 router
-          $ref: '#/components/schemas/Router.IsisInterface.Authentication'
+          $ref: '#/components/schemas/IsisInterface.Authentication'
         advanced:
           description: |-
             Optional container for advanced interface properties
-          $ref: '#/components/schemas/Router.IsisInterface.Advanced'
+          $ref: '#/components/schemas/IsisInterface.Advanced'
         link_protection:
           description: |-
-            Link protection on the ISIS link between two mentioned interfaces.
-          $ref: '#/components/schemas/Router.IsisInterface.LinkProtection'
-        prefix_attributues_flags:
-          description: |-
-            This contains the properties of IS-IS Prefix Attribute Flags Sub-Tlv.
-          $ref: '#/components/schemas/Router.Isis.PrefixAttributes'
+            Link protection on the ISIS link between two interfaces.
+          $ref: '#/components/schemas/IsisInterface.LinkProtection'
         srlg_values:
           description: |-
-            This contains one or more SRLG value for the link between two mentioned interfaces.
+            This contains list of SRLG values for the link between two interfaces.
           type: array
           items:
             type: integer
             default: 0
-    Router.IsisInterface.Multitopology:
+    Isis.Multitopology:
       x-status: under-review
-      description: "Multi-Topology TLV(229). The serial number or identifier of the\
-        \ topology in a scenario \nthat contains an arrangement of the network elements\
-        \ used for configuring the protocol. \nFor example, Topology 1, Topology 2,\
-        \ and so on."
+      description: |-
+        Container of properties per interface per topology when multiple topology is configured
+        in a ISIS router.
       type: object
       properties:
         mt_id:
           description: |-
-            The multitopology ID for the emulated ISIS-L3 router. By default, it is set to 0.
+            The multi-topology ID for one of the topologies supported on the ISIS interface.
           type: integer
           default: 0
         link_metric:
-          description: "Specifies the link metric between the nodes in the network\
-            \ grid going to the nodes \nthat are configured on the port of the device.\
-            \ \nFor each individual node, you can update the metric."
+          description: |-
+            Specifies the link metric for this topology on the ISIS interface.
           type: integer
           default: 10
           minimum: 0
           maximum: 16777215
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-      required:
-      - name
-    Router.Linkstate.TeProfile:
+    LinkState.TE:
       description: |-
-        A container for ISIS interface traffic engineering properties
+        A container for Traffic Engineering properties on a interface.
       type: object
       properties:
         administrative_group:
@@ -1703,37 +1324,35 @@ components:
             \ \nfrom 0 to 31 (integers)."
           type: string
           format: hex
-          default: 00 00 00 00
+          default: '00000000'
         metric_level:
           description: |-
-            The user-assigned link metric for traffic engineering.
+            The user-assigned link metric for Traffic Engineering.
           type: integer
           default: 0
         max_bandwith:
           description: "The maximum link bandwidth (sub-TLV 9) in bytes/sec allowed\
             \ for this \nlink in this direction."
-          type: number
-          format: double
+          type: integer
           default: 125000000
         max_reservable_bandwidth:
           description: "The maximum link bandwidth (sub-TLV 10) in bytes/sec allowed\
             \ for this \nlink in this direction."
-          type: number
-          format: double
+          type: integer
           default: 125000000
         priority_0_bandwith:
           description: |-
-            Specify the amount of bandwidth that can be reserved.
+            Specifies the amount of bandwidth that can be reserved.
           type: integer
           default: 125000000
         priority_1_bandwith:
           description: |-
-            Specify the amount of bandwidth that can be reserved.
+            Specifies the amount of bandwidth that can be reserved.
           type: integer
           default: 125000000
         priority_2_bandwith:
           description: |-
-            Specify the amount of bandwidth that can be reserved.
+            Specifies the amount of bandwidth that can be reserved.
           type: integer
           default: 125000000
         priority_3_bandwith:
@@ -1743,110 +1362,25 @@ components:
           default: 125000000
         priority_4_bandwith:
           description: |-
-            Specify the amount of bandwidth that can be reserved.
+            Specifies the amount of bandwidth that can be reserved.
           type: integer
           default: 125000000
         priority_5_bandwith:
           description: |-
-            Specify the amount of bandwidth that can be reserved.
+            Specifies the amount of bandwidth that can be reserved.
           type: integer
           default: 125000000
         priority_6_bandwith:
           description: |-
-            Specify the amount of bandwidth that can be reserved.
+            Specifies the amount of bandwidth that can be reserved.
           type: integer
           default: 125000000
         priority_7_bandwith:
           description: |-
-            Specify the amount of bandwidth that can be reserved.
+            Specifies the amount of bandwidth that can be reserved.
           type: integer
           default: 125000000
-        extended_administrative_groups:
-          type: array
-          items:
-            $ref: '#/components/schemas/Router.Linkstate.ExtendedAdminGroup'
-    Router.Linkstate.ExtendedAdminGroup:
-      description: |-
-        Additonal administrative group sub tlvs.
-      type: object
-      externalDocs:
-        url: https://datatracker.ietf.org/doc/html/rfc7308
-      properties:
-        group:
-          description: |-
-            By convention, the existing Administrative Group sub-TLVs are
-            numbered 0 (least significant bit) to 31 (most significant bit).  The
-            EAG values are a superset of AG.  That is, bits 0-31 in the EAG have
-            the same meaning and MUST have the same values as an AG flooded for
-            the same link.  If an EAG's length is more than 4 bytes, numbering
-            for these additional bytes picks up where the previous byte left off.
-            For example, the least significant bit in the fifth byte of an 8-byte
-            EAG is referred to as bit 32.
-          type: string
-          format: hex
-          default: 00 00 00 00
-    Router.IsisInterface.SegmentRoutingMPLS:
-      description: |-
-        Optional container for segment routing MPLS settings.
-        If the container exists then the adjacency SID (segment identifier)
-        sub TLV will be part of the packet.
-      externalDocs:
-        url: https://datatracker.ietf.org/doc/html/draft-ietf-isis-segment-routing-extensions-15
-      type: object
-      properties:
-        adjacency_sid:
-          description: |-
-            The corresponding adjacency SID for a link.
-          type: integer
-          default: 9001
-          minimum: 1
-          maximum: 1048575
-        f_flag:
-          description: |-
-            The address family flag. If unset, then the Adj-SID refers
-            to an adjacency with outgoing IPv4 encapsulation.  If set then
-            the Adj-SID refers to an adjacency with outgoing IPv6
-            encapsulation.
-          type: boolean
-          default: false
-        b_flag:
-          description: |-
-            The backup flag. If set, the Adj-SID is eligible for protection.
-          type: boolean
-          default: false
-        v_flag:
-          description: |-
-            The value flag. If set, then the Adj-SID carries a value.
-          type: boolean
-          default: true
-        l_flag:
-          description: |-
-            The local flag.  If set, then the value/index carried by
-            the Adj-SID has local significance.
-          type: boolean
-          default: true
-        s_flag:
-          description: |-
-            The set flag. When set, the S-Flag indicates that the
-            Adj-SID refers to a set of adjacencies (and therefore MAY be
-            assigned to other adjacencies as well).
-          type: boolean
-          default: false
-        p_flag:
-          description: |-
-            The persistent flag. When set, the P-Flag indicates that
-            the Adj-SID is persistently allocated, i.e., the Adj-SID value
-            remains consistent across router restart and/or interface flap.
-          type: boolean
-          default: false
-        weight:
-          description: "The value represents the weight of the Adj-SID for the purpose\
-            \ of \nload balancing. "
-          type: integer
-          default: 0
-          minimum: 0
-          maximum: 255
-    Router.IsisInterface.Authentication:
+    IsisInterface.Authentication:
       description: |-
         Optional container for circuit authentication properties.
       type: object
@@ -1870,7 +1404,7 @@ components:
           type: string
           minimum: 0
           maximum: 255
-    Router.IsisInterface.Advanced:
+    IsisInterface.Advanced:
       description: |-
         Optional container for advanced interface properties.
       type: object
@@ -1891,22 +1425,23 @@ components:
         auto_adjust_supported_protocols:
           description: "If a Hello message listing supported protocols is received\
             \ on this \nemulated router, the supported protocols advertised by this\
-            \ router \nis changed to an exact match."
+            \ router \nare changed to match exactly."
           type: boolean
           default: false
-    Router.IsisInterface.LinkProtection:
+    IsisInterface.LinkProtection:
       description: |-
         Optional container for the link protection sub TLV (type 20).
       type: object
       properties:
         extra_traffic:
-          description: "Enable this to protect other link or links. The LSPs on a\
-            \ link of \nthis type is lost if any of the links fail."
+          description: |-
+            Enable this to protect other link or links. LSPs on a link of this type are lost
+            if any of the links fail.
           type: boolean
           default: false
         unprotected:
           description: "Enabling this signifies that there is no other link protecting\
-            \ this \nlink. The LSPs on a link of this type is lost if the link fails."
+            \ this \nlink. LSPs on a link of this type are lost if the link fails."
           type: boolean
           default: false
         shared:
@@ -1940,11 +1475,138 @@ components:
           description: "This is a Protection Scheme with value 0x80. "
           type: boolean
           default: false
-    Router.IsisV4Route:
+    Isis.Basic:
       description: |-
-        Emulated ISIS v4 route
+        This contains ISIS router basic properties.
+      type: object
+      properties:
+        ipv4_te_router_id:
+          description: "IPv4 Traffic Engineering(TE) router id.     "
+          type: string
+          format: ipv4
+          default: 1.1.1.1
+        hostname:
+          description: |-
+            Host name for the router. The host name is transmitted in all the packets sent from the router.
+          type: string
+          default: ixia
+    Isis.Advanced:
+      description: |-
+        Contains ISIS router advanced properties.
+      type: object
+      properties:
+        enable_hello_padding:
+          description: |-
+            It enables padding of Hello message to MTU size.
+          type: boolean
+          default: true
+        max_area_addresses:
+          description: "The Number of Area Addresses permitted, with a valid range\
+            \ from 0 to 254.  A zero indicates a maximum of 3 addresses. "
+          type: integer
+          minimum: 0
+          maximum: 254
+          default: 3
+        area_addresses:
+          description: "Its combination of the ISP and HO-DSP.Usually all nodes within\
+            \ an area have  the same area address e.g. \"490001\". "
+          type: array
+          items:
+            type: string
+            format: hex
+        lsp_refresh_rate:
+          description: |-
+            The rate at which LSPs are re-sent in seconds.
+          type: integer
+          minimum: 1
+          maximum: 294967295
+          default: 900
+        lsp_lifetime:
+          description: |-
+            The MaxAge for retaining a learned LSP on this router in seconds.
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 1200
+        psnp_interval:
+          description: |-
+            The number of milliseconds between transmissions of Partial Sequence Number PDU.
+          type: integer
+          minimum: 1
+          maximum: 60000
+          default: 2000
+        csnp_interval:
+          description: |-
+            The number of milliseconds between transmissions of Partial Sequence Number PDU.
+          type: integer
+          minimum: 1
+          maximum: 65535000
+          default: 10000
+        max_lsp_size:
+          description: |-
+            The maximum size in bytes of any LSP that can be transmitted over a link of equal or less  than maximum MTU size.
+          type: integer
+          minimum: 64
+          maximum: 9216
+          default: 1492
+        lsp_mgroup_min_trans_interval:
+          description: |-
+            The number of seconds between transmissions of LSPs/MGROUP-PDUs.
+          type: integer
+          minimum: 1
+          maximum: 60000
+          default: 5000
+    Isis.Authentication:
+      description: |-
+        This contains ISIS Area/Domain authentication properties.
+      type: object
+      properties:
+        ignore_receive_md5:
+          description: |-
+            Do not verify MD5 checksum in received LSPs.
+          type: boolean
+          default: true
+        area_auth_type:
+          description: |-
+            The Area authentication method used for the emulated ISIS router.
+            This is used for L1 LSPs.
+          $ref: '#/components/schemas/Isis.AuthenticationBase'
+        domain_auth_type:
+          description: |-
+            The Domain authentication method used for the emulated ISIS router.
+            This is used for L2 LSPs.
+          $ref: '#/components/schemas/Isis.AuthenticationBase'
+    Isis.AuthenticationBase:
+      description: |-
+        Optional container for ISIS authentication properties.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          description: |-
+            The authentication method.
+          type: string
+          enum:
+          - md5
+          - password
+        md5:
+          description: |-
+            Authentication as an MD5 key.
+          type: string
+          minimum: 0
+          maximum: 255
+        password:
+          description: |-
+            Authentication as a clear text password.
+          type: string
+          minimum: 0
+          maximum: 255
+    Isis.V4Route:
+      description: |-
+        Emulated ISIS IPv4 routes.
         Container for ISIS route ranges.
-        This contains the properties of IS-IS Prefix attributes for  the extended Ipv4 and Ipv6 reachability.
+        This contains the properties of ISIS Prefix attributes for  the extended IPv4 and IPv6 reachability.
       type: object
       properties:
         addresses:
@@ -1952,7 +1614,7 @@ components:
             A list of symmetrical or asymmetrical route addresses for a route range.
           type: array
           items:
-            $ref: '#/components/schemas/Router.Isis.V4RouteAddress'
+            $ref: '#/components/schemas/IsisV4.RouteAddress'
         link_metric:
           description: |-
             The user-defined metric associated with this route range.
@@ -1960,7 +1622,7 @@ components:
           default: 0
           minimum: 0
           maximum: 16777215
-        route_orgin:
+        route_origin:
           description: "The origin of the advertised route-internal or external to\
             \ the ISIS area. Options include the following: \n  Internal-for intra-area\
             \ routes, through Level 1 LSPs. \n  External-for inter-area routes redistributed\
@@ -1983,16 +1645,6 @@ components:
           - up
           - down
           default: up
-        prefixattributes:
-          description: |-
-            This contains the properties of IS-IS Prefix Attribute Flags Sub-Tlv.
-          $ref: '#/components/schemas/Router.Isis.PrefixAttributes'
-        prefixsidsalgorithms:
-          description: |-
-            A prefix can be associated with one or more number of segment identifiers (SIDs).
-          type: array
-          items:
-            $ref: '#/components/schemas/Router.Isis.PrefixSegmentIdentifier'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -2013,76 +1665,50 @@ components:
             Node Flag (Bit 2)
           type: boolean
           default: false
-        advertise_source_router_id:
-          description: |
-            If this is enabled then Source Router Id will be advertised.
-          type: boolean
-          default: false
-        source_router_id_type:
-          description: |-
-            This choise opting the advertising Ipv4 and Ipv6 Source Router IDs that the IS-IS instance thats originated the advertisement provided advertise_source_router_id  is selected true.
-          type: string
-          enum:
-          - ipv4
-          - ipv6
-          - ipv4_and_ipv6
-          default: ipv4
-        v4_source_router_id:
-          description: |-
-            Ipv4 Source Router ID
-          type: string
-          format: ipv4
-          default: 0.0.0.0
-        v6_source_router_id:
-          description: |-
-            Ipv4 Source Router ID
-          type: string
-          format: ipv6
-          default: ::0
       required:
       - name
-    Router.Isis.V4RouteAddress:
+    IsisV4.RouteAddress:
       description: |-
-        A container for BGPv4 route addresses
+        A container for ISIS IPv4 route addresses.
       type: object
       properties:
         address:
           description: |-
-            The starting address of the network
+            The starting address for this set of routes.
           type: string
           format: ipv4
           default: 0.0.0.0
         prefix:
-          description: "The IPv4 network prefix to be applied to the address. "
+          description: "The IPv4 network prefix length to be applied to the addresses. "
           type: integer
           default: 24
           minimum: 0
           maximum: 32
         count:
           description: |-
-            The total number of addresses in the range
+            The total number of addresses in the range.
           type: string
           format: integer
           default: 1
         step:
           description: |-
-            The amount to increase each address by
+            Increments the network address prefixes within a route range  where multiple routes are present.  The value is incremented according to the Prefix Length and Step.
           type: string
           format: integer
           default: 1
-    Router.IsisV6Route:
+    Isis.V6Route:
       description: |-
-        Emulated ISIS v6 route
+        Emulated ISIS IPv6 routes.
         Container for ISIS route ranges.
-        This contains the properties of IS-IS Prefix attributes for  the extended Ipv4 and Ipv6 reachability.
+        This contains the properties of ISIS Prefix attributes for  the extended IPv4 and IPv6 reachability.
       type: object
       properties:
         addresses:
           description: |-
-            A list of symmetrical or asymmetrical route addresses
+            A list of symmetrical or asymmetrical route addresses.
           type: array
           items:
-            $ref: '#/components/schemas/Router.Isis.V6RouteAddress'
+            $ref: '#/components/schemas/IsisV6.RouteAddress'
         link_metric:
           description: |-
             The user-defined metric associated with this route range.
@@ -2090,7 +1716,7 @@ components:
           default: 0
           minimum: 0
           maximum: 16777215
-        route_orgin:
+        route_origin:
           description: "The origin of the advertised route-internal or external to\
             \ the ISIS area. Options include the following: \n  Internal-for intra-area\
             \ routes, through Level 1 LSPs. \n  External-for inter-area routes redistributed\
@@ -2113,16 +1739,6 @@ components:
           - up
           - down
           default: up
-        prefixattributes:
-          description: |-
-            This contains the properties of IS-IS Prefix Attribute Flags Sub-Tlv.
-          $ref: '#/components/schemas/Router.Isis.PrefixAttributes'
-        prefixsidsalgorithms:
-          description: |-
-            A prefix can be associated with one or more number of segment identifiers (SIDs).
-          type: array
-          items:
-            $ref: '#/components/schemas/Router.Isis.PrefixSegmentIdentifier'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -2143,82 +1759,64 @@ components:
             Node Flag (Bit 2)
           type: boolean
           default: false
-        advertise_source_router_id:
-          description: |
-            If this is enabled then Source Router Id will be advertised.
-          type: boolean
-          default: false
-        source_router_id_type:
-          description: |-
-            This choise opting the advertising Ipv4 and Ipv6 Source Router IDs that the IS-IS instance thats originated the advertisement provided advertise_source_router_id  is selected true.
-          type: string
-          enum:
-          - ipv4
-          - ipv6
-          - ipv4_and_ipv6
-          default: ipv4
-        v4_source_router_id:
-          description: |-
-            Ipv4 Source Router ID
-          type: string
-          format: ipv4
-          default: 0.0.0.0
-        v6_source_router_id:
-          description: |-
-            Ipv4 Source Router ID
-          type: string
-          format: ipv6
-          default: ::0
       required:
       - name
-    Router.Isis.V6RouteAddress:
+    IsisV6.RouteAddress:
       description: |-
-        A container for Isis Ipv6 route addressses
+        A container for ISIS IPv6 route addresses.
       type: object
       properties:
         address:
           description: |-
-            The starting address of the network
+            The starting address for this set of routes.
           type: string
           format: ipv6
           default: ::0
         prefix:
           description: |-
-            The IPv6 network prefix to be applied to the address
+            The IPv6 network prefix length to be applied to the addresses.
           type: integer
           default: 64
           minimum: 0
           maximum: 128
         count:
           description: |-
-            The total number of addresses in the range
+            The total number of addresses in the range.
           type: string
           format: integer
           default: 1
         step:
           description: |-
-            The amount to increase each address by
+            Increments the network address prefixes within a route range  where multiple routes are present.  The value is incremented according to the Prefix Length and Step.
           type: string
           format: integer
           default: 1
-    Router.BgpRouter:
+    Device.BgpRouter:
       description: |-
-        Container of one or more Ipv4 and or Ipv6 Bgp peers.
+        Container of one or more IPv4 and or IPv6 Bgp peers.
       type: object
+      required:
+      - router_id
       properties:
-        bgp_ipv4_ifaces:
-          description: "This contains an array of Ipv4 interfaces  each of which will\
-            \ have list of peers to different destination.   "
-          type: array
-          items:
-            $ref: '#/components/schemas/Router.Bgpv4Iface'
-        bgp_ipv6_ifaces:
+        router_id:
           description: |-
-            This contains an array of Ipv6 interfaces  each of which will have list of peers to different destination.
+            The BGP router ID is a unique identifier used by BGP. It is a 32-bit value that is often represented by an IPv4 address.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        ipv4_ifaces:
+          description: "This contains an array of references to IPv4 interfaces, \
+            \ each of which will have list of peers to different destinations.   "
           type: array
           items:
-            $ref: '#/components/schemas/Router.Bgpv6Iface'
-    Router.Bgpv4:
+            $ref: '#/components/schemas/Bgp.V4Iface'
+        ipv6_ifaces:
+          description: |-
+            This contains an array of references to IPv6 interfaces,  each of which will have list of peers to different destinations.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.V6Iface'
+    Bgp.V4peer:
       x-status: under-review
       description: |-
         Container for emulated BGPv4 peers and routes.
@@ -2232,19 +1830,13 @@ components:
       properties:
         dut_address:
           description: |-
-            IPv4 address of the BGP peer for the session
-          type: string
-          format: ipv4
-          default: 0.0.0.0
-        router_id:
-          description: |-
-            The BGP router ID is a unique identifier used by routing protocols. It is a 32-bit value that is often represented by an IPv4 address.
+            IPv4 address of the BGP peer for the session.
           type: string
           format: ipv4
           default: 0.0.0.0
         as_type:
           description: |-
-            The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp) Internal BGP is used within a single autonomous system (ibgp). BGP property defaults are aligned with this object defined as an internal BGP peer. If the as_type is specified as ebgp then other properties will need to be specified according an external BGP peer.
+            The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp) Internal BGP is used within a single autonomous system (ibgp). BGP property defaults are aligned with this object defined as an internal BGP peer. If the as_type is specified as ebgp then other properties will need to be specified as per an external BGP peer.
           type: string
           enum:
           - ibgp
@@ -2255,61 +1847,49 @@ components:
           type: integer
         as_number_width:
           description: |-
-            The width in bytes of the as_number values. Any as_number values that exceed the width MUST result in an error
+            The width in bytes of the as_number values. Any as_number values that exceed the width MUST result in an error.
           type: string
           enum:
           - two
           - four
           default: four
-        as_number_set_mode:
-          description: |-
-            The AS number set mode
-          type: string
-          enum:
-          - do_not_include_as
-          - include_as_seq
-          - include_as_set
-          - include_as_seq_confed
-          - include_as_set_confed
-          - prepend_as_to_first_segment
-          default: do_not_include_as
         advanced:
-          $ref: '#/components/schemas/Router.BgpAdvanced'
+          $ref: '#/components/schemas/Bgp.Advanced'
         capability:
-          $ref: '#/components/schemas/Router.BgpCapability'
+          $ref: '#/components/schemas/Bgp.Capability'
         sr_te_policies:
           description: |-
             Segment routing/traffic engineering policies
           type: array
           items:
-            $ref: '#/components/schemas/Router.BgpSrTePolicy'
-        bgpv4_routes:
+            $ref: '#/components/schemas/Bgp.SrTePolicy'
+        v4_routes:
           description: |-
             Emulated BGPv4 routes
           type: array
           items:
-            $ref: '#/components/schemas/Router.Bgpv4Route'
-        bgpv6_routes:
+            $ref: '#/components/schemas/Bgp.V4Route'
+        v6_routes:
           description: |-
             Emulated BGPv6 routes
           type: array
           items:
-            $ref: '#/components/schemas/Router.Bgpv6Route'
+            $ref: '#/components/schemas/Bgp.V6Route'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Router.Bgpv4Iface:
+    Bgp.V4Iface:
       description: |-
-        Container for emulated BGPv4 peers and routes on a single Ipv4 interface.
+        Container for emulated BGPv4 peers and routes on a single IPv4 interface.
       type: object
       required:
       - ipv4_name
       properties:
         ipv4_name:
           description: |
-            The unique name of ipv4 or loopback object  used as the source Ip this list of Bgp peers.
+            The unique name of the IPv4 or Loopback IPv4 interface used as the source IP for this list of BGP peers.
 
             x-constraint:
             - /components/schemas/Device.Ipv4/properties/name
@@ -2318,13 +1898,13 @@ components:
           x-constraint:
           - /components/schemas/Device.Ipv4/properties/name
           - /components/schemas/Device.LoopbackIpv4/properties/name
-        bgp_peers:
+        peers:
           description: |-
             This contains the list of BGPv4 peers configured on this interface.
           type: array
           items:
-            $ref: '#/components/schemas/Router.Bgpv4'
-    Router.BgpAdvanced:
+            $ref: '#/components/schemas/Bgp.V4peer'
+    Bgp.Advanced:
       x-status: under-review
       description: |-
         Container for BGP advanced settings.
@@ -2332,17 +1912,17 @@ components:
       properties:
         hold_time_interval:
           description: |-
-            Number of seconds the sender proposes for the value of the Hold Timer
+            Number of seconds the sender proposes for the value of the Hold Timer.
           type: integer
           default: 90
         keep_alive_interval:
           description: |-
-            Number of seconds between transmissions of Keep Alive messages by router
+            Number of seconds between transmissions of Keepalive messages by this peer.
           type: integer
           default: 30
         update_interval:
           description: |-
-            The time interval at which UPDATE messages are sent to the DUT, expressed as the number of milliseconds between UPDATE messages.
+            The time interval at which Update messages are sent to the DUT, expressed as the number of milliseconds between Update messages.
           type: integer
           default: 0
         time_to_live:
@@ -2356,7 +1936,7 @@ components:
           type: string
           default: ''
           nullable: true
-    Router.BgpCapability:
+    Bgp.Capability:
       x-status: under-review
       description: |-
         Container for BGP capability settings.
@@ -2364,132 +1944,133 @@ components:
       properties:
         vpls:
           description: |-
-            TBD
+            Support for VPLS per the Kompella draft.
           type: boolean
-          default: true
+          default: false
         route_refresh:
           description: |-
-            TBD
+            Support for the route refresh capabilities. Route Refresh allows the dynamic exchange of route refresh requests  and routing information between BGP peers and the subsequent re-advertisement  of the outbound or inbound routing table.
           type: boolean
           default: true
         route_constraint:
           description: |-
-            TBD
+            Supports for the route constraint capabilities. Route Constraint allows the advertisement of Route Target Membership  information. The BGP peers exchange Route Target Reachability Information,  which is used to build a route distribution graph.  This limits the propagation of VPN Network Layer Reachability Information (NLRI) between different autonomous systems  or distinct clusters of the same autonomous system. This is supported for Layer 3 Virtual Private Network scenario.
           type: boolean
           default: false
         link_state_non_vpn:
           description: |-
-            TBD
+            Support for BGP Link State for ISIS and OSPF.
           type: boolean
           default: false
         link_state_vpn:
           description: |-
-            TBD
+            Capability advertisement of BGP Link State for VPNs.
           type: boolean
           default: false
         evpn:
           description: |-
-            TBD
+            Support for the EVPN address family.
           type: boolean
           default: false
         extended_next_hop_encoding:
           description: |-
-            TBD
+            Support for extended Next Hop Encoding for Nexthop field in  IPv4 routes advertisement.  This allows IPv4 routes being advertised by IPv6 peers to  include an IPv6 Nexthop.
           type: boolean
           default: false
         ipv4_unicast:
           description: |-
-            TBD
+            Support for the IPv4 Unicast address family.
           type: boolean
           default: true
         ipv4_multicast:
-          description: |-
-            TBD
+          description: "Support for the IPv4 Multicast address family. "
           type: boolean
-          default: true
+          default: false
         ipv4_multicast_vpn:
           description: |-
-            TBD
+            Support for the IPv4 Multicast VPN address family.
           type: boolean
           default: false
         ipv4_mpls_vpn:
           description: |-
-            TBD
+            Support for the IPv4 MPLS L3VPN address family.
           type: boolean
-          default: true
+          default: false
         ipv4_mdt:
           description: |-
-            TBD
+            Supports for IPv4 MDT address family messages.
           type: boolean
           default: false
         ipv4_multicast_mpls_vpn:
           description: |-
-            TBD
+            Support for the IPv4 Multicast VPN address family.
           type: boolean
           default: false
         ipv4_unicast_flow_spec:
           description: |-
-            TBD
+            Support for propagation of IPv4 unicast flow specification rules.
           type: boolean
           default: false
         ipv4_sr_te_policy:
           description: |-
-            TBD
+            Support for IPv4 SRTE policy.
           type: boolean
           default: false
         ipv4_unicast_add_path:
           description: |-
-            TBD
+            Support for IPv4 Unicast Add Path Capability.
           type: boolean
           default: false
         ipv6_unicast:
           description: |-
-            TBD
+            Support for the IPv4 Unicast address family.
           type: boolean
           default: true
         ipv6_multicast:
           description: |-
-            TBD
+            Support for the IPv6 Multicast address family.
           type: boolean
-          default: true
+          default: false
         ipv6_multicast_vpn:
           description: |-
-            TBD
+            Support for the IPv6 Multicast VPN address family.
           type: boolean
           default: false
         ipv6_mpls_vpn:
           description: |-
-            TBD
+            Support for the IPv6 MPLS L3VPN address family.
           type: boolean
-          default: true
+          default: false
         ipv6_mdt:
           description: |-
-            TBD
+            Support for IPv6 MDT address family messages.
           type: boolean
           default: false
         ipv6_multicast_mpls_vpn:
           description: |-
-            TBD
+            Support for the IPv6 Multicast VPN address family.
           type: boolean
           default: false
         ipv6_unicast_flow_spec:
           description: |-
-            TBD
+            Support for propagation of IPv6 unicast flow specification rules.
           type: boolean
           default: false
         ipv6_sr_te_policy:
           description: |-
-            TBD
+            Support for IPv6 SRTE policy.
           type: boolean
           default: false
         ipv6_unicast_add_path:
           description: |-
-            TBD
+            Support for IPv6 Unicast Add Path Capability.
           type: boolean
           default: false
-    Router.BgpSrTePolicy:
-      description: "Container for BGP basic segment routing traffic engineering policy\
-        \ \nsettings.\n"
+    Bgp.SrTePolicy:
+      description: |-
+        Container for BGP basic segment routing traffic engineering policy settings.
+
+        Container for BGP Nexthop settings.
       type: object
       properties:
         policy_type:
@@ -2522,41 +2103,42 @@ components:
           type: string
           format: ipv6
           default: ::0
-        next_hop:
-          $ref: '#/components/schemas/Router.BgpSrTePolicyNextHop'
         add_path:
-          $ref: '#/components/schemas/Router.BgpAddPath'
+          $ref: '#/components/schemas/Bgp.AddPath'
         as_path:
-          $ref: '#/components/schemas/Router.BgpAsPath'
+          $ref: '#/components/schemas/Bgp.AsPath'
         tunnel_tlvs:
           description: |-
-            Optional tunnel TLV settings
+            List of optional tunnel TLV settings.
           type: array
           items:
-            $ref: '#/components/schemas/Router.BgpTunnelTlv'
+            $ref: '#/components/schemas/BgpSrte.TunnelTlv'
         communities:
           description: |-
-            Optional community settings
+            Optional community settings.
           type: array
           items:
-            $ref: '#/components/schemas/Router.BgpCommunity'
-    Router.BgpSrTePolicyNextHop:
-      x-status: under-review
-      description: |-
-        Optional container for BGP SR TE Policy next hop settings.
-      type: object
-      properties:
-        next_hop_mode:
+            $ref: '#/components/schemas/Bgp.Community'
+        active:
           description: |-
-            TBD
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
+        next_hop_mode:
+          description: "Specify the NextHop in MP REACH NLRI. The mode for setting\
+            \ the IP address  of the NextHop in the MP REACH NLRI can be one of the\
+            \ following:\n  Local IP: Automatically fills the Nexthop with the Local\
+            \ IP of the BGP peer.\n  If BGP peer is of type IPv6, Nexthop Encoding\
+            \ capability should be enabled.\n  Manual: Override the Nexthop with any\
+            \ arbitrary IPv4/IPv6 address.   "
           type: string
           enum:
           - local_ip
           - manual
           default: local_ip
         next_hop_address_type:
-          description: |-
-            TBD
+          description: "If the Nexthop Mode is Manual, it sets the type of the NextHop\
+            \ IP address. "
           type: string
           enum:
           - ipv4
@@ -2564,17 +2146,18 @@ components:
           default: ipv4
         ipv4_address:
           description: |-
-            The IPv4 address of the next hop if the next_hop_mode is manual and the next_hop_address_type is IPv4.
+            The IPv4 address of the next hop if the Nexthop Mode is manual and the Nexthop type is IPv4. If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.
           type: string
           format: ipv4
           default: 0.0.0.0
         ipv6_address:
-          description: |-
-            The IPv6 address of the next hop if the next_hop_mode is manual and the next_hop_address_type is IPv6.
+          description: "The IPv6 address of the next hop if the Nexthop Mode is manual\
+            \ and the Nexthop type is IPv6. "
           type: string
           format: ipv6
           default: ::0
-    Router.BgpAddPath:
+      x-status: under-review
+    Bgp.AddPath:
       description: |-
         The BGP Additional Paths feature is a BGP extension that allows the  advertisement of multiple paths for the same prefix without the new  paths implicitly replacing any previous paths.
       type: object
@@ -2584,19 +2167,14 @@ components:
             The id of the additional path.
           type: integer
           default: 1
-    Router.BgpAsPath:
+    Bgp.AsPath:
       description: |-
-        Autonomous Systems (AS) numbers that a route passes through to reach  the destination
+        This contains the configuration of how to include the Local AS in the AS path attribute of the MP REACH NLRI. It also contains optional configuration of additional AS Path Segments that can be included in the AS Path attribute. The AS Path consists of a Set or Sequence of Autonomous Systems (AS) numbers  that a route passes through to reach the destination.
       type: object
       properties:
-        override_peer_as_set_mode:
-          description: |-
-            TBD
-          type: boolean
-          default: true
         as_set_mode:
           description: |-
-            TBD
+            Defines how the Local AS should be included in the MP REACH NLRI. For iBGP sessions, the value should be kept as "Do Not Include". For eBGP sessions, any any one of the other choices should be selected except "Do Not Include".
           type: string
           enum:
           - do_not_include_local_as
@@ -2606,18 +2184,18 @@ components:
           - include_as_confed_set
           - prepend_to_first_segment
           default: do_not_include_local_as
-        as_path_segments:
+        segments:
           description: |-
-            The AS path segments (non random) per route range
+            The AS path segments per route range.
           type: array
           items:
-            $ref: '#/components/schemas/Router.BgpAsPathSegment'
-    Router.BgpAsPathSegment:
+            $ref: '#/components/schemas/Bgp.AsPathSegment'
+    Bgp.AsPathSegment:
       description: |-
         Container for a single BGP AS path segment
       type: object
       properties:
-        segment_type:
+        type:
           description: |-
             AS sequence is the most common type of AS_PATH, it contains the  list of ASNs starting with the most recent ASN being added read  from left to right.
             The other three AS_PATH types are used for Confederations - AS_SET is the type of AS_PATH attribute that summarizes routes using using the aggregate-address command, allowing AS_PATHs to be  summarized in the update as well. - AS_CONFED_SEQ gives the list of ASNs in the path starting with the  most recent ASN to be added reading left to right - AS_CONFED_SET will allow summarization of multiple AS PATHs to be  sent in BGP Updates.
@@ -2635,7 +2213,7 @@ components:
           items:
             type: integer
             default: 1
-    Router.BgpTunnelTlv:
+    BgpSrte.TunnelTlv:
       description: |-
         Container for BGP tunnel TLV settings.
       type: object
@@ -2643,27 +2221,22 @@ components:
         segment_lists:
           type: array
           items:
-            $ref: '#/components/schemas/Router.BgpSegmentList'
+            $ref: '#/components/schemas/BgpSrte.SegmentList'
         remote_endpoint_sub_tlv:
-          $ref: '#/components/schemas/Router.BgpRemoteEndpointSubTlv'
+          $ref: '#/components/schemas/BgpSrte.RemoteEndpointSubTlv'
         preference_sub_tlv:
-          $ref: '#/components/schemas/Router.BgpPreferenceSubTlv'
+          $ref: '#/components/schemas/BgpSrte.PreferenceSubTlv'
         binding_sub_tlv:
-          $ref: '#/components/schemas/Router.BgpBindingSubTlv'
+          $ref: '#/components/schemas/BgpSrte.BindingSubTlv'
         explicit_null_label_policy_sub_tlv:
-          $ref: '#/components/schemas/Router.BgpExplicitNullLabelPolicySubTlv'
-        active:
-          description: |-
-            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
-          type: boolean
-          default: true
-    Router.BgpSegmentList:
+          $ref: '#/components/schemas/BgpSrte.ExplicitNullLabelPolicySubTlv'
+    BgpSrte.SegmentList:
       x-status: under-review
       description: |-
         Optional container for BGP SR TE Policy segment list settings.
       type: object
       properties:
-        segment_weight:
+        weight:
           description: |-
             The weight associated with a given path.
           type: integer
@@ -2671,19 +2244,19 @@ components:
         segments:
           type: array
           items:
-            $ref: '#/components/schemas/Router.BgpSegment'
+            $ref: '#/components/schemas/BgpSrte.Segment'
         active:
           description: |-
             If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
           type: boolean
           default: true
-    Router.BgpSegment:
+    BgpSrte.Segment:
       x-status: under-review
       description: |-
         Optional container for BGP SR TE Policy segment settings.
       type: object
       properties:
-        segment_type:
+        type:
           description: |-
             TBD
           type: string
@@ -2722,7 +2295,12 @@ components:
             TBD
           type: integer
           default: 0
-    Router.BgpRemoteEndpointSubTlv:
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
+    BgpSrte.RemoteEndpointSubTlv:
       description: |-
         Container for BGP remote endpoint sub TLV settings.
       type: object
@@ -2752,7 +2330,7 @@ components:
           type: string
           format: ipv6
           default: ::0
-    Router.BgpPreferenceSubTlv:
+    BgpSrte.PreferenceSubTlv:
       description: |-
         Container for BGP preference sub TLV settings.
       type: object
@@ -2762,7 +2340,7 @@ components:
             TBD
           type: integer
           default: 0
-    Router.BgpBindingSubTlv:
+    BgpSrte.BindingSubTlv:
       description: |-
         Container for BGP binding sub TLV settings.
       type: object
@@ -2809,7 +2387,7 @@ components:
           minimum: 0
           maximum: 63
           default: 0
-    Router.BgpExplicitNullLabelPolicySubTlv:
+    BgpSrte.ExplicitNullLabelPolicySubTlv:
       description: |-
         Container for BGP explicit null label policy sub TLV settings.
       type: object
@@ -2824,9 +2402,9 @@ components:
           - push_ipv4_ipv6_enlp
           - do_not_push_enlp
           default: do_not_push_enlp
-    Router.BgpCommunity:
+    Bgp.Community:
       description: |-
-        BGP communities provide additional capability for tagging routes and  for modifying BGP routing policy on upstream and downstream routers BGP community is a 32-bit number which broken into 16-bit AS number and  a 16-bit custom value
+        BGP communities provide additional capability for tagging routes and  for modifying BGP routing policy on upstream and downstream routers. BGP community is a 32-bit number which broken into 16-bit AS number and  a 16-bit custom value.
       type: object
       properties:
         community_type:
@@ -2842,21 +2420,22 @@ components:
           - no_llgr
         as_number:
           description: |-
-            First two octets of 32 bit community AS number
+            First two octets of 32 bit community AS number.
           type: integer
           minimum: 0
           maximum: 65535
           default: 0
         as_custom:
-          description: "Last two octets of the community AS number "
+          description: "Last two octets of the community AS number. "
           type: integer
           minimum: 0
           maximum: 65535
           default: 0
-    Router.Bgpv4Route:
+    Bgp.V4Route:
       description: |-
         Emulated BGPv4 route
         Container for BGP route ranges.
+        Container for BGP Nexthop settings.
       type: object
       properties:
         addresses:
@@ -2864,63 +2443,90 @@ components:
             A list of symmetrical or asymmetrical route addresses
           type: array
           items:
-            $ref: '#/components/schemas/Router.Bgpv4RouteAddress'
-        next_hop_address:
-          description: |-
-            IP Address of next router to forward a packet to its final destination
-          type: string
-          format: ipv4
-          default: 0.0.0.0
+            $ref: '#/components/schemas/Bgp.V4RouteAddress'
         advanced:
-          $ref: '#/components/schemas/Router.BgpRouteAdvanced'
+          $ref: '#/components/schemas/Bgp.RouteAdvanced'
         communities:
           description: |-
             Optional community settings.
           type: array
           items:
-            $ref: '#/components/schemas/Router.BgpCommunity'
+            $ref: '#/components/schemas/Bgp.Community'
         as_path:
-          $ref: '#/components/schemas/Router.BgpAsPath'
+          $ref: '#/components/schemas/Bgp.AsPath'
         add_path:
-          $ref: '#/components/schemas/Router.BgpAddPath'
+          $ref: '#/components/schemas/Bgp.AddPath'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        next_hop_mode:
+          description: "Specify the NextHop in MP REACH NLRI. The mode for setting\
+            \ the IP address  of the NextHop in the MP REACH NLRI can be one of the\
+            \ following:\n  Local IP: Automatically fills the Nexthop with the Local\
+            \ IP of the BGP peer.\n  If BGP peer is of type IPv6, Nexthop Encoding\
+            \ capability should be enabled.\n  Manual: Override the Nexthop with any\
+            \ arbitrary IPv4/IPv6 address.   "
+          type: string
+          enum:
+          - local_ip
+          - manual
+          default: local_ip
+        next_hop_address_type:
+          description: "If the Nexthop Mode is Manual, it sets the type of the NextHop\
+            \ IP address. "
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          default: ipv4
+        ipv4_address:
+          description: |-
+            The IPv4 address of the next hop if the Nexthop Mode is manual and the Nexthop type is IPv4. If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        ipv6_address:
+          description: "The IPv6 address of the next hop if the Nexthop Mode is manual\
+            \ and the Nexthop type is IPv6. "
+          type: string
+          format: ipv6
+          default: ::0
       required:
       - name
-    Router.Bgpv4RouteAddress:
+      x-status: under-review
+    Bgp.V4RouteAddress:
       description: |-
-        A container for BGPv4 route addresses
+        A container for BGPv4 route addresses.
       type: object
       required:
       - address
       properties:
         address:
           description: |-
-            The starting address of the network
+            The starting address of the network.
           type: string
           format: ipv4
         prefix:
-          description: "The IPv4 network prefix to be applied to the address. "
+          description: "The IPv4 network prefix length to be applied to the address. "
           type: integer
           default: 24
           minimum: 0
           maximum: 32
         count:
           description: |-
-            The total number of addresses in the range
+            The total number of addresses in the range.
           type: integer
           default: 1
         step:
           description: |-
-            The amount to increase each address by
+            Increments the network address prefixes within a route range  where multiple routes are present.  The value is incremented according to the Prefix Length and Step.
           type: integer
           default: 1
-    Router.BgpRouteAdvanced:
+    Bgp.RouteAdvanced:
       description: |-
-        Container for advanced BGP route range settings
+        Container for advanced BGP route range settings.
       type: object
       properties:
         multi_exit_discriminator:
@@ -2938,73 +2544,101 @@ components:
           - egp
           default: igp
           nullable: true
-    Router.Bgpv6Route:
+    Bgp.V6Route:
       description: |-
         Emulated BGPv6 route
         Container for BGP route ranges.
+        Container for BGP Nexthop settings.
       type: object
       properties:
         addresses:
           description: |-
-            A list of symmetrical or asymmetrical route addresses
+            A list of symmetrical or asymmetrical route addresses.
           type: array
           items:
-            $ref: '#/components/schemas/Router.Bgpv6RouteAddress'
-        next_hop_address:
-          description: |-
-            IP Address of next router to forward a packet to its final destination
-          type: string
-          format: ipv6
-          default: ::0
+            $ref: '#/components/schemas/Bgp.V6RouteAddress'
         advanced:
-          $ref: '#/components/schemas/Router.BgpRouteAdvanced'
+          $ref: '#/components/schemas/Bgp.RouteAdvanced'
         communities:
           description: |-
             Optional community settings.
           type: array
           items:
-            $ref: '#/components/schemas/Router.BgpCommunity'
+            $ref: '#/components/schemas/Bgp.Community'
         as_path:
-          $ref: '#/components/schemas/Router.BgpAsPath'
+          $ref: '#/components/schemas/Bgp.AsPath'
         add_path:
-          $ref: '#/components/schemas/Router.BgpAddPath'
+          $ref: '#/components/schemas/Bgp.AddPath'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        next_hop_mode:
+          description: "Specify the NextHop in MP REACH NLRI. The mode for setting\
+            \ the IP address  of the NextHop in the MP REACH NLRI can be one of the\
+            \ following:\n  Local IP: Automatically fills the Nexthop with the Local\
+            \ IP of the BGP peer.\n  If BGP peer is of type IPv6, Nexthop Encoding\
+            \ capability should be enabled.\n  Manual: Override the Nexthop with any\
+            \ arbitrary IPv4/IPv6 address.   "
+          type: string
+          enum:
+          - local_ip
+          - manual
+          default: local_ip
+        next_hop_address_type:
+          description: "If the Nexthop Mode is Manual, it sets the type of the NextHop\
+            \ IP address. "
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          default: ipv4
+        ipv4_address:
+          description: |-
+            The IPv4 address of the next hop if the Nexthop Mode is manual and the Nexthop type is IPv4. If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        ipv6_address:
+          description: "The IPv6 address of the next hop if the Nexthop Mode is manual\
+            \ and the Nexthop type is IPv6. "
+          type: string
+          format: ipv6
+          default: ::0
       required:
       - name
-    Router.Bgpv6RouteAddress:
+      x-status: under-review
+    Bgp.V6RouteAddress:
       description: |-
-        A container for BGPv6 route addressses
+        A container for BGPv6 route addresses.
       type: object
       required:
       - address
       properties:
         address:
           description: |-
-            The starting address of the network
+            The starting address of the network.
           type: string
           format: ipv6
         prefix:
           description: |-
-            The IPv6 network prefix to be applied to the address
+            The IPv6 network prefix length to be applied to the address.
           type: integer
           default: 64
           minimum: 0
           maximum: 128
         count:
           description: |-
-            The total number of addresses in the range
+            The total number of addresses in the range.
           type: integer
           default: 1
         step:
           description: |-
-            The amount to increase each address by
+            Increments the network address prefixes within a route range  where multiple routes are present.  The value is incremented according to the Prefix Length and Step.
           type: integer
           default: 1
-    Router.Bgpv6:
+    Bgp.V6peer:
       x-status: under-review
       description: |-
         Container for BGPv6 peer settings and routes.
@@ -3022,16 +2656,10 @@ components:
           type: string
           format: ipv6
         segment_routing:
-          $ref: '#/components/schemas/Router.Bgpv6SegmentRouting'
-        router_id:
-          description: |-
-            The BGP router ID is a unique identifier used by routing protocols. It is a 32-bit value that is often represented by an IPv4 address.
-          type: string
-          format: ipv4
-          default: 0.0.0.0
+          $ref: '#/components/schemas/Bgp.V6SegmentRouting'
         as_type:
           description: |-
-            The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp) Internal BGP is used within a single autonomous system (ibgp). BGP property defaults are aligned with this object defined as an internal BGP peer. If the as_type is specified as ebgp then other properties will need to be specified according an external BGP peer.
+            The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp) Internal BGP is used within a single autonomous system (ibgp). BGP property defaults are aligned with this object defined as an internal BGP peer. If the as_type is specified as ebgp then other properties will need to be specified as per an external BGP peer.
           type: string
           enum:
           - ibgp
@@ -3042,61 +2670,49 @@ components:
           type: integer
         as_number_width:
           description: |-
-            The width in bytes of the as_number values. Any as_number values that exceed the width MUST result in an error
+            The width in bytes of the as_number values. Any as_number values that exceed the width MUST result in an error.
           type: string
           enum:
           - two
           - four
           default: four
-        as_number_set_mode:
-          description: |-
-            The AS number set mode
-          type: string
-          enum:
-          - do_not_include_as
-          - include_as_seq
-          - include_as_set
-          - include_as_seq_confed
-          - include_as_set_confed
-          - prepend_as_to_first_segment
-          default: do_not_include_as
         advanced:
-          $ref: '#/components/schemas/Router.BgpAdvanced'
+          $ref: '#/components/schemas/Bgp.Advanced'
         capability:
-          $ref: '#/components/schemas/Router.BgpCapability'
+          $ref: '#/components/schemas/Bgp.Capability'
         sr_te_policies:
           description: |-
             Segment routing/traffic engineering policies
           type: array
           items:
-            $ref: '#/components/schemas/Router.BgpSrTePolicy'
-        bgpv4_routes:
+            $ref: '#/components/schemas/Bgp.SrTePolicy'
+        v4_routes:
           description: |-
             Emulated BGPv4 routes
           type: array
           items:
-            $ref: '#/components/schemas/Router.Bgpv4Route'
-        bgpv6_routes:
+            $ref: '#/components/schemas/Bgp.V4Route'
+        v6_routes:
           description: |-
             Emulated BGPv6 routes
           type: array
           items:
-            $ref: '#/components/schemas/Router.Bgpv6Route'
+            $ref: '#/components/schemas/Bgp.V6Route'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Router.Bgpv6Iface:
+    Bgp.V6Iface:
       description: |-
-        Container for emulated BGPv6 peers and routes on a single Ipv6 interface.
+        Container for emulated BGPv6 peers and routes on a single IPv6 interface.
       type: object
       required:
       - ipv6_name
       properties:
         ipv6_name:
           description: |
-            The unique name of Ipv6 or Loopback Ipv6 object  used as the source Ip this list of Bgp peers.
+            The unique name of IPv6 or Loopback IPv6 interface used as the source IP for this list of BGP peers.
 
             x-constraint:
             - /components/schemas/Device.Ipv6/properties/name
@@ -3105,13 +2721,13 @@ components:
           x-constraint:
           - /components/schemas/Device.Ipv6/properties/name
           - /components/schemas/Device.LoopbackIpv6/properties/name
-        bgp_peers:
+        peers:
           description: |-
             This contains the list of BGPv6 peers configured on this interface.
           type: array
           items:
-            $ref: '#/components/schemas/Router.Bgpv6'
-    Router.Bgpv6SegmentRouting:
+            $ref: '#/components/schemas/Bgp.V6peer'
+    Bgp.V6SegmentRouting:
       x-status: under-review
       description: |-
         Container for BGPv6 segment routing settings.
@@ -4687,12 +4303,12 @@ components:
           format: double
     Bgpv4.Metrics.Request:
       description: |-
-        The request to retrieve BGPv4 Router statistics and learned routing information
+        The request to retrieve BGPv4 per peer statistics.
       type: object
       properties:
-        device_names:
+        peer_names:
           description: |
-            The names of BGPv4 device to return results for. An empty list will return results for all BGPv4 devices.
+            The names of BGPv4 peers to return results for. An empty list will return results for all BGPv4 peers.
 
             x-constraint:
             - /components/schemas/Router.Bgpv4/properties/name
@@ -4703,30 +4319,33 @@ components:
           - /components/schemas/Router.Bgpv4/properties/name
         column_names:
           description: |-
-            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the BGPv4 device cannot be excluded.
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups.
           type: array
           items:
             type: string
             enum:
             - session_state
-            - routes_advertised
-            - routes_withdrawn
-            - update_messages_sent
-            - update_messages_received
-            - open_messages_sent
-            - open_messages_received
-            - keepalive_messages_sent
-            - keepalive_messages_received
-            - notification_messages_sent
-            - notification_messages_received
+            - flap_count
+            - routes_advertised_sent
+            - routes_advertised_received
+            - routes_withdraw_sent
+            - routes_withdraw_received
+            - updates_sent
+            - updates_received
+            - opens_sent
+            - opens_received
+            - keepalives_sent
+            - keepalives_received
+            - notifications_sent
+            - notifications_received
     Bgpv4.Metric:
       description: |-
-        BGPv4 Router statistics and learned routing information
+        BGPv4 per peer statistics information.
       type: object
       properties:
         name:
           description: |-
-            The name of a configured BGPv4 device.
+            The name of a configured BGPv4 peer.
           type: string
         session_state:
           description: |-
@@ -4735,54 +4354,66 @@ components:
           enum:
           - up
           - down
-        routes_advertised:
+        flap_count:
+          description: |-
+            Number of times the session went from Up to Down state.
+          type: integer
+        routes_advertised_sent:
           description: |-
             Number of advertised routes sent.
           type: integer
-        routes_withdrawn:
+        routes_advertised_received:
           description: |-
-            Number of routes withdrawn.
+            Number of advertised routes received.
           type: integer
-        update_messages_sent:
+        routes_withdraw_sent:
           description: |-
-            Number of update message sent.
+            Number of route withdraws sent.
           type: integer
-        update_messages_received:
+        routes_withdraw_received:
           description: |-
-            Number of update message received.
+            Number of route withdraws received.
           type: integer
-        open_messages_sent:
+        updates_sent:
           description: |-
-            Number of open messages sent.
+            Number of Update messages sent.
           type: integer
-        open_messages_received:
+        updates_received:
           description: |-
-            Number of open messages received.
+            Number of Update messages received.
           type: integer
-        keepalive_messages_sent:
+        opens_sent:
           description: |-
-            Number of keepalive messages sent.
+            Number of Open messages sent.
           type: integer
-        keepalive_messages_received:
+        opens_received:
           description: |-
-            Number of keepalive messages received.
+            Number of Open messages received.
           type: integer
-        notification_messages_sent:
+        keepalives_sent:
           description: |-
-            Number of keepalive messages sent.
+            Number of Keepalive messages sent.
           type: integer
-        notification_messages_received:
+        keepalives_received:
           description: |-
-            Number of keepalive messages received.
+            Number of Keepalive messages received.
+          type: integer
+        notifications_sent:
+          description: |-
+            Number of Notification messages sent.
+          type: integer
+        notifications_received:
+          description: |-
+            Number of Notification messages received.
           type: integer
     Bgpv6.Metrics.Request:
       description: |-
-        The request to retrieve BGPv6 Router statistics and learned routing information
+        The request to retrieve BGPv6 per peer statistics.
       type: object
       properties:
-        device_names:
+        peer_names:
           description: |
-            The names of BGPv6 device to return results for. An empty list will return results for all BGPv6 devices.
+            The names of BGPv6 peers to return results for. An empty list will return results for all BGPv6 peers.
 
             x-constraint:
             - /components/schemas/Router.Bgpv6/properties/name
@@ -4793,30 +4424,33 @@ components:
           - /components/schemas/Router.Bgpv6/properties/name
         column_names:
           description: |-
-            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the BGPv6 device cannot be excluded.
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups.
           type: array
           items:
             type: string
             enum:
             - session_state
-            - routes_advertised
-            - routes_withdrawn
-            - update_messages_sent
-            - update_messages_received
-            - open_messages_sent
-            - open_messages_received
-            - keepalive_messages_sent
-            - keepalive_messages_received
-            - notification_messages_sent
-            - notification_messages_received
+            - flap_count
+            - routes_advertised_sent
+            - routes_advertised_received
+            - routes_withdraw_sent
+            - routes_withdraw_received
+            - updates_sent
+            - updates_received
+            - opens_sent
+            - opens_received
+            - keepalives_sent
+            - keepalives_received
+            - notifications_sent
+            - notifications_received
     Bgpv6.Metric:
       description: |-
-        BGPv6 Router statistics and learned routing information
+        BGPv6 per peer statistics information.
       type: object
       properties:
         name:
           description: |-
-            The name of a configured BGPv6 device.
+            The name of a configured BGPv6 peer.
           type: string
         session_state:
           description: |-
@@ -4825,45 +4459,57 @@ components:
           enum:
           - up
           - down
-        routes_advertised:
+        flap_count:
           description: |-
-            Number of advertised routes sent
+            Number of times the session went from Up to Down state.
           type: integer
-        routes_withdrawn:
+        routes_advertised_sent:
           description: |-
-            Number of routes withdrawn
+            Number of advertised routes sent.
           type: integer
-        update_messages_sent:
+        routes_advertised_received:
           description: |-
-            Number of update message sent.
+            Number of advertised routes received.
           type: integer
-        update_messages_received:
+        routes_withdraw_sent:
           description: |-
-            Number of update message received.
+            Number of route withdraws sent.
           type: integer
-        open_messages_sent:
+        routes_withdraw_received:
           description: |-
-            Number of open messages sent.
+            Number of route withdraws received.
           type: integer
-        open_messages_received:
+        updates_sent:
           description: |-
-            Number of open messages received.
+            Number of Update messages sent.
           type: integer
-        keepalive_messages_sent:
+        updates_received:
           description: |-
-            Number of keepalive messages sent.
+            Number of Update messages received.
           type: integer
-        keepalive_messages_received:
+        opens_sent:
           description: |-
-            Number of keepalive messages received.
+            Number of Open messages sent.
           type: integer
-        notification_messages_sent:
+        opens_received:
           description: |-
-            Number of keepalive messages sent.
+            Number of Open messages received.
           type: integer
-        notification_messages_received:
+        keepalives_sent:
           description: |-
-            Number of keepalive messages received.
+            Number of Keepalive messages sent.
+          type: integer
+        keepalives_received:
+          description: |-
+            Number of Keepalive messages received.
+          type: integer
+        notifications_sent:
+          description: |-
+            Number of Notification messages sent.
+          type: integer
+        notifications_received:
+          description: |-
+            Number of Notification messages received.
           type: integer
     State.Metrics:
       description: |-

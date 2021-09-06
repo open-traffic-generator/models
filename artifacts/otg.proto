@@ -1,5 +1,5 @@
-// Open Traffic Generator API 0.4.13
-// License: https://opensource.org/licenses/MIT
+// Open Traffic Generator API 0.5.1
+// License: MIT
 
 syntax = "proto3";
 
@@ -12,7 +12,7 @@ message OpenApiMsgOpt {
   string description = 10;
 }
 extend google.protobuf.MessageOptions {
-  optional OpenApiMsgOpt msg_meta = 50001;
+  optional OpenApiMsgOpt msg_meta = 60001;
 }
 
 message OpenApiFldOpt {
@@ -20,21 +20,21 @@ message OpenApiFldOpt {
   string description = 20;
 }
 extend google.protobuf.FieldOptions {
-  optional OpenApiFldOpt fld_meta = 50002;
+  optional OpenApiFldOpt fld_meta = 60002;
 }
 
 message OpenApiSvcOpt {
   string description = 10;
 }
 extend google.protobuf.ServiceOptions {
-  optional OpenApiSvcOpt svc_meta = 50003;
+  optional OpenApiSvcOpt svc_meta = 60003;
 }
 
 message OpenApiRpcOpt {
   string description = 10;
 }
 extend google.protobuf.MethodOptions {
-  optional OpenApiRpcOpt rpc_meta = 50004;
+  optional OpenApiRpcOpt rpc_meta = 60004;
 }
 
 message Config {
@@ -3302,7 +3302,7 @@ message FlowRate {
     (fld_meta).description = "Gigabits per second."
   ];
 
-  optional double percentage = 7 [
+  optional float percentage = 7 [
     (fld_meta).default = "100",
     (fld_meta).description = "The percentage of a port location's available bandwidth."
   ];
@@ -3371,17 +3371,17 @@ message FlowDelay {
     (fld_meta).description = "Description missing in models"
   ];
 
-  optional double bytes = 2 [
+  optional float bytes = 2 [
     (fld_meta).default = "0",
     (fld_meta).description = "The delay before starting transmission of packets.\nA value of 0 indicates no delay."
   ];
 
-  optional double nanoseconds = 3 [
+  optional float nanoseconds = 3 [
     (fld_meta).default = "0",
     (fld_meta).description = "The delay before starting transmission of packets.\nA value of 0 indicates no delay."
   ];
 
-  optional double microseconds = 4 [
+  optional float microseconds = 4 [
     (fld_meta).default = "0",
     (fld_meta).description = "The delay before starting transmission of packets.\nA value of 0 indicates no delay."
   ];
@@ -3408,7 +3408,7 @@ message FlowFixedPackets {
 message FlowFixedSeconds {
   option (msg_meta).description = "Transmit for a fixed number of seconds after which the flow will stop.";
 
-  optional double seconds = 1 [
+  optional float seconds = 1 [
     (fld_meta).default = "1",
     (fld_meta).description = "Stop transmit of the flow after this number of seconds."
   ];
@@ -3550,7 +3550,7 @@ message EventRxRateThreshold {
     (fld_meta).description = "True to enable the rx_rate_threshold event. \nEnabling this option may affect the resultant packet payload due to \nadditional instrumentation data."
   ];
 
-  optional double threshold = 2 [
+  optional float threshold = 2 [
     (fld_meta).default = "95",
     (fld_meta).description = "True to enable notifications when the rx rate of a flow passes above \nor below the threshold value. "
   ];
@@ -3681,6 +3681,25 @@ message CaptureState {
   }
   State.Enum state = 2 [
     (fld_meta).description = "The capture state."
+  ];
+}
+
+message FlowsUpdate {
+  option (msg_meta).description = "A container of flows with associated properties to be updated without affecting the transmit state";
+
+  message PropertyNames {
+    enum Enum {
+      unspecified = 0;
+      rate = 1;
+      size = 2;
+    }
+  }
+  repeated PropertyNames.Enum property_names = 1 [
+    (fld_meta).description = "Flow properties to be updated without affecting the transmit state"
+  ];
+
+  repeated Flow flows = 2 [
+    (fld_meta).description = "The list of configured flows for which given property will be updated."
   ];
 }
 
@@ -3849,19 +3868,19 @@ message PortMetric {
     (fld_meta).description = "The current total number of valid bytes received"
   ];
 
-  optional double frames_tx_rate = 9 [
+  optional float frames_tx_rate = 9 [
     (fld_meta).description = "The current rate of frames transmitted"
   ];
 
-  optional double frames_rx_rate = 10 [
+  optional float frames_rx_rate = 10 [
     (fld_meta).description = "The current rate of valid frames received"
   ];
 
-  optional double bytes_tx_rate = 11 [
+  optional float bytes_tx_rate = 11 [
     (fld_meta).description = "The current rate of bytes transmitted"
   ];
 
-  optional double bytes_rx_rate = 12 [
+  optional float bytes_rx_rate = 12 [
     (fld_meta).description = "The current rate of bytes received"
   ];
 }
@@ -3967,15 +3986,15 @@ message FlowMetric {
     (fld_meta).description = "The current total number of bytes received"
   ];
 
-  optional double frames_tx_rate = 10 [
+  optional float frames_tx_rate = 10 [
     (fld_meta).description = "The current rate of frames transmitted"
   ];
 
-  optional double frames_rx_rate = 11 [
+  optional float frames_rx_rate = 11 [
     (fld_meta).description = "The current rate of valid frames received"
   ];
 
-  optional double loss = 12 [
+  optional float loss = 12 [
     (fld_meta).description = "The percentage of lost frames"
   ];
 
@@ -12421,10 +12440,6 @@ message SetConfigRequest {
   Config config = 1;
 }
 
-message UpdateConfigRequest {
-  Config config = 1;
-}
-
 message SetConfigResponse {
   message StatusCode200 {
     Success success = 1;
@@ -12435,28 +12450,10 @@ message SetConfigResponse {
   message StatusCode500 {
     InternalServerError internal_server_error = 1;
   }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
-}
 
-message UpdateConfigResponse {
-  message StatusCode200 {
-    Success success = 1;
-  }
-  message StatusCode400 {
-    BadRequest bad_request = 1;
-  }
-  message StatusCode500 {
-    InternalServerError internal_server_error = 1;
-  }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
 }
 
 message GetConfigResponse {
@@ -12469,11 +12466,10 @@ message GetConfigResponse {
   message StatusCode500 {
     InternalServerError internal_server_error = 1;
   }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
+
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
 }
 
 message SetTransmitStateRequest {
@@ -12490,11 +12486,10 @@ message SetTransmitStateResponse {
   message StatusCode500 {
     InternalServerError internal_server_error = 1;
   }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
+
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
 }
 
 message SetLinkStateRequest {
@@ -12511,11 +12506,10 @@ message SetLinkStateResponse {
   message StatusCode500 {
     InternalServerError internal_server_error = 1;
   }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
+
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
 }
 
 message SetCaptureStateRequest {
@@ -12532,11 +12526,30 @@ message SetCaptureStateResponse {
   message StatusCode500 {
     InternalServerError internal_server_error = 1;
   }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
+
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
+}
+
+message UpdateFlowsRequest {
+  FlowsUpdate flows_update = 1;
+}
+
+message UpdateFlowsResponse {
+  message StatusCode200 {
+    Config config = 1;
   }
+  message StatusCode400 {
+    BadRequest bad_request = 1;
+  }
+  message StatusCode500 {
+    InternalServerError internal_server_error = 1;
+  }
+
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
 }
 
 message SetRouteStateRequest {
@@ -12553,11 +12566,10 @@ message SetRouteStateResponse {
   message StatusCode500 {
     InternalServerError internal_server_error = 1;
   }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
+
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
 }
 
 message GetMetricsRequest {
@@ -12574,11 +12586,10 @@ message GetMetricsResponse {
   message StatusCode500 {
     InternalServerError internal_server_error = 1;
   }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
+
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
 }
 
 message GetStateMetricsResponse {
@@ -12591,11 +12602,10 @@ message GetStateMetricsResponse {
   message StatusCode500 {
     InternalServerError internal_server_error = 1;
   }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
+
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
 }
 
 message GetCaptureRequest {
@@ -12612,11 +12622,10 @@ message GetCaptureResponse {
   message StatusCode500 {
     InternalServerError internal_server_error = 1;
   }
-  oneof statuscode {
-    StatusCode200 status_code_200 = 1;
-    StatusCode400 status_code_400 = 2;
-    StatusCode500 status_code_500 = 3;
-  }
+
+  optional StatusCode200 status_code_200 = 1;
+  optional StatusCode400 status_code_400 = 2;
+  optional StatusCode500 status_code_500 = 3;
 }
 
 service Openapi {
@@ -12624,9 +12633,6 @@ service Openapi {
 
   rpc SetConfig(SetConfigRequest) returns (SetConfigResponse) {
     option (rpc_meta).description = "Sets configuration resources on the traffic generator.";
-  }
-  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse) {
-    option (rpc_meta).description = "Updates configuration resources on the traffic generator.";
   }
   rpc GetConfig(google.protobuf.Empty) returns (GetConfigResponse) {
     option (rpc_meta).description = "Description missing in models";
@@ -12640,6 +12646,9 @@ service Openapi {
   rpc SetCaptureState(SetCaptureStateRequest) returns (SetCaptureStateResponse) {
     option (rpc_meta).description = "Updates the state of configuration resources on the traffic generator.";
   }
+  rpc UpdateFlows(UpdateFlowsRequest) returns (UpdateFlowsResponse) {
+    option (rpc_meta).description = "Updates flow properties without disruption of transmit state.";
+  }
   rpc SetRouteState(SetRouteStateRequest) returns (SetRouteStateResponse) {
     option (rpc_meta).description = "Updates the state of configuration resources on the traffic generator.";
   }
@@ -12649,7 +12658,7 @@ service Openapi {
   rpc GetStateMetrics(google.protobuf.Empty) returns (GetStateMetricsResponse) {
     option (rpc_meta).description = "Description missing in models";
   }
-  rpc GetCapture(GetCaptureRequest) returns (stream GetCaptureResponse) {
+  rpc GetCapture(GetCaptureRequest) returns (GetCaptureResponse) {
     option (rpc_meta).description = "Description missing in models";
   }
 }

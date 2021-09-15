@@ -3147,6 +3147,94 @@ message RouteState {
   ];
 }
 
+message PingRequest {
+  option (msg_meta).description = "Ping request details";
+
+  repeated Ping endpoints = 1 [
+    (fld_meta).description = "Array of ping requests"
+  ];
+}
+
+message Ping {
+  option (msg_meta).description = "Description missing in models";
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  optional Choice.Enum choice = 1 [
+    (fld_meta).default = "Choice.Enum.ipv4",
+    (fld_meta).description = "IPv4 or IPv6 ping."
+  ];
+
+  optional PingIpv4 ipv4 = 2 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional PingIpv6 ipv6 = 3 [
+    (fld_meta).description = "Description missing in models"
+  ];
+}
+
+message PingIpv4 {
+  option (msg_meta).description = "Description missing in models";
+
+  optional string src_name = 1 [
+    (fld_meta).description = "A base IPv4 interface\n\nx-constraint:\n- /components/schemas/Device.Ipv4Base/properties/name\n"
+  ];
+
+  optional string dst_ip = 2 [
+    (fld_meta).description = "IPv4 address to ping"
+  ];
+}
+
+message PingIpv6 {
+  option (msg_meta).description = "Description missing in models";
+
+  optional string src_name = 1 [
+    (fld_meta).description = "A base IPv6 interface\n\nx-constraint:\n- /components/schemas/Device.Ipv6Base/properties/name\n"
+  ];
+
+  optional string dst_ip = 2 [
+    (fld_meta).description = "IPv6 addresses to ping."
+  ];
+}
+
+message PingResponse {
+  option (msg_meta).description = "A container for ping responses.";
+
+  repeated Response responses = 1 [
+    (fld_meta).description = "Description missing in models"
+  ];
+}
+
+message Response {
+  option (msg_meta).description = "Description missing in models";
+
+  optional string src_name = 1 [
+    (fld_meta).description = "The name of the source IPv4 or IPv6 interface from which ping was sent.\n\nx-constraint:\n- /components/schemas/Device.Ipv4Base/properties/name\n- /components/schemas/Device.Ipv6Base/properties/name\n"
+  ];
+
+  optional string dst_ip = 2 [
+    (fld_meta).description = "Destination address."
+  ];
+
+  message Result {
+    enum Enum {
+      unspecified = 0;
+      success = 1;
+      failure = 2;
+    }
+  }
+  optional Result.Enum result = 3 [
+    (fld_meta).default = "Result.Enum.failure",
+    (fld_meta).description = "Result of the ping request."
+  ];
+}
+
 message MetricsRequest {
   option (msg_meta).description = "Request to traffic generator for metrics of choice";
 
@@ -11927,6 +12015,16 @@ message SetRouteStateResponse {
 }
 
 
+message SendPingRequest {
+  PingRequest ping_request = 1;
+}
+message SendPingResponse {
+  optional PingResponse status_code_200 = 1;
+  optional ResponseError status_code_400 = 2;
+  optional ResponseError status_code_500 = 3;
+}
+
+
 message GetMetricsRequest {
   MetricsRequest metrics_request = 1;
 }
@@ -11976,6 +12074,9 @@ service Openapi {
   }
   rpc SetRouteState(SetRouteStateRequest) returns (SetRouteStateResponse) {
     option (rpc_meta).description = "Updates the state of configuration resources on the traffic generator.";
+  }
+  rpc SendPing(SendPingRequest) returns (SendPingResponse) {
+    option (rpc_meta).description = "API to send an IPv4 and/or IPv6 ICMP Echo Request(s) between endpoints. For each endpoint 1 ping packet will be sent and API shall wait for ping response to either be successful or timeout. The API wait timeout for each request is 300ms.";
   }
   rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse) {
     option (rpc_meta).description = "Description missing in models";

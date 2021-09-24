@@ -908,14 +908,6 @@ components:
           $ref: '#/components/schemas/Capture.Field'
         dst:
           $ref: '#/components/schemas/Capture.Field'
-    Device.Active:
-      type: object
-      properties:
-        active:
-          description: |-
-            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
-          type: boolean
-          default: true
     Device:
       description: |-
         A container for emulated interfaces, loopback interfaces and protocol configurations.
@@ -1280,7 +1272,6 @@ components:
           description: |-
             Settings of Level 1 Hello.
           $ref: '#/components/schemas/IsisInterface.Level'
-          default: 0
         l2_settings:
           description: |-
             Settings of Level 2 Hello.
@@ -1961,6 +1952,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Bgp.V6RouteRange'
+        v4_srte_policies:
+          description: |-
+            Segment Routing (SR) Policy for IPv4 Address family indicator (AFI).
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.V4Policy'
+        v6_srte_policies:
+          description: |-
+            Segment Routing (SR) Policy for IPv6 Address family indicator (AFI).
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.V6Policy'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -2384,6 +2387,891 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
       required:
       - name
+    Bgp.V4Policy:
+      description: "Configuration for BGP basic Segment Routing Traffic Engineering(SRTE)\
+        \ \npolicy settings.\n"
+      type: object
+      required:
+      - ipv4_endpoint
+      - name
+      properties:
+        distinguisher:
+          description: |-
+            Identifies the SR policy in the context of <Color, Endpoint> tuple.  It is used by the SR Policy originator to make unique multiple  occurrences of the same SR Policy as well as candidate paths of different SR Policies.
+          type: integer
+          default: 1
+        color:
+          description: |-
+            Policy color is used to match the color of the destination prefixes to steer traffic into the SR Policy.
+          type: integer
+          default: 100
+        ipv4_endpoint:
+          description: |-
+            Specifies a single node or a set of nodes (e.g., an anycast address). It is selected on the basis of the SR Policy type (AFI).
+          type: string
+          format: ipv4
+        next_hop_mode:
+          description: "Specify the NextHop in MP REACH NLRI. The mode for setting\
+            \ the IP address  of the NextHop in the MP REACH NLRI can be one of the\
+            \ following:\n  Local IP: Automatically fills the Nexthop with the Local\
+            \ IP of the BGP peer.\n  If BGP peer is of type IPv6, Nexthop Encoding\
+            \ capability should be enabled.\n  Manual: Override the Nexthop with any\
+            \ arbitrary IPv4/IPv6 address.   "
+          type: string
+          enum:
+          - local_ip
+          - manual
+          default: local_ip
+        next_hop_address_type:
+          description: "If the Nexthop Mode is Manual, it sets the type of the NextHop\
+            \ IP address. "
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          default: ipv4
+        next_hop_ipv4_address:
+          description: |-
+            The IPv4 address of the next hop if the Nexthop Mode is manual and the Nexthop type is IPv4. If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.
+          type: string
+          format: ipv4
+        next_hop_ipv6_address:
+          description: "The IPv6 address of the next hop if the Nexthop Mode is manual\
+            \ and the Nexthop type is IPv6. "
+          type: string
+          format: ipv6
+        advanced:
+          $ref: '#/components/schemas/BgpSrTe.Advanced'
+        add_path:
+          $ref: '#/components/schemas/Bgp.AddPath'
+        as_path:
+          $ref: '#/components/schemas/Bgp.AsPath'
+        communities:
+          description: |-
+            Optional community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.Community'
+        tunnel_tlvs:
+          description: |-
+            List Tunnel Encapsulation Attributes.
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpSrte.V4TunnelTlv'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
+    BgpSrTe.Advanced:
+      description: |-
+        Configuration for advanced BGP route range settings.
+      type: object
+      properties:
+        origin:
+          description: |-
+            The origin value.  A null value means the origin feature is not enabled.
+          type: string
+          enum:
+          - igp
+          - egp
+        multi_exit_discriminator:
+          description: |-
+            The multi exit discriminator (MED) value.  A null value means the MED feature is not enabled.
+          type: integer
+        local_preference:
+          description: |-
+            Local Preference attribute, used by iBGP peers to select  the path for the traffic leaving the AS.
+          type: integer
+    BgpSrte.V4TunnelTlv:
+      description: |-
+        Configuration for BGP SRTE Tunnel TLV settings.
+      type: object
+      properties:
+        remote_endpoint_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.RemoteEndpointSubTlv'
+        binding_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.BindingSubTlv'
+        preference_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.PreferenceSubTlv'
+        policy_priority_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.policyPrioritySubTlv'
+        policy_name_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.policyNameSubTlv'
+        explicit_null_label_policy_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.ExplicitNullLabelPolicySubTlv'
+        segment_lists:
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpSrte.SegmentList'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
+      required:
+      - name
+    BgpSrte.RemoteEndpointSubTlv:
+      description: |-
+        Configuration for BGP remote endpoint sub TLV settings. Question: Do we need to keep? Draft says  "If present, the Remote Endpoint sub-TLV and the Color sub-TLV MUST be ignored by the BGP speaker."
+      type: object
+      properties:
+        as_number:
+          description: |-
+            Autonomous system (AS) number
+          type: integer
+          default: 0
+        address_family:
+          description: |-
+            Determines the address type
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          default: ipv4
+        ipv4_address:
+          description: |-
+            The IPv4 address
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        ipv6_address:
+          description: |-
+            The IPv6 address
+          type: string
+          format: ipv6
+          default: ::0
+    BgpSrte.BindingSubTlv:
+      description: |-
+        Configuration for the binding SID sub-TLV is used to signal  the binding SID related information of the SR Policy candidate path.      type: object
+      properties:
+        binding_sid_type:
+          description: |-
+            A user to specify one of the No Binding SID, Four Octets Sid or IPv6 SID.
+          type: string
+          enum:
+          - no_binding
+          - four_octet_sid
+          - ipv6_sid
+          default: no_binding
+        four_octet_sid:
+          description: "Binding SID is encoded in 4 octets if binding_sid_type  is\
+            \ four_octet_sid. "
+          type: integer
+        ipv6_sid:
+          description: |-
+            Only valid if binding_sid_type is ipv6_sid.
+          type: string
+          format: ipv6
+        s_flag:
+          description: |-
+            S-Flag encodes the "Specified-BSID-only" behavior.
+          type: boolean
+          default: false
+        i_flag:
+          description: |-
+            I-Flag encodes the "Drop Upon Invalid" behavior.
+          type: boolean
+          default: false
+    BgpSrte.PreferenceSubTlv:
+      description: |-
+        Configuration for BGP preference sub TLV of the SR Policy candidate path.
+      type: object
+      properties:
+        preference:
+          description: |-
+            The preference value of the SR Policy candidate path.
+          type: integer
+          default: 0
+    BgpSrte.policyPrioritySubTlv:
+      description: |-
+        Configuration for the Policy Priority sub-TLV. The Policy Priority to indicate the order in which the SR policies  are re-computed upon topological change.
+      type: object
+      properties:
+        policy_priority:
+          description: |-
+            One-octet Priority value.
+          type: integer
+          minimum: 0
+          maximum: 255
+    BgpSrte.policyNameSubTlv:
+      description: |-
+        Configuration for the Policy Name sub-TLV. The Policy Name sub-TLV is attach a symbolic name to the SR Policy candidate path.
+      type: object
+      properties:
+        policy_name:
+          description: |-
+            Symbolic name for the policy that should be a string of printable ASCII characters, without a NULL terminator.
+          type: string
+          minimum: 1
+          maximum: 32
+    BgpSrte.ExplicitNullLabelPolicySubTlv:
+      description: |-
+        Configuration for BGP explicit null label policy sub TLV settings.
+      type: object
+      properties:
+        explicit_null_label_policy:
+          description: "The value of the explicit null label policy "
+          type: string
+          enum:
+          - reserved_enlp
+          - push_ipv4_enlp
+          - push_ipv6_enlp
+          - push_ipv4_ipv6_enlp
+          - do_not_push_enlp
+          default: do_not_push_enlp
+    BgpSrte.SegmentList:
+      x-status: under-review
+      description: |-
+        Optional container for BGP SR TE Policy segment list settings. The Segment List sub-TLV encodes a single explicit path towards the Endpoint.
+      type: object
+      properties:
+        weight:
+          description: |-
+            The Weight associated with a given path and the sub-TLV is optional.
+          type: integer
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpSrte.Segment'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
+      required:
+      - name
+    BgpSrte.Segment:
+      x-status: under-review
+      description: |-
+        A Segment sub-TLV describes a single segment in a segment list  i.e., a single element of the explicit path. The Segment sub-TLVs are optional.
+      type: object
+      required:
+      - segment_type
+      - name
+      properties:
+        segment_type:
+          description: |-
+            Specify one of the segment type.
+            https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13
+            Type  A: SID only, in the form of MPLS Label.
+            Type  B: SID only, in the form of IPv6 Address.
+            Type  C: IPv4 Node Address with optional SID.
+            Type  D: IPv6 Node Address with optional SID for SR MPLS.
+            Type  E: IPv4 Address and index with optional SID.
+            Type  F: IPv4 Local and Remote addresses with optional SID.
+            Type  G: IPv6 Address and index for local and remote pair with optional
+                  SID for SR MPLS.
+            Type  H: IPv6 Local and Remote addresses with optional SID for SR MPLS.
+            Type  I: IPv6 Node Address with optional SID for SRv6.
+            Type  J: IPv6 Address and index for local and remote pair with optional
+                  SID for SRv6.
+            Type  K: IPv6 Local and Remote addresses for SRv6.
+          type: string
+          enum:
+          - type_a
+          - type_b
+          - type_c
+          - type_d
+          - type_e
+          - type_f
+          - type_g
+          - type_h
+          - type_i
+          - type_j
+          - type_k
+        type_a:
+          $ref: '#/components/schemas/BgpSrte.SegmentATypeSubTlv'
+        type_b:
+          $ref: '#/components/schemas/BgpSrte.SegmentBTypeSubTlv'
+        type_c:
+          $ref: '#/components/schemas/BgpSrte.SegmentCTypeSubTlv'
+        type_d:
+          $ref: '#/components/schemas/BgpSrte.SegmentDTypeSubTlv'
+        type_e:
+          $ref: '#/components/schemas/BgpSrte.SegmentETypeSubTlv'
+        type_f:
+          $ref: '#/components/schemas/BgpSrte.SegmentFTypeSubTlv'
+        type_g:
+          $ref: '#/components/schemas/BgpSrte.SegmentGTypeSubTlv'
+        type_h:
+          $ref: '#/components/schemas/BgpSrte.SegmentHTypeSubTlv'
+        type_i:
+          $ref: '#/components/schemas/BgpSrte.SegmentITypeSubTlv'
+        type_j:
+          $ref: '#/components/schemas/BgpSrte.SegmentJTypeSubTlv'
+        type_k:
+          $ref: '#/components/schemas/BgpSrte.SegmentKTypeSubTlv'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
+    BgpSrte.SrMplsSid:
+      description: |-
+        Configuration for SR-MPLS with Label, TC, Bottom-of-Stack and TTL.
+      type: object
+      properties:
+        label:
+          description: |-
+            Label value in [0, 2^20 -1].
+          type: integer
+          minimum: 0
+          maximum: 1048575
+        tc:
+          description: |-
+            Traffic class in bits.
+          type: integer
+          minimum: 0
+          maximum: 7
+        s_bit:
+          description: |-
+            Bottom-of-Stack bit.
+          type: boolean
+        ttl:
+          description: "Time To Live. "
+          type: integer
+          minimum: 0
+          maximum: 255
+    BgpSrte.SRv6SIDEndpointBehaviorAndStructure:
+      description: |-
+        SRv6 Endpoint Behavior and SID Structure and its optional.  The total of the Locator Block, Locator Node, Function, and Argument lengths MUST be less than or equal to 128.
+      type: object
+      properties:
+        lb_length:
+          description: |-
+            SRv6 SID Locator Block length in bits.
+          type: integer
+          minimum: 0
+          maximum: 128
+          default: 0
+        ln_length:
+          description: |-
+            SRv6 SID Locator Node length in bits.
+          type: integer
+          minimum: 0
+          maximum: 128
+          default: 0
+        func_length:
+          description: |-
+            SRv6 SID Function length in bits.
+          type: integer
+          minimum: 0
+          maximum: 128
+          default: 0
+        arg_length:
+          description: |-
+            SRv6 SID Arguments length in bits.
+          type: integer
+          minimum: 0
+          maximum: 128
+          default: 0
+    BgpSrte.SegmentATypeSubTlv:
+      description: |-
+        Type  A: SID only, in the form of MPLS Label.
+        Configuration for SR-MPLS with Label, TC, Bottom-of-Stack and TTL.
+      type: object
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        label:
+          description: |-
+            Label value in [0, 2^20 -1].
+          type: integer
+          minimum: 0
+          maximum: 1048575
+        tc:
+          description: |-
+            Traffic class in bits.
+          type: integer
+          minimum: 0
+          maximum: 7
+        s_bit:
+          description: |-
+            Bottom-of-Stack bit.
+          type: boolean
+        ttl:
+          description: "Time To Live. "
+          type: integer
+          minimum: 0
+          maximum: 255
+    BgpSrte.SegmentBTypeSubTlv:
+      description: |-
+        Type  B: SID only, in the form of IPv6 address.
+      type: object
+      required:
+      - srv6_sid
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        srv6_sid:
+          description: |-
+            SRv6 SID.
+          type: string
+          format: ipv6
+        srv6_sid_endpoint_behavior:
+          description: |-
+            Optional SRv6 Endpoint Behavior and SID Structure.
+          $ref: '#/components/schemas/BgpSrte.SRv6SIDEndpointBehaviorAndStructure'
+    BgpSrte.SegmentCTypeSubTlv:
+      x-status: under-review
+      description: |-
+        Type C: IPv4 Node Address with optional SID.
+      type: object
+      required:
+      - ipv4_node_address
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        sr_algorithm:
+          description: |-
+            specifying SR Algorithm when when A-Flag as defined in above flags.
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        ipv4_node_address:
+          description: |-
+            IPv4 address representing a node.
+          type: string
+          format: ipv4
+        sr_mpls_sid:
+          description: |-
+            Optional SR-MPLS SID.
+          $ref: '#/components/schemas/BgpSrte.SrMplsSid'
+    BgpSrte.SegmentDTypeSubTlv:
+      description: |-
+        Type D: IPv6 Node Address with optional SID for SR MPLS.
+      type: object
+      required:
+      - ipv6_node_address
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        sr_algorithm:
+          description: |-
+            specifying SR Algorithm when when A-Flag as defined in above flags.
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        ipv6_node_address:
+          description: |-
+            IPv6 address representing a node.
+          type: string
+          format: ipv6
+        sr_mpls_sid:
+          description: |-
+            Optional SR-MPLS SID.
+          $ref: '#/components/schemas/BgpSrte.SrMplsSid'
+    BgpSrte.SegmentETypeSubTlv:
+      description: |-
+        Type E: IPv4 Address and Local Interface ID with optional SID
+      type: object
+      required:
+      - ipv4_node_address
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        local_interface_id:
+          description: |-
+            Local Interface ID: The Interface Index as defined in [RFC8664].
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          default: 0
+        ipv4_node_address:
+          description: |-
+            IPv4 address representing a node.
+          type: string
+          format: ipv4
+        sr_mpls_sid:
+          description: |-
+            Optional SR-MPLS SID.
+          $ref: '#/components/schemas/BgpSrte.SrMplsSid'
+    BgpSrte.SegmentFTypeSubTlv:
+      description: |-
+        Type F: IPv4 Local and Remote addresses with optional SID.
+      type: object
+      required:
+      - local_ipv4_address
+      - remote_ipv4_address
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+        local_ipv4_address:
+          description: |-
+            Local IPv4 Address.
+          type: string
+          format: ipv4
+        remote_ipv4_address:
+          description: |-
+            Remote IPv4 Address.
+          type: string
+          format: ipv4
+        sr_mpls_sid:
+          description: |-
+            Optional SR-MPLS SID.
+          $ref: '#/components/schemas/BgpSrte.SrMplsSid'
+    BgpSrte.SegmentGTypeSubTlv:
+      description: |-
+        Type G: IPv6 Address, Interface ID for local and remote pair with optional SID for SR MPLS.
+      type: object
+      required:
+      - local_ipv6_node_address
+      - remote_ipv6_node_address
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        local_interface_id:
+          description: |-
+            Local Interface ID: The Interface Index as defined in [RFC8664].
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          default: 0
+        local_ipv6_node_address:
+          description: |-
+            IPv6 address representing a node.
+          type: string
+          format: ipv6
+        remote_interface_id:
+          description: |-
+            Local Interface ID: The Interface Index as defined in [RFC8664].
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          default: 0
+        remote_ipv6_node_address:
+          description: |-
+            IPv6 address representing a node.
+          type: string
+          format: ipv6
+        sr_mpls_sid:
+          description: |-
+            Optional SR-MPLS SID.
+          $ref: '#/components/schemas/BgpSrte.SrMplsSid'
+    BgpSrte.SegmentHTypeSubTlv:
+      description: |-
+        Type H: IPv6 Local and Remote addresses with optional SID for SR MPLS.
+      type: object
+      required:
+      - local_ipv6_address
+      - remote_ipv6_address
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        local_ipv6_address:
+          description: |-
+            Local IPv6 Address.
+          type: string
+          format: ipv6
+        remote_ipv6_address:
+          description: |-
+            Remote IPv6 Address.
+          type: string
+          format: ipv6
+        sr_mpls_sid:
+          description: |-
+            Optional SR-MPLS SID.
+          $ref: '#/components/schemas/BgpSrte.SrMplsSid'
+    BgpSrte.SegmentITypeSubTlv:
+      description: |-
+        Type I: IPv6 Node Address with optional SRv6 SID.
+      type: object
+      required:
+      - ipv6_node_address
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        ipv6_node_address:
+          description: |-
+            IPv6 address representing a node.
+          type: string
+          format: ipv6
+        srv6_sid:
+          description: |-
+            Optional SRv6 SID.
+          type: string
+          format: ipv6
+        srv6_sid_endpoint_behavior:
+          description: |-
+            Optional SRv6 Endpoint Behavior and SID Structure.
+          $ref: '#/components/schemas/BgpSrte.SRv6SIDEndpointBehaviorAndStructure'
+    BgpSrte.SegmentJTypeSubTlv:
+      description: |-
+        Type J: IPv6 Address, Interface ID for local and remote pair for SRv6 with optional SID.
+      type: object
+      required:
+      - local_ipv6_node_address
+      - remote_ipv6_node_address
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        sr_algorithm:
+          description: |-
+            specifying SR Algorithm when when A-Flag as defined in above flags.
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        local_interface_id:
+          description: |-
+            Local Interface ID: The Interface Index as defined in [RFC8664].
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          default: 0
+        local_ipv6_node_address:
+          description: |-
+            IPv6 address representing a node.
+          type: string
+          format: ipv6
+        remote_interface_id:
+          description: |-
+            Local Interface ID: The Interface Index as defined in [RFC8664].
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          default: 0
+        remote_ipv6_node_address:
+          description: |-
+            IPv6 address representing a node.
+          type: string
+          format: ipv6
+        srv6_sid:
+          description: |-
+            Optional SRv6 SID.
+          type: string
+          format: ipv6
+        srv6_sid_endpoint_behavior:
+          description: |-
+            Optional SRv6 Endpoint Behavior and SID Structure.
+          $ref: '#/components/schemas/BgpSrte.SRv6SIDEndpointBehaviorAndStructure'
+    BgpSrte.SegmentKTypeSubTlv:
+      description: |-
+        Type K: IPv6 Local and Remote addresses for SRv6 with optional SID.
+      type: object
+      required:
+      - local_ipv6_address
+      - remote_ipv6_address
+      properties:
+        flags:
+          description: |-
+            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        sr_algorithm:
+          description: |-
+            specifying SR Algorithm when when A-Flag as defined in above flags.
+          type: integer
+          minimum: 0
+          maximum: 255
+          default: 0
+        local_ipv6_address:
+          description: |-
+            IPv6 address representing a node.
+          type: string
+          format: ipv6
+        remote_ipv6_address:
+          description: |-
+            IPv6 address representing a node.
+          type: string
+          format: ipv6
+        srv6_sid:
+          description: |-
+            Optional SRv6 SID.
+          type: string
+          format: ipv6
+        srv6_sid_endpoint_behavior:
+          description: |-
+            Optional SRv6 Endpoint Behavior and SID Structure.
+          $ref: '#/components/schemas/BgpSrte.SRv6SIDEndpointBehaviorAndStructure'
+    Bgp.V6Policy:
+      description: |
+        Configuration for BGP basic segment routing traffic engineering policy settings.
+      type: object
+      required:
+      - ipv6_endpoint
+      - name
+      properties:
+        distinguisher:
+          description: |-
+            Identifies the policy in the context of (color and endpoint) tuple.  It is used by the SR Policy originator to make unique multiple  occurrences of the same SR Policy.
+          type: integer
+          default: 1
+        color:
+          description: "Identifies the policy. It is used to match the color of the\
+            \  destination prefixes to steer traffic into the SR Policy. "
+          type: integer
+          default: 100
+        ipv6_endpoint:
+          description: |-
+            Specifies a single node or a set of nodes. It is selected on the basis of the policy_type (AFI).
+          type: string
+          format: ipv6
+        next_hop_mode:
+          description: "Specify the NextHop in MP REACH NLRI. The mode for setting\
+            \ the IP address  of the NextHop in the MP REACH NLRI can be one of the\
+            \ following:\n  Local IP: Automatically fills the Nexthop with the Local\
+            \ IP of the BGP peer.\n  If BGP peer is of type IPv6, Nexthop Encoding\
+            \ capability should be enabled.\n  Manual: Override the Nexthop with any\
+            \ arbitrary IPv4/IPv6 address.   "
+          type: string
+          enum:
+          - local_ip
+          - manual
+          default: local_ip
+        next_hop_address_type:
+          description: "If the Nexthop Mode is Manual, it sets the type of the NextHop\
+            \ IP address. "
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          default: ipv6
+        next_hop_ipv4_address:
+          description: |-
+            The IPv4 address of the next hop if the Nexthop Mode is manual and the Nexthop type is IPv4. If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        next_hop_ipv6_address:
+          description: "The IPv6 address of the next hop if the Nexthop Mode is manual\
+            \ and the Nexthop type is IPv6. "
+          type: string
+          format: ipv6
+          default: ::0
+        add_path:
+          $ref: '#/components/schemas/Bgp.AddPath'
+        as_path:
+          $ref: '#/components/schemas/Bgp.AsPath'
+        communities:
+          description: |-
+            Optional community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.Community'
+        tunnel_tlvs:
+          description: |-
+            List of optional tunnel TLV settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpSrte.V6TunnelTlv'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
+    BgpSrte.V6TunnelTlv:
+      description: |-
+        Configuration for BGP SRTE Tunnel TLV settings.
+      type: object
+      properties:
+        remote_endpoint_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.RemoteEndpointSubTlv'
+        binding_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.BindingSubTlv'
+        preference_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.PreferenceSubTlv'
+        policy_priority_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.policyPrioritySubTlv'
+        policy_name_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.policyNameSubTlv'
+        explicit_null_label_policy_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.ExplicitNullLabelPolicySubTlv'
+        segment_lists:
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpSrte.SegmentList'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+        active:
+          description: |-
+            If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
+          type: boolean
+          default: true
+      required:
+      - name
     Bgp.V6Peer:
       x-status: under-review
       description: |-
@@ -2438,6 +3326,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Bgp.V6RouteRange'
+        v4_srte_policies:
+          description: |-
+            Segment Routing (SR) Policy for IPv4 Address family indicator (AFI).
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.V4Policy'
+        v6_srte_policies:
+          description: |-
+            Segment Routing (SR) Policy for IPv6 Address family indicator (AFI).
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.V6Policy'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.

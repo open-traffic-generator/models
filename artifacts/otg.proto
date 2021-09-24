@@ -664,15 +664,6 @@ message CaptureIpv6 {
   ];
 }
 
-message DeviceActive {
-  option (msg_meta).description = "Description missing in models";
-
-  optional bool active = 1 [
-    (fld_meta).default = "True",
-    (fld_meta).description = "If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer."
-  ];
-}
-
 message Device {
   option (msg_meta).description = "A container for emulated interfaces, loopback interfaces and protocol configurations.";
 
@@ -935,7 +926,6 @@ message IsisInterface {
   ];
 
   optional IsisInterfaceLevel l1_settings = 5 [
-    (fld_meta).default = "0",
     (fld_meta).description = "Settings of Level 1 Hello."
   ];
 
@@ -1484,7 +1474,15 @@ message BgpV4Peer {
     (fld_meta).description = "Emulated BGPv6 route ranges."
   ];
 
-  string name = 9 [
+  repeated BgpV4Policy v4_srte_policies = 9 [
+    (fld_meta).description = "Segment Routing (SR) Policy for IPv4 Address family indicator (AFI)."
+  ];
+
+  repeated BgpV6Policy v6_srte_policies = 10 [
+    (fld_meta).description = "Segment Routing (SR) Policy for IPv6 Address family indicator (AFI)."
+  ];
+
+  string name = 11 [
     (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
   ];
 }
@@ -1886,6 +1884,790 @@ message BgpV6RouteRange {
   ];
 }
 
+message BgpV4Policy {
+  option (msg_meta).description = "Configuration for BGP basic Segment Routing Traffic Engineering(SRTE) \npolicy settings.\n";
+
+  optional int32 distinguisher = 1 [
+    (fld_meta).default = "1",
+    (fld_meta).description = "Identifies the SR policy in the context of <Color, Endpoint> tuple.  It is used by the SR Policy originator to make unique multiple  occurrences of the same SR Policy as well as candidate paths of different SR Policies."
+  ];
+
+  optional int32 color = 2 [
+    (fld_meta).default = "100",
+    (fld_meta).description = "Policy color is used to match the color of the destination prefixes to steer traffic into the SR Policy."
+  ];
+
+  string ipv4_endpoint = 3 [
+    (fld_meta).description = "Specifies a single node or a set of nodes (e.g., an anycast address). It is selected on the basis of the SR Policy type (AFI)."
+  ];
+
+  message NextHopMode {
+    enum Enum {
+      unspecified = 0;
+      local_ip = 1;
+      manual = 2;
+    }
+  }
+  optional NextHopMode.Enum next_hop_mode = 4 [
+    (fld_meta).default = "NextHopMode.Enum.local_ip",
+    (fld_meta).description = "Specify the NextHop in MP REACH NLRI. The mode for setting the IP address  of the NextHop in the MP REACH NLRI can be one of the following:\n  Local IP: Automatically fills the Nexthop with the Local IP of the BGP peer.\n  If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.\n  Manual: Override the Nexthop with any arbitrary IPv4/IPv6 address.   "
+  ];
+
+  message NextHopAddressType {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  optional NextHopAddressType.Enum next_hop_address_type = 5 [
+    (fld_meta).default = "NextHopAddressType.Enum.ipv4",
+    (fld_meta).description = "If the Nexthop Mode is Manual, it sets the type of the NextHop IP address. "
+  ];
+
+  optional string next_hop_ipv4_address = 6 [
+    (fld_meta).description = "The IPv4 address of the next hop if the Nexthop Mode is manual and the Nexthop type is IPv4. If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled."
+  ];
+
+  optional string next_hop_ipv6_address = 7 [
+    (fld_meta).description = "The IPv6 address of the next hop if the Nexthop Mode is manual and the Nexthop type is IPv6. "
+  ];
+
+  optional BgpSrTeAdvanced advanced = 8 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpAddPath add_path = 9 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpAsPath as_path = 10 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  repeated BgpCommunity communities = 11 [
+    (fld_meta).description = "Optional community settings."
+  ];
+
+  repeated BgpSrteV4TunnelTlv tunnel_tlvs = 12 [
+    (fld_meta).description = "List Tunnel Encapsulation Attributes."
+  ];
+
+  string name = 13 [
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
+  ];
+
+  optional bool active = 14 [
+    (fld_meta).default = "True",
+    (fld_meta).description = "If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer."
+  ];
+}
+
+message BgpSrTeAdvanced {
+  option (msg_meta).description = "Configuration for advanced BGP route range settings.";
+
+  message Origin {
+    enum Enum {
+      unspecified = 0;
+      igp = 1;
+      egp = 2;
+    }
+  }
+  optional Origin.Enum origin = 1 [
+    (fld_meta).description = "The origin value.  A null value means the origin feature is not enabled."
+  ];
+
+  optional int32 multi_exit_discriminator = 2 [
+    (fld_meta).description = "The multi exit discriminator (MED) value.  A null value means the MED feature is not enabled."
+  ];
+
+  optional int32 local_preference = 3 [
+    (fld_meta).description = "Local Preference attribute, used by iBGP peers to select  the path for the traffic leaving the AS."
+  ];
+}
+
+message BgpSrteV4TunnelTlv {
+  option (msg_meta).description = "Configuration for BGP SRTE Tunnel TLV settings.";
+
+  optional BgpSrteRemoteEndpointSubTlv remote_endpoint_sub_tlv = 1 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteBindingSubTlv binding_sub_tlv = 2 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrtePreferenceSubTlv preference_sub_tlv = 3 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrtepolicyPrioritySubTlv policy_priority_sub_tlv = 4 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrtepolicyNameSubTlv policy_name_sub_tlv = 5 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteExplicitNullLabelPolicySubTlv explicit_null_label_policy_sub_tlv = 6 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  repeated BgpSrteSegmentList segment_lists = 7 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  string name = 8 [
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
+  ];
+
+  optional bool active = 9 [
+    (fld_meta).default = "True",
+    (fld_meta).description = "If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer."
+  ];
+}
+
+message BgpSrteRemoteEndpointSubTlv {
+  option (msg_meta).description = "Configuration for BGP remote endpoint sub TLV settings. Question: Do we need to keep? Draft says  If present, the Remote Endpoint sub-TLV and the Color sub-TLV MUST be ignored by the BGP speaker.";
+
+  optional int32 as_number = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "Autonomous system (AS) number"
+  ];
+
+  message AddressFamily {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  optional AddressFamily.Enum address_family = 2 [
+    (fld_meta).default = "AddressFamily.Enum.ipv4",
+    (fld_meta).description = "Determines the address type"
+  ];
+
+  optional string ipv4_address = 3 [
+    (fld_meta).default = "0.0.0.0",
+    (fld_meta).description = "The IPv4 address"
+  ];
+
+  optional string ipv6_address = 4 [
+    (fld_meta).default = "::0",
+    (fld_meta).description = "The IPv6 address"
+  ];
+}
+
+message BgpSrteBindingSubTlv {
+  option (msg_meta).description = "Configuration for the binding SID sub-TLV is used to signal  the binding SID related information of the SR Policy candidate path.      type: object";
+
+  message BindingSidType {
+    enum Enum {
+      unspecified = 0;
+      no_binding = 1;
+      four_octet_sid = 2;
+      ipv6_sid = 3;
+    }
+  }
+  optional BindingSidType.Enum binding_sid_type = 1 [
+    (fld_meta).default = "BindingSidType.Enum.no_binding",
+    (fld_meta).description = "A user to specify one of the No Binding SID, Four Octets Sid or IPv6 SID."
+  ];
+
+  optional int32 four_octet_sid = 2 [
+    (fld_meta).description = "Binding SID is encoded in 4 octets if binding_sid_type  is four_octet_sid. "
+  ];
+
+  optional string ipv6_sid = 3 [
+    (fld_meta).description = "Only valid if binding_sid_type is ipv6_sid."
+  ];
+
+  optional bool s_flag = 4 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "S-Flag encodes the Specified-BSID-only behavior."
+  ];
+
+  optional bool i_flag = 5 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "I-Flag encodes the Drop Upon Invalid behavior."
+  ];
+}
+
+message BgpSrtePreferenceSubTlv {
+  option (msg_meta).description = "Configuration for BGP preference sub TLV of the SR Policy candidate path.";
+
+  optional int32 preference = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "The preference value of the SR Policy candidate path."
+  ];
+}
+
+message BgpSrtepolicyPrioritySubTlv {
+  option (msg_meta).description = "Configuration for the Policy Priority sub-TLV. The Policy Priority to indicate the order in which the SR policies  are re-computed upon topological change.";
+
+  optional int32 policy_priority = 1 [
+    (fld_meta).description = "One-octet Priority value."
+  ];
+}
+
+message BgpSrtepolicyNameSubTlv {
+  option (msg_meta).description = "Configuration for the Policy Name sub-TLV. The Policy Name sub-TLV is attach a symbolic name to the SR Policy candidate path.";
+
+  optional string policy_name = 1 [
+    (fld_meta).description = "Symbolic name for the policy that should be a string of printable ASCII characters, without a NULL terminator."
+  ];
+}
+
+message BgpSrteExplicitNullLabelPolicySubTlv {
+  option (msg_meta).description = "Configuration for BGP explicit null label policy sub TLV settings.";
+
+  message ExplicitNullLabelPolicy {
+    enum Enum {
+      unspecified = 0;
+      reserved_enlp = 1;
+      push_ipv4_enlp = 2;
+      push_ipv6_enlp = 3;
+      push_ipv4_ipv6_enlp = 4;
+      do_not_push_enlp = 5;
+    }
+  }
+  optional ExplicitNullLabelPolicy.Enum explicit_null_label_policy = 1 [
+    (fld_meta).default = "ExplicitNullLabelPolicy.Enum.do_not_push_enlp",
+    (fld_meta).description = "The value of the explicit null label policy "
+  ];
+}
+
+message BgpSrteSegmentList {
+  option (msg_meta).description = "Optional container for BGP SR TE Policy segment list settings. The Segment List sub-TLV encodes a single explicit path towards the Endpoint.";
+
+  optional int32 weight = 1 [
+    (fld_meta).description = "The Weight associated with a given path and the sub-TLV is optional."
+  ];
+
+  repeated BgpSrteSegment segments = 2 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  string name = 3 [
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
+  ];
+
+  optional bool active = 4 [
+    (fld_meta).default = "True",
+    (fld_meta).description = "If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer."
+  ];
+}
+
+message BgpSrteSegment {
+  option (msg_meta).description = "A Segment sub-TLV describes a single segment in a segment list  i.e., a single element of the explicit path. The Segment sub-TLVs are optional.";
+
+  message SegmentType {
+    enum Enum {
+      unspecified = 0;
+      type_a = 1;
+      type_b = 2;
+      type_c = 3;
+      type_d = 4;
+      type_e = 5;
+      type_f = 6;
+      type_g = 7;
+      type_h = 8;
+      type_i = 9;
+      type_j = 10;
+      type_k = 11;
+    }
+  }
+  SegmentType.Enum segment_type = 1 [
+    (fld_meta).description = "Specify one of the segment type.\nhttps://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13\nType  A: SID only, in the form of MPLS Label.\nType  B: SID only, in the form of IPv6 Address.\nType  C: IPv4 Node Address with optional SID.\nType  D: IPv6 Node Address with optional SID for SR MPLS.\nType  E: IPv4 Address and index with optional SID.\nType  F: IPv4 Local and Remote addresses with optional SID.\nType  G: IPv6 Address and index for local and remote pair with optional\n      SID for SR MPLS.\nType  H: IPv6 Local and Remote addresses with optional SID for SR MPLS.\nType  I: IPv6 Node Address with optional SID for SRv6.\nType  J: IPv6 Address and index for local and remote pair with optional\n      SID for SRv6.\nType  K: IPv6 Local and Remote addresses for SRv6."
+  ];
+
+  optional BgpSrteSegmentATypeSubTlv type_a = 2 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentBTypeSubTlv type_b = 3 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentCTypeSubTlv type_c = 4 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentDTypeSubTlv type_d = 5 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentETypeSubTlv type_e = 6 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentFTypeSubTlv type_f = 7 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentGTypeSubTlv type_g = 8 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentHTypeSubTlv type_h = 9 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentITypeSubTlv type_i = 10 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentJTypeSubTlv type_j = 11 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteSegmentKTypeSubTlv type_k = 12 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  string name = 13 [
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
+  ];
+
+  optional bool active = 14 [
+    (fld_meta).default = "True",
+    (fld_meta).description = "If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer."
+  ];
+}
+
+message BgpSrteSrMplsSid {
+  option (msg_meta).description = "Configuration for SR-MPLS with Label, TC, Bottom-of-Stack and TTL.";
+
+  optional int32 label = 1 [
+    (fld_meta).description = "Label value in [0, 2^20 -1]."
+  ];
+
+  optional int32 tc = 2 [
+    (fld_meta).description = "Traffic class in bits."
+  ];
+
+  optional bool s_bit = 3 [
+    (fld_meta).description = "Bottom-of-Stack bit."
+  ];
+
+  optional int32 ttl = 4 [
+    (fld_meta).description = "Time To Live. "
+  ];
+}
+
+message BgpSrteSRv6SIDEndpointBehaviorAndStructure {
+  option (msg_meta).description = "SRv6 Endpoint Behavior and SID Structure and its optional.  The total of the Locator Block, Locator Node, Function, and Argument lengths MUST be less than or equal to 128.";
+
+  optional int32 lb_length = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "SRv6 SID Locator Block length in bits."
+  ];
+
+  optional int32 ln_length = 2 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "SRv6 SID Locator Node length in bits."
+  ];
+
+  optional int32 func_length = 3 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "SRv6 SID Function length in bits."
+  ];
+
+  optional int32 arg_length = 4 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "SRv6 SID Arguments length in bits."
+  ];
+}
+
+message BgpSrteSegmentATypeSubTlv {
+  option (msg_meta).description = "Type  A: SID only, in the form of MPLS Label.\nConfiguration for SR-MPLS with Label, TC, Bottom-of-Stack and TTL.";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  optional int32 label = 2 [
+    (fld_meta).description = "Label value in [0, 2^20 -1]."
+  ];
+
+  optional int32 tc = 3 [
+    (fld_meta).description = "Traffic class in bits."
+  ];
+
+  optional bool s_bit = 4 [
+    (fld_meta).description = "Bottom-of-Stack bit."
+  ];
+
+  optional int32 ttl = 5 [
+    (fld_meta).description = "Time To Live. "
+  ];
+}
+
+message BgpSrteSegmentBTypeSubTlv {
+  option (msg_meta).description = "Type  B: SID only, in the form of IPv6 address.";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  string srv6_sid = 2 [
+    (fld_meta).description = "SRv6 SID."
+  ];
+
+  optional BgpSrteSRv6SIDEndpointBehaviorAndStructure srv6_sid_endpoint_behavior = 3 [
+    (fld_meta).description = "Optional SRv6 Endpoint Behavior and SID Structure."
+  ];
+}
+
+message BgpSrteSegmentCTypeSubTlv {
+  option (msg_meta).description = "Type C: IPv4 Node Address with optional SID.";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  optional int32 sr_algorithm = 2 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "specifying SR Algorithm when when A-Flag as defined in above flags."
+  ];
+
+  string ipv4_node_address = 3 [
+    (fld_meta).description = "IPv4 address representing a node."
+  ];
+
+  optional BgpSrteSrMplsSid sr_mpls_sid = 4 [
+    (fld_meta).description = "Optional SR-MPLS SID."
+  ];
+}
+
+message BgpSrteSegmentDTypeSubTlv {
+  option (msg_meta).description = "Type D: IPv6 Node Address with optional SID for SR MPLS.";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  optional int32 sr_algorithm = 2 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "specifying SR Algorithm when when A-Flag as defined in above flags."
+  ];
+
+  string ipv6_node_address = 3 [
+    (fld_meta).description = "IPv6 address representing a node."
+  ];
+
+  optional BgpSrteSrMplsSid sr_mpls_sid = 4 [
+    (fld_meta).description = "Optional SR-MPLS SID."
+  ];
+}
+
+message BgpSrteSegmentETypeSubTlv {
+  option (msg_meta).description = "Type E: IPv4 Address and Local Interface ID with optional SID";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  optional int32 local_interface_id = 2 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "Local Interface ID: The Interface Index as defined in [RFC8664]."
+  ];
+
+  string ipv4_node_address = 3 [
+    (fld_meta).description = "IPv4 address representing a node."
+  ];
+
+  optional BgpSrteSrMplsSid sr_mpls_sid = 4 [
+    (fld_meta).description = "Optional SR-MPLS SID."
+  ];
+}
+
+message BgpSrteSegmentFTypeSubTlv {
+  option (msg_meta).description = "Type F: IPv4 Local and Remote addresses with optional SID.";
+
+  optional int32 flags = 1 [
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  string local_ipv4_address = 2 [
+    (fld_meta).description = "Local IPv4 Address."
+  ];
+
+  string remote_ipv4_address = 3 [
+    (fld_meta).description = "Remote IPv4 Address."
+  ];
+
+  optional BgpSrteSrMplsSid sr_mpls_sid = 4 [
+    (fld_meta).description = "Optional SR-MPLS SID."
+  ];
+}
+
+message BgpSrteSegmentGTypeSubTlv {
+  option (msg_meta).description = "Type G: IPv6 Address, Interface ID for local and remote pair with optional SID for SR MPLS.";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  optional int32 local_interface_id = 2 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "Local Interface ID: The Interface Index as defined in [RFC8664]."
+  ];
+
+  string local_ipv6_node_address = 3 [
+    (fld_meta).description = "IPv6 address representing a node."
+  ];
+
+  optional int32 remote_interface_id = 4 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "Local Interface ID: The Interface Index as defined in [RFC8664]."
+  ];
+
+  string remote_ipv6_node_address = 5 [
+    (fld_meta).description = "IPv6 address representing a node."
+  ];
+
+  optional BgpSrteSrMplsSid sr_mpls_sid = 6 [
+    (fld_meta).description = "Optional SR-MPLS SID."
+  ];
+}
+
+message BgpSrteSegmentHTypeSubTlv {
+  option (msg_meta).description = "Type H: IPv6 Local and Remote addresses with optional SID for SR MPLS.";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  string local_ipv6_address = 2 [
+    (fld_meta).description = "Local IPv6 Address."
+  ];
+
+  string remote_ipv6_address = 3 [
+    (fld_meta).description = "Remote IPv6 Address."
+  ];
+
+  optional BgpSrteSrMplsSid sr_mpls_sid = 4 [
+    (fld_meta).description = "Optional SR-MPLS SID."
+  ];
+}
+
+message BgpSrteSegmentITypeSubTlv {
+  option (msg_meta).description = "Type I: IPv6 Node Address with optional SRv6 SID.";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  string ipv6_node_address = 2 [
+    (fld_meta).description = "IPv6 address representing a node."
+  ];
+
+  optional string srv6_sid = 3 [
+    (fld_meta).description = "Optional SRv6 SID."
+  ];
+
+  optional BgpSrteSRv6SIDEndpointBehaviorAndStructure srv6_sid_endpoint_behavior = 4 [
+    (fld_meta).description = "Optional SRv6 Endpoint Behavior and SID Structure."
+  ];
+}
+
+message BgpSrteSegmentJTypeSubTlv {
+  option (msg_meta).description = "Type J: IPv6 Address, Interface ID for local and remote pair for SRv6 with optional SID.";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  optional int32 sr_algorithm = 2 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "specifying SR Algorithm when when A-Flag as defined in above flags."
+  ];
+
+  optional int32 local_interface_id = 3 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "Local Interface ID: The Interface Index as defined in [RFC8664]."
+  ];
+
+  string local_ipv6_node_address = 4 [
+    (fld_meta).description = "IPv6 address representing a node."
+  ];
+
+  optional int32 remote_interface_id = 5 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "Local Interface ID: The Interface Index as defined in [RFC8664]."
+  ];
+
+  string remote_ipv6_node_address = 6 [
+    (fld_meta).description = "IPv6 address representing a node."
+  ];
+
+  optional string srv6_sid = 7 [
+    (fld_meta).description = "Optional SRv6 SID."
+  ];
+
+  optional BgpSrteSRv6SIDEndpointBehaviorAndStructure srv6_sid_endpoint_behavior = 8 [
+    (fld_meta).description = "Optional SRv6 Endpoint Behavior and SID Structure."
+  ];
+}
+
+message BgpSrteSegmentKTypeSubTlv {
+  option (msg_meta).description = "Type K: IPv6 Local and Remote addresses for SRv6 with optional SID.";
+
+  optional int32 flags = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12"
+  ];
+
+  optional int32 sr_algorithm = 2 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "specifying SR Algorithm when when A-Flag as defined in above flags."
+  ];
+
+  string local_ipv6_address = 3 [
+    (fld_meta).description = "IPv6 address representing a node."
+  ];
+
+  string remote_ipv6_address = 4 [
+    (fld_meta).description = "IPv6 address representing a node."
+  ];
+
+  optional string srv6_sid = 5 [
+    (fld_meta).description = "Optional SRv6 SID."
+  ];
+
+  optional BgpSrteSRv6SIDEndpointBehaviorAndStructure srv6_sid_endpoint_behavior = 6 [
+    (fld_meta).description = "Optional SRv6 Endpoint Behavior and SID Structure."
+  ];
+}
+
+message BgpV6Policy {
+  option (msg_meta).description = "Configuration for BGP basic segment routing traffic engineering policy settings.\n";
+
+  optional int32 distinguisher = 1 [
+    (fld_meta).default = "1",
+    (fld_meta).description = "Identifies the policy in the context of (color and endpoint) tuple.  It is used by the SR Policy originator to make unique multiple  occurrences of the same SR Policy."
+  ];
+
+  optional int32 color = 2 [
+    (fld_meta).default = "100",
+    (fld_meta).description = "Identifies the policy. It is used to match the color of the  destination prefixes to steer traffic into the SR Policy. "
+  ];
+
+  string ipv6_endpoint = 3 [
+    (fld_meta).description = "Specifies a single node or a set of nodes. It is selected on the basis of the policy_type (AFI)."
+  ];
+
+  message NextHopMode {
+    enum Enum {
+      unspecified = 0;
+      local_ip = 1;
+      manual = 2;
+    }
+  }
+  optional NextHopMode.Enum next_hop_mode = 4 [
+    (fld_meta).default = "NextHopMode.Enum.local_ip",
+    (fld_meta).description = "Specify the NextHop in MP REACH NLRI. The mode for setting the IP address  of the NextHop in the MP REACH NLRI can be one of the following:\n  Local IP: Automatically fills the Nexthop with the Local IP of the BGP peer.\n  If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.\n  Manual: Override the Nexthop with any arbitrary IPv4/IPv6 address.   "
+  ];
+
+  message NextHopAddressType {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  optional NextHopAddressType.Enum next_hop_address_type = 5 [
+    (fld_meta).default = "NextHopAddressType.Enum.ipv6",
+    (fld_meta).description = "If the Nexthop Mode is Manual, it sets the type of the NextHop IP address. "
+  ];
+
+  optional string next_hop_ipv4_address = 6 [
+    (fld_meta).default = "0.0.0.0",
+    (fld_meta).description = "The IPv4 address of the next hop if the Nexthop Mode is manual and the Nexthop type is IPv4. If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled."
+  ];
+
+  optional string next_hop_ipv6_address = 7 [
+    (fld_meta).default = "::0",
+    (fld_meta).description = "The IPv6 address of the next hop if the Nexthop Mode is manual and the Nexthop type is IPv6. "
+  ];
+
+  optional BgpAddPath add_path = 8 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpAsPath as_path = 9 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  repeated BgpCommunity communities = 10 [
+    (fld_meta).description = "Optional community settings."
+  ];
+
+  repeated BgpSrteV6TunnelTlv tunnel_tlvs = 11 [
+    (fld_meta).description = "List of optional tunnel TLV settings."
+  ];
+
+  string name = 12 [
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
+  ];
+
+  optional bool active = 13 [
+    (fld_meta).default = "True",
+    (fld_meta).description = "If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer."
+  ];
+}
+
+message BgpSrteV6TunnelTlv {
+  option (msg_meta).description = "Configuration for BGP SRTE Tunnel TLV settings.";
+
+  optional BgpSrteRemoteEndpointSubTlv remote_endpoint_sub_tlv = 1 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteBindingSubTlv binding_sub_tlv = 2 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrtePreferenceSubTlv preference_sub_tlv = 3 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrtepolicyPrioritySubTlv policy_priority_sub_tlv = 4 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrtepolicyNameSubTlv policy_name_sub_tlv = 5 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional BgpSrteExplicitNullLabelPolicySubTlv explicit_null_label_policy_sub_tlv = 6 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  repeated BgpSrteSegmentList segment_lists = 7 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  string name = 8 [
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
+  ];
+
+  optional bool active = 9 [
+    (fld_meta).default = "True",
+    (fld_meta).description = "If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer."
+  ];
+}
+
 message BgpV6Peer {
   option (msg_meta).description = "Configuration for BGPv6 peer settings and routes.\nConfiguration for basic emulated BGP peer settings.";
 
@@ -1940,7 +2722,15 @@ message BgpV6Peer {
     (fld_meta).description = "Emulated BGPv6 route ranges."
   ];
 
-  string name = 10 [
+  repeated BgpV4Policy v4_srte_policies = 10 [
+    (fld_meta).description = "Segment Routing (SR) Policy for IPv4 Address family indicator (AFI)."
+  ];
+
+  repeated BgpV6Policy v6_srte_policies = 11 [
+    (fld_meta).description = "Segment Routing (SR) Policy for IPv6 Address family indicator (AFI)."
+  ];
+
+  string name = 12 [
     (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
   ];
 }

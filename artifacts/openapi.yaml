@@ -1954,13 +1954,13 @@ components:
             $ref: '#/components/schemas/Bgp.V6RouteRange'
         v4_srte_policies:
           description: |-
-            Segment Routing (SR) Policy for IPv4 Address family indicator (AFI).
+            Segment Routing (SR) Policy for IPv4 Address Family Indicator (AFI).
           type: array
           items:
             $ref: '#/components/schemas/Bgp.V4Policy'
         v6_srte_policies:
           description: |-
-            Segment Routing (SR) Policy for IPv6 Address family indicator (AFI).
+            Segment Routing (SR) Policy for IPv6 Address Family Indicator (AFI).
           type: array
           items:
             $ref: '#/components/schemas/Bgp.V6Policy'
@@ -2388,8 +2388,8 @@ components:
       required:
       - name
     Bgp.V4Policy:
-      description: "Configuration for BGP basic Segment Routing Traffic Engineering(SRTE)\
-        \ \npolicy settings.\n"
+      description: "Configuration for BGP Segment Routing Traffic Engineering(SRTE)\
+        \ \npolicy.\n"
       type: object
       required:
       - ipv4_endpoint
@@ -2411,19 +2411,15 @@ components:
           type: string
           format: ipv4
         next_hop_mode:
-          description: "Specify the NextHop in MP REACH NLRI. The mode for setting\
-            \ the IP address  of the NextHop in the MP REACH NLRI can be one of the\
-            \ following:\n  Local IP: Automatically fills the Nexthop with the Local\
-            \ IP of the BGP peer.\n  If BGP peer is of type IPv6, Nexthop Encoding\
-            \ capability should be enabled.\n  Manual: Override the Nexthop with any\
-            \ arbitrary IPv4/IPv6 address.   "
+          description: |-
+            Mode for choosing the NextHop in MP REACH NLRI. Available modes are : Local IP: Automatically fills the Nexthop with the Local IP of the BGP peer. For IPv6 BGP peer the Nexthop Encoding capability should be enabled. Manual: Override the Nexthop with any arbitrary IPv4/IPv6 address.
           type: string
           enum:
           - local_ip
           - manual
           default: local_ip
         next_hop_address_type:
-          description: "If the Nexthop Mode is Manual, it sets the type of the NextHop\
+          description: "For \"Manual\" Nexthop Mode, it sets the type of the NextHop\
             \ IP address. "
           type: string
           enum:
@@ -2436,8 +2432,8 @@ components:
           type: string
           format: ipv4
         next_hop_ipv6_address:
-          description: "The IPv6 address of the next hop if the Nexthop Mode is manual\
-            \ and the Nexthop type is IPv6. "
+          description: "For IPv6 next hop with manual Nexthop mode, this field gives\
+            \ the next hop IPv6 address. "
           type: string
           format: ipv6
         advanced:
@@ -2448,10 +2444,16 @@ components:
           $ref: '#/components/schemas/Bgp.AsPath'
         communities:
           description: |-
-            Optional community settings.
+            Optional Community settings.
           type: array
           items:
             $ref: '#/components/schemas/Bgp.Community'
+        excommunities:
+          description: |-
+            Optional Extended Community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.ExCommunity'
         tunnel_tlvs:
           description: |-
             List Tunnel Encapsulation Attributes.
@@ -2470,27 +2472,76 @@ components:
           default: true
     BgpSrTe.Advanced:
       description: |-
-        Configuration for advanced BGP route range settings.
+        Configuration for advanced BGP SRTE settings.
       type: object
       properties:
         origin:
           description: |-
-            The origin value.  A null value means the origin feature is not enabled.
+            The origin value.  A null value implies this feature is not enabled.
           type: string
           enum:
           - igp
           - egp
         multi_exit_discriminator:
           description: |-
-            The multi exit discriminator (MED) value.  A null value means the MED feature is not enabled.
+            The Multi Exit Discriminator (MED) value.  A null value implies MED feature is not enabled.
           type: integer
+        enable_local_preference:
+          description: |-
+            Enable inclusion of Local Preference attribute which is mandatory for iBGP and optional for eBGP.
+          type: boolean
+          default: true
         local_preference:
           description: |-
-            Local Preference attribute, used by iBGP peers to select  the path for the traffic leaving the AS.
+            Local Preference attribute,  for iBGP peers to select the path for the traffic leaving the AS.
           type: integer
+          default: 0
+    Bgp.ExCommunity:
+      description: |-
+        The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is also divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a  format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities.
+      type: object
+      properties:
+        type:
+          description: "Extended Community Type field of 1 Byte.\n - administrator_as_2octet:\
+            \ Two-Octet AS Specific Extended Community (RFC 4360).\n - administrator_ipv4_address:\
+            \ IPv4 Address Specific Extended Community (RFC 4360).\n - administrator_as_4octet:\
+            \  4-Octet AS Specific Extended Community (RFC 5668).\n - opaque: Opaque\
+            \ Extended Community (RFC 7432).\n - evpn: EVPN Extended Community (RFC\
+            \ 7153).  \n - administrator_as_2octet_link_bandwidth : Link Bandwidth\
+            \ Extended Community (RFC 7153)."
+          type: string
+          enum:
+          - administrator_as_2octet
+          - administrator_ipv4_address
+          - administrator_as_4octet
+          - opaque
+          - evpn
+          - administrator_as_2octet_link_bandwidth
+        subtype:
+          description: |-
+            Extended Community Sub Type field of 1 Byte.
+            - route_target: Route Target.
+            - origin: Origin.
+            - extended_bandwidth: Specifies the link bandwidth.
+            - color: Specifies the color value.
+            - encapsulation: Specifies the Encapsulation Extended Community.
+            - mac_address: Specifies the Extended community MAC address.
+          type: string
+          enum:
+          - route_target
+          - origin
+          - extended_bandwidth
+          - color
+          - encapsulation
+          - mac_address
+        value:
+          description: |-
+            Extended Community value of 6 Bytes. Example - for the Opaque type and Color subtype value can be '0000000000c8'  for the color value 200.
+          type: string
+          format: hex
     BgpSrte.V4TunnelTlv:
       description: |-
-        Configuration for BGP SRTE Tunnel TLV settings.
+        Configuration for BGP SRTE Tunnel TLV.
       type: object
       properties:
         remote_endpoint_sub_tlv:
@@ -2500,9 +2551,9 @@ components:
         preference_sub_tlv:
           $ref: '#/components/schemas/BgpSrte.PreferenceSubTlv'
         policy_priority_sub_tlv:
-          $ref: '#/components/schemas/BgpSrte.policyPrioritySubTlv'
+          $ref: '#/components/schemas/BgpSrte.PolicyPrioritySubTlv'
         policy_name_sub_tlv:
-          $ref: '#/components/schemas/BgpSrte.policyNameSubTlv'
+          $ref: '#/components/schemas/BgpSrte.PolicyNameSubTlv'
         explicit_null_label_policy_sub_tlv:
           $ref: '#/components/schemas/BgpSrte.ExplicitNullLabelPolicySubTlv'
         segment_lists:
@@ -2523,7 +2574,7 @@ components:
       - name
     BgpSrte.RemoteEndpointSubTlv:
       description: |-
-        Configuration for BGP remote endpoint sub TLV settings. Question: Do we need to keep? Draft says  "If present, the Remote Endpoint sub-TLV and the Color sub-TLV MUST be ignored by the BGP speaker."
+        Configuration for the BGP remote endpoint sub TLV. Question: Do we need to keep? Draft says  "If present, the Remote Endpoint sub-TLV and the Color sub-TLV MUST be ignored by the BGP speaker."
       type: object
       properties:
         as_number:
@@ -2541,23 +2592,24 @@ components:
           default: ipv4
         ipv4_address:
           description: |-
-            The IPv4 address
+            The IPv4 address of the Remote Endpoint.
           type: string
           format: ipv4
           default: 0.0.0.0
         ipv6_address:
           description: |-
-            The IPv6 address
+            The IPv6 address of the Remote Endpoint.
           type: string
           format: ipv6
           default: ::0
     BgpSrte.BindingSubTlv:
       description: |-
-        Configuration for the binding SID sub-TLV is used to signal  the binding SID related information of the SR Policy candidate path.      type: object
+        Configuration for the binding SID sub-TLV.  This is used to signal the binding SID related information  of the SR Policy candidate path.
+      type: object
       properties:
         binding_sid_type:
           description: |-
-            A user to specify one of the No Binding SID, Four Octets Sid or IPv6 SID.
+            Specify one of the No Binding SID, Four Octets Sid or IPv6 SID.
           type: string
           enum:
           - no_binding
@@ -2565,12 +2617,11 @@ components:
           - ipv6_sid
           default: no_binding
         four_octet_sid:
-          description: "Binding SID is encoded in 4 octets if binding_sid_type  is\
-            \ four_octet_sid. "
+          description: "Binding SID is encoded in 4 octets. "
           type: integer
         ipv6_sid:
           description: |-
-            Only valid if binding_sid_type is ipv6_sid.
+            IPv6 SID value.
           type: string
           format: ipv6
         s_flag:
@@ -2593,7 +2644,7 @@ components:
             The preference value of the SR Policy candidate path.
           type: integer
           default: 0
-    BgpSrte.policyPrioritySubTlv:
+    BgpSrte.PolicyPrioritySubTlv:
       description: |-
         Configuration for the Policy Priority sub-TLV. The Policy Priority to indicate the order in which the SR policies  are re-computed upon topological change.
       type: object
@@ -2604,9 +2655,9 @@ components:
           type: integer
           minimum: 0
           maximum: 255
-    BgpSrte.policyNameSubTlv:
+    BgpSrte.PolicyNameSubTlv:
       description: |-
-        Configuration for the Policy Name sub-TLV. The Policy Name sub-TLV is attach a symbolic name to the SR Policy candidate path.
+        Configuration for the Policy Name sub-TLV. The Policy Name sub-TLV is used to attach a symbolic name to the SR Policy candidate path.
       type: object
       properties:
         policy_name:
@@ -2633,7 +2684,7 @@ components:
     BgpSrte.SegmentList:
       x-status: under-review
       description: |-
-        Optional container for BGP SR TE Policy segment list settings. The Segment List sub-TLV encodes a single explicit path towards the Endpoint.
+        Optional configuration for BGP SR TE Policy segment list. The Segment List sub-TLV encodes a single explicit path towards the Endpoint.
       type: object
       properties:
         weight:
@@ -2755,7 +2806,7 @@ components:
           maximum: 255
     BgpSrte.SRv6SIDEndpointBehaviorAndStructure:
       description: |-
-        SRv6 Endpoint Behavior and SID Structure and its optional.  The total of the Locator Block, Locator Node, Function, and Argument lengths MUST be less than or equal to 128.
+        Configuration for SRv6 Endpoint Behavior and SID Structure.  Its optional. Summation of lengths for Locator Block, Locator Node,  Function, and Argument MUST be less than or equal to 128.
       type: object
       properties:
         lb_length:
@@ -2794,7 +2845,7 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
@@ -2829,7 +2880,7 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
@@ -2853,14 +2904,14 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
           default: 0
         sr_algorithm:
           description: |-
-            specifying SR Algorithm when when A-Flag as defined in above flags.
+            SR Algorithm identifier when A-Flag in on.
           type: integer
           minimum: 0
           maximum: 255
@@ -2883,7 +2934,7 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
@@ -2913,7 +2964,7 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
@@ -2944,7 +2995,7 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
@@ -2972,7 +3023,7 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
@@ -3015,7 +3066,7 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
@@ -3043,7 +3094,7 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
@@ -3072,14 +3123,14 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
           default: 0
         sr_algorithm:
           description: |-
-            specifying SR Algorithm when when A-Flag as defined in above flags.
+            SR Algorithm identifier when A-Flag in on.
           type: integer
           minimum: 0
           maximum: 255
@@ -3127,14 +3178,14 @@ components:
       properties:
         flags:
           description: |-
-            One octet of segment flags for V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
+            One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
           type: integer
           minimum: 0
           maximum: 255
           default: 0
         sr_algorithm:
           description: |-
-            specifying SR Algorithm when when A-Flag as defined in above flags.
+            SR Algorithm identifier when A-Flag in on.
           type: integer
           minimum: 0
           maximum: 255
@@ -3160,7 +3211,7 @@ components:
           $ref: '#/components/schemas/BgpSrte.SRv6SIDEndpointBehaviorAndStructure'
     Bgp.V6Policy:
       description: |
-        Configuration for BGP basic segment routing traffic engineering policy settings.
+        Configuration for BGP Segment Routing Traffic Engineering policy.
       type: object
       required:
       - ipv6_endpoint
@@ -3178,16 +3229,12 @@ components:
           default: 100
         ipv6_endpoint:
           description: |-
-            Specifies a single node or a set of nodes. It is selected on the basis of the policy_type (AFI).
+            Specifies a single node or a set of nodes (e.g., an anycast address). It is selected on the basis of the SR Policy type (AFI).
           type: string
           format: ipv6
         next_hop_mode:
-          description: "Specify the NextHop in MP REACH NLRI. The mode for setting\
-            \ the IP address  of the NextHop in the MP REACH NLRI can be one of the\
-            \ following:\n  Local IP: Automatically fills the Nexthop with the Local\
-            \ IP of the BGP peer.\n  If BGP peer is of type IPv6, Nexthop Encoding\
-            \ capability should be enabled.\n  Manual: Override the Nexthop with any\
-            \ arbitrary IPv4/IPv6 address.   "
+          description: |-
+            Mode for choosing the NextHop in MP REACH NLRI. Available modes are : Local IP: Automatically fills the Nexthop with the Local IP of the BGP peer. For IPv6 BGP peer the Nexthop Encoding capability should be enabled. Manual: Override the Nexthop with any arbitrary IPv4/IPv6 address.
           type: string
           enum:
           - local_ip
@@ -3241,7 +3288,7 @@ components:
           default: true
     BgpSrte.V6TunnelTlv:
       description: |-
-        Configuration for BGP SRTE Tunnel TLV settings.
+        Configuration for BGP SRTE Tunnel TLV.
       type: object
       properties:
         remote_endpoint_sub_tlv:
@@ -3251,9 +3298,9 @@ components:
         preference_sub_tlv:
           $ref: '#/components/schemas/BgpSrte.PreferenceSubTlv'
         policy_priority_sub_tlv:
-          $ref: '#/components/schemas/BgpSrte.policyPrioritySubTlv'
+          $ref: '#/components/schemas/BgpSrte.PolicyPrioritySubTlv'
         policy_name_sub_tlv:
-          $ref: '#/components/schemas/BgpSrte.policyNameSubTlv'
+          $ref: '#/components/schemas/BgpSrte.PolicyNameSubTlv'
         explicit_null_label_policy_sub_tlv:
           $ref: '#/components/schemas/BgpSrte.ExplicitNullLabelPolicySubTlv'
         segment_lists:
@@ -3328,13 +3375,13 @@ components:
             $ref: '#/components/schemas/Bgp.V6RouteRange'
         v4_srte_policies:
           description: |-
-            Segment Routing (SR) Policy for IPv4 Address family indicator (AFI).
+            Segment Routing (SR) Policy for IPv4 Address Family Indicator (AFI).
           type: array
           items:
             $ref: '#/components/schemas/Bgp.V4Policy'
         v6_srte_policies:
           description: |-
-            Segment Routing (SR) Policy for IPv6 Address family indicator (AFI).
+            Segment Routing (SR) Policy for IPv6 Address Family Indicator (AFI).
           type: array
           items:
             $ref: '#/components/schemas/Bgp.V6Policy'

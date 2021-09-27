@@ -1954,16 +1954,16 @@ components:
             $ref: '#/components/schemas/Bgp.V6RouteRange'
         v4_srte_policies:
           description: |-
-            Segment Routing (SR) Policy for IPv4 Address Family Indicator (AFI).
+            Segment Routing Traffic Engineering (SR TE) Policy for IPv4 Address Family Identifier (AFI).
           type: array
           items:
-            $ref: '#/components/schemas/Bgp.V4Policy'
+            $ref: '#/components/schemas/BgpSrte.V4Policy'
         v6_srte_policies:
           description: |-
-            Segment Routing (SR) Policy for IPv6 Address Family Indicator (AFI).
+            Segment Routing Traffic Engineering (SR TE) Policy for IPv6 Address Family Identifier (AFI).
           type: array
           items:
-            $ref: '#/components/schemas/Bgp.V6Policy'
+            $ref: '#/components/schemas/BgpSrte.V6Policy'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -2387,7 +2387,7 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
       required:
       - name
-    Bgp.V4Policy:
+    BgpSrte.V4Policy:
       description: "Configuration for BGP Segment Routing Traffic Engineering(SRTE)\
         \ \npolicy.\n"
       type: object
@@ -2397,7 +2397,7 @@ components:
       properties:
         distinguisher:
           description: |-
-            Identifies the SR policy in the context of <Color, Endpoint> tuple.  It is used by the SR Policy originator to make unique multiple  occurrences of the same SR Policy as well as candidate paths of different SR Policies.
+            4-octet value uniquely identifying the policy in the context of <color, endpoint> tuple. It is used by the SR Policy originator to make unique (from an NLRI perspective)  both for multiple candidate  paths of the same SR Policy as well as candidate paths  of different SR Policies (i.e. with different segment list) with the same Color  and Endpoint but meant for different head-ends.
           type: integer
           default: 1
         color:
@@ -2437,7 +2437,7 @@ components:
           type: string
           format: ipv6
         advanced:
-          $ref: '#/components/schemas/BgpSrTe.Advanced'
+          $ref: '#/components/schemas/BgpSrte.Advanced'
         add_path:
           $ref: '#/components/schemas/Bgp.AddPath'
         as_path:
@@ -2448,12 +2448,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Bgp.Community'
-        excommunities:
+        extcommunities:
           description: |-
             Optional Extended Community settings.
           type: array
           items:
-            $ref: '#/components/schemas/Bgp.ExCommunity'
+            $ref: '#/components/schemas/Bgp.ExtCommunity'
         tunnel_tlvs:
           description: |-
             List Tunnel Encapsulation Attributes.
@@ -2470,7 +2470,7 @@ components:
             If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer.
           type: boolean
           default: true
-    BgpSrTe.Advanced:
+    BgpSrte.Advanced:
       description: |-
         Configuration for advanced BGP SRTE settings.
       type: object
@@ -2496,7 +2496,7 @@ components:
             Local Preference attribute,  for iBGP peers to select the path for the traffic leaving the AS.
           type: integer
           default: 0
-    Bgp.ExCommunity:
+    Bgp.ExtCommunity:
       description: |-
         The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is also divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a  format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities.
       type: object
@@ -2546,6 +2546,8 @@ components:
       properties:
         remote_endpoint_sub_tlv:
           $ref: '#/components/schemas/BgpSrte.RemoteEndpointSubTlv'
+        color_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.ColorSubTlv'
         binding_sub_tlv:
           $ref: '#/components/schemas/BgpSrte.BindingSubTlv'
         preference_sub_tlv:
@@ -2574,7 +2576,7 @@ components:
       - name
     BgpSrte.RemoteEndpointSubTlv:
       description: |-
-        Configuration for the BGP remote endpoint sub TLV. Question: Do we need to keep? Draft says  "If present, the Remote Endpoint sub-TLV and the Color sub-TLV MUST be ignored by the BGP speaker."
+        Configuration for the BGP remote endpoint sub TLV.
       type: object
       properties:
         as_number:
@@ -2602,6 +2604,20 @@ components:
           type: string
           format: ipv6
           default: ::0
+    BgpSrte.ColorSubTlv:
+      description: "Configuration for the Policy Color attribute sub-TLV. The Color\
+        \ sub-TLV MAY be used as a way to \"color\" the corresponding Tunnel TLV.\
+        \ The Value field of the sub-TLV is eight octets long and consists of a Color\
+        \ Extended Community. First two octets of its Value field are 0x030b as type\
+        \ and subtype of extended  community. Remaining six octets are are exposed\
+        \ to configure. "
+      type: object
+      properties:
+        color:
+          description: |-
+            Six octet values. Example: 000000000064 for color value 100.
+          type: string
+          format: hex
     BgpSrte.BindingSubTlv:
       description: |-
         Configuration for the binding SID sub-TLV.  This is used to signal the binding SID related information  of the SR Policy candidate path.
@@ -2609,7 +2625,7 @@ components:
       properties:
         binding_sid_type:
           description: |-
-            Specify one of the No Binding SID, Four Octets Sid or IPv6 SID.
+            Type of the binding SID.  Supported types are "No Binding SID" or "Four Octets Sid" or "IPv6 SID".
           type: string
           enum:
           - no_binding
@@ -2846,10 +2862,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         label:
           description: |-
             Label value in [0, 2^20 -1].
@@ -2881,10 +2895,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         srv6_sid:
           description: |-
             SRv6 SID.
@@ -2905,10 +2917,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         sr_algorithm:
           description: |-
             SR Algorithm identifier when A-Flag in on.
@@ -2935,10 +2945,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         sr_algorithm:
           description: |-
             specifying SR Algorithm when when A-Flag as defined in above flags.
@@ -2965,10 +2973,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         local_interface_id:
           description: |-
             Local Interface ID: The Interface Index as defined in [RFC8664].
@@ -2996,9 +3002,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
+          type: string
+          format: hex
         local_ipv4_address:
           description: |-
             Local IPv4 Address.
@@ -3024,10 +3029,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         local_interface_id:
           description: |-
             Local Interface ID: The Interface Index as defined in [RFC8664].
@@ -3067,10 +3070,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         local_ipv6_address:
           description: |-
             Local IPv6 Address.
@@ -3095,10 +3096,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         ipv6_node_address:
           description: |-
             IPv6 address representing a node.
@@ -3124,10 +3123,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         sr_algorithm:
           description: |-
             SR Algorithm identifier when A-Flag in on.
@@ -3179,10 +3176,8 @@ components:
         flags:
           description: |-
             One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined in https://datatracker.ietf.org/doc/html/draft-ietf-idr-segment-routing-te-policy-13#section-2.4.4.2.12
-          type: integer
-          minimum: 0
-          maximum: 255
-          default: 0
+          type: string
+          format: hex
         sr_algorithm:
           description: |-
             SR Algorithm identifier when A-Flag in on.
@@ -3209,7 +3204,7 @@ components:
           description: |-
             Optional SRv6 Endpoint Behavior and SID Structure.
           $ref: '#/components/schemas/BgpSrte.SRv6SIDEndpointBehaviorAndStructure'
-    Bgp.V6Policy:
+    BgpSrte.V6Policy:
       description: |
         Configuration for BGP Segment Routing Traffic Engineering policy.
       type: object
@@ -3270,6 +3265,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Bgp.Community'
+        extcommunities:
+          description: |-
+            Optional Extended Community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.ExtCommunity'
         tunnel_tlvs:
           description: |-
             List of optional tunnel TLV settings.
@@ -3293,6 +3294,8 @@ components:
       properties:
         remote_endpoint_sub_tlv:
           $ref: '#/components/schemas/BgpSrte.RemoteEndpointSubTlv'
+        color_sub_tlv:
+          $ref: '#/components/schemas/BgpSrte.ColorSubTlv'
         binding_sub_tlv:
           $ref: '#/components/schemas/BgpSrte.BindingSubTlv'
         preference_sub_tlv:
@@ -3375,16 +3378,16 @@ components:
             $ref: '#/components/schemas/Bgp.V6RouteRange'
         v4_srte_policies:
           description: |-
-            Segment Routing (SR) Policy for IPv4 Address Family Indicator (AFI).
+            Segment Routing Traffic Engineering (SR TE) Policy for IPv4 Address Family Identifier (AFI).
           type: array
           items:
-            $ref: '#/components/schemas/Bgp.V4Policy'
+            $ref: '#/components/schemas/BgpSrte.V4Policy'
         v6_srte_policies:
           description: |-
-            Segment Routing (SR) Policy for IPv6 Address Family Indicator (AFI).
+            Segment Routing Traffic Engineering (SR TE) Policy for IPv6 Address Family Identifier (AFI).
           type: array
           items:
-            $ref: '#/components/schemas/Bgp.V6Policy'
+            $ref: '#/components/schemas/BgpSrte.V6Policy'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.

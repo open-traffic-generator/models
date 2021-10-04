@@ -1,32 +1,54 @@
 components:
   schemas:
-    Device.Bgp:
-      x-include:
-      - '../../common/common.yaml#/components/schemas/Named.Object'
-      - '../device.yaml#/components/schemas/Device.Active'
-      x-status: under-review
+    Device.BgpRouter:
       description: >-
-        Container for basic emulated BGP peer settings.
+        Configuration for one or more IPv4 or IPv6 BGP peers.
       type: object
-      required: [as_type, as_number]
+      required: [router_id]
       properties:
         router_id:
           description: >-
-            The BGP router ID is a unique identifier used by routing protocols.
+            The BGP router ID is a unique identifier used by BGP.
             It is a 32-bit value that is often represented by an IPv4 address.
           type: string
           format: ipv4
-          default: 0.0.0.0
+        ipv4_interfaces:
+          description: >-
+            This contains an array of references to IPv4 interfaces, 
+            each of which will have list of peers to different destinations.   
+          type: array
+          items:
+            $ref: './bgpv4.yaml#/components/schemas/Bgp.V4Interface'
+        ipv6_interfaces:
+          description: >-
+            This contains an array of references to IPv6 interfaces, 
+            each of which will have list of peers to different destinations.
+          type: array
+          items:
+            $ref: './bgpv6.yaml#/components/schemas/Bgp.V6Interface'
+
+    Device.Bgp:
+      x-include:
+      - '../../common/common.yaml#/components/schemas/Named.Object'
+      x-status: under-review
+      description: >-
+        Configuration for basic emulated BGP peer settings.
+      type: object
+      required: [as_type, as_number]
+      properties:
         as_type:
           description: >-
             The type of BGP autonomous system.
             External BGP is used for BGP links between two or more
-            autonomous systems (ebgp)
+            autonomous systems (ebgp).
             Internal BGP is used within a single autonomous system (ibgp).
             BGP property defaults are aligned with this object defined as an
             internal BGP peer.
-            If the as_type is specified as ebgp then other properties will
-            need to be specified according an external BGP peer.
+            If the as_type is specified as 'ebgp' then other properties will
+            need to be specified as per an external BGP peer.
+            Specifically, for 'ebgp',  'as_set_mode' attribute in 'as_path' field 
+            in any Route Range should be changed from default value 'do_not_include_local_as'
+            to any other value.
           type: string
           enum:
           - ibgp
@@ -38,43 +60,37 @@ components:
         as_number_width:
           description: >-
             The width in bytes of the as_number values.
-            Any as_number values that exceed the width MUST result in an error
+            Any as_number values that exceeds the width MUST result in an error.
           type: string
           enum:
           - two
           - four
           default: four
-        as_number_set_mode:
-          description: >-
-            The AS number set mode
-          type: string
-          enum:
-          - do_not_include_as
-          - include_as_seq
-          - include_as_set
-          - include_as_seq_confed
-          - include_as_set_confed
-          - prepend_as_to_first_segment
-          default: do_not_include_as          
         advanced:
-          $ref: './bgpadvanced.yaml#/components/schemas/Device.BgpAdvanced'
+          $ref: './bgpadvanced.yaml#/components/schemas/Bgp.Advanced'
         capability:
-          $ref: './bgpcapability.yaml#/components/schemas/Device.BgpCapability'
-        sr_te_policies:
+          $ref: './bgpcapability.yaml#/components/schemas/Bgp.Capability'
+        v4_routes:
           description: >-
-            Segment routing/traffic engineering policies
+            Emulated BGPv4 route ranges.
           type: array
           items:
-            $ref: './bgpsrtepolicy.yaml#/components/schemas/Device.BgpSrTePolicy'
-        bgpv4_routes:
+            $ref: './bgpv4routerange.yaml#/components/schemas/Bgp.V4RouteRange'
+        v6_routes:
           description: >-
-            Emulated BGPv4 routes
+            Emulated BGPv6 route ranges.
           type: array
           items:
-            $ref: './bgpv4routerange.yaml#/components/schemas/Device.Bgpv4Route'
-        bgpv6_routes:
+            $ref: './bgpv6routerange.yaml#/components/schemas/Bgp.V6RouteRange'
+        v4_srte_policies:
           description: >-
-            Emulated BGPv6 routes
+            Segment Routing Traffic Engineering (SR TE) Policies for IPv4 Address Family Identifier (AFI).
           type: array
           items:
-            $ref: './bgpv6routerange.yaml#/components/schemas/Device.Bgpv6Route'
+            $ref: './bgpsrtev4policy.yaml#/components/schemas/BgpSrte.V4Policy'
+        v6_srte_policies:
+          description: >-
+            Segment Routing Traffic Engineering (SR TE) Policies for IPv6 Address Family Identifier (AFI).
+          type: array
+          items:
+            $ref: './bgpsrtev6policy.yaml#/components/schemas/BgpSrte.V6Policy'

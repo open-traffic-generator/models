@@ -7,7 +7,7 @@ info:
     Contributions can be made in the following ways:
     - [open an issue](https://github.com/open-traffic-generator/models/issues) in the models repository
     - [fork the models repository](https://github.com/open-traffic-generator/models) and submit a PR
-  version: 0.6.3
+  version: 0.6.5
   contact:
     url: https://github.com/open-traffic-generator/models
   license:
@@ -404,11 +404,12 @@ components:
       - name
     Lag.Port:
       description: |-
-        The container for a port and LAG protocol settings.
+        The container for a port's ethernet interface and LAG protocol settings
       type: object
       required:
       - port_name
       - protocol
+      - ethernet
       properties:
         port_name:
           description: "The name of a port object that will be part of the LAG. \n\
@@ -418,6 +419,8 @@ components:
           - /components/schemas/Port/properties/name
         protocol:
           $ref: '#/components/schemas/Lag.Protocol'
+        ethernet:
+          $ref: '#/components/schemas/Device.EthernetBase'
     Lag.Protocol:
       type: object
       properties:
@@ -516,6 +519,250 @@ components:
           - passive
           - active
           default: active
+    Device.EthernetBase:
+      description: |-
+        Base Ethernet interface.
+      type: object
+      required:
+      - mac
+      - name
+      properties:
+        mac:
+          description: |-
+            Media Access Control address.
+          type: string
+          format: mac
+        mtu:
+          description: |-
+            Maximum Transmission Unit.
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 1500
+        vlans:
+          description: |-
+            List of VLANs
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.Vlan'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Device.Ethernet:
+      description: |-
+        An Ethernet interface with IPv4 and IPv6 addresses.
+        Base Ethernet interface.
+      type: object
+      required:
+      - port_name
+      - mac
+      - name
+      properties:
+        port_name:
+          description: |
+            The unique name of a Port or a LAG that will emulate this interface.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+            - /components/schemas/Lag/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          - /components/schemas/Lag/properties/name
+        ipv4_addresses:
+          description: "List of IPv4 addresses and their gateways. "
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.Ipv4'
+        ipv6_addresses:
+          description: |-
+            List of global IPv6 addresses and their gateways.
+            The Link Local IPv6 address will be automatically generated.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.Ipv6'
+        mac:
+          description: |-
+            Media Access Control address.
+          type: string
+          format: mac
+        mtu:
+          description: |-
+            Maximum Transmission Unit.
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 1500
+        vlans:
+          description: |-
+            List of VLANs
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.Vlan'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Device.Vlan:
+      description: |-
+        Emulated VLAN protocol.
+      type: object
+      properties:
+        tpid:
+          description: |-
+            Tag protocol identifier
+          type: string
+          enum:
+          - x8100
+          - x88A8
+          - x9100
+          - x9200
+          - x9300
+          default: x8100
+        priority:
+          description: |-
+            Priority code point
+          type: integer
+          minimum: 0
+          maximum: 3
+          default: 0
+        id:
+          description: |-
+            VLAN identifier
+          type: integer
+          minimum: 0
+          maximum: 4095
+          default: 1
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
+    Device.Ipv4:
+      description: |-
+        An IPv4 interface with gateway
+        A base IPv4 interface.
+      type: object
+      required:
+      - gateway
+      - address
+      - name
+      properties:
+        gateway:
+          description: |-
+            The IPv4 address of the gateway
+          type: string
+          format: ipv4
+        address:
+          description: |-
+            The IPv4 address
+          type: string
+          format: ipv4
+        prefix:
+          description: |-
+            The prefix of the IPv4 address.
+          type: integer
+          minimum: 1
+          maximum: 32
+          default: 24
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Device.Ipv4Loopback:
+      description: |-
+        An IPv4 Loopback interface.
+      type: object
+      required:
+      - eth_name
+      - name
+      properties:
+        eth_name:
+          description: |
+            The unique name of the Ethernet interface behind which this Loopback  interface will be created.
+
+            x-constraint:
+            - /components/schemas/Device.Ethernet/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+        address:
+          description: |-
+            The IPv4 Loopback address with prefix length of 32.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Device.Ipv6:
+      description: |-
+        Status: under-review
+        An IPv6 interface with gateway.
+        A base IPv6 interface.
+      type: object
+      required:
+      - gateway
+      - address
+      - name
+      properties:
+        gateway:
+          description: |-
+            The IPv6 gateway address.
+          type: string
+          format: ipv6
+          default: ::0
+        address:
+          description: |-
+            The IPv6 address.
+          type: string
+          format: ipv6
+        prefix:
+          description: |-
+            The network prefix.
+          type: integer
+          minimum: 1
+          maximum: 128
+          default: 64
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      x-status: under-review
+    Device.Ipv6Loopback:
+      description: |-
+        An IPv6 Loopback interface
+      type: object
+      required:
+      - eth_name
+      - name
+      properties:
+        eth_name:
+          description: "The unique name of the Ethernet interface behind which this\
+            \ Loopback \n interface will be created.\n\nx-constraint:\n- /components/schemas/Device.Ethernet/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+        address:
+          description: |-
+            The IPv6 Loopback address with prefix length of 128.
+          type: string
+          format: ipv6
+          default: ::0
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
     Layer1:
       description: |-
         A container for layer1 settings.
@@ -947,219 +1194,6 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
       required:
       - name
-    Device.Ethernet:
-      description: |-
-        An Ethernet interface with IPv4 and IPv6 addresses.
-        Base Ethernet interface.
-      type: object
-      required:
-      - port_name
-      - mac
-      - name
-      properties:
-        port_name:
-          description: |
-            The unique name of a Port or a LAG that will emulate this interface.
-
-            x-constraint:
-            - /components/schemas/Port/properties/name
-            - /components/schemas/Lag/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-          - /components/schemas/Lag/properties/name
-        ipv4_addresses:
-          description: "List of IPv4 addresses and their gateways. "
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.Ipv4'
-        ipv6_addresses:
-          description: |-
-            List of global IPv6 addresses and their gateways.
-            The Link Local IPv6 address will be automatically generated.
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.Ipv6'
-        mac:
-          description: |-
-            Media Access Control address.
-          type: string
-          format: mac
-        mtu:
-          description: |-
-            Maximum Transmission Unit.
-          type: integer
-          minimum: 0
-          maximum: 65535
-          default: 1500
-        vlans:
-          description: |-
-            List of VLANs
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.Vlan'
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Device.Vlan:
-      description: |-
-        Emulated VLAN protocol.
-      type: object
-      properties:
-        tpid:
-          description: |-
-            Tag protocol identifier
-          type: string
-          enum:
-          - x8100
-          - x88A8
-          - x9100
-          - x9200
-          - x9300
-          default: x8100
-        priority:
-          description: |-
-            Priority code point
-          type: integer
-          minimum: 0
-          maximum: 3
-          default: 0
-        id:
-          description: |-
-            VLAN identifier
-          type: integer
-          minimum: 0
-          maximum: 4095
-          default: 1
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-      required:
-      - name
-    Device.Ipv4:
-      description: |-
-        An IPv4 interface with gateway
-        A base IPv4 interface.
-      type: object
-      required:
-      - gateway
-      - address
-      - name
-      properties:
-        gateway:
-          description: |-
-            The IPv4 address of the gateway
-          type: string
-          format: ipv4
-        address:
-          description: |-
-            The IPv4 address
-          type: string
-          format: ipv4
-        prefix:
-          description: |-
-            The prefix of the IPv4 address.
-          type: integer
-          minimum: 1
-          maximum: 32
-          default: 24
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Device.Ipv4Loopback:
-      description: |-
-        An IPv4 Loopback interface.
-      type: object
-      required:
-      - eth_name
-      - name
-      properties:
-        eth_name:
-          description: |
-            The unique name of the Ethernet interface behind which this Loopback  interface will be created.
-
-            x-constraint:
-            - /components/schemas/Device.Ethernet/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Device.Ethernet/properties/name
-        address:
-          description: |-
-            The IPv4 Loopback address with prefix length of 32.
-          type: string
-          format: ipv4
-          default: 0.0.0.0
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    Device.Ipv6:
-      description: |-
-        Status: under-review
-        An IPv6 interface with gateway.
-        A base IPv6 interface.
-      type: object
-      required:
-      - gateway
-      - address
-      - name
-      properties:
-        gateway:
-          description: |-
-            The IPv6 gateway address.
-          type: string
-          format: ipv6
-          default: ::0
-        address:
-          description: |-
-            The IPv6 address.
-          type: string
-          format: ipv6
-        prefix:
-          description: |-
-            The network prefix.
-          type: integer
-          minimum: 1
-          maximum: 128
-          default: 64
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-      x-status: under-review
-    Device.Ipv6Loopback:
-      description: |-
-        An IPv6 Loopback interface
-      type: object
-      required:
-      - eth_name
-      - name
-      properties:
-        eth_name:
-          description: "The unique name of the Ethernet interface behind which this\
-            \ Loopback \n interface will be created.\n\nx-constraint:\n- /components/schemas/Device.Ethernet/properties/name\n"
-          type: string
-          x-constraint:
-          - /components/schemas/Device.Ethernet/properties/name
-        address:
-          description: |-
-            The IPv6 Loopback address with prefix length of 128.
-          type: string
-          format: ipv6
-          default: ::0
-        name:
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
     Device.IsisRouter:
       x-status: under-review
       description: |-

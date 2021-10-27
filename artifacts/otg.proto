@@ -2868,10 +2868,10 @@ message BgpV6SegmentRouting {
 }
 
 message DeviceRsvp {
-  option (msg_meta).description = "Status: under-review\nConfiguration for one or more RSVP interfaces,head end and tail end LSPs.";
+  option (msg_meta).description = "Status: under-review\nConfiguration for one or more RSVP interfaces,head end and tail end LSPs. In this model , currently IPv4 RSVP and point-to-point LSPs are supported as per RFC3209 and related specifications.";
 
   repeated RsvpInterface interfaces = 1 [
-    (fld_meta).description = "List of RSVP Connected interfaces.At least one interface should be present for device connected to the DUT. For unconnected devices,this array should be empty."
+    (fld_meta).description = "List of RSVP connected interfaces.At least one interface should be present for device connected to the DUT. For unconnected devices,this array should be empty."
   ];
 
   repeated RsvpLspInterface lsp_interfaces = 2 [
@@ -2911,7 +2911,7 @@ message RsvpInterface {
 
   optional int64 summary_refresh_interval = 6 [
     (fld_meta).default = "30000",
-    (fld_meta).description = "The number of milliseconds between transmissions of Summary Refreshes."
+    (fld_meta).description = "The number of milliseconds between transmissions of Summary Refreshes. There is no specification specified maximum value. For clarity, setting the maximum to 1 hour."
   ];
 
   optional bool send_bundle = 7 [
@@ -2935,19 +2935,23 @@ message RsvpLspInterface {
   optional RsvpLspInterfaceEgressLSP p2p_egress_lsps = 2 [
     (fld_meta).description = "Contains properties of an Tail(Egress) LSPs. "
   ];
+
+  repeated RsvpLspInterfaceIngressP2PLSP p2p_ingress_lsps = 3 [
+    (fld_meta).description = "Array of point-to-point RSVP-TE LSPs originating from this interface."
+  ];
 }
 
 message RsvpLspInterfaceEgressLSP {
   option (msg_meta).description = "Configuration for RSVP Tail(Egress) Lsps.";
 
-  optional int64 refresh_interval = 1 [
-    (fld_meta).default = "1000",
-    (fld_meta).description = "The number of milliseconds between transmissions of RESV Refreshes."
+  optional int32 refresh_interval = 1 [
+    (fld_meta).default = "30000",
+    (fld_meta).description = "The time in milliseconds between transmissions of RESV Refreshes. The actual refresh interval is jittered by upto 50%. There is no specification specified maximum value. For clarity, setting the maximum to 1 hour. "
   ];
 
-  optional int32 cleanup_timeout_multiplier = 2 [
+  optional int32 timeout_multiplier = 2 [
     (fld_meta).default = "3",
-    (fld_meta).description = "cleanup timer is set to cleanup_timeout_multiplier times the refresh_interval, then RSVP can tolerate K-1 successive RSVP  packet losses without falsely deleting state."
+    (fld_meta).description = "The number of missed RESV refreshes after which a recieving node should consider the LSP state to have timed out. There is no specification specified maximum value. Setting the maximum allowed value to 10 ."
   ];
 
   optional bool send_confirm = 3 [
@@ -2970,7 +2974,279 @@ message RsvpLspInterfaceEgressLSP {
 
   optional bool reflect_rro = 5 [
     (fld_meta).default = "True",
-    (fld_meta).description = "If enabled RESV messages carry Record Route object, which stores the IP addresses of the routers that the TE tunnel traversede."
+    (fld_meta).description = "If enabled RESV messages carry Record Route object, which stores the IP addresses of the routers that the TE tunnel traversed.            "
+  ];
+}
+
+message RsvpLspInterfaceIngressP2PLSP {
+  option (msg_meta).description = "Configuration for one RSVP Ingress point-to-point LSP.";
+
+  string remote_address = 1 [
+    (fld_meta).description = "IPv4 address of the remote endpoint of the LSP."
+  ];
+
+  optional int32 tunnel_id = 2 [
+    (fld_meta).default = "1",
+    (fld_meta).description = "The Tunnel ID of the RSVP LSP. Carried in the SESSION object in Path Messages."
+  ];
+
+  optional int32 lsp_id = 3 [
+    (fld_meta).default = "1",
+    (fld_meta).description = "The LSP ID of the RSVP LSP. Carried in the SENDER_TEMPLATE object in Path Messages."
+  ];
+
+  optional int32 refresh_interval = 4 [
+    (fld_meta).default = "30000",
+    (fld_meta).description = "The refresh interval in ms at which refresh Path Messages are sent.  The actual refresh interval is jittered by upto 50%. There is no specification specified maximum value. For clarity, setting the maximum to 1 hour. "
+  ];
+
+  optional int32 timeout_multiplier = 5 [
+    (fld_meta).default = "3",
+    (fld_meta).description = "The number of missed Path refreshes after which a recieving node should consider the LSP state to have timed out. There is no specification specified maximum value. Setting the maximum allowed value to 10 ."
+  ];
+
+  optional int32 backup_lsp_id = 6 [
+    (fld_meta).default = "2",
+    (fld_meta).description = "The LSP id that will be used when creating a Make-Before-Break LSP when the active LSP is using lsp_id. If the active LSP on which Make-Before-Break is being done is using the backup_lsp_id, the new LSP created will toggle to  use the lsp_id instead."
+  ];
+
+  optional int32 lsp_switchover_delay = 7 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "The amount of delay in ms that an implementation should wait for before switching traffic to the new LSP created after  a Make-Before-Break is done on an LSP. The default value is 0 which means to switch immediately. An implementation should support at least a minimum delay value of 50ms . If a delay value is supplied which is lesser than the minimum delay value supported , a warning should be provided to  indicate that the minimum value of LSP switchover delay is automatically increased to the supported minimum value. There is no specification specified maximum value. Setting maximum allowed value to 1 minute. "
+  ];
+
+  optional RsvpSessionAttribute session_attribute = 8 [
+    (fld_meta).description = "This contains the values of the fields to be included in the SESSION_ATTRIBUTE object in the Path Message sent for the LSP.            "
+  ];
+
+  optional RsvpTspec tspec = 9 [
+    (fld_meta).description = "This contains the values of the fields to be included in the TSPEC object in the Path Message sent for the LSP.            "
+  ];
+
+  optional RsvpFastReroute fast_reroute = 10 [
+    (fld_meta).description = "This contains the values of the fields to be included in the FAST_REROUTE object in the Path Message sent for the LSP. \nThis is an optional object . If this attribute is not included , the FAST_REROUTE object will not be included.           "
+  ];
+
+  optional RsvpEro ero = 11 [
+    (fld_meta).description = "This contains the values of the fields to be included in the ERO object in the Path Message sent for the LSP. \nThis is an optional object . If this attribute is not included , the ERO object will not be included.           "
+  ];
+}
+
+message RsvpSessionAttribute {
+  option (msg_meta).description = "Configuration for RSVP-TE SESSION_ATTRIBUTE object included in Path Messages as defined in RFC3209. The bandwidth_protection_desired and node_protection_desired flags are defined in RFC4090 (Fast Reroute)";
+
+  optional bool auto_generate_session_name = 1 [
+    (fld_meta).default = "True",
+    (fld_meta).description = "If this is enabled, an auto-generated Session Name is included in the SESSION_ATTRIBUTE object in the Path Message for this LSP. It is suggested to include the Local IP, Remote IP, Tunnel ID and LSP ID in the auto-generated Session Name to ensure uniqueness of the name in the test."
+  ];
+
+  optional string session_name = 2 [
+    (fld_meta).description = "If auto_generate_session_name is set to false, then the value of this field is used to fill the Session Name field."
+  ];
+
+  optional int32 setup_priority = 3 [
+    (fld_meta).default = "7",
+    (fld_meta).description = "Specifies the value of the Setup Priority field. This controls whether the LSP should pre-empt existing  LSP setup with certain Holding Priority if resource limitation is encountered when setting up the LSP. (e.g bandwidth availability)"
+  ];
+
+  optional int32 holding_priority = 4 [
+    (fld_meta).default = "7",
+    (fld_meta).description = "Specifies the value of the Holding Priority field. This controls whether a new LSP being created with certain Setup Priority should pre-empt this LSP if resource limitation is encountered when setting up the LSP. (e.g bandwidth availability)"
+  ];
+
+  optional bool local_protection_desired = 5 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "This flag permits transit routers to use a local repair mechanism which may result in violation of the explicit route object.  When a fault is detected on an adjacent downstream link or node, a transit router can reroute traffic for fast service restoration."
+  ];
+
+  optional bool label_recording_desired = 6 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "This flag indicates that label information should be included when doing a route record."
+  ];
+
+  optional bool se_style_desired = 7 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "This flag indicates that the tunnel ingress node may choose to reroute this tunnel without tearing it down. A tunnel egress node SHOULD use the SE Style when responding with a Resv message."
+  ];
+
+  optional bool bandwidth_protection_desired = 8 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "This flag indicates to the PLRs along the protected LSP path that a backup path with a bandwidth guarantee is desired.   The bandwidth to be guaranteed is that of the protected LSP, if no FAST_REROUTE object is included in the PATH message; if a FAST_REROUTE object is in the PATH message, then the bandwidth specified therein is to be guaranteed."
+  ];
+
+  optional bool node_protection_desired = 9 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "This flag indicates to the PLRs along a protected LSP path that a backup path that bypasses at least the next node of the protected LSP is desired."
+  ];
+
+  optional RsvpResourceAffinities resource_affinities = 10 [
+    (fld_meta).description = "This is an optional object. If included the extended SESSION_ATTRIBUTE object is sent in the Path message containing \nthe additional fields included in this object.            "
+  ];
+}
+
+message RsvpResourceAffinities {
+  option (msg_meta).description = "This is an optional object. If included, the extended SESSION_ATTRIBUTE object is sent in the Path message containing \nthe additional fields included in this object.";
+
+  optional string exclude_any = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "A 32-bit vector representing a set of attribute filters associated with a tunnel any of which renders a link unacceptable.             "
+  ];
+
+  optional string include_any = 2 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "A 32-bit vector representing a set of attribute filters associated with a tunnel any of which renders a link acceptable.             "
+  ];
+
+  optional string include_all = 3 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "A 32-bit vector representing a set of attribute filters associated with a tunnel all of which must be present for a link to be acceptable.            "
+  ];
+}
+
+message RsvpTspec {
+  option (msg_meta).description = "Configuration for RSVP-TE TSPEC object included in Path Messages. The usage of these parameters is defined in RFC2215.";
+
+  optional string token_bucket_rate = 1 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "The rate of the traffic to be carried in this LSP in bytes per second. This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215."
+  ];
+
+  optional string token_bucket_size = 2 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "The depth of the token bucket in bytes used to specify the Token Bucket characteristics of the traffic to be carried in the LSP.This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215."
+  ];
+
+  optional string peak_data_rate = 3 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "The peak data rate of the traffic in bytes per second used to specify the Token Bucket characteristics of the traffic  to be carried in the LSP.This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215."
+  ];
+
+  optional int32 minimum_policed_unit = 4 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "Specifies the minium length of packet frames that will be policed. "
+  ];
+
+  optional int32 maximum_policed_unit = 5 [
+    (fld_meta).default = "1500",
+    (fld_meta).description = "Specifies the maximum length of packet frames that will be policed. "
+  ];
+}
+
+message RsvpFastReroute {
+  option (msg_meta).description = "Configuration for the optional RSVP-TE FAST_REROUTE object included in Path Messages. ";
+
+  optional int32 setup_priority = 1 [
+    (fld_meta).default = "7",
+    (fld_meta).description = "Specifies the value of the Setup Priority field. This controls whether the backup LSP should pre-empt existing  LSP setup with certain Holding Priority if resource limitation is encountered when setting up the LSP. (e.g bandwidth availability)"
+  ];
+
+  optional int32 holding_priority = 2 [
+    (fld_meta).default = "7",
+    (fld_meta).description = "Specifies the value of the Holding Priority field. This controls whether a new LSP being created with certain Setup Priority should pre-empt this LSP if resource limitation is encountered when setting up the LSP. (e.g bandwidth availability)"
+  ];
+
+  optional int32 hop_limit = 3 [
+    (fld_meta).default = "3",
+    (fld_meta).description = "Specifies the value of the Hop Limit field. This controls the maximum number of hops the LSP should traverse to reach the  LSP end-point."
+  ];
+
+  optional int64 bandwidth = 4 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "Specifies the value of the Bandwidth field in bytes per second desired for the LSP. "
+  ];
+
+  optional string exclude_any = 5 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "A 32-bit vector representing a set of attribute filters associated with a tunnel any of which renders a link unacceptable.             "
+  ];
+
+  optional string include_any = 6 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "A 32-bit vector representing a set of attribute filters associated with a tunnel any of which renders a link acceptable.             "
+  ];
+
+  optional string include_all = 7 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "A 32-bit vector representing a set of attribute filters associated with a tunnel all of which must be present for a link to be acceptable.            "
+  ];
+
+  optional bool one_to_one_backup_desired = 8 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "Requests protection via the one-to-one backup method.           "
+  ];
+
+  optional bool facility_backup_desired = 9 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "Requests protection via the facility backup method.           "
+  ];
+}
+
+message RsvpEro {
+  option (msg_meta).description = "Configuration for the optional RSVP-TE ERO object included in Path Messages. ";
+
+  message PrependEgressIp {
+    enum Enum {
+      unspecified = 0;
+      dont_prepend = 1;
+      prepend_loose = 2;
+      prepend_strict = 3;
+    }
+  }
+  optional PrependEgressIp.Enum prepend_egress_ip = 1 [
+    (fld_meta).default = "PrependEgressIp.Enum.prepend_loose",
+    (fld_meta).description = "Determines whether the IP address of the egress endpoint of the LSP should be added as an ERO sub-object. If it is to be included, it can be included as a Loose hop or as a Strict hop."
+  ];
+
+  optional int32 prefix_length = 2 [
+    (fld_meta).default = "32",
+    (fld_meta).description = "If prepend_egress_ip is set to one of 'prepend_loose' or 'prepend_strict', then set this value as the prefix length of the ERO subject containing egress IP address.                        "
+  ];
+
+  repeated RsvpEroSubobject subobjects = 3 [
+    (fld_meta).description = "Array of subobjects to be included in the ERO after the optional sub-object containing IP address of egress endpoint of the LSP. These contain the intermediate hops to be traversed by the LSP while being forwarded towards the egress endpoint."
+  ];
+}
+
+message RsvpEroSubobject {
+  option (msg_meta).description = "Configuration for the configured ERO sub-object.";
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      ip = 1;
+      as = 2;
+    }
+  }
+  optional Type.Enum type = 1 [
+    (fld_meta).default = "Type.Enum.ip",
+    (fld_meta).description = "The type of the ERO sub-object , one of IP or AS"
+  ];
+
+  optional string ip_address = 2 [
+    (fld_meta).default = "0.0.0.0",
+    (fld_meta).description = "IPv4 address that this LSP should traverse through. This field is applicable only if the value of 'type' is set to 'ip'"
+  ];
+
+  optional int32 ip_prefix = 3 [
+    (fld_meta).default = "32",
+    (fld_meta).description = "Prefix length for the IPv4 address in the ERO sub-object. This field is applicable only if the value of 'type' is set to 'ip'"
+  ];
+
+  optional int32 as = 4 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "Autonomous System number to be set in the ERO sub-object that this LSP should traverse through. This field is applicable only if the value of 'type' is set to 'as' Note that as per RFC3209 , 4-byte AS encoding is not supported."
+  ];
+
+  message HopType {
+    enum Enum {
+      unspecified = 0;
+      strict = 1;
+      loose = 2;
+    }
+  }
+  optional HopType.Enum hop_type = 5 [
+    (fld_meta).default = "HopType.Enum.loose",
+    (fld_meta).description = "The type of the ERO sub-object , one of Strict or Loose."
   ];
 }
 

@@ -3605,7 +3605,6 @@ components:
           description: |-
             The number of milliseconds between transmissions of Summary Refreshes. There is no specification specified maximum value. For clarity, setting the maximum to 1 hour.
           type: integer
-          format: int64
           default: 30000
           minimum: 1000
           maximum: 3600000
@@ -3692,7 +3691,7 @@ components:
           maximum: 10
         send_confirm:
           description: |-
-            If enabled RSVP sends RESV Confirmation message.
+            If enabled, RSVP sends RESV Confirmation message is response to RESV message.
           type: boolean
           default: false
         reservation_style:
@@ -3705,20 +3704,20 @@ components:
           - wildcard_filter
           default: shared_explicit
         reflect_rro:
-          description: "If enabled RESV messages carry Record Route object, which\
+          description: "If enabled, RESV messages carry Record Route object, which\
             \ stores the IP addresses of the routers that the TE tunnel traversed.\
             \            "
           type: boolean
           default: true
         fixed_label:
-          description: "If enabled a specific label be advertised by the egress or\
-            \ tail end.This can be leveraged to advertise explicit null labels.  \
-            \          "
+          description: "If enabled, a specific label will be advertised by the egress\
+            \ or tail end.This can be leveraged to advertise Explicit or Implicit\
+            \ null labels.            "
           type: boolean
           default: false
         label_value:
           description: |-
-            The fixed label value as advertised by egress in RESV message.
+            The fixed label value as advertised by egress in RESV message.Applicable only if 'fixed_label' is set to 'true'.
           type: integer
           default: 0
           minimum: 0
@@ -3929,7 +3928,7 @@ components:
           maximum: 65535
     Rsvp.FastReroute:
       description: "Configuration for the optional RSVP-TE FAST_REROUTE object included\
-        \ in Path Messages. "
+        \ in Path Messages as defined in RFC4090 "
       type: object
       properties:
         setup_priority:
@@ -5417,6 +5416,7 @@ components:
           - bgpv4
           - bgpv6
           - isis
+          - rsvp
           default: port
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
@@ -5428,6 +5428,8 @@ components:
           $ref: '#/components/schemas/Bgpv6.Metrics.Request'
         isis:
           $ref: '#/components/schemas/Isis.Metrics.Request'
+        rsvp:
+          $ref: '#/components/schemas/Rsvp.Metrics.Request'
     Metrics.Response:
       description: |-
         Response containing chosen traffic generator metrics
@@ -5441,6 +5443,7 @@ components:
           - bgpv4_metrics
           - bgpv6_metrics
           - isis_metrics
+          - rsvp_metrics
           default: port_metrics
         port_metrics:
           type: array
@@ -5462,6 +5465,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Isis.Metric'
+        rsvp_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rsvp.Metric'
     Port.Metrics.Request:
       description: |-
         The port result request to the traffic generator
@@ -6112,6 +6119,179 @@ components:
         l2_lsp_received:
           description: |-
             Number of Level 2 (L2) Link State Protocol Data Units (LSPs) received.
+          type: integer
+    Rsvp.Metrics.Request:
+      description: |-
+        The request to retrieve RSVP-TE per Router metrics/statistics.
+      type: object
+      properties:
+        router_names:
+          description: |
+            The names of RSVP-TE Routers to return results for. An empty list will return results for all RSVP-TE routers.
+
+            x-constraint:
+            - /components/schemas/Device.Rsvp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Rsvp/properties/name
+        column_names:
+          description: "The list of column names that the returned result set will\
+            \ contain. If the list is empty then all columns will be returned except\
+            \ for any result_groups.            "
+          type: array
+          items:
+            type: string
+            enum:
+            - ingress_p2p_lsps_configured
+            - ingress_p2p_lsps_up
+            - egress_p2p_lsps_up
+            - lsp_flap_count
+            - paths_tx
+            - paths_rx
+            - resvs_tx
+            - resvs_rx
+            - path_tears_tx
+            - path_tears_rx
+            - resv_tears_tx
+            - resv_tears_rx
+            - path_errors_tx
+            - path_errors_rx
+            - resv_errors_tx
+            - resv_errors_rx
+            - resv_conf_tx
+            - resv_conf_rx
+            - hellos_tx
+            - hellos_rx
+            - acks_tx
+            - acks_rx
+            - nacks_tx
+            - nacks_rx
+            - srefresh_tx
+            - srefresh_rx
+            - bundle_tx
+            - bundle_rx
+            - path_reevaluation_request_tx
+            - path_reoptimizations
+    Rsvp.Metric:
+      description: |-
+        RSVP-TE per router statistics information.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of a configured RSVP router.
+          type: string
+        ingress_p2p_lsps_configured:
+          description: |-
+            The number of ingress point-to-point LSPs configured .
+          type: integer
+        ingress_p2p_lsps_up:
+          description: "The number of ingress point-to-point LSPs for which Resv has\
+            \ been recieved and is currently up. "
+          type: integer
+        egress_p2p_lsps_up:
+          description: |-
+            The number of egress point-to-point LSPs for which Path requests were sucessfully handled and is currently up.
+          type: integer
+        lsp_flap_count:
+          description: |-
+            The number of times an LSP went from up to down state either because it timed out while waiting for Refreshes or  a PathTear or ResvTear message was received which caused the LSP to flap.
+          type: integer
+        paths_tx:
+          description: |-
+            The number of Path messages sent by this RSVP router.
+          type: integer
+        paths_rx:
+          description: |-
+            The number of Path messages received by this RSVP router.
+          type: integer
+        resvs_tx:
+          description: |-
+            The number of Resv messages sent by this RSVP router.
+          type: integer
+        resvs_rx:
+          description: |-
+            The number of Resv messages received by this RSVP router.
+          type: integer
+        path_tears_tx:
+          description: |-
+            The number of  Path Tear messages sent by this RSVP router.
+          type: integer
+        path_tears_rx:
+          description: "The number of Path Tear messages received by this RSVP router. "
+          type: integer
+        resv_tears_tx:
+          description: |-
+            The number of  Resv Tear messages sent by this RSVP router.
+          type: integer
+        resv_tears_rx:
+          description: "The number of Resv Tear messages received by this RSVP router. "
+          type: integer
+        path_errors_tx:
+          description: |-
+            The number of Path Error messages sent by this RSVP router.
+          type: integer
+        path_errors_rx:
+          description: "The number of Path Error messages received by this RSVP router. "
+          type: integer
+        resv_errors_tx:
+          description: |-
+            The number of Resv Error messages sent by this RSVP router.
+          type: integer
+        resv_errors_rx:
+          description: "The number of Resv Error messages received by this RSVP router. "
+          type: integer
+        resv_conf_tx:
+          description: |-
+            The number of ResvConf messages sent by this RSVP router.
+          type: integer
+        resv_conf_rx:
+          description: "The number of ResvConf messages received by this RSVP router. "
+          type: integer
+        hellos_tx:
+          description: |-
+            The number of Hello messages sent by this RSVP router.
+          type: integer
+        hellos_rx:
+          description: "The number of Hello messages received by this RSVP router. "
+          type: integer
+        acks_tx:
+          description: |-
+            The number of Ack messages sent by this RSVP router.
+          type: integer
+        acks_rx:
+          description: "The number of Ack messages received by this RSVP router. "
+          type: integer
+        nacks_tx:
+          description: |-
+            The number of Nack messages sent by this RSVP router.
+          type: integer
+        nacks_rx:
+          description: "The number of Nack messages received by this RSVP router. "
+          type: integer
+        srefresh_tx:
+          description: |-
+            The number of SRefresh messages sent by this RSVP router.
+          type: integer
+        srefresh_rx:
+          description: "The number of SRefresh messages received by this RSVP router. "
+          type: integer
+        bundle_tx:
+          description: |-
+            The number of SRefresh messages sent by this RSVP router.
+          type: integer
+        bundle_rx:
+          description: "The number of SRefresh messages received by this RSVP router. "
+          type: integer
+        path_reevaluation_request_tx:
+          description: |-
+            The number of Path messages with Path Re-evaluation Request enabled sent by this RSVP router.
+          type: integer
+        path_reoptimizations:
+          description: |-
+            The number of successfully completed Make-Before-Break operations on LSPs on this RSVP router.
           type: integer
     State.Metrics:
       description: |-

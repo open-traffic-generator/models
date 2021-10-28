@@ -2909,7 +2909,7 @@ message RsvpInterface {
     (fld_meta).description = "Enables sending of Refresh Reduction."
   ];
 
-  optional int64 summary_refresh_interval = 6 [
+  optional int32 summary_refresh_interval = 6 [
     (fld_meta).default = "30000",
     (fld_meta).description = "The number of milliseconds between transmissions of Summary Refreshes. There is no specification specified maximum value. For clarity, setting the maximum to 1 hour."
   ];
@@ -2971,7 +2971,7 @@ message RsvpLspInterfaceEgressLSP {
 
   optional bool send_confirm = 3 [
     (fld_meta).default = "False",
-    (fld_meta).description = "If enabled RSVP sends RESV Confirmation message."
+    (fld_meta).description = "If enabled, RSVP sends RESV Confirmation message is response to RESV message."
   ];
 
   message ReservationStyle {
@@ -2989,17 +2989,17 @@ message RsvpLspInterfaceEgressLSP {
 
   optional bool reflect_rro = 5 [
     (fld_meta).default = "True",
-    (fld_meta).description = "If enabled RESV messages carry Record Route object, which stores the IP addresses of the routers that the TE tunnel traversed.            "
+    (fld_meta).description = "If enabled, RESV messages carry Record Route object, which stores the IP addresses of the routers that the TE tunnel traversed.            "
   ];
 
   optional bool fixed_label = 6 [
     (fld_meta).default = "False",
-    (fld_meta).description = "If enabled a specific label be advertised by the egress or tail end.This can be leveraged to advertise explicit null labels.            "
+    (fld_meta).description = "If enabled, a specific label will be advertised by the egress or tail end.This can be leveraged to advertise Explicit or Implicit null labels.            "
   ];
 
   optional int32 label_value = 7 [
     (fld_meta).default = "0",
-    (fld_meta).description = "The fixed label value as advertised by egress in RESV message."
+    (fld_meta).description = "The fixed label value as advertised by egress in RESV message.Applicable only if 'fixed_label' is set to 'true'."
   ];
 }
 
@@ -3158,7 +3158,7 @@ message RsvpTspec {
 }
 
 message RsvpFastReroute {
-  option (msg_meta).description = "Configuration for the optional RSVP-TE FAST_REROUTE object included in Path Messages. ";
+  option (msg_meta).description = "Configuration for the optional RSVP-TE FAST_REROUTE object included in Path Messages as defined in RFC4090 ";
 
   optional int32 setup_priority = 1 [
     (fld_meta).default = "7",
@@ -4815,6 +4815,7 @@ message MetricsRequest {
       bgpv4 = 3;
       bgpv6 = 4;
       isis = 5;
+      rsvp = 6;
     }
   }
   optional Choice.Enum choice = 1 [
@@ -4841,6 +4842,10 @@ message MetricsRequest {
   optional IsisMetricsRequest isis = 6 [
     (fld_meta).description = "Description missing in models"
   ];
+
+  optional RsvpMetricsRequest rsvp = 7 [
+    (fld_meta).description = "Description missing in models"
+  ];
 }
 
 message MetricsResponse {
@@ -4854,6 +4859,7 @@ message MetricsResponse {
       bgpv4_metrics = 3;
       bgpv6_metrics = 4;
       isis_metrics = 5;
+      rsvp_metrics = 6;
     }
   }
   optional Choice.Enum choice = 1 [
@@ -4878,6 +4884,10 @@ message MetricsResponse {
   ];
 
   repeated IsisMetric isis_metrics = 6 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  repeated RsvpMetric rsvp_metrics = 7 [
     (fld_meta).description = "Description missing in models"
   ];
 }
@@ -5495,6 +5505,181 @@ message IsisMetric {
 
   optional int32 l2_lsp_received = 27 [
     (fld_meta).description = "Number of Level 2 (L2) Link State Protocol Data Units (LSPs) received."
+  ];
+}
+
+message RsvpMetricsRequest {
+  option (msg_meta).description = "The request to retrieve RSVP-TE per Router metrics/statistics.";
+
+  repeated string router_names = 1 [
+    (fld_meta).description = "The names of RSVP-TE Routers to return results for. An empty list will return results for all RSVP-TE routers.\n\nx-constraint:\n- /components/schemas/Device.Rsvp/properties/name\n"
+  ];
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      ingress_p2p_lsps_configured = 1;
+      ingress_p2p_lsps_up = 2;
+      egress_p2p_lsps_up = 3;
+      lsp_flap_count = 4;
+      paths_tx = 5;
+      paths_rx = 6;
+      resvs_tx = 7;
+      resvs_rx = 8;
+      path_tears_tx = 9;
+      path_tears_rx = 10;
+      resv_tears_tx = 11;
+      resv_tears_rx = 12;
+      path_errors_tx = 13;
+      path_errors_rx = 14;
+      resv_errors_tx = 15;
+      resv_errors_rx = 16;
+      resv_conf_tx = 17;
+      resv_conf_rx = 18;
+      hellos_tx = 19;
+      hellos_rx = 20;
+      acks_tx = 21;
+      acks_rx = 22;
+      nacks_tx = 23;
+      nacks_rx = 24;
+      srefresh_tx = 25;
+      srefresh_rx = 26;
+      bundle_tx = 27;
+      bundle_rx = 28;
+      path_reevaluation_request_tx = 29;
+      path_reoptimizations = 30;
+    }
+  }
+  repeated ColumnNames.Enum column_names = 2 [
+    (fld_meta).description = "The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups.            "
+  ];
+}
+
+message RsvpMetric {
+  option (msg_meta).description = "RSVP-TE per router statistics information.";
+
+  optional string name = 1 [
+    (fld_meta).description = "The name of a configured RSVP router."
+  ];
+
+  optional int32 ingress_p2p_lsps_configured = 2 [
+    (fld_meta).description = "The number of ingress point-to-point LSPs configured ."
+  ];
+
+  optional int32 ingress_p2p_lsps_up = 3 [
+    (fld_meta).description = "The number of ingress point-to-point LSPs for which Resv has been recieved and is currently up. "
+  ];
+
+  optional int32 egress_p2p_lsps_up = 4 [
+    (fld_meta).description = "The number of egress point-to-point LSPs for which Path requests were sucessfully handled and is currently up."
+  ];
+
+  optional int32 lsp_flap_count = 5 [
+    (fld_meta).description = "The number of times an LSP went from up to down state either because it timed out while waiting for Refreshes or  a PathTear or ResvTear message was received which caused the LSP to flap."
+  ];
+
+  optional int32 paths_tx = 6 [
+    (fld_meta).description = "The number of Path messages sent by this RSVP router."
+  ];
+
+  optional int32 paths_rx = 7 [
+    (fld_meta).description = "The number of Path messages received by this RSVP router."
+  ];
+
+  optional int32 resvs_tx = 8 [
+    (fld_meta).description = "The number of Resv messages sent by this RSVP router."
+  ];
+
+  optional int32 resvs_rx = 9 [
+    (fld_meta).description = "The number of Resv messages received by this RSVP router."
+  ];
+
+  optional int32 path_tears_tx = 10 [
+    (fld_meta).description = "The number of  Path Tear messages sent by this RSVP router."
+  ];
+
+  optional int32 path_tears_rx = 11 [
+    (fld_meta).description = "The number of Path Tear messages received by this RSVP router. "
+  ];
+
+  optional int32 resv_tears_tx = 12 [
+    (fld_meta).description = "The number of  Resv Tear messages sent by this RSVP router."
+  ];
+
+  optional int32 resv_tears_rx = 13 [
+    (fld_meta).description = "The number of Resv Tear messages received by this RSVP router. "
+  ];
+
+  optional int32 path_errors_tx = 14 [
+    (fld_meta).description = "The number of Path Error messages sent by this RSVP router."
+  ];
+
+  optional int32 path_errors_rx = 15 [
+    (fld_meta).description = "The number of Path Error messages received by this RSVP router. "
+  ];
+
+  optional int32 resv_errors_tx = 16 [
+    (fld_meta).description = "The number of Resv Error messages sent by this RSVP router."
+  ];
+
+  optional int32 resv_errors_rx = 17 [
+    (fld_meta).description = "The number of Resv Error messages received by this RSVP router. "
+  ];
+
+  optional int32 resv_conf_tx = 18 [
+    (fld_meta).description = "The number of ResvConf messages sent by this RSVP router."
+  ];
+
+  optional int32 resv_conf_rx = 19 [
+    (fld_meta).description = "The number of ResvConf messages received by this RSVP router. "
+  ];
+
+  optional int32 hellos_tx = 20 [
+    (fld_meta).description = "The number of Hello messages sent by this RSVP router."
+  ];
+
+  optional int32 hellos_rx = 21 [
+    (fld_meta).description = "The number of Hello messages received by this RSVP router. "
+  ];
+
+  optional int32 acks_tx = 22 [
+    (fld_meta).description = "The number of Ack messages sent by this RSVP router."
+  ];
+
+  optional int32 acks_rx = 23 [
+    (fld_meta).description = "The number of Ack messages received by this RSVP router. "
+  ];
+
+  optional int32 nacks_tx = 24 [
+    (fld_meta).description = "The number of Nack messages sent by this RSVP router."
+  ];
+
+  optional int32 nacks_rx = 25 [
+    (fld_meta).description = "The number of Nack messages received by this RSVP router. "
+  ];
+
+  optional int32 srefresh_tx = 26 [
+    (fld_meta).description = "The number of SRefresh messages sent by this RSVP router."
+  ];
+
+  optional int32 srefresh_rx = 27 [
+    (fld_meta).description = "The number of SRefresh messages received by this RSVP router. "
+  ];
+
+  optional int32 bundle_tx = 28 [
+    (fld_meta).description = "The number of SRefresh messages sent by this RSVP router."
+  ];
+
+  optional int32 bundle_rx = 29 [
+    (fld_meta).description = "The number of SRefresh messages received by this RSVP router. "
+  ];
+
+  optional int32 path_reevaluation_request_tx = 30 [
+    (fld_meta).description = "The number of Path messages with Path Re-evaluation Request enabled sent by this RSVP router."
+  ];
+
+  optional int32 path_reoptimizations = 31 [
+    (fld_meta).description = "The number of successfully completed Make-Before-Break operations on LSPs on this RSVP router."
   ];
 }
 

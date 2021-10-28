@@ -3583,8 +3583,8 @@ components:
           type: string
           format: ipv4
         label_space_start:
-          description: |-
-            The user-defined label space start value.
+          description: "The user-defined label space start value. The LSPs for which\
+            \ this router acts as a egress are assigned labels from this label pool. "
           type: integer
           default: 1000
           minimum: 0
@@ -3628,11 +3628,11 @@ components:
           default: false
         hello_interval:
           description: |-
-            The hello interval in ms at which hello Messages are sent.  There is no specification specified maximum value. For clarity, setting the maximum to 1 hour. .
+            The hello interval in seconds at which hello Messages are sent.  A value of '0' indicates Hello is not to transmitted at all. 10 seconds is a reasonable value for this parameter if a non-zero value has to be set. There is no specification specified maximum value. For clarity, setting the maximum to 1 hour. .
           type: integer
-          default: 10000
+          default: 0
           minimum: 0
-          maximum: 3600000
+          maximum: 3600
         timeout_multiplier:
           description: |-
             The number of missed hellos after which a recieving node should consider RSVP Neighbor has timed out. There is no specification specified maximum value. Setting the maximum allowed value to 10 .
@@ -3651,7 +3651,7 @@ components:
       properties:
         ipv4_name:
           description: |
-            The unique name of the IPv4 or Loopback IPv4 interface acting as rsvp ingress and egress endpoint for the lsps configured on this interface.
+            The unique name of the IPv4 or Loopback IPv4 interface acting as the RSVP ingress and egress endpoint for  the LSPs configured on this interface.
 
             x-constraint:
             - /components/schemas/Device.Ipv4/properties/name
@@ -3661,7 +3661,7 @@ components:
           - /components/schemas/Device.Ipv4/properties/name
           - /components/schemas/Device.Ipv4Loopback/properties/name
         p2p_egress_lsps:
-          description: "Contains properties of an Tail(Egress) LSPs. "
+          description: "Contains properties of Tail(Egress) LSPs. "
           $ref: '#/components/schemas/Rsvp.LspInterface.EgressLSP'
         p2p_ingress_lsps:
           description: |-
@@ -3689,19 +3689,14 @@ components:
           default: 3
           minimum: 1
           maximum: 10
-        send_confirm:
-          description: |-
-            If enabled, RSVP sends RESV Confirmation message is response to RESV message.
-          type: boolean
-          default: false
         reservation_style:
-          description: "It determines how RSVP-enabled network devices set up reservations\
-            \ along the path between an end-to-end  QOS-enabled connection. "
+          description: |-
+            It determines how RSVP-TE enabled network devices set up reservations along the path between an end-to-end  QOS-enabled connection. If 'auto' is enabled, the style is chosen based on the whether incoming Path has 'SE Desired' flag set. Otherwise, the style is chosen based on the value selected fo this field.
           type: string
           enum:
           - shared_explicit
           - fixed_filter
-          - wildcard_filter
+          - auto
           default: shared_explicit
         reflect_rro:
           description: "If enabled, RESV messages carry Record Route object, which\
@@ -3709,15 +3704,15 @@ components:
             \            "
           type: boolean
           default: true
-        fixed_label:
+        enable_fixed_label:
           description: "If enabled, a specific label will be advertised by the egress\
             \ or tail end.This can be leveraged to advertise Explicit or Implicit\
             \ null labels.            "
           type: boolean
           default: false
-        label_value:
+        fixed_label_value:
           description: |-
-            The fixed label value as advertised by egress in RESV message.Applicable only if 'fixed_label' is set to 'true'.
+            The fixed label value as advertised by egress in RESV message.Applicable only if 'fixed_label' is set to 'true'. Special values are '0 - IPv4 Explicit NULL' ,'2 - IPv6 Explicit NULL' and '3 - Implicit NULL',.   Outside of this, labels are expected to have a minimum value of 16.
           type: integer
           default: 0
           minimum: 0
@@ -3772,19 +3767,28 @@ components:
           minimum: 1
           maximum: 65535
         lsp_switchover_delay:
-          description: "The amount of delay in ms that an implementation should wait\
-            \ for before switching traffic to the new LSP created after  a Make-Before-Break\
+          description: "The amount of delay in seconds that an implementation should\
+            \ wait for before switching traffic to the new LSP created after  a Make-Before-Break\
             \ is done on an LSP. The default value is 0 which means to switch immediately.\
-            \ An implementation should support at least a minimum delay value of 50ms\
-            \ . If a delay value is supplied which is lesser than the minimum delay\
-            \ value supported , a warning should be provided to  indicate that the\
-            \ minimum value of LSP switchover delay is automatically increased to\
-            \ the supported minimum value. There is no specification specified maximum\
-            \ value. Setting maximum allowed value to 1 minute. "
+            \ There is no specification specified maximum value. Setting maximum allowed\
+            \ value to 1 minute. "
           type: integer
           default: 0
           minimum: 0
-          maximum: 60000
+          maximum: 60
+        reevaluation_request_interval:
+          description: "If value is set to '0' , don't send periodic Path Re-optimization\
+            \ requests. If value is set to a non-zero value, send Path Re-optimization\
+            \ requests at interval of specified interval (in seconds). If a PathError\
+            \ is recieved in response to the request with Error Code set to Notify\
+            \ and Error Value as one of  Preferable path exists, Local link maintenance\
+            \ required, Local node maintenance required or Tunnel Locally Repaired,\
+            \ the ingress will initiate Make Before Break procedures to re-optimize\
+            \ the LSP. (RFC4736).          "
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 3600
         session_attribute:
           description: "This contains the values of the fields to be included in the\
             \ SESSION_ATTRIBUTE object in the Path Message sent for the LSP.     \
@@ -3826,14 +3830,14 @@ components:
           type: integer
           default: 7
           minimum: 0
-          maximum: 255
+          maximum: 7
         holding_priority:
           description: |-
             Specifies the value of the Holding Priority field. This controls whether a new LSP being created with certain Setup Priority should pre-empt this LSP if resource limitation is encountered when setting up the LSP. (e.g bandwidth availability)
           type: integer
           default: 7
           minimum: 0
-          maximum: 255
+          maximum: 7
         local_protection_desired:
           description: |-
             This flag permits transit routers to use a local repair mechanism which may result in violation of the explicit route object.  When a fault is detected on an adjacent downstream link or node, a transit router can reroute traffic for fast service restoration.
@@ -3937,14 +3941,14 @@ components:
           type: integer
           default: 7
           minimum: 0
-          maximum: 255
+          maximum: 7
         holding_priority:
           description: |-
             Specifies the value of the Holding Priority field. This controls whether a new LSP being created with certain Setup Priority should pre-empt this LSP if resource limitation is encountered when setting up the LSP. (e.g bandwidth availability)
           type: integer
           default: 7
           minimum: 0
-          maximum: 255
+          maximum: 7
         hop_limit:
           description: |-
             Specifies the value of the Hop Limit field. This controls the maximum number of hops the LSP should traverse to reach the  LSP end-point.
@@ -4013,7 +4017,7 @@ components:
           maximum: 32
         subobjects:
           description: |-
-            Array of subobjects to be included in the ERO after the optional sub-object containing IP address of egress endpoint of the LSP. These contain the intermediate hops to be traversed by the LSP while being forwarded towards the egress endpoint.
+            Array of sub-objects to be included in the ERO after the optional sub-object containing IP address of egress endpoint of the LSP. These contain the intermediate hops to be traversed by the LSP while being forwarded towards the egress endpoint.
           type: array
           items:
             $ref: '#/components/schemas/Rsvp.Ero.Subobject'
@@ -4036,7 +4040,7 @@ components:
           type: string
           format: ipv4
           default: 0.0.0.0
-        ip_prefix:
+        ipv4_prefix:
           description: |-
             Prefix length for the IPv4 address in the ERO sub-object. This field is applicable only if the value of 'type' is set to 'ipv4'
           type: integer
@@ -4045,14 +4049,14 @@ components:
           maximum: 32
         as_number:
           description: |-
-            Autonomous System number to be set in the ERO sub-object that this LSP should traverse through. This field is applicable only if the value of 'type' is set to 'as_number' Note that as per RFC3209 , 4-byte AS encoding is not supported.
+            Autonomous System number to be set in the ERO sub-object that this LSP should traverse through. This field is applicable only if the value of 'type' is set to 'as_number'. Note that as per RFC3209 , 4-byte AS encoding is not supported.
           type: integer
           default: 0
           minimum: 0
           maximum: 65535
         hop_type:
           description: |-
-            The type of the ERO sub-object , one of Strict or Loose.
+            The hop type of the ERO sub-object , one of Strict or Loose.
           type: string
           enum:
           - strict
@@ -6185,7 +6189,7 @@ components:
           type: string
         ingress_p2p_lsps_configured:
           description: |-
-            The number of ingress point-to-point LSPs configured .
+            The number of ingress point-to-point LSPs configured or transiting through the RSVP router which have been initated from the test port.
           type: integer
         ingress_p2p_lsps_up:
           description: "The number of ingress point-to-point LSPs for which Resv has\

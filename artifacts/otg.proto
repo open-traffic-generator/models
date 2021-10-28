@@ -2896,7 +2896,7 @@ message RsvpInterface {
 
   optional int32 label_space_start = 3 [
     (fld_meta).default = "1000",
-    (fld_meta).description = "The user-defined label space start value."
+    (fld_meta).description = "The user-defined label space start value. The LSPs for which this router acts as a egress are assigned labels from this label pool. "
   ];
 
   optional int32 label_space_end = 4 [
@@ -2930,8 +2930,8 @@ message RsvpInterface {
   ];
 
   optional int32 hello_interval = 10 [
-    (fld_meta).default = "10000",
-    (fld_meta).description = "The hello interval in ms at which hello Messages are sent.  There is no specification specified maximum value. For clarity, setting the maximum to 1 hour. ."
+    (fld_meta).default = "0",
+    (fld_meta).description = "The hello interval in seconds at which hello Messages are sent.  A value of '0' indicates Hello is not to transmitted at all. 10 seconds is a reasonable value for this parameter if a non-zero value has to be set. There is no specification specified maximum value. For clarity, setting the maximum to 1 hour. ."
   ];
 
   optional int32 timeout_multiplier = 11 [
@@ -2944,11 +2944,11 @@ message RsvpLspInterface {
   option (msg_meta).description = "Status: under-review\nConfiguration for RSVP LSP Interface.";
 
   string ipv4_name = 1 [
-    (fld_meta).description = "The unique name of the IPv4 or Loopback IPv4 interface acting as rsvp ingress and egress endpoint for the lsps configured on this interface.\n\nx-constraint:\n- /components/schemas/Device.Ipv4/properties/name\n- /components/schemas/Device.Ipv4Loopback/properties/name\n"
+    (fld_meta).description = "The unique name of the IPv4 or Loopback IPv4 interface acting as the RSVP ingress and egress endpoint for  the LSPs configured on this interface.\n\nx-constraint:\n- /components/schemas/Device.Ipv4/properties/name\n- /components/schemas/Device.Ipv4Loopback/properties/name\n"
   ];
 
   optional RsvpLspInterfaceEgressLSP p2p_egress_lsps = 2 [
-    (fld_meta).description = "Contains properties of an Tail(Egress) LSPs. "
+    (fld_meta).description = "Contains properties of Tail(Egress) LSPs. "
   ];
 
   repeated RsvpLspInterfaceIngressP2PLSP p2p_ingress_lsps = 3 [
@@ -2969,37 +2969,32 @@ message RsvpLspInterfaceEgressLSP {
     (fld_meta).description = "The number of missed RESV refreshes after which a recieving node should consider the LSP state to have timed out. There is no specification specified maximum value. Setting the maximum allowed value to 10 ."
   ];
 
-  optional bool send_confirm = 3 [
-    (fld_meta).default = "False",
-    (fld_meta).description = "If enabled, RSVP sends RESV Confirmation message is response to RESV message."
-  ];
-
   message ReservationStyle {
     enum Enum {
       unspecified = 0;
       shared_explicit = 1;
       fixed_filter = 2;
-      wildcard_filter = 3;
+      auto = 3;
     }
   }
-  optional ReservationStyle.Enum reservation_style = 4 [
+  optional ReservationStyle.Enum reservation_style = 3 [
     (fld_meta).default = "ReservationStyle.Enum.shared_explicit",
-    (fld_meta).description = "It determines how RSVP-enabled network devices set up reservations along the path between an end-to-end  QOS-enabled connection. "
+    (fld_meta).description = "It determines how RSVP-TE enabled network devices set up reservations along the path between an end-to-end  QOS-enabled connection. If 'auto' is enabled, the style is chosen based on the whether incoming Path has 'SE Desired' flag set. Otherwise, the style is chosen based on the value selected fo this field."
   ];
 
-  optional bool reflect_rro = 5 [
+  optional bool reflect_rro = 4 [
     (fld_meta).default = "True",
     (fld_meta).description = "If enabled, RESV messages carry Record Route object, which stores the IP addresses of the routers that the TE tunnel traversed.            "
   ];
 
-  optional bool fixed_label = 6 [
+  optional bool enable_fixed_label = 5 [
     (fld_meta).default = "False",
     (fld_meta).description = "If enabled, a specific label will be advertised by the egress or tail end.This can be leveraged to advertise Explicit or Implicit null labels.            "
   ];
 
-  optional int32 label_value = 7 [
+  optional int32 fixed_label_value = 6 [
     (fld_meta).default = "0",
-    (fld_meta).description = "The fixed label value as advertised by egress in RESV message.Applicable only if 'fixed_label' is set to 'true'."
+    (fld_meta).description = "The fixed label value as advertised by egress in RESV message.Applicable only if 'fixed_label' is set to 'true'. Special values are '0 - IPv4 Explicit NULL' ,'2 - IPv6 Explicit NULL' and '3 - Implicit NULL',.   Outside of this, labels are expected to have a minimum value of 16."
   ];
 }
 
@@ -3037,22 +3032,27 @@ message RsvpLspInterfaceIngressP2PLSP {
 
   optional int32 lsp_switchover_delay = 7 [
     (fld_meta).default = "0",
-    (fld_meta).description = "The amount of delay in ms that an implementation should wait for before switching traffic to the new LSP created after  a Make-Before-Break is done on an LSP. The default value is 0 which means to switch immediately. An implementation should support at least a minimum delay value of 50ms . If a delay value is supplied which is lesser than the minimum delay value supported , a warning should be provided to  indicate that the minimum value of LSP switchover delay is automatically increased to the supported minimum value. There is no specification specified maximum value. Setting maximum allowed value to 1 minute. "
+    (fld_meta).description = "The amount of delay in seconds that an implementation should wait for before switching traffic to the new LSP created after  a Make-Before-Break is done on an LSP. The default value is 0 which means to switch immediately. There is no specification specified maximum value. Setting maximum allowed value to 1 minute. "
   ];
 
-  optional RsvpSessionAttribute session_attribute = 8 [
+  optional int32 reevaluation_request_interval = 8 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "If value is set to '0' , don't send periodic Path Re-optimization requests. If value is set to a non-zero value, send Path Re-optimization requests at interval of specified interval (in seconds). If a PathError is recieved in response to the request with Error Code set to Notify and Error Value as one of  Preferable path exists, Local link maintenance required, Local node maintenance required or Tunnel Locally Repaired, the ingress will initiate Make Before Break procedures to re-optimize the LSP. (RFC4736).          "
+  ];
+
+  optional RsvpSessionAttribute session_attribute = 9 [
     (fld_meta).description = "This contains the values of the fields to be included in the SESSION_ATTRIBUTE object in the Path Message sent for the LSP.            "
   ];
 
-  optional RsvpTspec tspec = 9 [
+  optional RsvpTspec tspec = 10 [
     (fld_meta).description = "This contains the values of the fields to be included in the TSPEC object in the Path Message sent for the LSP.            "
   ];
 
-  optional RsvpFastReroute fast_reroute = 10 [
+  optional RsvpFastReroute fast_reroute = 11 [
     (fld_meta).description = "This contains the values of the fields to be included in the FAST_REROUTE object in the Path Message sent for the LSP. \nThis is an optional object . If this attribute is not included , the FAST_REROUTE object will not be included.           "
   ];
 
-  optional RsvpEro ero = 11 [
+  optional RsvpEro ero = 12 [
     (fld_meta).description = "This contains the values of the fields to be included in the ERO object in the Path Message sent for the LSP. \nThis is an optional object . If this attribute is not included , the ERO object will not be included.           "
   ];
 }
@@ -3228,7 +3228,7 @@ message RsvpEro {
   ];
 
   repeated RsvpEroSubobject subobjects = 3 [
-    (fld_meta).description = "Array of subobjects to be included in the ERO after the optional sub-object containing IP address of egress endpoint of the LSP. These contain the intermediate hops to be traversed by the LSP while being forwarded towards the egress endpoint."
+    (fld_meta).description = "Array of sub-objects to be included in the ERO after the optional sub-object containing IP address of egress endpoint of the LSP. These contain the intermediate hops to be traversed by the LSP while being forwarded towards the egress endpoint."
   ];
 }
 
@@ -3252,14 +3252,14 @@ message RsvpEroSubobject {
     (fld_meta).description = "IPv4 address that this LSP should traverse through. This field is applicable only if the value of 'type' is set to 'ipv4'"
   ];
 
-  optional int32 ip_prefix = 3 [
+  optional int32 ipv4_prefix = 3 [
     (fld_meta).default = "32",
     (fld_meta).description = "Prefix length for the IPv4 address in the ERO sub-object. This field is applicable only if the value of 'type' is set to 'ipv4'"
   ];
 
   optional int32 as_number = 4 [
     (fld_meta).default = "0",
-    (fld_meta).description = "Autonomous System number to be set in the ERO sub-object that this LSP should traverse through. This field is applicable only if the value of 'type' is set to 'as_number' Note that as per RFC3209 , 4-byte AS encoding is not supported."
+    (fld_meta).description = "Autonomous System number to be set in the ERO sub-object that this LSP should traverse through. This field is applicable only if the value of 'type' is set to 'as_number'. Note that as per RFC3209 , 4-byte AS encoding is not supported."
   ];
 
   message HopType {
@@ -3271,7 +3271,7 @@ message RsvpEroSubobject {
   }
   optional HopType.Enum hop_type = 5 [
     (fld_meta).default = "HopType.Enum.loose",
-    (fld_meta).description = "The type of the ERO sub-object , one of Strict or Loose."
+    (fld_meta).description = "The hop type of the ERO sub-object , one of Strict or Loose."
   ];
 }
 
@@ -5563,7 +5563,7 @@ message RsvpMetric {
   ];
 
   optional int32 ingress_p2p_lsps_configured = 2 [
-    (fld_meta).description = "The number of ingress point-to-point LSPs configured ."
+    (fld_meta).description = "The number of ingress point-to-point LSPs configured or transiting through the RSVP router which have been initated from the test port."
   ];
 
   optional int32 ingress_p2p_lsps_up = 3 [

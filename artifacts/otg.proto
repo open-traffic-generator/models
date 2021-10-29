@@ -5085,65 +5085,99 @@ message IsisMetric {
   ];
 }
 
-message StateMetrics {
-  option (msg_meta).description = "A container for the different types of states.";
+message StatesRequest {
+  option (msg_meta).description = "Request to traffic generator for states of choice";
 
-  repeated PortState port_state = 1 [
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4_neighbors = 1;
+      ipv6_neighbors = 2;
+    }
+  }
+  optional Choice.Enum choice = 1 [
+    (fld_meta).default = "Choice.Enum.ipv4_neighbors",
     (fld_meta).description = "Description missing in models"
   ];
 
-  repeated FlowState flow_state = 2 [
+  optional Neighborsv4StatesRequest ipv4_neighbors = 2 [
+    (fld_meta).description = "Description missing in models"
+  ];
+
+  optional Neighborsv6StatesRequest ipv6_neighbors = 3 [
     (fld_meta).description = "Description missing in models"
   ];
 }
 
-message PortState {
-  option (msg_meta).description = "Description missing in models";
+message StatesResponse {
+  option (msg_meta).description = "Response containing chosen traffic generator states";
 
-  optional string name = 1 [
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4_neighbors = 1;
+      ipv6_neighbors = 2;
+    }
+  }
+  optional Choice.Enum choice = 1 [
+    (fld_meta).default = "Choice.Enum.ipv4_neighbors",
     (fld_meta).description = "Description missing in models"
   ];
 
-  message Link {
-    enum Enum {
-      unspecified = 0;
-      up = 1;
-      down = 2;
-    }
-  }
-  optional Link.Enum link = 2 [
+  repeated Neighborsv4State ipv4_neighbors = 2 [
     (fld_meta).description = "Description missing in models"
   ];
 
-  message Capture {
-    enum Enum {
-      unspecified = 0;
-      started = 1;
-      stopped = 2;
-    }
-  }
-  optional Capture.Enum capture = 3 [
+  repeated Neighborsv6State ipv6_neighbors = 3 [
     (fld_meta).description = "Description missing in models"
   ];
 }
 
-message FlowState {
-  option (msg_meta).description = "Description missing in models";
+message Neighborsv4StatesRequest {
+  option (msg_meta).description = "The request to retrieve IPv4 Neighbors state (ARP cache entries) for device network interface(s).";
 
-  optional string name = 1 [
-    (fld_meta).description = "Description missing in models"
+  repeated string interface_names = 1 [
+    (fld_meta).description = "The names of device Ethernet interfaces for which Neighbors will be retrieved. If no interface names are specified then the results will contain Neighbors for all Ethernet interfaces.\n\nx-constraint:\n- /components/schemas/Device.Ethernet/properties/name\n"
+  ];
+}
+
+message Neighborsv4State {
+  option (msg_meta).description = "IPv4 Neighbor states (ARP cache entry).";
+
+  optional string interface = 1 [
+    (fld_meta).description = "The name of the device Ethernet interface associated with the neighbor."
   ];
 
-  message Transmit {
-    enum Enum {
-      unspecified = 0;
-      started = 1;
-      stopped = 2;
-      paused = 3;
-    }
-  }
-  optional Transmit.Enum transmit = 2 [
-    (fld_meta).description = "Description missing in models"
+  optional string ip = 2 [
+    (fld_meta).description = "The IPv4 address of the neighbor."
+  ];
+
+  optional string link_layer_address = 3 [
+    (fld_meta).description = "The link-layer address (MAC) of the neighbor. For an unresolved Neighbor entry value will be set to 00:00:00:00:00:00."
+  ];
+}
+
+message Neighborsv6StatesRequest {
+  option (msg_meta).description = "The request to retrieve IPv6 Neighbors state (NDISC cache entries) for device network interface(s).";
+
+  repeated string interface_names = 1 [
+    (fld_meta).description = "The names of device Ethernet interfaces for which Neighbors will be retrieved. If no interface names are specified then the results will contain Neighbors for all Ethernet interfaces.\n\nx-constraint:\n- /components/schemas/Device.Ethernet/properties/name\n"
+  ];
+}
+
+message Neighborsv6State {
+  option (msg_meta).description = "IPv6 Neighbor states (NDISC cache entry).";
+
+  optional string interface = 1 [
+    (fld_meta).description = "The name of the device Ethernet interface associated with the neighbor."
+  ];
+
+  optional string ip = 2 [
+    (fld_meta).description = "The IPv6 address of the neighbor."
+  ];
+
+  optional string link_layer_address = 3 [
+    (fld_meta).description = "The link-layer address (MAC) of the neighbor. For an unresolved Neighbor entry value will be set to 00:00:00:00:00:00."
   ];
 }
 
@@ -13377,8 +13411,12 @@ message GetMetricsResponse {
   optional ResponseError status_code_500 = 3;
 }
 
-message GetStateMetricsResponse {
-  optional StateMetrics status_code_200 = 1;
+
+message GetStatesRequest {
+  StatesRequest states_request = 1;
+}
+message GetStatesResponse {
+  optional StatesResponse status_code_200 = 1;
   optional ResponseError status_code_400 = 2;
   optional ResponseError status_code_500 = 3;
 }
@@ -13427,7 +13465,7 @@ service Openapi {
   rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse) {
     option (rpc_meta).description = "Description missing in models";
   }
-  rpc GetStateMetrics(google.protobuf.Empty) returns (GetStateMetricsResponse) {
+  rpc GetStates(GetStatesRequest) returns (GetStatesResponse) {
     option (rpc_meta).description = "Description missing in models";
   }
   rpc GetCapture(GetCaptureRequest) returns (GetCaptureResponse) {

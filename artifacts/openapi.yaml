@@ -230,19 +230,29 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /results/state:
+  /results/states:
+    description: |-
+      States API
     post:
       tags:
-      - Metrics
-      operationId: get_state_metrics
+      - States
+      operationId: get_states
+      requestBody:
+        description: |-
+          Request to traffic generator for states of choice
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/States.Request'
       responses:
         '200':
           description: |-
-            List of states
+            Response from traffic generator for chosen states
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/State.Metrics'
+                $ref: '#/components/schemas/States.Response'
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
@@ -252,7 +262,7 @@ paths:
       Capture results API
     post:
       tags:
-      - Metrics
+      - Capture
       operationId: get_capture
       requestBody:
         description: |-
@@ -5598,45 +5608,116 @@ components:
           description: |-
             Number of Level 2 (L2) Link State Protocol Data Units (LSPs) received.
           type: integer
-    State.Metrics:
+    States.Request:
       description: |-
-        A container for the different types of states.
+        Request to traffic generator for states of choice
       type: object
       properties:
-        port_state:
+        choice:
+          type: string
+          enum:
+          - ipv4_neighbors
+          - ipv6_neighbors
+          default: ipv4_neighbors
+        ipv4_neighbors:
+          $ref: '#/components/schemas/Neighborsv4.States.Request'
+        ipv6_neighbors:
+          $ref: '#/components/schemas/Neighborsv6.States.Request'
+    States.Response:
+      description: |-
+        Response containing chosen traffic generator states
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - ipv4_neighbors
+          - ipv6_neighbors
+          default: ipv4_neighbors
+        ipv4_neighbors:
           type: array
           items:
-            $ref: '#/components/schemas/Port.State'
-        flow_state:
+            $ref: '#/components/schemas/Neighborsv4.State'
+        ipv6_neighbors:
           type: array
           items:
-            $ref: '#/components/schemas/Flow.State'
-    Port.State:
+            $ref: '#/components/schemas/Neighborsv6.State'
+    Neighborsv4.States.Request:
+      description: |-
+        The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
       type: object
       properties:
-        name:
+        ethernet_names:
+          description: |
+            The names of Ethernet interfaces for which Neighbor state (ARP cache entries) will be retrieved. If no names are specified then the results will contain Neighbor state (ARP cache entries) for all available Ethernet interfaces.
+
+            x-constraint:
+            - /components/schemas/Device.Ethernet/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+    Neighborsv4.State:
+      description: |-
+        IPv4 Neighbor state (ARP cache entry).
+      type: object
+      required:
+      - ethernet_name
+      - ipv4_address
+      properties:
+        ethernet_name:
+          description: |-
+            The name of the Ethernet interface associated with the Neighbor state (ARP cache entry).
           type: string
-        link:
+        ipv4_address:
+          description: |-
+            The IPv4 address of the neighbor.
           type: string
-          enum:
-          - up
-          - down
-        capture:
+          format: ipv4
+        link_layer_address:
+          description: |-
+            The link-layer address (MAC) of the neighbor.
           type: string
-          enum:
-          - started
-          - stopped
-    Flow.State:
+          format: mac
+    Neighborsv6.States.Request:
+      description: |-
+        The request to retrieve IPv6 Neighbor state (NDISC cache entries) of a network interface(s).
       type: object
       properties:
-        name:
+        ethernet_names:
+          description: |
+            The names of Ethernet interfaces for which Neighbor state (NDISC cache entries) will be retrieved. If no names are specified then the results will contain Neighbor state (NDISC cache entries) for all available Ethernet interfaces.
+
+            x-constraint:
+            - /components/schemas/Device.Ethernet/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+    Neighborsv6.State:
+      description: |-
+        IPv6 Neighbor state (NDISC cache entry).
+      type: object
+      required:
+      - ethernet_name
+      - ipv6_address
+      properties:
+        ethernet_name:
+          description: |-
+            The name of the Ethernet interface associated with the Neighbor state (NDISC cache entry).
           type: string
-        transmit:
+        ipv6_address:
+          description: |-
+            The IPv6 address of the neighbor.
           type: string
-          enum:
-          - started
-          - stopped
-          - paused
+          format: ipv6
+        link_layer_address:
+          description: |-
+            The link-layer address (MAC) of the neighbor.
+          type: string
+          format: mac
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.

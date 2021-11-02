@@ -3536,7 +3536,7 @@ components:
       x-status: under-review
       description: |-
         Status: under-review
-        Configuration for one or more RSVP interfaces,head end and tail end LSPs. In this model, currently IPv4 RSVP and point-to-point LSPs are supported as per RFC3209 and related specifications.
+        Configuration for one or more RSVP interfaces, head end and tail end LSPs. In this model, currently IPv4 RSVP and point-to-point LSPs are supported as per RFC3209 and related specifications.
       type: object
       properties:
         interfaces:
@@ -3658,14 +3658,14 @@ components:
           - /components/schemas/Device.Ipv4Loopback/properties/name
         p2p_egress_lsps:
           description: "Contains properties of Tail(Egress) LSPs. "
-          $ref: '#/components/schemas/Rsvp.LspInterface.EgressP2PLSP'
+          $ref: '#/components/schemas/Rsvp.LspInterface.P2PEgressLSP'
         p2p_ingress_lsps:
           description: |-
             Array of point-to-point RSVP-TE P2P LSPs originating from this interface.
           type: array
           items:
-            $ref: '#/components/schemas/Rsvp.LspInterface.IngressP2PLSP'
-    Rsvp.LspInterface.EgressP2PLSP:
+            $ref: '#/components/schemas/Rsvp.LspInterface.P2PIngressLSP'
+    Rsvp.LspInterface.P2PEgressLSP:
       description: |-
         Configuration for RSVP Egress P2P LSPs.
       type: object
@@ -3688,7 +3688,7 @@ components:
           maximum: 10
         reservation_style:
           description: |-
-            It determines how RSVP-TE enabled network devices set up reservations along the path between an end-to-end  QOS-enabled connection. If 'auto' is enabled, the style is chosen based on the whether incoming Path has 'SE Desired' flag set. Otherwise, the style is chosen based on the value selected for this attribute.
+            It determines how RSVP-TE enabled network devices set up reservations along the path between an end-to-end  QOS-enabled connection. If 'auto' is enabled, the style is chosen based on whether the incoming Path has 'SE Desired' flag set. Otherwise, the style is chosen based on the value selected for this attribute.
           type: string
           enum:
           - shared_explicit
@@ -3709,7 +3709,7 @@ components:
           default: 0
           minimum: 0
           maximum: 1048575
-    Rsvp.LspInterface.IngressP2PLSP:
+    Rsvp.LspInterface.P2PIngressLSP:
       description: |-
         Configuration for one RSVP Ingress point-to-point LSP.
       type: object
@@ -3736,14 +3736,14 @@ components:
           minimum: 1
           maximum: 65535
         refresh_interval:
-          description: "The refresh interval in seconds. It is the time interval between\
-            \ periodic refresh Path Messages. The actual refresh interval is jittered\
-            \ by upto 50%. There is no specification specified maximum value. For\
-            \ clarity, setting the maximum to 1 hour. "
+          description: "The refresh interval in ms at which refresh Path Messages\
+            \ are sent.  The actual refresh interval is jittered by upto 50%. There\
+            \ is no specification specified maximum value. For clarity, setting the\
+            \ maximum to 1 hour. "
           type: integer
-          default: 30
-          minimum: 1
-          maximum: 3600
+          default: 30000
+          minimum: 1000
+          maximum: 3600000
         timeout_multiplier:
           description: |-
             The number of missed Path refreshes after which a recieving node should consider the LSP state to have timed out. There is no specification specified maximum value. Setting the maximum allowed value to 10 .
@@ -3755,37 +3755,23 @@ components:
           description: |-
             The LSP id that will be used when creating a Make-Before-Break LSP when the active LSP is using lsp_id. If the active LSP on which Make-Before-Break is being done is using the backup_lsp_id, the new LSP created will toggle to  use the lsp_id instead.
           type: integer
-          default: 30000
+          default: 2
           minimum: 1
           maximum: 65535
         lsp_switchover_delay:
-          description: "The amount of delay in seconds that an implementation should\
-            \ wait for before switching traffic to the new LSP created after  a Make-Before-Break\
+          description: "The amount of delay in ms that an implementation should wait\
+            \ for before switching traffic to the new LSP created after  a Make-Before-Break\
             \ is done on an LSP. The default value is 0 which means to switch immediately.\
-            \ There is no specification specified maximum value. Setting maximum allowed\
-            \ value to 1 minute. "
+            \ An implementation should support at least a minimum delay value of 50ms\
+            \ . If a delay value is supplied which is lesser than the minimum delay\
+            \ value supported , a warning should be provided to  indicate that the\
+            \ minimum value of LSP switchover delay is automatically increased to\
+            \ the supported minimum value. There is no specification specified maximum\
+            \ value. Setting maximum allowed value to 1 minute. "
           type: integer
           default: 0
           minimum: 0
-          maximum: 60
-        enable_periodic_reevaluation_request:
-          description: |-
-            Enable sending of periodic Path re-optimization requests.
-          type: boolean
-          default: false
-        reevaluation_request_interval:
-          description: "If enable_periodic_reevaluation_request is set to 'true',\
-            \ send Path Re-optimization requests at specified interval (in seconds).\
-            \ If a PathError is received in response to the request with Error Code\
-            \ set to 'Notify' and Error Value as one of  'Preferable path exists',\
-            \ 'Local link maintenance required', 'Local node maintenance required'\
-            \ or 'Tunnel Locally Repaired', the ingress will initiate Make Before\
-            \ Break procedures to re-optimize the LSP as defined in RFC4736.     \
-            \     "
-          type: integer
-          default: 180
-          minimum: 1
-          maximum: 3600
+          maximum: 60000
         session_attribute:
           description: "This contains the values of the fields to be included in the\
             \ SESSION_ATTRIBUTE object in the Path Message sent for the LSP.     \
@@ -3798,14 +3784,14 @@ components:
         fast_reroute:
           description: "This contains the values of the fields to be included in the\
             \ FAST_REROUTE object in the Path Message sent for the LSP. \nThis is\
-            \ an optional object. If this object is not included, the FAST_REROUTE\
+            \ an optional object . If this attribute is not included , the FAST_REROUTE\
             \ object will not be included.           "
           $ref: '#/components/schemas/Rsvp.FastReroute'
         ero:
           description: "This contains the values of the fields to be included in the\
             \ ERO object in the Path Message sent for the LSP. \nThis is an optional\
-            \ object. If this object is not included, the ERO object will not be included.\
-            \           "
+            \ object . If this attribute is not included , the ERO object will not\
+            \ be included.           "
           $ref: '#/components/schemas/Rsvp.Ero'
     Rsvp.SessionAttribute:
       description: |-
@@ -3903,31 +3889,31 @@ components:
         token_bucket_rate:
           description: |-
             The rate of the traffic to be carried in this LSP in bytes per second. This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215.
-          type: string
+          type: number
           format: float
-          default: '0'
+          default: 0
         token_bucket_size:
           description: |-
-            The depth of the token bucket in bytes for the LSP.  This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215.
-          type: string
+            The depth of the token bucket in bytes used to specify the Token Bucket characteristics of the traffic to be carried in the LSP.This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215.
+          type: number
           format: float
-          default: '0'
+          default: 0
         peak_data_rate:
           description: |-
-            The peak data rate of the traffic in bytes per second for the LSP. This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215.
-          type: string
+            The peak data rate of the traffic in bytes per second used to specify the Token Bucket characteristics of the traffic  to be carried in the LSP.This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215.
+          type: number
           format: float
-          default: '0'
+          default: 0
         minimum_policed_unit:
-          description: "Specifies the minimum length (in bytes) of packet frames that\
-            \ will be policed. "
+          description: "Specifies the minium length of packet frames that will be\
+            \ policed. "
           type: integer
           default: 0
           minimum: 0
           maximum: 65535
         maximum_policed_unit:
-          description: "Specifies the maximum length (in bytes) of packet frames that\
-            \ will be policed. "
+          description: "Specifies the maximum length of packet frames that will be\
+            \ policed. "
           type: integer
           default: 1500
           minimum: 1

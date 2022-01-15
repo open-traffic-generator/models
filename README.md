@@ -5,8 +5,10 @@
 [![release)](https://img.shields.io/github/v/release/open-traffic-generator/models)](https://github.com/open-traffic-generator/models/releases/latest)
 [![Models CI/CD](https://github.com/open-traffic-generator/models/workflows/Models%20CI/CD/badge.svg)](https://github.com/open-traffic-generator/models/actions)
 
-This repository is a collaborative effort to develop agnostic data 
-models and APIs for managing traffic generators. The artifacts produced by this repository offer a foundation for other tools and/or implementations that want to use a `model first` approach.
+Open Traffic Generator API defines a standard, model-driven and vendor-neutral 
+interface for emulating layer 2-7 network devices and generating test traffic.
+
+This repository is a collaborative effort and produces artifacts to offer a foundation for other tools and/or implementations that want to use a `model first` approach.
 
 [Ixia-c](https://github.com/open-traffic-generator/ixia-c) is a reference implementation of traffic generator described by these data models and API.
 

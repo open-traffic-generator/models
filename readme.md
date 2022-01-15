@@ -53,11 +53,11 @@ Please make sure that the client setup meets [Python Prerequisites](#python-prer
   ```sh
   python -m pip install --upgrade virtualenv
   # create virtual environment inside `env/` and activate it.
-  python -m virtualenv env
+  python -m virtualenv .env
   # on linux
-  source env/bin/activate
+  source .env/bin/activate
   # on windows
-  env\Scripts\activate on Windows
+  .env\Scripts\activate on Windows
   ```
 
   **NOTE:** If you do not wish to activate virtual env, you use `env/bin/python` (or `env\scripts\python` on Windows) instead of `python`.

@@ -24,15 +24,17 @@ The focus of this repository is the following:
 
 Please make sure that the client setup meets [Python Prerequisites](#python-prerequisites).
 
-- Clone this project, `cd` inside it and make changes to spec as needed.
+- Clone this project, `cd` inside it and make changes to spec following the [modelling guide](MODEL-GUIDE).
 
-- Generate bundled spec called `openapi.yaml`.
+- Generate bundled spec called `openapi.yaml` inside `artifacts/`.
   ```sh
   python -m pip install -r requirements.txt
   python build.py
   ```
 
 - To preview documentation and interact with schema, copy contents of `openapi.yaml` inside https://editor.swagger.io/.
+
+- Upon pushing changes, `artifacts/openapi.yaml` and `artifacts/otg.proto` will be auto-generated and committed back to repository.
 
 #### Python Prerequisites
 

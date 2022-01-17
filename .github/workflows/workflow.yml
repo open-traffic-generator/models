@@ -1,8 +1,9 @@
 name: Models CI/CD
 
-# Trigger everytime a push occurs
+# Trigger every time a push occurs
 on:
   push:
+  pull_request:
   workflow_dispatch:
     paths:
     - '!artifacts/**'
@@ -17,16 +18,21 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
-      - name: Build container image
-        run: docker build . -t models || exit 1
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install virtualenv
+          python -m virtualenv .env
+          .env/bin/python -m pip install -r requirements.txt
 
       - name: Generate artifacts
-        id: gen_artifact
-        # Mount local dir to a dir inside container where build artifacts are
-        # generated so that we don't have to actually get inside the container.
+        # generate all artifacts inside artifacts/ directory
         run: |
-          mkdir -p art
-          docker run -v $(pwd)/art:/home/otg/models/art/ models /bin/bash -c "./do.sh art" || exit 1
+          .env/bin/python build.py
 
       - name: Upload artifacts
         # upload all files in the artifacts directory
@@ -36,15 +42,13 @@ jobs:
         # repo settings which is defaulted to 90 days
         uses: actions/upload-artifact@v2
         with:
-          path: art
+          path: artifacts
 
-      - name: Commit auto generated content
+      - name: Commit openapi.yaml and otg.proto
         id: commit_generated
         run: |
           git config user.name "Github Actions Bot"
           git config user.email "actions@github.com"
-          cp $(pwd)/art/openapi.yaml artifacts/openapi.yaml
-          cp $(pwd)/art/otg.proto artifacts/otg.proto
           git add --force artifacts/openapi.yaml
           git add --force artifacts/otg.proto
           if git status --porcelain | grep .
@@ -58,7 +62,7 @@ jobs:
       - name: Get version
         id: get_version
         run: |
-          echo "::set-output name=version::v$(./do.sh version)"
+          echo "::set-output name=version::v$(grep version api/info.yaml | cut -d: -f2 | sed -e 's/ //g')"
 
       - name: Check tag for current version
         uses: mukunku/tag-exists-action@v1.0.0
@@ -74,6 +78,6 @@ jobs:
         with:
           name: "Release ${{ steps.get_version.outputs.version }}"
           body: "View openapi.yaml spec at https://redocly.github.io/redoc/?url=https://github.com/open-traffic-generator/models/releases/download/${{ steps.get_version.outputs.version }}/openapi.yaml"
-          artifacts: "art/*"
+          artifacts: artifacts/openapi.yaml,artifacts/openapi.json,artifacts/otg.proto
           tag: ${{ steps.get_version.outputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}

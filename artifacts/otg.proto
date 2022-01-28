@@ -1505,8 +1505,8 @@ message BgpV4Peer {
     (fld_meta).description = "IPv4 address of the BGP peer for the session."
   ];
 
-  repeated BgpEthernetSegmentV4 v4_ethernet_segments = 2 [
-    (fld_meta).description = "BGP EVPN Ethernet Segments for IPv4 Address Family Identifier (AFI)."
+  repeated BgpEthernetSegmentV4 ethernet_segments = 2 [
+    (fld_meta).description = "EVPN Ethernet Segments Per BGP Peer for IPv4 Address Family Identifier (AFI)."
   ];
 
   message AsType {
@@ -2781,42 +2781,31 @@ message BgpSrteV6TunnelTlv {
 }
 
 message BgpEthernetSegmentV4 {
-  option (msg_meta).description = "Configuration for BGP Ethernet Segment V4 ranges.";
+  option (msg_meta).description = "Configuration for BGP Ethernet Segment ranges.\nThe BGP Evpn Ethernet Segment Configuration.";
 
-  optional BgpEthernetSegment config = 1 [
-    (fld_meta).description = "EthernetSegment Config settings.Under this All basic configuration will come           "
+  optional BgpEthernetSegmentDfElection df_election = 1 [
+    (fld_meta).description = "Desiginated Forwarder election configuration."
   ];
 
-  optional BgpEthernetSegmentDfElection df_election = 2 [
-    (fld_meta).description = "EthernetSegment Config settings.Under this All basic configuration will come           "
+  repeated BgpEviVxlanV4 evis = 2 [
+    (fld_meta).description = "Evpn Instances (EVI) to be configured per EthernetSegment."
   ];
 
-  repeated BgpEviVxlanV4 evis = 3 [
-    (fld_meta).description = "Array of EVIs to be configured per EthernetSegment"
+  string name = 3 [
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects.\nThe Ethernet Segment Name."
   ];
 
-  string name = 4 [
-    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
-  ];
-
-  optional bool active = 5 [
+  optional bool active = 4 [
     (fld_meta).default = "True",
     (fld_meta).description = "If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer."
   ];
-}
 
-message BgpEthernetSegment {
-  option (msg_meta).description = "The BGP Ethernet Segment Config";
-
-  optional string name = 1 [
-    (fld_meta).description = "The Ethernet Segment Name."
+  optional string esi_type = 5 [
+    (fld_meta).description = "RFC 7432 defines several types of identifiers,  with explicit rules for the ESI value assignment.  Use this field to select the desired ESI type ."
   ];
 
-  optional string esi_type = 2 [
-    (fld_meta).description = "The Esi Type."
-  ];
-
-  optional string esi = 3 [
+  optional string esi = 6 [
+    (fld_meta).default = "00000000000000000000",
     (fld_meta).description = "10-octet Ethernet segment identifier (esi) Example - for example for multi-home nonZero ESI '10000000000000000000' ."
   ];
 
@@ -2827,33 +2816,33 @@ message BgpEthernetSegment {
       all_active = 2;
     }
   }
-  optional ActiveMode.Enum active_mode = 4 [
+  optional ActiveMode.Enum active_mode = 7 [
     (fld_meta).default = "ActiveMode.Enum.all_active",
-    (fld_meta).description = "Single Active or All Active mode"
+    (fld_meta).description = "Single Active or All Active mode Redundancy mode selection for Multi-home."
   ];
 
-  optional int32 esi_label = 5 [
+  optional int32 esi_label = 8 [
     (fld_meta).default = "0",
-    (fld_meta).description = "ESI label to be advertised."
+    (fld_meta).description = "The label value to be advertised as ESI Label in ESI Label Extended Community. This is included in per segment A-D Routes advertised by a PE, "
   ];
 
-  optional bool advertise_ad_evi_route = 6 [
+  optional bool advertise_ad_evi_route = 9 [
     (fld_meta).default = "True",
-    (fld_meta).description = "Advertise AD/EVI Route."
+    (fld_meta).description = "Advertise A-D Routes per EVI."
   ];
 }
 
 message BgpEthernetSegmentDfElection {
-  option (msg_meta).description = "The BGP Ethernet Segment DF Election Config Document";
+  option (msg_meta).description = "The BGP Ethernet Segment DF Election Configuration.";
 
   optional int32 election_timer = 1 [
     (fld_meta).default = "3",
-    (fld_meta).description = "The Ethernet Segment DF Election Timer."
+    (fld_meta).description = "The DF election timer in seconds."
   ];
 }
 
 message BgpEviVxlanV4 {
-  option (msg_meta).description = "Configuration for BGP EVN EVI V4 Ranges.";
+  option (msg_meta).description = "Configuration for BGP EVN EVI Ranges.";
 
   string name = 1 [
     (fld_meta).description = "The EVI Name.\nGlobally unique name of an object. It also serves as the primary key for arrays of objects."
@@ -2863,42 +2852,40 @@ message BgpEviVxlanV4 {
     enum Enum {
       unspecified = 0;
       ingress_replication = 1;
-      pim_sm = 2;
-      pim_ssm = 3;
     }
   }
   optional ReplicationType.Enum replication_type = 2 [
     (fld_meta).default = "ReplicationType.Enum.ingress_replication",
-    (fld_meta).description = "Ingress Replication or PIM multicast tunnel to be used."
+    (fld_meta).description = "Ingress Replication or PIM multicast tunnel to be used. Currently only Ingress Replication is supported. "
   ];
 
   optional int32 ad_label = 3 [
     (fld_meta).default = "0",
-    (fld_meta).description = "The Ethernet AD label for Aliasing."
+    (fld_meta).description = "The AD Route label value, which gets advertised in the A-D Route per <EVI, ESI>"
   ];
 
   optional BgpEviRouteDistinguisher route_distinguisher = 4 [
-    (fld_meta).description = "Colon separated Extended Community value of 6 Bytes - AS number : Assigned number Example - for the AS2 Type it should be '60005:100'                      "
+    (fld_meta).description = "Colon separated Extended Community value of 6 Bytes - AS number: Value. Here Value is the EVPN instance identifier or RD EVI. Example - for the as_2octet '60005:100'. Here EVI Identifier is 100."
   ];
 
   repeated BgpEviRouteTarget export_route_targets = 5 [
-    (fld_meta).description = "A List of EVPN Export Route Targets for L2"
+    (fld_meta).description = "List of L2VNI export targets associated with this VRF (EVPN). "
   ];
 
   repeated BgpEviRouteTarget import_route_targets = 6 [
-    (fld_meta).description = "A List of EVPN Import Route Targets for L2"
+    (fld_meta).description = "List of L2VNI import targets associated with this VRF (EVPN). "
   ];
 
   repeated BgpEviRouteTarget l3_export_route_targets = 7 [
-    (fld_meta).description = "A List of EVPN Export Route Targets for L3"
+    (fld_meta).description = "List of L3VNI Export Route Targets."
   ];
 
   repeated BgpEviRouteTarget l3_import_route_targets = 8 [
-    (fld_meta).description = "A List of EVPN Import Route Targets for L3"
+    (fld_meta).description = "List of L3VNI Import Route Targets."
   ];
 
   repeated BgpBroadcastDomainVxlanV4 broadcast_domains = 9 [
-    (fld_meta).description = "Array of Broadcast Domains to be configured per EVI"
+    (fld_meta).description = "List of Broadcast Domains to be configured per EVI"
   ];
 
   optional bool active = 10 [
@@ -2908,7 +2895,7 @@ message BgpEviVxlanV4 {
 }
 
 message BgpEviRouteDistinguisher {
-  option (msg_meta).description = "The BGP EVPN Route Distinguisher";
+  option (msg_meta).description = "The BGP EVPN Route Distinguisher.";
 
   message RdType {
     enum Enum {
@@ -2919,16 +2906,17 @@ message BgpEviRouteDistinguisher {
     }
   }
   optional RdType.Enum rd_type = 1 [
-    (fld_meta).description = "Route Distinguisher Type field of 1 Byte.\n - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).\n - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).\n - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668). "
+    (fld_meta).default = "RdType.Enum.as_2octet",
+    (fld_meta).description = "Route Distinguisher Type field of 2 Byte.\n - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).\n - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).\n - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668). "
   ];
 
   optional string rd_value = 2 [
-    (fld_meta).description = "Colon separated Extended Community value of 6 Bytes - AS number:Assigned number Example - for the as_2octet '60005:100'                      "
+    (fld_meta).description = "Colon separated Extended Community value of 6 Bytes - AS number: Value. Here Value is the EVPN instance identifier or RD EVI. Example - for the as_2octet '60005:100'. Here EVI Identifier is 100."
   ];
 }
 
 message BgpEviRouteTarget {
-  option (msg_meta).description = "The BGP EVPN Route Target";
+  option (msg_meta).description = "The BGP EVPN Route Target.";
 
   message RtType {
     enum Enum {
@@ -2939,23 +2927,23 @@ message BgpEviRouteTarget {
     }
   }
   optional RtType.Enum rt_type = 1 [
-    (fld_meta).description = "Extended Community Type field of 1 Byte.\n - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).\n - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).\n - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668). "
+    (fld_meta).description = "Extended Community Type field of 2 Byte.\n - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).\n - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).\n - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668). "
   ];
 
   optional string rt_value = 2 [
-    (fld_meta).description = "Colon separated Extended Community value of 6 Bytes - AS number : Assigned number Example - for the ipv4_address '2.2.2.2:100'                      "
+    (fld_meta).description = "Colon separated Extended Community value of 6 Bytes - AS number: Assigned Number. Here Value is the EVPN instance identifier or RD EVI. Example - for the as_2octet '60005:100'.            "
   ];
 }
 
 message BgpBroadcastDomainVxlanV4 {
-  option (msg_meta).description = "Array of BroadcastDomains per EVI\nThe BGP Ethernet Segment Config";
+  option (msg_meta).description = "List of BroadcastDomains per EVI\nBroadcast Domain Per EVI Configuration.";
 
-  repeated BgpMACRanges mac_ranges = 1 [
-    (fld_meta).description = "Array of Hosts to be configured per Broadcastdomain"
+  repeated BgpCMACRanges mac_ranges = 1 [
+    (fld_meta).description = "List of Hosts to be configured per Broadcastdomain"
   ];
 
   string name = 2 [
-    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects.\nThe Ethernet Segment Name."
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
   ];
 
   optional bool active = 3 [
@@ -2974,16 +2962,39 @@ message BgpBroadcastDomainVxlanV4 {
   ];
 }
 
-message BgpMACRanges {
+message BgpCMACRanges {
   option (msg_meta).description = "The MAC Ranges per BroadcastDomain";
 
-  repeated MACRouteAddress mac_addresses = 1 [
-    (fld_meta).description = "A list of group of Host/MAC addresses."
+  MACRouteAddress mac_addresses = 1 [
+    (fld_meta).description = "Host MAC address range per Broadcast Domain "
   ];
 
-  optional int32 l2vni_label = 2 [
+  optional int32 l2vni = 2 [
     (fld_meta).default = "0",
     (fld_meta).description = "L2VNI to be advertised"
+  ];
+
+  optional V4RouteAddress ipv4_addresses = 3 [
+    (fld_meta).description = "Host IPv4 address range per Broadcast Domain         "
+  ];
+
+  optional V6RouteAddress ipv6_addresses = 4 [
+    (fld_meta).description = "Host IPv6 address range per Broadcast Domain                 "
+  ];
+
+  optional int32 l3vni = 5 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "L3VNI to be advertised"
+  ];
+
+  optional bool active_tenant = 6 [
+    (fld_meta).default = "True",
+    (fld_meta).description = "True to enable Active TS. "
+  ];
+
+  optional bool include_default_gateway = 7 [
+    (fld_meta).default = "False",
+    (fld_meta).description = "Include default Gateway Extended Community."
   ];
 }
 
@@ -2998,8 +3009,8 @@ message BgpV6Peer {
     (fld_meta).description = "Description missing in models"
   ];
 
-  repeated BgpEthernetSegmentV6 v6_ethernet_segments = 3 [
-    (fld_meta).description = "BGP EVPN Ethernet Segments for IPv6 Address Family Identifier (AFI)."
+  repeated BgpEthernetSegmentV6 ethernet_segments = 3 [
+    (fld_meta).description = "EVPN Ethernet Segments Per BGP Peer for IPv6 Address Family Identifier (AFI)."
   ];
 
   message AsType {
@@ -3115,27 +3126,54 @@ message BgpV6SegmentRouting {
 }
 
 message BgpEthernetSegmentV6 {
-  option (msg_meta).description = "Configuration for BGP Ethernet Segment V6 ranges.";
+  option (msg_meta).description = "Configuration for BGP Ethernet Segment ranges.\nThe BGP Evpn Ethernet Segment Configuration.";
 
-  optional BgpEthernetSegment config = 1 [
-    (fld_meta).description = "EthernetSegment Config settings.           "
+  optional BgpEthernetSegmentDfElection df_election = 1 [
+    (fld_meta).description = "Desiginated Forwarder election configuration."
   ];
 
-  optional BgpEthernetSegmentDfElection df_election = 2 [
-    (fld_meta).description = "EthernetSegment Config settings.Under this All basic configuration will come           "
+  repeated BgpEviVxlanV6 evis = 2 [
+    (fld_meta).description = "Evpn Instances (EVI) to be configured per EthernetSegment."
   ];
 
-  repeated BgpEviVxlanV6 evis = 3 [
-    (fld_meta).description = "Array of EVIs to be configured per EthernetSegment"
+  string name = 3 [
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects.\nThe Ethernet Segment Name."
   ];
 
-  string name = 4 [
-    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
-  ];
-
-  optional bool active = 5 [
+  optional bool active = 4 [
     (fld_meta).default = "True",
     (fld_meta).description = "If enabled means that this part of the configuration including any active 'children' nodes will be advertised to peer.  If disabled, this means that though config is present, it is not taking any part of the test but can be activated at run-time to advertise just this part of the configuration to the peer."
+  ];
+
+  optional string esi_type = 5 [
+    (fld_meta).description = "RFC 7432 defines several types of identifiers,  with explicit rules for the ESI value assignment.  Use this field to select the desired ESI type ."
+  ];
+
+  optional string esi = 6 [
+    (fld_meta).default = "00000000000000000000",
+    (fld_meta).description = "10-octet Ethernet segment identifier (esi) Example - for example for multi-home nonZero ESI '10000000000000000000' ."
+  ];
+
+  message ActiveMode {
+    enum Enum {
+      unspecified = 0;
+      single_active = 1;
+      all_active = 2;
+    }
+  }
+  optional ActiveMode.Enum active_mode = 7 [
+    (fld_meta).default = "ActiveMode.Enum.all_active",
+    (fld_meta).description = "Single Active or All Active mode Redundancy mode selection for Multi-home."
+  ];
+
+  optional int32 esi_label = 8 [
+    (fld_meta).default = "0",
+    (fld_meta).description = "The label value to be advertised as ESI Label in ESI Label Extended Community. This is included in per segment A-D Routes advertised by a PE, "
+  ];
+
+  optional bool advertise_ad_evi_route = 9 [
+    (fld_meta).default = "True",
+    (fld_meta).description = "Advertise A-D Routes per EVI."
   ];
 }
 
@@ -3150,42 +3188,40 @@ message BgpEviVxlanV6 {
     enum Enum {
       unspecified = 0;
       ingress_replication = 1;
-      pim_sm = 2;
-      pim_ssm = 3;
     }
   }
   optional ReplicationType.Enum replication_type = 2 [
     (fld_meta).default = "ReplicationType.Enum.ingress_replication",
-    (fld_meta).description = "Ingress Replication or PIM multicast tunnel to be used."
+    (fld_meta).description = "Ingress Replication or PIM multicast tunnel to be used. Currently only Ingress Replication is supported. "
   ];
 
   optional int32 ad_label = 3 [
     (fld_meta).default = "0",
-    (fld_meta).description = "The Ethernet AD label for Aliasing."
+    (fld_meta).description = "The AD Route label value, which gets advertised in the A-D Route per <EVI, ESI>"
   ];
 
   optional BgpEviRouteDistinguisher route_distinguisher = 4 [
-    (fld_meta).description = "Colon separated Extended Community value of 6 Bytes - AS number : Assigned number Example - for the AS2 Type it should be '60005:100'                      "
+    (fld_meta).description = "Colon separated Extended Community value of 6 Bytes - AS number: Value. Here Value is the EVPN instance identifier or RD EVI. Example - for the as_2octet '60005:100'. Here EVI Identifier is 100."
   ];
 
   repeated BgpEviRouteTarget export_route_targets = 5 [
-    (fld_meta).description = "A List of EVPN Export Route Targets for L2"
+    (fld_meta).description = "List of L2VNI export targets associated with this VRF (EVPN). "
   ];
 
   repeated BgpEviRouteTarget import_route_targets = 6 [
-    (fld_meta).description = "A List of EVPN Import Route Targets for L2"
+    (fld_meta).description = "List of L2VNI import targets associated with this VRF (EVPN). "
   ];
 
   repeated BgpEviRouteTarget l3_export_route_targets = 7 [
-    (fld_meta).description = "A List of EVPN Export Route Targets for L3"
+    (fld_meta).description = "List of L3VNI Export Route Targets."
   ];
 
   repeated BgpEviRouteTarget l3_import_route_targets = 8 [
-    (fld_meta).description = "A List of EVPN Import Route Targets for L3"
+    (fld_meta).description = "List of L3VNI Import Route Targets."
   ];
 
   repeated BgpBroadcastDomainVxlanV6 broadcast_domains = 9 [
-    (fld_meta).description = "Array of Broadcast Domains to be configured per EVI"
+    (fld_meta).description = "List of Broadcast Domains to be configured per EVI"
   ];
 
   optional bool active = 10 [
@@ -3195,14 +3231,14 @@ message BgpEviVxlanV6 {
 }
 
 message BgpBroadcastDomainVxlanV6 {
-  option (msg_meta).description = "Array of BroadcastDomains per EVI\nThe BGP Ethernet Segment Config";
+  option (msg_meta).description = "Array of BroadcastDomains per EVI\nBroadcast Domain Per EVI Configuration.";
 
-  repeated BgpMACRanges mac_ranges = 1 [
+  repeated BgpCMACRanges mac_ranges = 1 [
     (fld_meta).description = "Array of Hosts to be configured per Broadcastdomain"
   ];
 
   string name = 2 [
-    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects.\nThe Ethernet Segment Name."
+    (fld_meta).description = "Globally unique name of an object. It also serves as the primary key for arrays of objects."
   ];
 
   optional bool active = 3 [

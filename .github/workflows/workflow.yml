@@ -81,3 +81,21 @@ jobs:
           artifacts: artifacts/openapi.yaml,artifacts/openapi.json,artifacts/otg.proto
           tag: ${{ steps.get_version.outputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Doc from openapi.yaml
+        uses: seeebiii/redoc-cli-github-action@v10
+        with:
+          args: 'bundle artifacts/openapi.yaml -o artifacts/openapi.html'
+      - name: Commit openapi.html
+        id: commit_redoc_generated
+        run: |
+          git config user.name "Github Actions Bot"
+          git config user.email "actions@github.com"
+          git add --force artifacts/openapi.html
+          if git status --porcelain | grep .
+            then
+              git commit -m "update auto generated openapi.html" 
+              git push
+            else
+              echo "No changed auto generated content"
+          fi

@@ -1197,10 +1197,12 @@ components:
           description: |-
             The properties of BGP router and its children,  such as BGPv4, BGPv6 peers and their route ranges.
           $ref: '#/components/schemas/Device.BgpRouter'
-        vxlan:
+        vxlans:
           description: |-
-            Configuration and operational state parameters relating to a VXLAN tunnel end-point interface
-          $ref: '#/components/schemas/Device.VxlanTunnel'
+            Configuration of VXLAN tunnel interfaces
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.VxlanTunnel'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -3559,56 +3561,120 @@ components:
           default: false
     Device.VxlanTunnel:
       description: |-
-        Configuration for one or more VXLAN tunnel end-point interface.
+        Configuration and operational state parameters relating to a VXLAN tunnel end-point interface
       type: object
       required:
       - vni
       properties:
         vni:
           description: |-
-            Use VXLAN Network Identifier (VNI) to distinguish network instances on the wire
+            VXLAN Network Identifier (VNI) to distinguish network instances on the wire
           type: integer
           format: int32
-        ipv4_interfaces:
-          $ref: '#/components/schemas/Vxlan.V4Interface'
-        ipv6_interfaces:
-          $ref: '#/components/schemas/Vxlan.V6Interface'
-    Vxlan.V4Interface:
-      description: |-
-        Configuration for emulated VXLAN tunnel on a single IPv4 interface.
-      type: object
-      required:
-      - ipv4_name
-      properties:
-        ipv4_name:
+        source_interface:
           description: |
-            The unique name of the IPv4 or Loopback IPv4 interface used as the source IP for this VXLAN tunnel end-point.
+            Determines the source interface.
 
             x-constraint:
             - /components/schemas/Device.Ipv4/properties/name
             - /components/schemas/Device.Ipv4Loopback/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Device.Ipv4/properties/name
-          - /components/schemas/Device.Ipv4Loopback/properties/name
-    Vxlan.V6Interface:
-      description: |-
-        Configuration for emulated VXLAN tunnel on a single IPv6 interface.
-      type: object
-      required:
-      - ipv6_name
-      properties:
-        ipv6_name:
-          description: |
-            The unique name of the IPv6 or Loopback IPv6 interface used as the source IP for this VXLAN tunnel end-point.
-
-            x-constraint:
             - /components/schemas/Device.Ipv6/properties/name
             - /components/schemas/Device.Ipv6Loopback/properties/name
           type: string
           x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+          - /components/schemas/Device.Ipv4Loopback/properties/name
           - /components/schemas/Device.Ipv6/properties/name
           - /components/schemas/Device.Ipv6Loopback/properties/name
+        destination_ip_mode:
+          $ref: '#/components/schemas/DestinationIPMode'
+    DestinationIPMode:
+      description: |-
+        Communication Mode between the VMs, choice as either multicast or unicast
+      type: object
+      properties:
+        choice:
+          description: |-
+            unicast or multicast
+          type: string
+          enum:
+          - unicast
+          - multicast
+          default: unicast
+        unicast:
+          $ref: '#/components/schemas/Vxlan.Unicast'
+        multicast:
+          $ref: '#/components/schemas/Vxlan.Multicast'
+    Vxlan.Unicast:
+      description: |-
+        Configuration of Unicast parameters for VxLAN.
+      type: object
+      properties:
+        remote_vtep_address:
+          description: |-
+            Remote VXLAN Tunnel End Point address
+          $ref: '#/components/schemas/Remote.Vtep.Address'
+        suppress_arp:
+          description: "Supress ARP "
+          type: boolean
+          default: false
+        remote_vm_mac:
+          description: |-
+            Remote VM MAC addresses
+          type: array
+          items:
+            type: string
+            format: mac
+        remote_vm_ipv4:
+          description: |-
+            Remote VM ipv4 addresses
+          type: array
+          items:
+            type: string
+            format: ipv4
+    Remote.Vtep.Address:
+      type: object
+      properties:
+        choice:
+          description: |-
+            IPv4 or IPv6 address
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          default: ipv4
+        ipv4:
+          type: string
+          format: ipv4
+        ipv6:
+          type: string
+          format: ipv6
+    Vxlan.Multicast:
+      description: |-
+        Multicast Group address for member vni
+      type: object
+      properties:
+        address:
+          description: |-
+            Multicast address
+          $ref: '#/components/schemas/Address'
+    Address:
+      type: object
+      properties:
+        choice:
+          description: |-
+            IPv4 or IPv6 Multicast address
+          type: string
+          enum:
+          - ipv4
+          - ipv6
+          default: ipv4
+        ipv4:
+          type: string
+          format: ipv4
+        ipv6:
+          type: string
+          format: ipv6
     Flow:
       description: |-
         A high level data plane traffic flow.

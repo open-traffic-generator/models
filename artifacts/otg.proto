@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 0.7.8
+/* Open Traffic Generator API 0.7.9
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -216,37 +216,77 @@ message DeviceEthernetBase {
 // Base Ethernet interface.
 message DeviceEthernet {
 
+  // Status: deprecated
   // The unique name of a Port or a LAG that will emulate this interface.
   // 
   // x-constraint:
   // - /components/schemas/Port/properties/name
   // - /components/schemas/Lag/properties/name
   // 
-  // required = true
-  string port_name = 1;
+  optional string port_name = 1;
+
+  // Device connection to physical, LAG or another device.
+  optional EthernetConnection connection = 2;
 
   // List of IPv4 addresses and their gateways.
-  repeated DeviceIpv4 ipv4_addresses = 2;
+  repeated DeviceIpv4 ipv4_addresses = 3;
 
   // List of global IPv6 addresses and their gateways.
   // The Link Local IPv6 address will be automatically generated.
-  repeated DeviceIpv6 ipv6_addresses = 3;
+  repeated DeviceIpv6 ipv6_addresses = 4;
 
   // Media Access Control address.
   // required = true
-  string mac = 4;
+  string mac = 5;
 
   // Maximum Transmission Unit.
   // default = 1500
-  optional int32 mtu = 5;
+  optional int32 mtu = 6;
 
   // List of VLANs
-  repeated DeviceVlan vlans = 6;
+  repeated DeviceVlan vlans = 7;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  string name = 7;
+  string name = 8;
+}
+
+// Ethernet interface connection to a port, LAG or VXLAN tunnel.
+message EthernetConnection {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      port_name = 1;
+      lag_name = 2;
+      vxlan_name = 3;
+    }
+  }
+  // port_name, lag_name or vxlan_name
+  optional Choice.Enum choice = 1;
+
+  // Name of the port that the Ethernet interface is configured on.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  optional string port_name = 2;
+
+  // Name of the LAG that the Ethernet interface is configured on.
+  // 
+  // x-constraint:
+  // - /components/schemas/Lag/properties/name
+  // 
+  optional string lag_name = 3;
+
+  // Name of the VxLAN instance ( or VxLAN tunnel ) that this Ethernet interface is connected
+  // to.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.VxlanTunnel/properties/name
+  // 
+  optional string vxlan_name = 4;
 }
 
 // Emulated VLAN protocol.
@@ -7200,12 +7240,13 @@ message PatternFlowIpv6NextHeader {
       unspecified = 0;
       value = 1;
       values = 2;
-      increment = 3;
-      decrement = 4;
+      auto = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -7216,17 +7257,23 @@ message PatternFlowIpv6NextHeader {
   // default = [59]
   repeated int32 values = 3;
 
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 59
+  optional int32 auto = 4;
+
   // A unique name is used to indicate to the system that the field may extend the metric
   // row key and create an aggregate metric row for every unique value. To have metric
   // group columns appear in the flow metric rows the flow metric request allows for the
   // metric_group value to be specified as part of the request.
-  optional string metric_group = 4;
+  optional string metric_group = 5;
 
   // Description missing in models
-  optional PatternFlowIpv6NextHeaderCounter increment = 5;
+  optional PatternFlowIpv6NextHeaderCounter increment = 6;
 
   // Description missing in models
-  optional PatternFlowIpv6NextHeaderCounter decrement = 6;
+  optional PatternFlowIpv6NextHeaderCounter decrement = 7;
 }
 
 // integer counter pattern

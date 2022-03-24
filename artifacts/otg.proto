@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 0.7.9
+/* Open Traffic Generator API 0.7.10
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -284,7 +284,8 @@ message EthernetConnection {
   // to.
   // 
   // x-constraint:
-  // - /components/schemas/Device.VxlanTunnel/properties/name
+  // - #/components/schemas/Vxlan.V4Tunnel/properties/name
+  // - #/components/schemas/Vxlan.V6Tunnel/properties/name
   // 
   optional string vxlan_name = 4;
 }
@@ -848,7 +849,7 @@ message Device {
   optional DeviceBgpRouter bgp = 5;
 
   // Configuration of VXLAN tunnel interfaces
-  repeated DeviceVxlanTunnel vxlans = 6;
+  optional DeviceVxlan vxlan = 6;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -2878,26 +2879,59 @@ message BgpV6SegmentRouting {
   optional bool advertise_sr_te_policy = 8;
 }
 
+// Description missing in models
+message DeviceVxlan {
+
+  // VxLAN V4 Tunnels
+  repeated VxlanV4Tunnel v4_tunnels = 1;
+
+  // VxLAN V6 Tunnels
+  repeated VxlanV6Tunnel v6_tunnels = 2;
+}
+
 // Configuration and operational state parameters relating to a VXLAN tunnel end-point
 // interface
-message DeviceVxlanTunnel {
-
-  // VXLAN Network Identifier (VNI) to distinguish network instances on the wire
-  // required = true
-  int32 vni = 1;
+message VxlanV4Tunnel {
 
   // Determines the source interface.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv4/properties/name
   // - /components/schemas/Device.Ipv4Loopback/properties/name
+  // 
+  optional string source_interface = 1;
+
+  // Description missing in models
+  optional VxlanV4TunnelDestinationIPMode destination_ip_mode = 2;
+
+  // VXLAN Network Identifier (VNI) to distinguish network instances on the wire
+  // required = true
+  int32 vni = 3;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  string name = 4;
+}
+
+// Configuration and operational state parameters relating to a VXLAN tunnel end-point
+// interface
+message VxlanV6Tunnel {
+
+  // Determines the source interface.
+  // 
+  // x-constraint:
   // - /components/schemas/Device.Ipv6/properties/name
   // - /components/schemas/Device.Ipv6Loopback/properties/name
   // 
-  optional string source_interface = 2;
+  optional string source_interface = 1;
 
   // Description missing in models
-  optional DestinationIPMode destination_ip_mode = 3;
+  optional VxlanV6TunnelDestinationIPMode destination_ip_mode = 2;
+
+  // VXLAN Network Identifier (VNI) to distinguish network instances on the wire
+  // required = true
+  int32 vni = 3;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -2906,7 +2940,7 @@ message DeviceVxlanTunnel {
 }
 
 // Communication Mode between the VMs, choice as either multicast or unicast
-message DestinationIPMode {
+message VxlanV4TunnelDestinationIPMode {
 
   message Choice {
     enum Enum {
@@ -2920,17 +2954,39 @@ message DestinationIPMode {
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  optional VxlanUnicast unicast = 2;
+  optional VxlanV4TunnelDestinationIPModeUnicast unicast = 2;
 
   // Description missing in models
-  optional VxlanMulticast multicast = 3;
+  optional VxlanV4TunnelDestinationIPModeMulticast multicast = 3;
+}
+
+// Communication Mode between the VMs, choice as either multicast or unicast
+message VxlanV6TunnelDestinationIPMode {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      unicast = 1;
+      multicast = 2;
+    }
+  }
+  // unicast or multicast
+  // default = Choice.Enum.unicast
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional VxlanV6TunnelDestinationIPModeUnicast unicast = 2;
+
+  // Description missing in models
+  optional VxlanV6TunnelDestinationIPModeMulticast multicast = 3;
 }
 
 // Configuration of Unicast parameters for VxLAN.
-message VxlanUnicast {
+// DestinationIPMode Unicast Base
+message VxlanV4TunnelDestinationIPModeUnicast {
 
   // Remote VXLAN Tunnel End Point address
-  optional RemoteVtepAddress remote_vtep_address = 1;
+  optional string remote_vtep_address = 1;
 
   // Supress ARP
   // default = False
@@ -2943,53 +2999,36 @@ message VxlanUnicast {
   repeated string remote_vm_ipv4 = 4;
 }
 
-// Description missing in models
-message RemoteVtepAddress {
+// Configuration of Unicast parameters for VxLAN.
+// DestinationIPMode Unicast Base
+message VxlanV6TunnelDestinationIPModeUnicast {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      ipv4 = 1;
-      ipv6 = 2;
-    }
-  }
-  // IPv4 or IPv6 address
-  // default = Choice.Enum.ipv4
-  optional Choice.Enum choice = 1;
+  // Remote VXLAN Tunnel End Point address
+  optional string remote_vtep_address = 1;
 
-  // Description missing in models
-  optional string ipv4 = 2;
+  // Supress ARP
+  // default = False
+  optional bool suppress_arp = 2;
 
-  // Description missing in models
-  optional string ipv6 = 3;
+  // Remote VM MAC addresses
+  repeated string remote_vm_mac = 3;
+
+  // Remote VM ipv4 addresses
+  repeated string remote_vm_ipv4 = 4;
 }
 
 // Multicast Group address for member vni
-message VxlanMulticast {
+message VxlanV4TunnelDestinationIPModeMulticast {
 
-  // Multicast address
-  optional Address address = 1;
+  // IPv4 Multicast address
+  optional string address = 1;
 }
 
-// Description missing in models
-message Address {
+// Multicast Group address for member vni
+message VxlanV6TunnelDestinationIPModeMulticast {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      ipv4 = 1;
-      ipv6 = 2;
-    }
-  }
-  // IPv4 or IPv6 Multicast address
-  // default = Choice.Enum.ipv4
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  optional string ipv4 = 2;
-
-  // Description missing in models
-  optional string ipv6 = 3;
+  // IPv6 Multicast address
+  optional string address = 1;
 }
 
 // A high level data plane traffic flow.

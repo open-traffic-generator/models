@@ -654,15 +654,15 @@ components:
           - /components/schemas/Lag/properties/name
         vxlan_name:
           description: |
-            Name of the VxLAN instance ( or VxLAN tunnel ) that this Ethernet interface is connected to.
+            Name of the VXLAN instance (or VXLAN tunnel) that this Ethernet interface is connected to.
 
             x-constraint:
-            - #/components/schemas/Vxlan.V4Tunnel/properties/name
-            - #/components/schemas/Vxlan.V6Tunnel/properties/name
+            - #/components/schemas/VXlan.V4Tunnel/properties/name
+            - #/components/schemas/VXlan.V6Tunnel/properties/name
           type: string
           x-constraint:
-          - '#/components/schemas/Vxlan.V4Tunnel/properties/name'
-          - '#/components/schemas/Vxlan.V6Tunnel/properties/name'
+          - '#/components/schemas/VXlan.V4Tunnel/properties/name'
+          - '#/components/schemas/VXlan.V6Tunnel/properties/name'
     Device.Vlan:
       description: |-
         Emulated VLAN protocol.
@@ -3608,20 +3608,24 @@ components:
       properties:
         v4_tunnels:
           description: |-
-            VxLAN V4 Tunnels
+            IPv4 VXLAN Tunnels
           type: array
           items:
             $ref: '#/components/schemas/Vxlan.V4Tunnel'
         v6_tunnels:
           description: |-
-            VxLAN V6 Tunnels
+            IPv6 VXLAN Tunnels
           type: array
           items:
             $ref: '#/components/schemas/Vxlan.V6Tunnel'
     Vxlan.V4Tunnel:
       description: |-
-        Configuration and operational state parameters relating to a VXLAN tunnel end-point interface
+        Configuration and operational state parameters relating to IPv4 VXLAN tunnel end-point interface.
       type: object
+      required:
+      - source_interface
+      - vni
+      - name
       properties:
         source_interface:
           description: |
@@ -3646,13 +3650,14 @@ components:
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-      required:
-      - vni
-      - name
     Vxlan.V6Tunnel:
       description: |-
-        Configuration and operational state parameters relating to a VXLAN tunnel end-point interface
+        Configuration and operational state parameters relating to IPv6 VXLAN tunnel end-point interface.
       type: object
+      required:
+      - source_interface
+      - vni
+      - name
       properties:
         source_interface:
           description: |
@@ -3677,12 +3682,9 @@ components:
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-      required:
-      - vni
-      - name
     Vxlan.V4Tunnel.DestinationIPMode:
       description: |-
-        Communication Mode between the VMs, choice as either multicast or unicast
+        Communication mode between the VMs (representing the VXLAN endpoints), either unicast or multicast.
       type: object
       properties:
         choice:
@@ -3692,14 +3694,14 @@ components:
           enum:
           - unicast
           - multicast
-          default: unicast
+          default: multicast
         unicast:
           $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode.Unicast'
         multicast:
           $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode.Multicast'
     Vxlan.V6Tunnel.DestinationIPMode:
       description: |-
-        Communication Mode between the VMs, choice as either multicast or unicast
+        Communication mode between the VMs (representing the VXLAN endpoints), either unicast or multicast.
       type: object
       properties:
         choice:
@@ -3709,15 +3711,46 @@ components:
           enum:
           - unicast
           - multicast
-          default: unicast
+          default: multicast
         unicast:
           $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode.Unicast'
         multicast:
           $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode.Multicast'
     Vxlan.V4Tunnel.DestinationIPMode.Unicast:
+      properties:
+        vteps:
+          description: |-
+            List of VTEPs for member VNI(VXLAN Network Identifier)
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode.Unicast.Vtep'
+    Vxlan.V6Tunnel.DestinationIPMode.Unicast:
+      properties:
+        vteps:
+          description: |-
+            List of VTEPs for member VNI(VXLAN Network Identifier)
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode.Unicast.Vtep'
+    Vxlan.Tunnel.DestinationIPMode.Unicast.ArpSuppressionCache:
       description: |-
-        Configuration of Unicast parameters for VxLAN.
-        DestinationIPMode Unicast Base
+        ARP suppression reduces ARP broadcast traffic by using ARP Suppression Cache. ARP requests are sent only between the endpoint and the local edge device/VTEP.
+      type: object
+      properties:
+        remote_vm_mac:
+          description: |-
+            Remote VM MAC address binding to Remote VM IPv4 address
+          type: string
+          format: mac
+        remote_vm_ipv4:
+          description: |-
+            Remote VM IPv4 address
+          type: string
+          format: ipv4
+    Vxlan.V4Tunnel.DestinationIPMode.Unicast.Vtep:
+      description: |-
+        VTEP (VXLAN Tunnel End Point (VTEP)) parameters
+        DestinationIPMode Unicast VTEP Base
       type: object
       properties:
         remote_vtep_address:
@@ -3725,28 +3758,16 @@ components:
             Remote VXLAN Tunnel End Point address
           type: string
           format: ipv4
-        suppress_arp:
-          description: "Supress ARP "
-          type: boolean
-          default: false
-        remote_vm_mac:
+        arp_suppression_cache:
           description: |-
-            Remote VM MAC addresses
+            Arp Suppression Cache
           type: array
           items:
-            type: string
-            format: mac
-        remote_vm_ipv4:
-          description: |-
-            Remote VM ipv4 addresses
-          type: array
-          items:
-            type: string
-            format: ipv4
-    Vxlan.V6Tunnel.DestinationIPMode.Unicast:
+            $ref: '#/components/schemas/Vxlan.Tunnel.DestinationIPMode.Unicast.ArpSuppressionCache'
+    Vxlan.V6Tunnel.DestinationIPMode.Unicast.Vtep:
       description: |-
-        Configuration of Unicast parameters for VxLAN.
-        DestinationIPMode Unicast Base
+        VTEP (VXLAN Tunnel End Point (VTEP)) parameters
+        DestinationIPMode Unicast VTEP Base
       type: object
       properties:
         remote_vtep_address:
@@ -3754,27 +3775,15 @@ components:
             Remote VXLAN Tunnel End Point address
           type: string
           format: ipv6
-        suppress_arp:
-          description: "Supress ARP "
-          type: boolean
-          default: false
-        remote_vm_mac:
+        arp_suppression_cache:
           description: |-
-            Remote VM MAC addresses
+            Arp Suppression Cache
           type: array
           items:
-            type: string
-            format: mac
-        remote_vm_ipv4:
-          description: |-
-            Remote VM ipv4 addresses
-          type: array
-          items:
-            type: string
-            format: ipv4
+            $ref: '#/components/schemas/Vxlan.Tunnel.DestinationIPMode.Unicast.ArpSuppressionCache'
     Vxlan.V4Tunnel.DestinationIPMode.Multicast:
       description: |-
-        Multicast Group address for member vni
+        Multicast Group address for member VNI(VXLAN Network Identifier)
       type: object
       properties:
         address:
@@ -3784,7 +3793,7 @@ components:
           format: ipv4
     Vxlan.V6Tunnel.DestinationIPMode.Multicast:
       description: |-
-        Multicast Group address for member vni
+        Multicast Group address for member VNI(VXLAN Network Identifier)
       type: object
       properties:
         address:

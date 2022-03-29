@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 0.7.9
+/* Open Traffic Generator API 0.7.10
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -280,11 +280,12 @@ message EthernetConnection {
   // 
   optional string lag_name = 3;
 
-  // Name of the VxLAN instance ( or VxLAN tunnel ) that this Ethernet interface is connected
+  // Name of the VXLAN instance (or VXLAN tunnel) that this Ethernet interface is connected
   // to.
   // 
   // x-constraint:
-  // - /components/schemas/Device.VxlanTunnel/properties/name
+  // - #/components/schemas/VXlan.V4Tunnel/properties/name
+  // - #/components/schemas/VXlan.V6Tunnel/properties/name
   // 
   optional string vxlan_name = 4;
 }
@@ -847,8 +848,8 @@ message Device {
   // route ranges.
   optional DeviceBgpRouter bgp = 5;
 
-  // Configuration of VXLAN tunnel interfaces
-  repeated DeviceVxlanTunnel vxlans = 6;
+  // Configuration of VXLAN tunnel interfaces RFC Ref: https://datatracker.ietf.org/doc/html/rfc7348
+  optional DeviceVxlan vxlan = 6;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -2878,26 +2879,35 @@ message BgpV6SegmentRouting {
   optional bool advertise_sr_te_policy = 8;
 }
 
-// Configuration and operational state parameters relating to a VXLAN tunnel end-point
-// interface
-message DeviceVxlanTunnel {
+// Description missing in models
+message DeviceVxlan {
 
-  // VXLAN Network Identifier (VNI) to distinguish network instances on the wire
-  // required = true
-  int32 vni = 1;
+  // IPv4 VXLAN Tunnels
+  repeated VxlanV4Tunnel v4_tunnels = 1;
+
+  // IPv6 VXLAN Tunnels
+  repeated VxlanV6Tunnel v6_tunnels = 2;
+}
+
+// Configuration and operational state parameters relating to IPv4 VXLAN tunnel end-point
+// interface.
+message VxlanV4Tunnel {
 
   // Determines the source interface.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv4/properties/name
   // - /components/schemas/Device.Ipv4Loopback/properties/name
-  // - /components/schemas/Device.Ipv6/properties/name
-  // - /components/schemas/Device.Ipv6Loopback/properties/name
   // 
-  optional string source_interface = 2;
+  // required = true
+  string source_interface = 1;
 
   // Description missing in models
-  optional DestinationIPMode destination_ip_mode = 3;
+  optional VxlanV4TunnelDestinationIPMode destination_ip_mode = 2;
+
+  // VXLAN Network Identifier (VNI) to distinguish network instances on the wire
+  // required = true
+  int32 vni = 3;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -2905,8 +2915,34 @@ message DeviceVxlanTunnel {
   string name = 4;
 }
 
-// Communication Mode between the VMs, choice as either multicast or unicast
-message DestinationIPMode {
+// Configuration and operational state parameters relating to IPv6 VXLAN tunnel end-point
+// interface.
+message VxlanV6Tunnel {
+
+  // Determines the source interface.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv6/properties/name
+  // - /components/schemas/Device.Ipv6Loopback/properties/name
+  // 
+  // required = true
+  string source_interface = 1;
+
+  // Description missing in models
+  optional VxlanV6TunnelDestinationIPMode destination_ip_mode = 2;
+
+  // VXLAN Network Identifier (VNI) to distinguish network instances on the wire
+  // required = true
+  int32 vni = 3;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  string name = 4;
+}
+
+// Communication mode between the VTEPs, either unicast or multicast.
+message VxlanV4TunnelDestinationIPMode {
 
   message Choice {
     enum Enum {
@@ -2916,80 +2952,107 @@ message DestinationIPMode {
     }
   }
   // unicast or multicast
-  // default = Choice.Enum.unicast
+  // default = Choice.Enum.multicast
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  optional VxlanUnicast unicast = 2;
+  optional VxlanV4TunnelDestinationIPModeUnicast unicast = 2;
 
   // Description missing in models
-  optional VxlanMulticast multicast = 3;
+  optional VxlanV4TunnelDestinationIPModeMulticast multicast = 3;
 }
 
-// Configuration of Unicast parameters for VxLAN.
-message VxlanUnicast {
+// Communication mode between the VTEPs, either unicast or multicast.
+message VxlanV6TunnelDestinationIPMode {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      unicast = 1;
+      multicast = 2;
+    }
+  }
+  // unicast or multicast
+  // default = Choice.Enum.multicast
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional VxlanV6TunnelDestinationIPModeUnicast unicast = 2;
+
+  // Description missing in models
+  optional VxlanV6TunnelDestinationIPModeMulticast multicast = 3;
+}
+
+// Description missing in models
+message VxlanV4TunnelDestinationIPModeUnicast {
+
+  // List of VTEPs for member VNI(VXLAN Network Identifier)
+  repeated VxlanV4TunnelDestinationIPModeUnicastVtep vteps = 1;
+}
+
+// Description missing in models
+message VxlanV6TunnelDestinationIPModeUnicast {
+
+  // List of VTEPs for member VNI(VXLAN Network Identifier)
+  repeated VxlanV6TunnelDestinationIPModeUnicastVtep vteps = 1;
+}
+
+// Each VTEP maintains an ARP suppression cache table for known IP hosts and their associated
+// MAC addresses in the VNI segment.  When an end host in the VNI sends an ARP request
+// for another end-host IP address,  its local VTEP intercepts the ARP request and checks
+// for the ARP-resolved IP address in its ARP suppression cache table.  If it finds
+// a match, the local VTEP sends an ARP response on behalf of the remote end host.
+message VxlanTunnelDestinationIPModeUnicastArpSuppressionCache {
+
+  // Remote VM MAC address bound to Remote VM IPv4 address
+  optional string remote_vm_mac = 1;
+
+  // Remote VM IPv4 address
+  optional string remote_vm_ipv4 = 2;
+}
+
+// VTEP (VXLAN Tunnel End Point (VTEP)) parameters
+// DestinationIPMode Unicast VTEP Base
+message VxlanV4TunnelDestinationIPModeUnicastVtep {
 
   // Remote VXLAN Tunnel End Point address
-  optional RemoteVtepAddress remote_vtep_address = 1;
+  optional string remote_vtep_address = 1;
 
-  // Supress ARP
-  // default = False
-  optional bool suppress_arp = 2;
-
-  // Remote VM MAC addresses
-  repeated string remote_vm_mac = 3;
-
-  // Remote VM ipv4 addresses
-  repeated string remote_vm_ipv4 = 4;
+  // Each VTEP maintains an ARP suppression cache table for known IP hosts and their associated
+  // MAC addresses in the VNI segment.  When an end host in the VNI sends an ARP request
+  // for another end-host IP address,  its local VTEP intercepts the ARP request and checks
+  // for the ARP-resolved IP address in its ARP suppression cache table.  If it finds
+  // a match, the local VTEP sends an ARP response on behalf of the remote end host.
+  repeated VxlanTunnelDestinationIPModeUnicastArpSuppressionCache arp_suppression_cache = 2;
 }
 
-// Description missing in models
-message RemoteVtepAddress {
+// VTEP (VXLAN Tunnel End Point (VTEP)) parameters
+// DestinationIPMode Unicast VTEP Base
+message VxlanV6TunnelDestinationIPModeUnicastVtep {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      ipv4 = 1;
-      ipv6 = 2;
-    }
-  }
-  // IPv4 or IPv6 address
-  // default = Choice.Enum.ipv4
-  optional Choice.Enum choice = 1;
+  // Remote VXLAN Tunnel End Point address
+  optional string remote_vtep_address = 1;
 
-  // Description missing in models
-  optional string ipv4 = 2;
-
-  // Description missing in models
-  optional string ipv6 = 3;
+  // Each VTEP maintains an ARP suppression cache table for known IP hosts and their associated
+  // MAC addresses in the VNI segment.  When an end host in the VNI sends an ARP request
+  // for another end-host IP address,  its local VTEP intercepts the ARP request and checks
+  // for the ARP-resolved IP address in its ARP suppression cache table.  If it finds
+  // a match, the local VTEP sends an ARP response on behalf of the remote end host.
+  repeated VxlanTunnelDestinationIPModeUnicastArpSuppressionCache arp_suppression_cache = 2;
 }
 
-// Multicast Group address for member vni
-message VxlanMulticast {
+// Multicast Group address for member VNI(VXLAN Network Identifier)
+message VxlanV4TunnelDestinationIPModeMulticast {
 
-  // Multicast address
-  optional Address address = 1;
+  // IPv4 Multicast address
+  optional string address = 1;
 }
 
-// Description missing in models
-message Address {
+// Multicast Group address for member VNI(VXLAN Network Identifier)
+message VxlanV6TunnelDestinationIPModeMulticast {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      ipv4 = 1;
-      ipv6 = 2;
-    }
-  }
-  // IPv4 or IPv6 Multicast address
-  // default = Choice.Enum.ipv4
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  optional string ipv4 = 2;
-
-  // Description missing in models
-  optional string ipv6 = 3;
+  // IPv6 Multicast address
+  optional string address = 1;
 }
 
 // A high level data plane traffic flow.

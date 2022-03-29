@@ -7,7 +7,7 @@ info:
     \ issue](https://github.com/open-traffic-generator/models/issues) in the models\
     \ repository\n- [fork the models repository](https://github.com/open-traffic-generator/models)\
     \ and submit a PR"
-  version: 0.7.9
+  version: 0.7.10
   contact:
     url: https://github.com/open-traffic-generator/models
   license:
@@ -654,13 +654,15 @@ components:
           - /components/schemas/Lag/properties/name
         vxlan_name:
           description: |
-            Name of the VxLAN instance ( or VxLAN tunnel ) that this Ethernet interface is connected to.
+            Name of the VXLAN instance (or VXLAN tunnel) that this Ethernet interface is connected to.
 
             x-constraint:
-            - /components/schemas/Device.VxlanTunnel/properties/name
+            - #/components/schemas/VXlan.V4Tunnel/properties/name
+            - #/components/schemas/VXlan.V6Tunnel/properties/name
           type: string
           x-constraint:
-          - /components/schemas/Device.VxlanTunnel/properties/name
+          - '#/components/schemas/VXlan.V4Tunnel/properties/name'
+          - '#/components/schemas/VXlan.V6Tunnel/properties/name'
     Device.Vlan:
       description: |-
         Emulated VLAN protocol.
@@ -1242,12 +1244,10 @@ components:
           description: |-
             The properties of BGP router and its children,  such as BGPv4, BGPv6 peers and their route ranges.
           $ref: '#/components/schemas/Device.BgpRouter'
-        vxlans:
+        vxlan:
           description: |-
-            Configuration of VXLAN tunnel interfaces
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.VxlanTunnel'
+            Configuration of VXLAN tunnel interfaces RFC Ref: https://datatracker.ietf.org/doc/html/rfc7348
+          $ref: '#/components/schemas/Device.Vxlan'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -3604,19 +3604,29 @@ components:
             TBD
           type: boolean
           default: false
-    Device.VxlanTunnel:
+    Device.Vxlan:
+      properties:
+        v4_tunnels:
+          description: |-
+            IPv4 VXLAN Tunnels
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V4Tunnel'
+        v6_tunnels:
+          description: |-
+            IPv6 VXLAN Tunnels
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V6Tunnel'
+    Vxlan.V4Tunnel:
       description: |-
-        Configuration and operational state parameters relating to a VXLAN tunnel end-point interface
+        Configuration and operational state parameters relating to IPv4 VXLAN tunnel end-point interface.
       type: object
       required:
+      - source_interface
       - vni
       - name
       properties:
-        vni:
-          description: |-
-            VXLAN Network Identifier (VNI) to distinguish network instances on the wire
-          type: integer
-          format: int32
         source_interface:
           description: |
             Determines the source interface.
@@ -3624,24 +3634,59 @@ components:
             x-constraint:
             - /components/schemas/Device.Ipv4/properties/name
             - /components/schemas/Device.Ipv4Loopback/properties/name
-            - /components/schemas/Device.Ipv6/properties/name
-            - /components/schemas/Device.Ipv6Loopback/properties/name
           type: string
           x-constraint:
           - /components/schemas/Device.Ipv4/properties/name
           - /components/schemas/Device.Ipv4Loopback/properties/name
-          - /components/schemas/Device.Ipv6/properties/name
-          - /components/schemas/Device.Ipv6Loopback/properties/name
         destination_ip_mode:
-          $ref: '#/components/schemas/DestinationIPMode'
+          $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode'
+        vni:
+          description: |-
+            VXLAN Network Identifier (VNI) to distinguish network instances on the wire
+          type: integer
+          minimum: 1
+          maximum: 16777215
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-    DestinationIPMode:
+    Vxlan.V6Tunnel:
       description: |-
-        Communication Mode between the VMs, choice as either multicast or unicast
+        Configuration and operational state parameters relating to IPv6 VXLAN tunnel end-point interface.
+      type: object
+      required:
+      - source_interface
+      - vni
+      - name
+      properties:
+        source_interface:
+          description: |
+            Determines the source interface.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv6/properties/name
+            - /components/schemas/Device.Ipv6Loopback/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv6/properties/name
+          - /components/schemas/Device.Ipv6Loopback/properties/name
+        destination_ip_mode:
+          $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode'
+        vni:
+          description: |-
+            VXLAN Network Identifier (VNI) to distinguish network instances on the wire
+          type: integer
+          minimum: 1
+          maximum: 16777215
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Vxlan.V4Tunnel.DestinationIPMode:
+      description: |-
+        Communication mode between the VTEPs, either unicast or multicast.
       type: object
       properties:
         choice:
@@ -3651,79 +3696,111 @@ components:
           enum:
           - unicast
           - multicast
-          default: unicast
+          default: multicast
         unicast:
-          $ref: '#/components/schemas/Vxlan.Unicast'
+          $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode.Unicast'
         multicast:
-          $ref: '#/components/schemas/Vxlan.Multicast'
-    Vxlan.Unicast:
+          $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode.Multicast'
+    Vxlan.V6Tunnel.DestinationIPMode:
       description: |-
-        Configuration of Unicast parameters for VxLAN.
+        Communication mode between the VTEPs, either unicast or multicast.
+      type: object
+      properties:
+        choice:
+          description: |-
+            unicast or multicast
+          type: string
+          enum:
+          - unicast
+          - multicast
+          default: multicast
+        unicast:
+          $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode.Unicast'
+        multicast:
+          $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode.Multicast'
+    Vxlan.V4Tunnel.DestinationIPMode.Unicast:
+      properties:
+        vteps:
+          description: |-
+            List of VTEPs for member VNI(VXLAN Network Identifier)
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode.Unicast.Vtep'
+    Vxlan.V6Tunnel.DestinationIPMode.Unicast:
+      properties:
+        vteps:
+          description: |-
+            List of VTEPs for member VNI(VXLAN Network Identifier)
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode.Unicast.Vtep'
+    Vxlan.Tunnel.DestinationIPMode.Unicast.ArpSuppressionCache:
+      description: |-
+        Each VTEP maintains an ARP suppression cache table for known IP hosts and their associated MAC addresses in the VNI segment.  When an end host in the VNI sends an ARP request for another end-host IP address,  its local VTEP intercepts the ARP request and checks for the ARP-resolved IP address in its ARP suppression cache table.  If it finds a match, the local VTEP sends an ARP response on behalf of the remote end host.
+      type: object
+      properties:
+        remote_vm_mac:
+          description: |-
+            Remote VM MAC address bound to Remote VM IPv4 address
+          type: string
+          format: mac
+        remote_vm_ipv4:
+          description: |-
+            Remote VM IPv4 address
+          type: string
+          format: ipv4
+    Vxlan.V4Tunnel.DestinationIPMode.Unicast.Vtep:
+      description: |-
+        VTEP (VXLAN Tunnel End Point (VTEP)) parameters
+        DestinationIPMode Unicast VTEP Base
       type: object
       properties:
         remote_vtep_address:
           description: |-
             Remote VXLAN Tunnel End Point address
-          $ref: '#/components/schemas/Remote.Vtep.Address'
-        suppress_arp:
-          description: "Supress ARP "
-          type: boolean
-          default: false
-        remote_vm_mac:
-          description: |-
-            Remote VM MAC addresses
-          type: array
-          items:
-            type: string
-            format: mac
-        remote_vm_ipv4:
-          description: |-
-            Remote VM ipv4 addresses
-          type: array
-          items:
-            type: string
-            format: ipv4
-    Remote.Vtep.Address:
-      type: object
-      properties:
-        choice:
-          description: |-
-            IPv4 or IPv6 address
-          type: string
-          enum:
-          - ipv4
-          - ipv6
-          default: ipv4
-        ipv4:
           type: string
           format: ipv4
-        ipv6:
+        arp_suppression_cache:
+          description: |-
+            Each VTEP maintains an ARP suppression cache table for known IP hosts and their associated MAC addresses in the VNI segment.  When an end host in the VNI sends an ARP request for another end-host IP address,  its local VTEP intercepts the ARP request and checks for the ARP-resolved IP address in its ARP suppression cache table.  If it finds a match, the local VTEP sends an ARP response on behalf of the remote end host.
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.Tunnel.DestinationIPMode.Unicast.ArpSuppressionCache'
+    Vxlan.V6Tunnel.DestinationIPMode.Unicast.Vtep:
+      description: |-
+        VTEP (VXLAN Tunnel End Point (VTEP)) parameters
+        DestinationIPMode Unicast VTEP Base
+      type: object
+      properties:
+        remote_vtep_address:
+          description: |-
+            Remote VXLAN Tunnel End Point address
           type: string
           format: ipv6
-    Vxlan.Multicast:
+        arp_suppression_cache:
+          description: |-
+            Each VTEP maintains an ARP suppression cache table for known IP hosts and their associated MAC addresses in the VNI segment.  When an end host in the VNI sends an ARP request for another end-host IP address,  its local VTEP intercepts the ARP request and checks for the ARP-resolved IP address in its ARP suppression cache table.  If it finds a match, the local VTEP sends an ARP response on behalf of the remote end host.
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.Tunnel.DestinationIPMode.Unicast.ArpSuppressionCache'
+    Vxlan.V4Tunnel.DestinationIPMode.Multicast:
       description: |-
-        Multicast Group address for member vni
+        Multicast Group address for member VNI(VXLAN Network Identifier)
       type: object
       properties:
         address:
           description: |-
-            Multicast address
-          $ref: '#/components/schemas/Address'
-    Address:
-      type: object
-      properties:
-        choice:
-          description: |-
-            IPv4 or IPv6 Multicast address
-          type: string
-          enum:
-          - ipv4
-          - ipv6
-          default: ipv4
-        ipv4:
+            IPv4 Multicast address
           type: string
           format: ipv4
-        ipv6:
+    Vxlan.V6Tunnel.DestinationIPMode.Multicast:
+      description: |-
+        Multicast Group address for member VNI(VXLAN Network Identifier)
+      type: object
+      properties:
+        address:
+          description: |-
+            IPv6 Multicast address
           type: string
           format: ipv6
     Flow:

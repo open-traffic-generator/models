@@ -5,8 +5,10 @@
 [![release)](https://img.shields.io/github/v/release/open-traffic-generator/models)](https://github.com/open-traffic-generator/models/releases/latest)
 [![Models CI/CD](https://github.com/open-traffic-generator/models/workflows/Models%20CI/CD/badge.svg)](https://github.com/open-traffic-generator/models/actions)
 
-This repository is a collaborative effort to develop agnostic data 
-models and APIs for managing traffic generators. The artifacts produced by this repository offer a foundation for other tools and/or implementations that want to use a `model first` approach.
+Open Traffic Generator API defines a standard, model-driven and vendor-neutral 
+interface for emulating layer 2-7 network devices and generating test traffic.
+
+This repository is a collaborative effort and produces artifacts to offer a foundation for other tools and/or implementations that want to use a `model first` approach.
 
 [Ixia-c](https://github.com/open-traffic-generator/ixia-c) is a reference implementation of traffic generator described by these data models and API.
 
@@ -22,15 +24,17 @@ The focus of this repository is the following:
 
 Please make sure that the client setup meets [Python Prerequisites](#python-prerequisites).
 
-- Clone this project, `cd` inside it and make changes to spec as needed.
+- Clone this project, `cd` inside it and make changes to spec following the [modelling guide](MODEL-GUIDE).
 
-- Generate bundled spec called `openapi.yaml`.
+- Generate bundled spec called `openapi.yaml` inside `artifacts/`.
   ```sh
   python -m pip install -r requirements.txt
   python build.py
   ```
 
 - To preview documentation and interact with schema, copy contents of `openapi.yaml` inside https://editor.swagger.io/.
+
+- Upon pushing changes, `artifacts/openapi.yaml` and `artifacts/otg.proto` will be auto-generated and committed back to repository.
 
 #### Python Prerequisites
 
@@ -49,11 +53,11 @@ Please make sure that the client setup meets [Python Prerequisites](#python-prer
   ```sh
   python -m pip install --upgrade virtualenv
   # create virtual environment inside `env/` and activate it.
-  python -m virtualenv env
+  python -m virtualenv .env
   # on linux
-  source env/bin/activate
+  source .env/bin/activate
   # on windows
-  env\Scripts\activate on Windows
+  .env\Scripts\activate on Windows
   ```
 
   **NOTE:** If you do not wish to activate virtual env, you use `env/bin/python` (or `env\scripts\python` on Windows) instead of `python`.

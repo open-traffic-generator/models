@@ -10,5 +10,5 @@ import openapiart
 openapiart.OpenApiArt(
     api_files=["./api/info.yaml", "./api/api.yaml"],
     protobuf_name="otg",
-    artifact_dir="art",
+    artifact_dir="artifacts",
 ).GeneratePythonSdk(package_name="otg")

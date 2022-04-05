@@ -135,6 +135,20 @@ The build script will enforce the following keyword conventions:
             enum: [current, deprecated, obsolete, under_review]
             default: current
   ```
+* `x-status-message`
+  * A helper extension which can be used to provide clear information of the `x-status` extension.
+
+  ```yaml
+  components:
+    schemas:
+      Extensions:
+        properties:
+          x-status-message:
+            description: |-
+              If the x-status is deprecated or obsolete, this extension will provide clear information
+              on the action need to be taken to get going with the library.
+            type: string
+  ```
 
 * `x-include`
   * For object composition use the `x-include` keyword to merge schema objects into other schema objects instead of using the allOf keyword.

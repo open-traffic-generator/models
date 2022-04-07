@@ -122,18 +122,25 @@ The build script will enforce the following keyword conventions:
       Extensions:
         properties:
           x-status:
-            description: |-
-              - current means that the definition is current and valid.
-              - deprecated indicates an obsolete definition, but it permits new /
-              continued implementation  in order to foster interoperability
-              with older/existing implementations.
-              - `obsolete` means the definition is obsolete and SHOULD NOT be
-              implemented and/or can be removed from implementations.
-              - `under-review` indicates that the object or property is subject
-              to change at any time.
-            type: string
-            enum: [current, deprecated, obsolete, under_review]
-            default: current
+            type: object
+            required: [status]
+            properties:
+              status:
+                description: |-
+                  - current means that the definition is current and valid.
+                  - deprecated indicates an obsolete definition, but it permits new /
+                  continued implementation  in order to foster interoperability
+                  with older/existing implementations.
+                  - `obsolete` means the definition is obsolete and SHOULD NOT be
+                  implemented and/or can be removed from implementations.
+                  - `under-review` indicates that the object or property is subject
+                  to change at any time.
+                type: string
+                enum: [current, deprecated, obsolete, under_review]
+                default: current
+              additional_information:
+                type: string
+                description: Use this property to provide additional information about the status property
   ```
 
 * `x-include`

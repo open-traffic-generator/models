@@ -7,7 +7,7 @@ info:
     \ issue](https://github.com/open-traffic-generator/models/issues) in the models\
     \ repository\n- [fork the models repository](https://github.com/open-traffic-generator/models)\
     \ and submit a PR"
-  version: 0.7.3
+  version: 0.7.12
   contact:
     url: https://github.com/open-traffic-generator/models
   license:
@@ -565,22 +565,25 @@ components:
         An Ethernet interface with IPv4 and IPv6 addresses.
         Base Ethernet interface.
       type: object
-      required:
-      - port_name
-      - mac
-      - name
       properties:
         port_name:
           description: |
+            Status: deprecated
             The unique name of a Port or a LAG that will emulate this interface.
+            port_name is deprecated and will be removed in future release.port_name and connection can't be used together, use either port_name or connection.
 
             x-constraint:
             - /components/schemas/Port/properties/name
             - /components/schemas/Lag/properties/name
+          x-status: deprecated
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
           - /components/schemas/Lag/properties/name
+        connection:
+          description: |-
+            Device connection to physical, LAG or another device.
+          $ref: '#/components/schemas/Ethernet.Connection'
         ipv4_addresses:
           description: "List of IPv4 addresses and their gateways. "
           type: array
@@ -616,6 +619,51 @@ components:
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - mac
+      - name
+    Ethernet.Connection:
+      description: |-
+        Ethernet interface connection to a port, LAG or VXLAN tunnel.
+      type: object
+      properties:
+        choice:
+          description: |-
+            port_name, lag_name or vxlan_name
+          type: string
+          enum:
+          - port_name
+          - lag_name
+          - vxlan_name
+        port_name:
+          description: |
+            Name of the port that the Ethernet interface is configured on.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        lag_name:
+          description: |
+            Name of the LAG that the Ethernet interface is configured on.
+
+            x-constraint:
+            - /components/schemas/Lag/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Lag/properties/name
+        vxlan_name:
+          description: |
+            Name of the VXLAN instance (or VXLAN tunnel) that this Ethernet interface is connected to.
+
+            x-constraint:
+            - #/components/schemas/VXlan.V4Tunnel/properties/name
+            - #/components/schemas/VXlan.V6Tunnel/properties/name
+          type: string
+          x-constraint:
+          - '#/components/schemas/VXlan.V4Tunnel/properties/name'
+          - '#/components/schemas/VXlan.V6Tunnel/properties/name'
     Device.Vlan:
       description: |-
         Emulated VLAN protocol.
@@ -1197,6 +1245,10 @@ components:
           description: |-
             The properties of BGP router and its children,  such as BGPv4, BGPv6 peers and their route ranges.
           $ref: '#/components/schemas/Device.BgpRouter'
+        vxlan:
+          description: |-
+            Configuration of VXLAN tunnel interfaces RFC Ref: https://datatracker.ietf.org/doc/html/rfc7348
+          $ref: '#/components/schemas/Device.Vxlan'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -3905,6 +3957,7 @@ components:
             TBD
           type: boolean
           default: false
+
     BgpV6.EthernetSegment:
       description: |-
         Configuration for BGP Ethernet Segment ranges. Advertises following routes -
@@ -4084,6 +4137,207 @@ components:
             VLAN-Aware service to be enabled or disabled.
           type: boolean
           default: false
+
+    Device.Vxlan:
+      properties:
+        v4_tunnels:
+          description: |-
+            IPv4 VXLAN Tunnels
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V4Tunnel'
+        v6_tunnels:
+          description: |-
+            IPv6 VXLAN Tunnels
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V6Tunnel'
+    Vxlan.V4Tunnel:
+      description: |-
+        Configuration and operational state parameters relating to IPv4 VXLAN tunnel end-point interface.
+      type: object
+      required:
+      - source_interface
+      - vni
+      - name
+      properties:
+        source_interface:
+          description: |
+            Determines the source interface.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv4/properties/name
+            - /components/schemas/Device.Ipv4Loopback/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+          - /components/schemas/Device.Ipv4Loopback/properties/name
+        destination_ip_mode:
+          $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode'
+        vni:
+          description: |-
+            VXLAN Network Identifier (VNI) to distinguish network instances on the wire
+          type: integer
+          minimum: 1
+          maximum: 16777215
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Vxlan.V6Tunnel:
+      description: |-
+        Configuration and operational state parameters relating to IPv6 VXLAN tunnel end-point interface.
+      type: object
+      required:
+      - source_interface
+      - vni
+      - name
+      properties:
+        source_interface:
+          description: |
+            Determines the source interface.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv6/properties/name
+            - /components/schemas/Device.Ipv6Loopback/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv6/properties/name
+          - /components/schemas/Device.Ipv6Loopback/properties/name
+        destination_ip_mode:
+          $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode'
+        vni:
+          description: |-
+            VXLAN Network Identifier (VNI) to distinguish network instances on the wire
+          type: integer
+          minimum: 1
+          maximum: 16777215
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Vxlan.V4Tunnel.DestinationIPMode:
+      description: |-
+        Communication mode between the VTEPs, either unicast or multicast.
+      type: object
+      properties:
+        choice:
+          description: |-
+            unicast or multicast
+          type: string
+          enum:
+          - unicast
+          - multicast
+          default: multicast
+        unicast:
+          $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode.Unicast'
+        multicast:
+          $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode.Multicast'
+    Vxlan.V6Tunnel.DestinationIPMode:
+      description: |-
+        Communication mode between the VTEPs, either unicast or multicast.
+      type: object
+      properties:
+        choice:
+          description: |-
+            unicast or multicast
+          type: string
+          enum:
+          - unicast
+          - multicast
+          default: multicast
+        unicast:
+          $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode.Unicast'
+        multicast:
+          $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode.Multicast'
+    Vxlan.V4Tunnel.DestinationIPMode.Unicast:
+      properties:
+        vteps:
+          description: |-
+            List of VTEPs for member VNI(VXLAN Network Identifier)
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V4Tunnel.DestinationIPMode.Unicast.Vtep'
+    Vxlan.V6Tunnel.DestinationIPMode.Unicast:
+      properties:
+        vteps:
+          description: |-
+            List of VTEPs for member VNI(VXLAN Network Identifier)
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.V6Tunnel.DestinationIPMode.Unicast.Vtep'
+    Vxlan.Tunnel.DestinationIPMode.Unicast.ArpSuppressionCache:
+      description: |-
+        Each VTEP maintains an ARP suppression cache table for known IP hosts and their associated MAC addresses in the VNI segment.  When an end host in the VNI sends an ARP request for another end-host IP address,  its local VTEP intercepts the ARP request and checks for the ARP-resolved IP address in its ARP suppression cache table.  If it finds a match, the local VTEP sends an ARP response on behalf of the remote end host.
+      type: object
+      properties:
+        remote_vm_mac:
+          description: |-
+            Remote VM MAC address bound to Remote VM IPv4 address
+          type: string
+          format: mac
+        remote_vm_ipv4:
+          description: |-
+            Remote VM IPv4 address
+          type: string
+          format: ipv4
+    Vxlan.V4Tunnel.DestinationIPMode.Unicast.Vtep:
+      description: |-
+        VTEP (VXLAN Tunnel End Point (VTEP)) parameters
+        DestinationIPMode Unicast VTEP Base
+      type: object
+      properties:
+        remote_vtep_address:
+          description: |-
+            Remote VXLAN Tunnel End Point address
+          type: string
+          format: ipv4
+        arp_suppression_cache:
+          description: |-
+            Each VTEP maintains an ARP suppression cache table for known IP hosts and their associated MAC addresses in the VNI segment.  When an end host in the VNI sends an ARP request for another end-host IP address,  its local VTEP intercepts the ARP request and checks for the ARP-resolved IP address in its ARP suppression cache table.  If it finds a match, the local VTEP sends an ARP response on behalf of the remote end host.
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.Tunnel.DestinationIPMode.Unicast.ArpSuppressionCache'
+    Vxlan.V6Tunnel.DestinationIPMode.Unicast.Vtep:
+      description: |-
+        VTEP (VXLAN Tunnel End Point (VTEP)) parameters
+        DestinationIPMode Unicast VTEP Base
+      type: object
+      properties:
+        remote_vtep_address:
+          description: |-
+            Remote VXLAN Tunnel End Point address
+          type: string
+          format: ipv6
+        arp_suppression_cache:
+          description: |-
+            Each VTEP maintains an ARP suppression cache table for known IP hosts and their associated MAC addresses in the VNI segment.  When an end host in the VNI sends an ARP request for another end-host IP address,  its local VTEP intercepts the ARP request and checks for the ARP-resolved IP address in its ARP suppression cache table.  If it finds a match, the local VTEP sends an ARP response on behalf of the remote end host.
+          type: array
+          items:
+            $ref: '#/components/schemas/Vxlan.Tunnel.DestinationIPMode.Unicast.ArpSuppressionCache'
+    Vxlan.V4Tunnel.DestinationIPMode.Multicast:
+      description: |-
+        Multicast Group address for member VNI(VXLAN Network Identifier)
+      type: object
+      properties:
+        address:
+          description: |-
+            IPv4 Multicast address
+          type: string
+          format: ipv4
+    Vxlan.V6Tunnel.DestinationIPMode.Multicast:
+      description: |-
+        Multicast Group address for member VNI(VXLAN Network Identifier)
+      type: object
+      properties:
+        address:
+          description: |-
+            IPv6 Multicast address
+          type: string
+          format: ipv6
+
     Flow:
       description: |-
         A high level data plane traffic flow.
@@ -4290,6 +4544,7 @@ components:
           - icmpv6
           - ppp
           - igmpv1
+          - mpls
           default: ethernet
         custom:
           $ref: '#/components/schemas/Flow.Custom'
@@ -4327,6 +4582,8 @@ components:
           $ref: '#/components/schemas/Flow.Ppp'
         igmpv1:
           $ref: '#/components/schemas/Flow.Igmpv1'
+        mpls:
+          $ref: '#/components/schemas/Flow.Mpls'
     Flow.Custom:
       type: object
       description: |-
@@ -4760,6 +5017,19 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Checksum'
         group_address:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.GroupAddress'
+    Flow.Mpls:
+      description: |-
+        Mpls packet header
+      type: object
+      properties:
+        label:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.Label'
+        traffic_class:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.TrafficClass'
+        bottom_of_stack:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.BottomOfStack'
+        time_to_live:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.TimeToLive'
     Flow.Size:
       description: |-
         The frame size which overrides the total length of the packet
@@ -5327,12 +5597,16 @@ components:
             x-constraint:
             - /components/schemas/Bgp.V4RouteRange/properties/name
             - /components/schemas/Bgp.V6RouteRange/properties/name
+            - /components/schemas/Isis.V4RouteRange/properties/name
+            - /components/schemas/Isis.V6RouteRange/properties/name
           type: array
           items:
             type: string
           x-constraint:
           - /components/schemas/Bgp.V4RouteRange/properties/name
           - /components/schemas/Bgp.V6RouteRange/properties/name
+          - /components/schemas/Isis.V4RouteRange/properties/name
+          - /components/schemas/Isis.V6RouteRange/properties/name
         state:
           description: |-
             Route specific states
@@ -6326,9 +6600,10 @@ components:
           enum:
           - value
           - values
+          - auto
           - increment
           - decrement
-          default: value
+          default: auto
         value:
           type: string
           default: 00:00:00:00:00:00
@@ -6339,6 +6614,14 @@ components:
             type: string
           default:
           - 00:00:00:00:00:00
+          format: mac
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: string
+          default: 00:00:00:00:00:00
           format: mac
         metric_group:
           description: |-
@@ -6448,10 +6731,14 @@ components:
           minimum: 0
           maximum: 65535
         auto:
-          type: string
-          enum:
-          - auto
-          default: auto
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          default: 65535
+          minimum: 0
+          maximum: 65535
         metric_group:
           description: |-
             A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
@@ -6870,9 +7157,10 @@ components:
           enum:
           - value
           - values
+          - auto
           - increment
           - decrement
-          default: value
+          default: auto
         value:
           type: integer
           default: 0
@@ -6884,6 +7172,15 @@ components:
             type: integer
           default:
           - 0
+          minimum: 0
+          maximum: 16777215
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          default: 0
           minimum: 0
           maximum: 16777215
         metric_group:
@@ -7044,10 +7341,14 @@ components:
           minimum: 0
           maximum: 15
         auto:
-          type: string
-          enum:
-          - auto
-          default: auto
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          default: 5
+          minimum: 0
+          maximum: 15
         metric_group:
           description: |-
             A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
@@ -7102,10 +7403,14 @@ components:
           minimum: 0
           maximum: 65535
         auto:
-          type: string
-          enum:
-          - auto
-          default: auto
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          default: 46
+          minimum: 0
+          maximum: 65535
         metric_group:
           description: |-
             A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
@@ -7472,10 +7777,14 @@ components:
           minimum: 0
           maximum: 255
         auto:
-          type: string
-          enum:
-          - auto
-          default: auto
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          default: 61
+          minimum: 0
+          maximum: 255
         metric_group:
           description: |-
             A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
@@ -8373,10 +8682,14 @@ components:
           minimum: 0
           maximum: 65535
         auto:
-          type: string
-          enum:
-          - auto
-          default: auto
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 65535
         metric_group:
           description: |-
             A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
@@ -8425,9 +8738,10 @@ components:
           enum:
           - value
           - values
+          - auto
           - increment
           - decrement
-          default: value
+          default: auto
         value:
           type: integer
           default: 59
@@ -8439,6 +8753,15 @@ components:
             type: integer
           default:
           - 59
+          minimum: 0
+          maximum: 255
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          default: 59
           minimum: 0
           maximum: 255
         metric_group:
@@ -13264,10 +13587,12 @@ components:
       properties:
         start:
           type: integer
+          default: 33
           minimum: 0
           maximum: 65535
         step:
           type: integer
+          default: 1
           minimum: 0
           maximum: 65535
         count:
@@ -13289,19 +13614,26 @@ components:
           default: auto
         value:
           type: integer
+          default: 33
           minimum: 0
           maximum: 65535
         values:
           type: array
           items:
             type: integer
+          default:
+          - 33
           minimum: 0
           maximum: 65535
         auto:
-          type: string
-          enum:
-          - auto
-          default: auto
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          default: 33
+          minimum: 0
+          maximum: 65535
         metric_group:
           description: |-
             A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
@@ -13547,3 +13879,221 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.GroupAddress.Counter'
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.GroupAddress.Counter'
+    Pattern.Flow.Mpls.Label.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          default: 16
+          minimum: 0
+          maximum: 1048575
+        step:
+          type: integer
+          default: 1
+          minimum: 0
+          maximum: 1048575
+        count:
+          type: integer
+          default: 1
+    Pattern.Flow.Mpls.Label:
+      description: |-
+        Label of routers
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - auto
+          - increment
+          - decrement
+          default: auto
+        value:
+          type: integer
+          default: 16
+          minimum: 0
+          maximum: 1048575
+        values:
+          type: array
+          items:
+            type: integer
+          default:
+          - 16
+          minimum: 0
+          maximum: 1048575
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          default: 16
+          minimum: 0
+          maximum: 1048575
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.Label.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.Label.Counter'
+    Pattern.Flow.Mpls.TrafficClass.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 7
+        step:
+          type: integer
+          default: 1
+          minimum: 0
+          maximum: 7
+        count:
+          type: integer
+          default: 1
+    Pattern.Flow.Mpls.TrafficClass:
+      description: |-
+        Traffic class
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+          default: value
+        value:
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 7
+        values:
+          type: array
+          items:
+            type: integer
+          default:
+          - 0
+          minimum: 0
+          maximum: 7
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.TrafficClass.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.TrafficClass.Counter'
+    Pattern.Flow.Mpls.BottomOfStack.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          default: 1
+          minimum: 0
+          maximum: 1
+        step:
+          type: integer
+          default: 1
+          minimum: 0
+          maximum: 1
+        count:
+          type: integer
+          default: 1
+    Pattern.Flow.Mpls.BottomOfStack:
+      description: |-
+        Bottom of stack
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+          default: value
+        value:
+          type: integer
+          default: 1
+          minimum: 0
+          maximum: 1
+        values:
+          type: array
+          items:
+            type: integer
+          default:
+          - 1
+          minimum: 0
+          maximum: 1
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.BottomOfStack.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.BottomOfStack.Counter'
+    Pattern.Flow.Mpls.TimeToLive.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          default: 64
+          minimum: 0
+          maximum: 255
+        step:
+          type: integer
+          default: 1
+          minimum: 0
+          maximum: 255
+        count:
+          type: integer
+          default: 1
+    Pattern.Flow.Mpls.TimeToLive:
+      description: |-
+        Time to live
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+          default: value
+        value:
+          type: integer
+          default: 64
+          minimum: 0
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+          default:
+          - 64
+          minimum: 0
+          maximum: 255
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.TimeToLive.Counter'
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Mpls.TimeToLive.Counter'

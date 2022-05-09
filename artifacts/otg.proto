@@ -1394,6 +1394,27 @@ message V6RouteAddress {
   optional int32 step = 4;
 }
 
+// A container for MAC route addresses.
+message MACRouteAddress {
+
+  // The starting address of the MAC Range.
+  // required = true
+  string address = 1;
+
+  // The MAC prefix length to be applied to the address.
+  // default = 48
+  optional int32 prefix = 2;
+
+  // The total number of mac addresses in the range.
+  // default = 1
+  optional int32 count = 3;
+
+  // Increments the mac address prefixes within a mac range  where multiple routes are
+  // present.  The value is incremented according to the mac prefix Length and Step.
+  // default = 1
+  optional int32 step = 4;
+}
+
 // Emulated ISIS IPv6 routes.
 // Configuration for ISIS route ranges.
 // This contains the properties of ISIS Prefix attributes for  the extended IPv4 and
@@ -1488,6 +1509,28 @@ message BgpV4Peer {
   // required = true
   string peer_address = 1;
 
+  // This contains the list of Ethernet Virtual Private Network (EVPN) Ethernet Segments
+  // (ES) Per BGP Peer for IPv4 Address Family Identifier (AFI).
+  // 
+  // Each Ethernet Segment contains a list of EVPN Instances (EVIs) .
+  // Each EVI contains a list of Broadcast Domains.
+  // Each Broadcast Domain contains a list of MAC/IP Ranges.
+  // 
+  // <Ethernet Segment, EVI, Broadcast Domain> is responsible for advertising Ethernet
+  // Auto-discovery Route Per EVI (Type 1).
+  // 
+  // <Ethernet Segment, EVI> is responsible for advertising Ethernet Auto-discovery Route
+  // Per Ethernet Segment (Type 1).
+  // 
+  // <Ethernet Segment, EVI, Broadcast Domain, MAC/IP> is responsible for advertising
+  // MAC/IP Advertisement Route (Type 2).
+  // 
+  // <Ethernet Segment, EVI, Broadcast Domain> is responsible for advertising Inclusive
+  // Multicast Ethernet Tag Route (Type 3).
+  // 
+  // Ethernet Segment is responsible for advertising Ethernet Segment Route (Type 4).
+  repeated BgpV4EthernetSegment evpn_ethernet_segments = 2;
+
   message AsType {
     enum Enum {
       unspecified = 0;
@@ -1503,11 +1546,11 @@ message BgpV4Peer {
   // attribute in 'as_path' field  in any Route Range should be changed from default value
   // 'do_not_include_local_as' to any other value.
   // required = true
-  AsType.Enum as_type = 2;
+  AsType.Enum as_type = 3;
 
   // Autonomous System Number (AS number or ASN)
   // required = true
-  int32 as_number = 3;
+  int32 as_number = 4;
 
   message AsNumberWidth {
     enum Enum {
@@ -1519,32 +1562,32 @@ message BgpV4Peer {
   // The width in bytes of the as_number values. Any as_number values that exceeds the
   // width MUST result in an error.
   // default = AsNumberWidth.Enum.four
-  optional AsNumberWidth.Enum as_number_width = 4;
+  optional AsNumberWidth.Enum as_number_width = 5;
 
   // Description missing in models
-  optional BgpAdvanced advanced = 5;
+  optional BgpAdvanced advanced = 6;
 
   // Description missing in models
-  optional BgpCapability capability = 6;
+  optional BgpCapability capability = 7;
 
   // Emulated BGPv4 route ranges.
-  repeated BgpV4RouteRange v4_routes = 7;
+  repeated BgpV4RouteRange v4_routes = 8;
 
   // Emulated BGPv6 route ranges.
-  repeated BgpV6RouteRange v6_routes = 8;
+  repeated BgpV6RouteRange v6_routes = 9;
 
   // Segment Routing Traffic Engineering (SR TE) Policies for IPv4 Address Family Identifier
   // (AFI).
-  repeated BgpSrteV4Policy v4_srte_policies = 9;
+  repeated BgpSrteV4Policy v4_srte_policies = 10;
 
   // Segment Routing Traffic Engineering (SR TE) Policies for IPv6 Address Family Identifier
   // (AFI).
-  repeated BgpSrteV6Policy v6_srte_policies = 10;
+  repeated BgpSrteV6Policy v6_srte_policies = 11;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  string name = 11;
+  string name = 12;
 }
 
 // Configuration for emulated BGPv4 peers and routes on a single IPv4 interface.
@@ -2756,6 +2799,258 @@ message BgpSrteV6TunnelTlv {
   optional bool active = 10;
 }
 
+// Configuration for BGP Ethernet Segment ranges. Advertises following routes -
+// 
+// Type 4 - Ethernet Segment Route
+message BgpV4EthernetSegment {
+
+  // Designated Forwarder (DF) election configuration.
+  optional BgpEthernetSegmentDfElection df_election = 1;
+
+  // This contains the list of EVIs.
+  repeated BgpV4EvpnEvis evis = 2;
+
+  // 10-octet Ethernet Segment Identifier (ESI) Example - For multi-home scenario nonZero
+  // ESI is '10000000000000000000' .
+  // default = 00000000000000000000
+  optional string esi = 3;
+
+  message ActiveMode {
+    enum Enum {
+      unspecified = 0;
+      single_active = 1;
+      all_active = 2;
+    }
+  }
+  // Single Active or All Active mode Redundancy mode selection for Multi-home.
+  // default = ActiveMode.Enum.all_active
+  optional ActiveMode.Enum active_mode = 4;
+
+  // The label value to be advertised as ESI Label in ESI Label Extended Community. This
+  // is included in Ethernet Auto-discovery per ES Routes advertised by a router.
+  // default = 0
+  optional int32 esi_label = 5;
+
+  // Description missing in models
+  optional BgpRouteAdvanced advanced = 6;
+
+  // Optional community settings.
+  repeated BgpCommunity communities = 7;
+
+  // Optional Extended Community settings.
+  repeated BgpExtCommunity ext_communities = 8;
+
+  // Optional AS PATH settings.
+  optional BgpAsPath as_path = 9;
+}
+
+// Configuration for Designated Forwarder (DF) election among the Provider Edge (PE)
+// routers on the same Ethernet Segment.
+message BgpEthernetSegmentDfElection {
+
+  // The DF election timer in seconds.
+  // default = 3
+  optional int32 election_timer = 1;
+}
+
+// This contains a list of different flavors of EVPN.
+// For example EVPN over VXLAN or EVPN over MPLS etc to be configured per Ethernet segment.
+// 
+// Need to instantiate correct type of EVPN instance as per requirement.
+message BgpV4EvpnEvis {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      evi_vxlan = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.evi_vxlan
+  optional Choice.Enum choice = 1;
+
+  // EVPN VXLAN instance to be configured per Ethernet Segment.
+  optional BgpV4EviVxlan evi_vxlan = 2;
+}
+
+// Configuration for BGP EVPN EVI. Advertises following routes -
+// 
+// Type 3 - Inclusive Multicast Ethernet Tag Route
+// 
+// Type 1 -  Ethernet Auto-discovery Route (Per EVI)
+// 
+// Type 1 -  Ethernet Auto-discovery Route (Per ES)
+message BgpV4EviVxlan {
+
+  // This contains the list of Broadcast Domains to be configured per EVI.
+  repeated BgpV4EviVxlanBroadcastDomain broadcast_domains = 1;
+
+  message ReplicationType {
+    enum Enum {
+      unspecified = 0;
+      ingress_replication = 1;
+    }
+  }
+  // This model only supports Ingress Replication
+  // default = ReplicationType.Enum.ingress_replication
+  optional ReplicationType.Enum replication_type = 2;
+
+  // Downstream assigned VNI to be carried as Part of P-Multicast Service Interface Tunnel
+  // attribute (PMSI Tunnel Attribute) in Type 3 Inclusive Multicast Ethernet Tag Route.
+  // default = 16
+  optional int32 pmsi_label = 3;
+
+  // The Auto-discovery Route label (AD label) value, which gets advertised in the Ethernet
+  // Auto-discovery Route per <EVI, ESI>
+  // default = 0
+  optional int32 ad_label = 4;
+
+  // Colon separated Extended Community value of 6 Bytes - AS number: Value identifying
+  // an EVI.            Example - for the as_2octet 60005:100.
+  optional BgpRouteDistinguisher route_distinguisher = 5;
+
+  // List of Layer 2 Virtual Network Identifier (L2VNI) export targets associated with
+  // this EVI.
+  repeated BgpRouteTarget route_target_export = 6;
+
+  // List of L2VNI import targets associated with this EVI.
+  repeated BgpRouteTarget route_target_import = 7;
+
+  // List of Layer 3 Virtual Network Identifier (L3VNI) Export Route Targets.
+  repeated BgpRouteTarget l3_route_target_export = 8;
+
+  // List of L3VNI Import Route Targets.
+  repeated BgpRouteTarget l3_route_target_import = 9;
+
+  // Description missing in models
+  optional BgpRouteAdvanced advanced = 10;
+
+  // Optional community settings.
+  repeated BgpCommunity communities = 11;
+
+  // Optional Extended Community settings.
+  repeated BgpExtCommunity ext_communities = 12;
+
+  // Optional AS PATH settings.
+  optional BgpAsPath as_path = 13;
+}
+
+// BGP Route Distinguisher.
+message BgpRouteDistinguisher {
+
+  message RdType {
+    enum Enum {
+      unspecified = 0;
+      as_2octet = 1;
+      ipv4_address = 2;
+      as_4octet = 3;
+    }
+  }
+  // Route Distinguisher Type field of 2 Byte.
+  // - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).
+  // - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).
+  // - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668).
+  // default = RdType.Enum.as_2octet
+  optional RdType.Enum rd_type = 1;
+
+  // Allow to automatically configure RD IP address  from local ip.
+  // default = False
+  optional bool auto_config_rd_ip_addr = 2;
+
+  // Colon separated Extended Community value of 6 Bytes - AS number: Value.  Example
+  // - for the as_2octet or as_4octet 60005:100,  for ipv4_address 1.1.1.1:100
+  optional string rd_value = 3;
+}
+
+// BGP Route Target.
+message BgpRouteTarget {
+
+  message RtType {
+    enum Enum {
+      unspecified = 0;
+      as_2octet = 1;
+      ipv4_address = 2;
+      as_4octet = 3;
+    }
+  }
+  // Extended Community Type field of 2 Byte.
+  // - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).
+  // - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).
+  // - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668).
+  optional RtType.Enum rt_type = 1;
+
+  // Colon separated Extended Community value of 6 Bytes - AS number: Assigned Number.
+  // Example - for the as_2octet or as_4octet 60005:100,  for ipv4_address 1.1.1.1:100
+  optional string rt_value = 2;
+}
+
+// Configuration for Broadcast Domains per EVI.
+message BgpV4EviVxlanBroadcastDomain {
+
+  // This contains the list of Customer MAC/IP Ranges to be configured per Broadcast Domain.
+  // 
+  // 
+  // Advertises following route -
+  // Type 2 - MAC/IP Advertisement Route.
+  repeated BgpCMacIpRange cmac_ip_range = 1;
+
+  // The Ethernet Tag ID of the Broadcast Domain.
+  // default = 0
+  optional int64 ethernet_tag_id = 2;
+
+  // VLAN-Aware service to be enabled or disabled.
+  // default = False
+  optional bool vlan_aware_service = 3;
+}
+
+// Configuration for MAC/IP Ranges per Broadcast Domain.
+// 
+// Advertises following route -
+// 
+// Type 2 - MAC/IP Advertisement Route.
+message BgpCMacIpRange {
+
+  // Host MAC address range per Broadcast Domain.
+  optional MACRouteAddress mac_addresses = 1;
+
+  // Layer 2 Virtual Network Identifier (L2VNI) to be advertised with MAC/IP Advertisement
+  // Route (Type 2)
+  // default = 0
+  optional int32 l2vni = 2;
+
+  // Host IPv4 address range per Broadcast Domain.
+  optional V4RouteAddress ipv4_addresses = 3;
+
+  // Host IPv6 address range per Broadcast Domain.
+  optional V6RouteAddress ipv6_addresses = 4;
+
+  // Layer 3 Virtual Network Identifier (L3VNI) to be advertised with MAC/IP Advertisement
+  // Route (Type 2).
+  // default = 0
+  optional int32 l3vni = 5;
+
+  // Include default Gateway Extended Community in MAC/IP Advertisement Route (Type 2).
+  // default = False
+  optional bool include_default_gateway = 6;
+
+  // Description missing in models
+  optional BgpRouteAdvanced advanced = 7;
+
+  // Optional community settings.
+  repeated BgpCommunity communities = 8;
+
+  // Optional Extended Community settings.
+  repeated BgpExtCommunity ext_communities = 9;
+
+  // Optional AS PATH settings.
+  optional BgpAsPath as_path = 10;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  string name = 11;
+}
+
 // Status: under-review
 // Configuration for BGPv6 peer settings and routes.
 // Configuration for basic emulated BGP peer settings.
@@ -2767,6 +3062,28 @@ message BgpV6Peer {
 
   // Description missing in models
   optional BgpV6SegmentRouting segment_routing = 2;
+
+  // This contains the list of Ethernet Virtual Private Network (EVPN) Ethernet Segments
+  // (ES) Per BGP Peer for IPv6 Address Family Identifier (AFI).
+  // 
+  // Each Ethernet Segment contains a list of EVPN Instances (EVIs) .
+  // Each EVI contains a list of Broadcast Domains.
+  // Each Broadcast Domain contains a list of MAC/IP Ranges.
+  // 
+  // <Ethernet Segment, EVI, Broadcast Domain> is responsible for advertising Ethernet
+  // Auto-discovery Route Per EVI (Type 1).
+  // 
+  // <Ethernet Segment, EVI> is responsible for advertising Ethernet Auto-discovery Route
+  // Per Ethernet Segment (Type 1).
+  // 
+  // <Ethernet Segment, EVI, Broadcast Domain, MAC/IP> is responsible for advertising
+  // MAC/IP Advertisement Route (Type 2).
+  // 
+  // <Ethernet Segment, EVI, Broadcast Domain> is responsible for advertising Inclusive
+  // Multicast Ethernet Tag Route (Type 3).
+  // 
+  // Ethernet Segment is responsible for advertising Ethernet Segment Route (Type 4).
+  repeated BgpV6EthernetSegment evpn_ethernet_segments = 3;
 
   message AsType {
     enum Enum {
@@ -2783,11 +3100,11 @@ message BgpV6Peer {
   // attribute in 'as_path' field  in any Route Range should be changed from default value
   // 'do_not_include_local_as' to any other value.
   // required = true
-  AsType.Enum as_type = 3;
+  AsType.Enum as_type = 4;
 
   // Autonomous System Number (AS number or ASN)
   // required = true
-  int32 as_number = 4;
+  int32 as_number = 5;
 
   message AsNumberWidth {
     enum Enum {
@@ -2799,32 +3116,32 @@ message BgpV6Peer {
   // The width in bytes of the as_number values. Any as_number values that exceeds the
   // width MUST result in an error.
   // default = AsNumberWidth.Enum.four
-  optional AsNumberWidth.Enum as_number_width = 5;
+  optional AsNumberWidth.Enum as_number_width = 6;
 
   // Description missing in models
-  optional BgpAdvanced advanced = 6;
+  optional BgpAdvanced advanced = 7;
 
   // Description missing in models
-  optional BgpCapability capability = 7;
+  optional BgpCapability capability = 8;
 
   // Emulated BGPv4 route ranges.
-  repeated BgpV4RouteRange v4_routes = 8;
+  repeated BgpV4RouteRange v4_routes = 9;
 
   // Emulated BGPv6 route ranges.
-  repeated BgpV6RouteRange v6_routes = 9;
+  repeated BgpV6RouteRange v6_routes = 10;
 
   // Segment Routing Traffic Engineering (SR TE) Policies for IPv4 Address Family Identifier
   // (AFI).
-  repeated BgpSrteV4Policy v4_srte_policies = 10;
+  repeated BgpSrteV4Policy v4_srte_policies = 11;
 
   // Segment Routing Traffic Engineering (SR TE) Policies for IPv6 Address Family Identifier
   // (AFI).
-  repeated BgpSrteV6Policy v6_srte_policies = 11;
+  repeated BgpSrteV6Policy v6_srte_policies = 12;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  string name = 12;
+  string name = 13;
 }
 
 // Configuration for emulated BGPv6 peers and routes on a single IPv6 interface.
@@ -2879,6 +3196,152 @@ message BgpV6SegmentRouting {
   // TBD
   // default = False
   optional bool advertise_sr_te_policy = 8;
+}
+
+// Configuration for BGP Ethernet Segment ranges. Advertises following routes -
+// 
+// Type 4 - Ethernet Segment Route
+message BgpV6EthernetSegment {
+
+  // Designated Forwarder (DF) election configuration.
+  optional BgpEthernetSegmentDfElection df_election = 1;
+
+  // This contains the list of EVIs.
+  repeated BgpV6EvpnEvis evis = 2;
+
+  // 10-octet Ethernet Segment Identifier (ESI) Example - For multi-home scenario nonZero
+  // ESI is '10000000000000000000' .
+  // default = 00000000000000000000
+  optional string esi = 3;
+
+  message ActiveMode {
+    enum Enum {
+      unspecified = 0;
+      single_active = 1;
+      all_active = 2;
+    }
+  }
+  // Single Active or All Active mode Redundancy mode selection for Multi-home.
+  // default = ActiveMode.Enum.all_active
+  optional ActiveMode.Enum active_mode = 4;
+
+  // The label value to be advertised as ESI Label in ESI Label Extended Community. This
+  // is included in Ethernet Auto-discovery per ES Routes advertised by a router.
+  // default = 0
+  optional int32 esi_label = 5;
+
+  // Description missing in models
+  optional BgpRouteAdvanced advanced = 6;
+
+  // Optional community settings.
+  repeated BgpCommunity communities = 7;
+
+  // Optional Extended Community settings.
+  repeated BgpExtCommunity ext_communities = 8;
+
+  // Optional AS PATH settings.
+  optional BgpAsPath as_path = 9;
+}
+
+// This contains a list of different flavors of EVPN.
+// For example EVPN over VXLAN or EVPN over MPLS etc to be configured per Ethernet segment.
+// 
+// Need to instantiate correct type of EVPN instance as per requirement.
+message BgpV6EvpnEvis {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      evi_vxlan = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.evi_vxlan
+  optional Choice.Enum choice = 1;
+
+  // EVPN VXLAN instance to be configured per Ethernet Segment.
+  optional BgpV6EviVxlan evi_vxlan = 2;
+}
+
+// Configuration for BGP EVPN EVI. Advertises following routes -
+// 
+// Type 3 - Inclusive Multicast Ethernet Tag Route
+// 
+// Type 1 -  Ethernet Auto-discovery Route (Per EVI)
+// 
+// Type 1 -  Ethernet Auto-discovery Route (Per ES)
+message BgpV6EviVxlan {
+
+  // This contains the list of Broadcast Domains to be configured per EVI.
+  repeated BgpV6EviVxlanBroadcastDomain broadcast_domains = 1;
+
+  message ReplicationType {
+    enum Enum {
+      unspecified = 0;
+      ingress_replication = 1;
+    }
+  }
+  // This model only supports Ingress Replication
+  // default = ReplicationType.Enum.ingress_replication
+  optional ReplicationType.Enum replication_type = 2;
+
+  // Downstream assigned VNI to be carried as Part of P-Multicast Service Interface Tunnel
+  // attribute (PMSI Tunnel Attribute) in Type 3 Inclusive Multicast Ethernet Tag Route.
+  // default = 16
+  optional int32 pmsi_label = 3;
+
+  // The Auto-discovery Route label (AD label) value, which gets advertised in the Ethernet
+  // Auto-discovery Route per <EVI, ESI>
+  // default = 0
+  optional int32 ad_label = 4;
+
+  // Colon separated Extended Community value of 6 Bytes - AS number: Value identifying
+  // an EVI.            Example - for the as_2octet 60005:100.
+  optional BgpRouteDistinguisher route_distinguisher = 5;
+
+  // List of Layer 2 Virtual Network Identifier (L2VNI) export targets associated with
+  // this EVI.
+  repeated BgpRouteTarget route_target_export = 6;
+
+  // List of L2VNI import targets associated with this EVI.
+  repeated BgpRouteTarget route_target_import = 7;
+
+  // List of Layer 3 Virtual Network Identifier (L3VNI) Export Route Targets.
+  repeated BgpRouteTarget l3_route_target_export = 8;
+
+  // List of L3VNI Import Route Targets.
+  repeated BgpRouteTarget l3_route_target_import = 9;
+
+  // Description missing in models
+  optional BgpRouteAdvanced advanced = 10;
+
+  // Optional community settings.
+  repeated BgpCommunity communities = 11;
+
+  // Optional Extended Community settings.
+  repeated BgpExtCommunity ext_communities = 12;
+
+  // Optional AS PATH settings.
+  optional BgpAsPath as_path = 13;
+}
+
+// Configuration for Broadcast Domains per EVI.
+message BgpV6EviVxlanBroadcastDomain {
+
+  // This contains the list of Customer MAC/IP Ranges to be configured per Broadcast Domain.
+  // 
+  // 
+  // Advertises following route -
+  // Type 2 - MAC/IP Advertisement Route.
+  repeated BgpCMacIpRange cmac_ip_range = 1;
+
+  // The Ethernet Tag ID of the Broadcast Domain.
+  // default = 0
+  optional int64 ethernet_tag_id = 2;
+
+  // VLAN-Aware service to be enabled or disabled.
+  // default = False
+  optional bool vlan_aware_service = 3;
 }
 
 // Description missing in models
@@ -3179,6 +3642,7 @@ message FlowRouter {
   // - /components/schemas/Device.Ipv6/properties/name
   // - /components/schemas/Bgp.V4RouteRange/properties/name
   // - /components/schemas/Bgp.V6RouteRange/properties/name
+  // - /components/schemas/Bgp.CMacIpRange/properties/name
   // 
   repeated string tx_names = 2;
 
@@ -3190,6 +3654,7 @@ message FlowRouter {
   // - /components/schemas/Device.Ipv6/properties/name
   // - /components/schemas/Bgp.V4RouteRange/properties/name
   // - /components/schemas/Bgp.V6RouteRange/properties/name
+  // - /components/schemas/Bgp.CMacIpRange/properties/name
   // 
   repeated string rx_names = 3;
 }

@@ -1,11 +1,10 @@
-""" 
+"""
 The following command produces these artifacts:
     - ./art/openapi.yaml
     - ./art/openapi.json
     - ./art/otg-convergence.proto
 """
 import openapiart
-
 
 openapiart.OpenApiArt(
     api_files=["./api/info.yaml", "./api/api.yaml"],

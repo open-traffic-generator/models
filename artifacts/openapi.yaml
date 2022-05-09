@@ -1942,6 +1942,36 @@ components:
           type: integer
           default: 1
           minimum: 1
+    MACRouteAddress:
+      description: |-
+        A container for MAC route addresses.
+      type: object
+      required:
+      - address
+      properties:
+        address:
+          description: |-
+            The starting address of the MAC Range.
+          type: string
+          format: mac
+        prefix:
+          description: "The MAC prefix length to be applied to the address. "
+          type: integer
+          default: 48
+          minimum: 0
+          maximum: 48
+        count:
+          description: |-
+            The total number of mac addresses in the range.
+          type: integer
+          default: 1
+          minimum: 1
+        step:
+          description: |-
+            Increments the mac address prefixes within a mac range  where multiple routes are present.  The value is incremented according to the mac prefix Length and Step.
+          type: integer
+          default: 1
+          minimum: 1
     Isis.V6RouteRange:
       description: |-
         Emulated ISIS IPv6 routes.
@@ -2054,6 +2084,23 @@ components:
             IPv4 address of the BGP peer for the session.
           type: string
           format: ipv4
+        evpn_ethernet_segments:
+          description: "This contains the list of Ethernet Virtual Private Network\
+            \ (EVPN) Ethernet Segments (ES) Per BGP Peer for IPv4 Address Family Identifier\
+            \ (AFI).\n\nEach Ethernet Segment contains a list of EVPN Instances (EVIs)\
+            \ . \nEach EVI contains a list of Broadcast Domains. \nEach Broadcast\
+            \ Domain contains a list of MAC/IP Ranges. \n\n<Ethernet Segment, EVI,\
+            \ Broadcast Domain> is responsible for advertising Ethernet Auto-discovery\
+            \ Route Per EVI (Type 1).\n\n<Ethernet Segment, EVI> is responsible for\
+            \ advertising Ethernet Auto-discovery Route Per Ethernet Segment (Type\
+            \ 1).\n\n<Ethernet Segment, EVI, Broadcast Domain, MAC/IP> is responsible\
+            \ for advertising MAC/IP Advertisement Route (Type 2).\n\n<Ethernet Segment,\
+            \ EVI, Broadcast Domain> is responsible for advertising Inclusive Multicast\
+            \ Ethernet Tag Route (Type 3).\n\nEthernet Segment is responsible for\
+            \ advertising Ethernet Segment Route (Type 4)."
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpV4.EthernetSegment'
         as_type:
           description: |-
             The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp). Internal BGP is used within a single autonomous system (ibgp). BGP property defaults are aligned with this object defined as an internal BGP peer. If the as_type is specified as 'ebgp' then other properties will need to be specified as per an external BGP peer. Specifically, for 'ebgp',  'as_set_mode' attribute in 'as_path' field  in any Route Range should be changed from default value 'do_not_include_local_as' to any other value.
@@ -3462,6 +3509,294 @@ components:
           default: true
       required:
       - name
+    BgpV4.EthernetSegment:
+      description: "Configuration for BGP Ethernet Segment ranges. Advertises following\
+        \ routes - \n\nType 4 - Ethernet Segment Route"
+      type: object
+      properties:
+        df_election:
+          description: |-
+            Designated Forwarder (DF) election configuration.
+          $ref: '#/components/schemas/Bgp.EthernetSegment.DfElection'
+        evis:
+          description: |-
+            This contains the list of EVIs.
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpV4.EvpnEvis'
+        esi:
+          description: |-
+            10-octet Ethernet Segment Identifier (ESI) Example - For multi-home scenario nonZero ESI is '10000000000000000000' .
+          type: string
+          format: hex
+          default: '00000000000000000000'
+        active_mode:
+          description: |-
+            Single Active or All Active mode Redundancy mode selection for Multi-home.
+          type: string
+          enum:
+          - single_active
+          - all_active
+          default: all_active
+        esi_label:
+          description: "The label value to be advertised as ESI Label in ESI Label\
+            \ Extended Community. This is included in Ethernet Auto-discovery per\
+            \ ES Routes advertised by a router. "
+          type: integer
+          minimum: 0
+          maximum: 16777215
+          default: 0
+        advanced:
+          $ref: '#/components/schemas/Bgp.RouteAdvanced'
+        communities:
+          description: |-
+            Optional community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.Community'
+        ext_communities:
+          description: |-
+            Optional Extended Community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.ExtCommunity'
+        as_path:
+          description: |-
+            Optional AS PATH settings.
+          $ref: '#/components/schemas/Bgp.AsPath'
+    Bgp.EthernetSegment.DfElection:
+      description: |-
+        Configuration for Designated Forwarder (DF) election among the Provider Edge (PE) routers on the same Ethernet Segment.
+      type: object
+      properties:
+        election_timer:
+          description: |-
+            The DF election timer in seconds.
+          type: integer
+          minimum: 1
+          maximum: 300
+          default: 3
+    BgpV4.EvpnEvis:
+      description: "This contains a list of different flavors of EVPN. \nFor example\
+        \ EVPN over VXLAN or EVPN over MPLS etc to be configured per Ethernet segment.\
+        \ \nNeed to instantiate correct type of EVPN instance as per requirement."
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - evi_vxlan
+          default: evi_vxlan
+        evi_vxlan:
+          description: "EVPN VXLAN instance to be configured per Ethernet Segment.\
+            \                  "
+          $ref: '#/components/schemas/BgpV4.EviVxlan'
+    BgpV4.EviVxlan:
+      description: "Configuration for BGP EVPN EVI. Advertises following routes -\
+        \ \n\nType 3 - Inclusive Multicast Ethernet Tag Route\n\nType 1 -  Ethernet\
+        \ Auto-discovery Route (Per EVI)\n\nType 1 -  Ethernet Auto-discovery Route\
+        \ (Per ES)"
+      type: object
+      properties:
+        broadcast_domains:
+          description: |-
+            This contains the list of Broadcast Domains to be configured per EVI.
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpV4.EviVxlan.BroadcastDomain'
+        replication_type:
+          description: |-
+            This model only supports Ingress Replication
+          type: string
+          enum:
+          - ingress_replication
+          default: ingress_replication
+        pmsi_label:
+          description: |-
+            Downstream assigned VNI to be carried as Part of P-Multicast Service Interface Tunnel attribute (PMSI Tunnel Attribute) in Type 3 Inclusive Multicast Ethernet Tag Route.
+          type: integer
+          minimum: 0
+          maximum: 16777215
+          default: 16
+        ad_label:
+          description: |-
+            The Auto-discovery Route label (AD label) value, which gets advertised in the Ethernet Auto-discovery Route per <EVI, ESI>
+          type: integer
+          minimum: 0
+          maximum: 16777215
+          default: 0
+        route_distinguisher:
+          description: |-
+            Colon separated Extended Community value of 6 Bytes - "AS number: Value" identifying an EVI.            Example - for the as_2octet "60005:100".
+          $ref: '#/components/schemas/Bgp.RouteDistinguisher'
+        route_target_export:
+          description: "List of Layer 2 Virtual Network Identifier (L2VNI) export\
+            \ targets associated with this EVI. "
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.RouteTarget'
+        route_target_import:
+          description: "List of L2VNI import targets associated with this EVI. "
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.RouteTarget'
+        l3_route_target_export:
+          description: |-
+            List of Layer 3 Virtual Network Identifier (L3VNI) Export Route Targets.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.RouteTarget'
+        l3_route_target_import:
+          description: |-
+            List of L3VNI Import Route Targets.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.RouteTarget'
+        advanced:
+          $ref: '#/components/schemas/Bgp.RouteAdvanced'
+        communities:
+          description: |-
+            Optional community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.Community'
+        ext_communities:
+          description: |-
+            Optional Extended Community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.ExtCommunity'
+        as_path:
+          description: |-
+            Optional AS PATH settings.
+          $ref: '#/components/schemas/Bgp.AsPath'
+    Bgp.RouteDistinguisher:
+      description: |-
+        BGP Route Distinguisher.
+      type: object
+      properties:
+        rd_type:
+          description: "Route Distinguisher Type field of 2 Byte.\n - as_2octet: Two-Octet\
+            \ AS Specific Extended Community (RFC 4360).\n - ipv4_address: IPv4 Address\
+            \ Specific Extended Community (RFC 4360).\n - as_4octet:  4-Octet AS Specific\
+            \ Extended Community (RFC 5668). "
+          type: string
+          enum:
+          - as_2octet
+          - ipv4_address
+          - as_4octet
+          default: as_2octet
+        auto_config_rd_ip_addr:
+          description: |-
+            Allow to automatically configure RD IP address  from local ip.
+          type: boolean
+          default: false
+        rd_value:
+          description: |-
+            Colon separated Extended Community value of 6 Bytes - "AS number: Value".  Example - for the as_2octet or as_4octet "60005:100",  for ipv4_address "1.1.1.1:100"
+          type: string
+    Bgp.RouteTarget:
+      description: |-
+        BGP Route Target.
+      type: object
+      properties:
+        rt_type:
+          description: "Extended Community Type field of 2 Byte.\n - as_2octet: Two-Octet\
+            \ AS Specific Extended Community (RFC 4360).\n - ipv4_address: IPv4 Address\
+            \ Specific Extended Community (RFC 4360).\n - as_4octet:  4-Octet AS Specific\
+            \ Extended Community (RFC 5668). "
+          type: string
+          enum:
+          - as_2octet
+          - ipv4_address
+          - as_4octet
+        rt_value:
+          description: |-
+            Colon separated Extended Community value of 6 Bytes - AS number: Assigned Number.   Example - for the as_2octet or as_4octet "60005:100",  for ipv4_address "1.1.1.1:100"
+          type: string
+    BgpV4.EviVxlan.BroadcastDomain:
+      description: |-
+        Configuration for Broadcast Domains per EVI.
+      type: object
+      properties:
+        cmac_ip_range:
+          description: "This contains the list of Customer MAC/IP Ranges to be configured\
+            \ per Broadcast Domain. \n\nAdvertises following route - \nType 2 - MAC/IP\
+            \ Advertisement Route."
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.CMacIpRange'
+        ethernet_tag_id:
+          description: |-
+            The Ethernet Tag ID of the Broadcast Domain.
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+          default: 0
+        vlan_aware_service:
+          description: |-
+            VLAN-Aware service to be enabled or disabled.
+          type: boolean
+          default: false
+    Bgp.CMacIpRange:
+      description: "Configuration for MAC/IP Ranges per Broadcast Domain. \n\nAdvertises\
+        \ following route -\n\nType 2 - MAC/IP Advertisement Route."
+      type: object
+      properties:
+        mac_addresses:
+          description: "Host MAC address range per Broadcast Domain. "
+          $ref: '#/components/schemas/MACRouteAddress'
+        l2vni:
+          description: |-
+            Layer 2 Virtual Network Identifier (L2VNI) to be advertised with MAC/IP Advertisement Route (Type 2)
+          type: integer
+          minimum: 0
+          maximum: 16777215
+          default: 0
+        ipv4_addresses:
+          description: "Host IPv4 address range per Broadcast Domain.         "
+          $ref: '#/components/schemas/V4RouteAddress'
+        ipv6_addresses:
+          description: "Host IPv6 address range per Broadcast Domain.            \
+            \     "
+          $ref: '#/components/schemas/V6RouteAddress'
+        l3vni:
+          description: |-
+            Layer 3 Virtual Network Identifier (L3VNI) to be advertised with MAC/IP Advertisement Route (Type 2).
+          type: integer
+          minimum: 0
+          maximum: 16777215
+          default: 0
+        include_default_gateway:
+          description: |-
+            Include default Gateway Extended Community in MAC/IP Advertisement Route (Type 2).
+          type: boolean
+          default: false
+        advanced:
+          $ref: '#/components/schemas/Bgp.RouteAdvanced'
+        communities:
+          description: |-
+            Optional community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.Community'
+        ext_communities:
+          description: |-
+            Optional Extended Community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.ExtCommunity'
+        as_path:
+          description: |-
+            Optional AS PATH settings.
+          $ref: '#/components/schemas/Bgp.AsPath'
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+      required:
+      - name
     Bgp.V6Peer:
       x-status: under-review
       description: |-
@@ -3482,6 +3817,23 @@ components:
           format: ipv6
         segment_routing:
           $ref: '#/components/schemas/Bgp.V6SegmentRouting'
+        evpn_ethernet_segments:
+          description: "This contains the list of Ethernet Virtual Private Network\
+            \ (EVPN) Ethernet Segments (ES) Per BGP Peer for IPv6 Address Family Identifier\
+            \ (AFI).\n\nEach Ethernet Segment contains a list of EVPN Instances (EVIs)\
+            \ . \nEach EVI contains a list of Broadcast Domains. \nEach Broadcast\
+            \ Domain contains a list of MAC/IP Ranges. \n\n<Ethernet Segment, EVI,\
+            \ Broadcast Domain> is responsible for advertising Ethernet Auto-discovery\
+            \ Route Per EVI (Type 1).\n\n<Ethernet Segment, EVI> is responsible for\
+            \ advertising Ethernet Auto-discovery Route Per Ethernet Segment (Type\
+            \ 1).\n\n<Ethernet Segment, EVI, Broadcast Domain, MAC/IP> is responsible\
+            \ for advertising MAC/IP Advertisement Route (Type 2).\n\n<Ethernet Segment,\
+            \ EVI, Broadcast Domain> is responsible for advertising Inclusive Multicast\
+            \ Ethernet Tag Route (Type 3).\n\nEthernet Segment is responsible for\
+            \ advertising Ethernet Segment Route (Type 4)."
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpV6.EthernetSegment'
         as_type:
           description: |-
             The type of BGP autonomous system. External BGP is used for BGP links between two or more autonomous systems (ebgp). Internal BGP is used within a single autonomous system (ibgp). BGP property defaults are aligned with this object defined as an internal BGP peer. If the as_type is specified as 'ebgp' then other properties will need to be specified as per an external BGP peer. Specifically, for 'ebgp',  'as_set_mode' attribute in 'as_path' field  in any Route Range should be changed from default value 'do_not_include_local_as' to any other value.
@@ -3603,6 +3955,185 @@ components:
         advertise_sr_te_policy:
           description: |-
             TBD
+          type: boolean
+          default: false
+    BgpV6.EthernetSegment:
+      description: |-
+        Configuration for BGP Ethernet Segment ranges. Advertises following routes -
+
+        Type 4 - Ethernet Segment Route
+      type: object
+      properties:
+        df_election:
+          description: |-
+            Designated Forwarder (DF) election configuration.
+          $ref: '#/components/schemas/Bgp.EthernetSegment.DfElection'
+        evis:
+          description: |-
+            This contains the list of EVIs.
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpV6.EvpnEvis'
+        esi:
+          description: |-
+            10-octet Ethernet Segment Identifier (ESI) Example - For multi-home scenario nonZero ESI is '10000000000000000000' .
+          type: string
+          format: hex
+          default: '00000000000000000000'
+        active_mode:
+          description: |-
+            Single Active or All Active mode Redundancy mode selection for Multi-home.
+          type: string
+          enum:
+          - single_active
+          - all_active
+          default: all_active
+        esi_label:
+          description: "The label value to be advertised as ESI Label in ESI Label\
+            \ Extended Community. This is included in Ethernet Auto-discovery per\
+            \ ES Routes advertised by a router. "
+          type: integer
+          minimum: 0
+          maximum: 16777215
+          default: 0
+        advanced:
+          $ref: '#/components/schemas/Bgp.RouteAdvanced'
+        communities:
+          description: |-
+            Optional community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.Community'
+        ext_communities:
+          description: |-
+            Optional Extended Community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.ExtCommunity'
+        as_path:
+          description: |-
+            Optional AS PATH settings.
+          $ref: '#/components/schemas/Bgp.AsPath'
+    BgpV6.EvpnEvis:
+      description: "This contains a list of different flavors of EVPN. \nFor example\
+        \ EVPN over VXLAN or EVPN over MPLS etc to be configured per Ethernet segment.\
+        \ \nNeed to instantiate correct type of EVPN instance as per requirement."
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - evi_vxlan
+          default: evi_vxlan
+        evi_vxlan:
+          description: "EVPN VXLAN instance to be configured per Ethernet Segment.\
+            \                    "
+          $ref: '#/components/schemas/BgpV6.EviVxlan'
+    BgpV6.EviVxlan:
+      description: |-
+        Configuration for BGP EVPN EVI. Advertises following routes -
+
+        Type 3 - Inclusive Multicast Ethernet Tag Route
+
+        Type 1 -  Ethernet Auto-discovery Route (Per EVI)
+
+        Type 1 -  Ethernet Auto-discovery Route (Per ES)
+      type: object
+      properties:
+        broadcast_domains:
+          description: |-
+            This contains the list of Broadcast Domains to be configured per EVI.
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpV6.EviVxlan.BroadcastDomain'
+        replication_type:
+          description: |-
+            This model only supports Ingress Replication
+          type: string
+          enum:
+          - ingress_replication
+          default: ingress_replication
+        pmsi_label:
+          description: |-
+            Downstream assigned VNI to be carried as Part of P-Multicast Service Interface Tunnel attribute (PMSI Tunnel Attribute) in Type 3 Inclusive Multicast Ethernet Tag Route.
+          type: integer
+          minimum: 0
+          maximum: 16777215
+          default: 16
+        ad_label:
+          description: |-
+            The Auto-discovery Route label (AD label) value, which gets advertised in the Ethernet Auto-discovery Route per <EVI, ESI>
+          type: integer
+          minimum: 0
+          maximum: 16777215
+          default: 0
+        route_distinguisher:
+          description: |-
+            Colon separated Extended Community value of 6 Bytes - "AS number: Value" identifying an EVI.            Example - for the as_2octet "60005:100".
+          $ref: '#/components/schemas/Bgp.RouteDistinguisher'
+        route_target_export:
+          description: "List of Layer 2 Virtual Network Identifier (L2VNI) export\
+            \ targets associated with this EVI. "
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.RouteTarget'
+        route_target_import:
+          description: "List of L2VNI import targets associated with this EVI. "
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.RouteTarget'
+        l3_route_target_export:
+          description: |-
+            List of Layer 3 Virtual Network Identifier (L3VNI) Export Route Targets.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.RouteTarget'
+        l3_route_target_import:
+          description: |-
+            List of L3VNI Import Route Targets.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.RouteTarget'
+        advanced:
+          $ref: '#/components/schemas/Bgp.RouteAdvanced'
+        communities:
+          description: |-
+            Optional community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.Community'
+        ext_communities:
+          description: |-
+            Optional Extended Community settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.ExtCommunity'
+        as_path:
+          description: |-
+            Optional AS PATH settings.
+          $ref: '#/components/schemas/Bgp.AsPath'
+    BgpV6.EviVxlan.BroadcastDomain:
+      description: |-
+        Configuration for Broadcast Domains per EVI.
+      type: object
+      properties:
+        cmac_ip_range:
+          description: "This contains the list of Customer MAC/IP Ranges to be configured\
+            \ per Broadcast Domain. \n\nAdvertises following route - \nType 2 - MAC/IP\
+            \ Advertisement Route."
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.CMacIpRange'
+        ethernet_tag_id:
+          description: |-
+            The Ethernet Tag ID of the Broadcast Domain.
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+          default: 0
+        vlan_aware_service:
+          description: |-
+            VLAN-Aware service to be enabled or disabled.
           type: boolean
           default: false
     Device.Vxlan:
@@ -3932,6 +4463,7 @@ components:
           - /components/schemas/Device.Ipv6/properties/name
           - /components/schemas/Bgp.V4RouteRange/properties/name
           - /components/schemas/Bgp.V6RouteRange/properties/name
+          - /components/schemas/Bgp.CMacIpRange/properties/name
           example:
           - Eth 1
           - Eth 2
@@ -3949,6 +4481,7 @@ components:
             - /components/schemas/Device.Ipv6/properties/name
             - /components/schemas/Bgp.V4RouteRange/properties/name
             - /components/schemas/Bgp.V6RouteRange/properties/name
+            - /components/schemas/Bgp.CMacIpRange/properties/name
         rx_names:
           type: array
           items:
@@ -3961,6 +4494,7 @@ components:
           - /components/schemas/Device.Ipv6/properties/name
           - /components/schemas/Bgp.V4RouteRange/properties/name
           - /components/schemas/Bgp.V6RouteRange/properties/name
+          - /components/schemas/Bgp.CMacIpRange/properties/name
           example:
           - Eth 1
           - Eth 2
@@ -3978,6 +4512,7 @@ components:
             - /components/schemas/Device.Ipv6/properties/name
             - /components/schemas/Bgp.V4RouteRange/properties/name
             - /components/schemas/Bgp.V6RouteRange/properties/name
+            - /components/schemas/Bgp.CMacIpRange/properties/name
     Flow.Header:
       description: |-
         Configuration for all traffic packet headers

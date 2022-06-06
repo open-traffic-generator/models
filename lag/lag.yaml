@@ -4,7 +4,7 @@ components:
       x-include: 
       - '../common/common.yaml#/components/schemas/Named.Object'
       description: >-
-        The container for multiple LAG ports
+        The container for LAG (ports group) - aggregation of multiple LAG member (port)
       type: object
       properties:
         ports:
@@ -13,11 +13,16 @@ components:
             $ref: '#/components/schemas/Lag.Port'
 
         protocol:
-          $ref: '#/components/schemas/Lag.Protocol'
+          $ref: '#/components/schemas/Lag.Ports.Protocol'
         min_links:
           description: >-
-            TBD: 
+            Specifies the mininum number of member interfaces that must be active
+            for the aggregate interface to be available
           type: integer
+          format: uint16
+          minimum: 0
+          maximum: 65535
+          default: 0
     
     Lag.Port:
       description: >-
@@ -32,35 +37,35 @@ components:
           x-constraint:
           - '/components/schemas/Port/properties/name'
         protocol:
-          $ref: '#/components/schemas/Lag.Member.Protocol'
+          $ref: '#/components/schemas/Lag.Protocol'
         ethernet:
           $ref: '../device/ethernet.yaml#/components/schemas/Device.EthernetBase'
+
+    Lag.Ports.Protocol:
+      type: object
+      properties:
+        choice:
+          description: >-
+            The type of controlling protocol for the LAG (ports group).
+          type: string
+          enum: [lacp, static]
+          default: lacp
+        lacp:
+          $ref: '#/components/schemas/Lag.Ports.Lacp'
+        static:
+          $ref: '#/components/schemas/Lag.Static'
 
     Lag.Protocol:
       type: object
       properties:
         choice:
           description: >-
-            The type of LAG protocol.
+            The type of controlling protocol for the LAG Member (port).
           type: string
           enum: [lacp, static]
           default: lacp
         lacp:
           $ref: '#/components/schemas/Lag.Lacp'
-        static:
-          $ref: '#/components/schemas/Lag.Static'
-
-    Lag.Member.Protocol:
-      type: object
-      properties:
-        choice:
-          description: >-
-            The type of LAG protocol.
-          type: string
-          enum: [lacp, static]
-          default: lacp
-        lacp:
-          $ref: '#/components/schemas/Lag.Member.Lacp'
         static:
           $ref: '#/components/schemas/Lag.Static'
 
@@ -77,9 +82,9 @@ components:
           maximum: 65535
           default: 0
 
-    Lag.Lacp:
+    Lag.Ports.Lacp:
       description: >-
-        The container for link aggregation control protocol settings.
+        The container for link aggregation control protocol settings of a LAG (ports group).
       type: object
       properties:
         actor_system_id:
@@ -120,9 +125,9 @@ components:
           enum: [passive, active]
           default: active
 
-    Lag.Member.Lacp:
+    Lag.Lacp:
       description: >-
-        The container for link aggregation control protocol settings.
+        The container for link aggregation control protocol settings of a LAG member (port).
       type: object
       properties:
         actor_key:

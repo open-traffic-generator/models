@@ -400,13 +400,23 @@ components:
           default: false
     Lag:
       description: |-
-        The container for multiple LAG ports
+        The container for LAG (ports group) - aggregation of multiple LAG member (port)
       type: object
       properties:
         ports:
           type: array
           items:
             $ref: '#/components/schemas/Lag.Port'
+        protocol:
+          $ref: '#/components/schemas/Lag.Ports.Protocol'
+        min_links:
+          description: |-
+            Specifies the mininum number of member interfaces that must be active for the aggregate interface to be available
+          type: integer
+          format: uint16
+          minimum: 0
+          maximum: 65535
+          default: 0
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -433,12 +443,27 @@ components:
           $ref: '#/components/schemas/Lag.Protocol'
         ethernet:
           $ref: '#/components/schemas/Device.EthernetBase'
+    Lag.Ports.Protocol:
+      type: object
+      properties:
+        choice:
+          description: |-
+            The type of controlling protocol for the LAG (ports group).
+          type: string
+          enum:
+          - lacp
+          - static
+          default: lacp
+        lacp:
+          $ref: '#/components/schemas/Lag.Ports.Lacp'
+        static:
+          $ref: '#/components/schemas/Lag.Static'
     Lag.Protocol:
       type: object
       properties:
         choice:
           description: |-
-            The type of LAG protocol.
+            The type of controlling protocol for the LAG Member (port).
           type: string
           enum:
           - lacp
@@ -460,9 +485,48 @@ components:
           minimum: 0
           maximum: 65535
           default: 0
+    Lag.Ports.Lacp:
+      description: |-
+        The container for link aggregation control protocol settings of a LAG (ports group).
+      type: object
+      properties:
+        actor_system_id:
+          description: |-
+            The actor system id
+          type: string
+          format: mac
+          default: 00:00:00:00:00:00
+        actor_system_priority:
+          description: |-
+            The actor system priority
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
+        lacpdu_timeout:
+          x-constants:
+            short: 3
+            long: 90
+            auto: 0
+          description: |-
+            This timer is used to detect whether received protocol information has expired
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
+        actor_activity:
+          description: |-
+            Sets the value of LACP actor activity as either passive or active
+            Passive indicates the port's preference for not transmitting  LACPDUs unless its partner's control is Active
+            Active indicates the port's preference to participate in the  protocol regardless of the partner's control value
+          type: string
+          enum:
+          - passive
+          - active
+          default: active
     Lag.Lacp:
       description: |-
-        The container for link aggregation control protocol settings.
+        The container for link aggregation control protocol settings of a LAG member (port).
       type: object
       properties:
         actor_key:
@@ -5742,6 +5806,7 @@ components:
           - bgpv4
           - bgpv6
           - isis
+          - lacp_lag_member
           default: port
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
@@ -5753,6 +5818,8 @@ components:
           $ref: '#/components/schemas/Bgpv6.Metrics.Request'
         isis:
           $ref: '#/components/schemas/Isis.Metrics.Request'
+        lacp_lag_member:
+          $ref: '#/components/schemas/LacpLagMember.Metrics.Request'
     Metrics.Response:
       description: |-
         Response containing chosen traffic generator metrics
@@ -5766,6 +5833,7 @@ components:
           - bgpv4_metrics
           - bgpv6_metrics
           - isis_metrics
+          - lacp_lag_member_metrics
           default: port_metrics
         port_metrics:
           type: array
@@ -5787,6 +5855,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Isis.Metric'
+        lacp_lag_member_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/LacpLagMember.Metric'
     Port.Metrics.Request:
       description: |-
         The port result request to the traffic generator
@@ -5798,11 +5870,13 @@ components:
 
             x-constraint:
             - /components/schemas/Port/properties/name
+            - /components/schemas/Lag/properties/name
           type: array
           items:
             type: string
           x-constraint:
           - /components/schemas/Port/properties/name
+          - /components/schemas/Lag/properties/name
         column_names:
           description: |-
             The list of column names that the returned result set will contain. If the list is empty then all columns will be returned. The name of the port cannot be excluded.
@@ -6454,6 +6528,199 @@ components:
           description: |-
             Number of Level 2 (L2) Link State Protocol Data Units (LSPs) received.
           type: integer
+    LacpLagMember.Metrics.Request:
+      description: |-
+        The request to retrieve LACP metrics (statistics) per LAG member.
+      type: object
+      properties:
+        lag_names:
+          description: |
+            The names of LAG (ports group) for which LACP metrics to be returned. An empty list will return metrics for all LAGs.
+
+            x-constraint:
+            - /components/schemas/Lag/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Lag/properties/name
+        lag_member_names:
+          description: |
+            The names of LAG member (port) for which LACP metrics to be returned. An empty list will return metrics for all LAG members.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned. Column names 'lag_name' and 'lag_member_name' will always present in returned result set.
+          type: array
+          items:
+            type: string
+            enum:
+            - lag_name
+            - lag_member_name
+            - lacp_in_pkts
+            - lacp_out_pkts
+            - lacp_rx_errors
+    LacpLagMember.Metric:
+      description: |-
+        LACP metrics (statistics) per LAG member.
+      type: object
+      properties:
+        lag_name:
+          description: |-
+            The name of a LAG (ports group) configured with LACP.
+          type: string
+        lag_member_name:
+          description: |-
+            The name of a LAG member (port) configured with LACP.
+          type: string
+        lacp_in_pkts:
+          description: |-
+            Number of LACPDUs received.
+          type: integer
+          format: int64
+          minimum: 0
+        lacp_out_pkts:
+          description: |-
+            Number of LACPDUs transmitted.
+          type: integer
+          format: int64
+          minimum: 0
+        lacp_rx_errors:
+          description: |-
+            Number of LACPDUs receive packet errors.
+          type: integer
+          format: int64
+          minimum: 0
+    LacpLagMember.States.Request:
+      description: |-
+        The request to retrieve LACP states (learned information) per LAG member.
+      type: object
+      properties:
+        lag_names:
+          description: |
+            The names of LAG (ports group) for which LACP states to be returned. An empty list will return states for all LAGs.
+
+            x-constraint:
+            - /components/schemas/Lag/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Lag/properties/name
+        lag_member_names:
+          description: |
+            The names of LAG member (port) for which LACP states to be returned. An empty list will return states for all LAG members.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned. Column names 'lag_name' and 'lag_member_name' will always present in returned result set.
+          type: array
+          items:
+            type: string
+            enum:
+            - lag_name
+            - lag_member_name
+            - activity
+            - timeout
+            - synchronization
+            - aggregatable
+            - collecting
+            - distributing
+            - system_id
+            - oper_key
+            - partner_key
+            - port_num
+            - partner_port_num
+    LacpLagMember.State:
+      description: |-
+        LACP states (learned information) per LAG member.
+      type: object
+      properties:
+        lag_name:
+          description: |-
+            The name of a LAG (ports group) configured with LACP.
+          type: string
+        lag_member_name:
+          description: |-
+            The name of a LAG member (port) configured with LACP.
+          type: string
+        activity:
+          description: |-
+            Indicates participant is active or passive.
+          type: string
+          enum:
+          - active
+          - passive
+        timeout:
+          description: |-
+            The timeout type (short or long) used by the participant.
+          type: string
+          enum:
+          - short
+          - long
+        synchronization:
+          description: |-
+            Indicates whether the participant is in-sync or out-of-sync.
+          type: string
+          enum:
+          - in_sync
+          - out_sync
+        aggregatable:
+          description: |-
+            A true value indicates that the participant will allow the link to be used as part of the aggregate. A false value indicates the link should be used as an  individual link.
+          type: boolean
+        collecting:
+          description: |-
+            If true, the participant is collecting incoming frames on the link, otherwise false.
+          type: boolean
+        distributing:
+          description: |-
+            When true, the participant is distributing outgoing frames; when false, distribution is disabled.
+          type: boolean
+        system_id:
+          description: |-
+            MAC address that defines the local system ID for the aggregate interface.
+          type: string
+          format: mac
+        oper_key:
+          description: |-
+            Current operational value of the key for the aggregate interface.
+          type: integer
+          format: uint16
+        partner_id:
+          description: |-
+            MAC address representing the protocol partner's interface system ID.
+          type: string
+          format: mac
+        partner_key:
+          description: |-
+            Operational value of the protocol partner's key.
+          type: integer
+          format: uint16
+        port_num:
+          description: |-
+            Port number of the local (actor) aggregation member.
+          type: integer
+          format: uint16
+        partner_port_num:
+          description: |-
+            Port number of the partner (remote) port for this member port.
+          type: integer
+          format: uint16
     States.Request:
       description: |-
         Request to traffic generator for states of choice
@@ -6464,11 +6731,17 @@ components:
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
+          - lacp_lag_member_states
+          - lag_member_states
           default: ipv4_neighbors
         ipv4_neighbors:
           $ref: '#/components/schemas/Neighborsv4.States.Request'
         ipv6_neighbors:
           $ref: '#/components/schemas/Neighborsv6.States.Request'
+        lacp_lag_member_states:
+          $ref: '#/components/schemas/LacpLagMember.States.Request'
+        lag_member_states:
+          $ref: '#/components/schemas/LagMember.States.Request'
     States.Response:
       description: |-
         Response containing chosen traffic generator states
@@ -6479,6 +6752,8 @@ components:
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
+          - lacp_lag_member_states
+          - lag_member_states
           default: ipv4_neighbors
         ipv4_neighbors:
           type: array
@@ -6488,6 +6763,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Neighborsv6.State'
+        lacp_lag_member_states:
+          type: array
+          items:
+            $ref: '#/components/schemas/LacpLagMember.State'
+        lag_member_states:
+          type: array
+          items:
+            $ref: '#/components/schemas/LagMember.State'
     Neighborsv4.States.Request:
       description: |-
         The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -6564,6 +6847,44 @@ components:
             The link-layer address (MAC) of the neighbor.
           type: string
           format: mac
+    LagMember.States.Request:
+      description: |-
+        The request to retrieve LAG states (learned information) per LAG member.
+      type: object
+      properties:
+        lag_member_names:
+          description: |
+            The names of LAG member (port) for which LAG states to be returned. An empty list will return states for all LAG members.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned. Column names 'lag_member_name' will always present in returned result set.
+          type: array
+          items:
+            type: string
+            enum:
+            - lag_member_name
+            - aggregate_id
+    LagMember.State:
+      description: |-
+        LAG states (learned information) per LAG member.
+      type: object
+      properties:
+        lag_member_name:
+          description: |-
+            The name of a LAG member (port) configured with or without LACP (static LAG).
+          type: string
+        aggregate_id:
+          description: |-
+            Specify the logical aggregate interface to which this LAG member belongs
+          type: string
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.

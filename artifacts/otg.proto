@@ -84,16 +84,24 @@ message PortOptions {
   optional bool location_preemption = 1;
 }
 
-// The container for multiple LAG ports
+// The container for LAG (ports group) - aggregation of multiple LAG member (port)
 message Lag {
 
   // Description missing in models
   repeated LagPort ports = 1;
 
+  // Description missing in models
+  optional LagPortsProtocol protocol = 2;
+
+  // Specifies the mininum number of member interfaces that must be active for the aggregate
+  // interface to be available
+  // default = 0
+  optional int32 min_links = 3;
+
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  string name = 2;
+  string name = 4;
 }
 
 // The container for a port's ethernet interface and LAG protocol settings
@@ -117,6 +125,27 @@ message LagPort {
 }
 
 // Description missing in models
+message LagPortsProtocol {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      lacp = 1;
+      static = 2;
+    }
+  }
+  // The type of controlling protocol for the LAG (ports group).
+  // default = Choice.Enum.lacp
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional LagPortsLacp lacp = 2;
+
+  // Description missing in models
+  optional LagStatic static = 3;
+}
+
+// Description missing in models
 message LagProtocol {
 
   message Choice {
@@ -126,7 +155,7 @@ message LagProtocol {
       static = 2;
     }
   }
-  // The type of LAG protocol.
+  // The type of controlling protocol for the LAG Member (port).
   // default = Choice.Enum.lacp
   optional Choice.Enum choice = 1;
 
@@ -145,7 +174,38 @@ message LagStatic {
   optional int32 lag_id = 1;
 }
 
-// The container for link aggregation control protocol settings.
+// The container for link aggregation control protocol settings of a LAG (ports group).
+message LagPortsLacp {
+
+  // The actor system id
+  // default = 00:00:00:00:00:00
+  optional string actor_system_id = 1;
+
+  // The actor system priority
+  // default = 0
+  optional int32 actor_system_priority = 2;
+
+  // This timer is used to detect whether received protocol information has expired
+  // default = 0
+  optional int32 lacpdu_timeout = 3;
+
+  message ActorActivity {
+    enum Enum {
+      unspecified = 0;
+      passive = 1;
+      active = 2;
+    }
+  }
+  // Sets the value of LACP actor activity as either passive or active
+  // Passive indicates the port's preference for not transmitting  LACPDUs unless its
+  // partner's control is Active
+  // Active indicates the port's preference to participate in the  protocol regardless
+  // of the partner's control value
+  // default = ActorActivity.Enum.active
+  optional ActorActivity.Enum actor_activity = 4;
+}
+
+// The container for link aggregation control protocol settings of a LAG member (port).
 message LagLacp {
 
   // The actor key
@@ -4994,6 +5054,7 @@ message MetricsRequest {
       bgpv4 = 3;
       bgpv6 = 4;
       isis = 5;
+      lacp_lag_member = 6;
     }
   }
   // Description missing in models
@@ -5014,6 +5075,9 @@ message MetricsRequest {
 
   // Description missing in models
   optional IsisMetricsRequest isis = 6;
+
+  // Description missing in models
+  optional LacpLagMemberMetricsRequest lacp_lag_member = 7;
 }
 
 // Response containing chosen traffic generator metrics
@@ -5027,6 +5091,7 @@ message MetricsResponse {
       bgpv4_metrics = 3;
       bgpv6_metrics = 4;
       isis_metrics = 5;
+      lacp_lag_member_metrics = 6;
     }
   }
   // Description missing in models
@@ -5047,6 +5112,9 @@ message MetricsResponse {
 
   // Description missing in models
   repeated IsisMetric isis_metrics = 6;
+
+  // Description missing in models
+  repeated LacpLagMemberMetric lacp_lag_member_metrics = 7;
 }
 
 // The port result request to the traffic generator
@@ -5057,6 +5125,7 @@ message PortMetricsRequest {
   // 
   // x-constraint:
   // - /components/schemas/Port/properties/name
+  // - /components/schemas/Lag/properties/name
   // 
   repeated string port_names = 1;
 
@@ -5621,6 +5690,173 @@ message IsisMetric {
   optional int32 l2_lsp_received = 27;
 }
 
+// The request to retrieve LACP metrics (statistics) per LAG member.
+message LacpLagMemberMetricsRequest {
+
+  // The names of LAG (ports group) for which LACP metrics to be returned. An empty list
+  // will return metrics for all LAGs.
+  // 
+  // x-constraint:
+  // - /components/schemas/Lag/properties/name
+  // 
+  repeated string lag_names = 1;
+
+  // The names of LAG member (port) for which LACP metrics to be returned. An empty list
+  // will return metrics for all LAG members.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string lag_member_names = 2;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      lag_name = 1;
+      lag_member_name = 2;
+      lacp_in_pkts = 3;
+      lacp_out_pkts = 4;
+      lacp_rx_errors = 5;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned. Column names 'lag_name' and 'lag_member_name'
+  // will always present in returned result set.
+  repeated ColumnNames.Enum column_names = 3;
+}
+
+// LACP metrics (statistics) per LAG member.
+message LacpLagMemberMetric {
+
+  // The name of a LAG (ports group) configured with LACP.
+  optional string lag_name = 1;
+
+  // The name of a LAG member (port) configured with LACP.
+  optional string lag_member_name = 2;
+
+  // Number of LACPDUs received.
+  optional int64 lacp_in_pkts = 3;
+
+  // Number of LACPDUs transmitted.
+  optional int64 lacp_out_pkts = 4;
+
+  // Number of LACPDUs receive packet errors.
+  optional int64 lacp_rx_errors = 5;
+}
+
+// The request to retrieve LACP states (learned information) per LAG member.
+message LacpLagMemberStatesRequest {
+
+  // The names of LAG (ports group) for which LACP states to be returned. An empty list
+  // will return states for all LAGs.
+  // 
+  // x-constraint:
+  // - /components/schemas/Lag/properties/name
+  // 
+  repeated string lag_names = 1;
+
+  // The names of LAG member (port) for which LACP states to be returned. An empty list
+  // will return states for all LAG members.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string lag_member_names = 2;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      lag_name = 1;
+      lag_member_name = 2;
+      activity = 3;
+      timeout = 4;
+      synchronization = 5;
+      aggregatable = 6;
+      collecting = 7;
+      distributing = 8;
+      system_id = 9;
+      oper_key = 10;
+      partner_key = 11;
+      port_num = 12;
+      partner_port_num = 13;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned. Column names 'lag_name' and 'lag_member_name'
+  // will always present in returned result set.
+  repeated ColumnNames.Enum column_names = 3;
+}
+
+// LACP states (learned information) per LAG member.
+message LacpLagMemberState {
+
+  // The name of a LAG (ports group) configured with LACP.
+  optional string lag_name = 1;
+
+  // The name of a LAG member (port) configured with LACP.
+  optional string lag_member_name = 2;
+
+  message Activity {
+    enum Enum {
+      unspecified = 0;
+      active = 1;
+      passive = 2;
+    }
+  }
+  // Indicates participant is active or passive.
+  optional Activity.Enum activity = 3;
+
+  message Timeout {
+    enum Enum {
+      unspecified = 0;
+      short = 1;
+      long = 2;
+    }
+  }
+  // The timeout type (short or long) used by the participant.
+  optional Timeout.Enum timeout = 4;
+
+  message Synchronization {
+    enum Enum {
+      unspecified = 0;
+      in_sync = 1;
+      out_sync = 2;
+    }
+  }
+  // Indicates whether the participant is in-sync or out-of-sync.
+  optional Synchronization.Enum synchronization = 5;
+
+  // A true value indicates that the participant will allow the link to be used as part
+  // of the aggregate. A false value indicates the link should be used as an  individual
+  // link.
+  optional bool aggregatable = 6;
+
+  // If true, the participant is collecting incoming frames on the link, otherwise false.
+  optional bool collecting = 7;
+
+  // When true, the participant is distributing outgoing frames; when false, distribution
+  // is disabled.
+  optional bool distributing = 8;
+
+  // MAC address that defines the local system ID for the aggregate interface.
+  optional string system_id = 9;
+
+  // Current operational value of the key for the aggregate interface.
+  optional int32 oper_key = 10;
+
+  // MAC address representing the protocol partner's interface system ID.
+  optional string partner_id = 11;
+
+  // Operational value of the protocol partner's key.
+  optional int32 partner_key = 12;
+
+  // Port number of the local (actor) aggregation member.
+  optional int32 port_num = 13;
+
+  // Port number of the partner (remote) port for this member port.
+  optional int32 partner_port_num = 14;
+}
+
 // Request to traffic generator for states of choice
 message StatesRequest {
 
@@ -5629,6 +5865,8 @@ message StatesRequest {
       unspecified = 0;
       ipv4_neighbors = 1;
       ipv6_neighbors = 2;
+      lacp_lag_member_states = 3;
+      lag_member_states = 4;
     }
   }
   // Description missing in models
@@ -5640,6 +5878,12 @@ message StatesRequest {
 
   // Description missing in models
   optional Neighborsv6StatesRequest ipv6_neighbors = 3;
+
+  // Description missing in models
+  optional LacpLagMemberStatesRequest lacp_lag_member_states = 4;
+
+  // Description missing in models
+  optional LagMemberStatesRequest lag_member_states = 5;
 }
 
 // Response containing chosen traffic generator states
@@ -5650,6 +5894,8 @@ message StatesResponse {
       unspecified = 0;
       ipv4_neighbors = 1;
       ipv6_neighbors = 2;
+      lacp_lag_member_states = 3;
+      lag_member_states = 4;
     }
   }
   // Description missing in models
@@ -5661,6 +5907,12 @@ message StatesResponse {
 
   // Description missing in models
   repeated Neighborsv6State ipv6_neighbors = 3;
+
+  // Description missing in models
+  repeated LacpLagMemberState lacp_lag_member_states = 4;
+
+  // Description missing in models
+  repeated LagMemberState lag_member_states = 5;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -5719,6 +5971,40 @@ message Neighborsv6State {
 
   // The link-layer address (MAC) of the neighbor.
   optional string link_layer_address = 3;
+}
+
+// The request to retrieve LAG states (learned information) per LAG member.
+message LagMemberStatesRequest {
+
+  // The names of LAG member (port) for which LAG states to be returned. An empty list
+  // will return states for all LAG members.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string lag_member_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      lag_member_name = 1;
+      aggregate_id = 2;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned. Column names 'lag_member_name' will always
+  // present in returned result set.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// LAG states (learned information) per LAG member.
+message LagMemberState {
+
+  // The name of a LAG member (port) configured with or without LACP (static LAG).
+  optional string lag_member_name = 1;
+
+  // Specify the logical aggregate interface to which this LAG member belongs
+  optional string aggregate_id = 2;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the

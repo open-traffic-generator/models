@@ -4920,20 +4920,44 @@ message ProtocolState {
   State.Enum state = 1;
 }
 
-// Sets attributes for the requested action to be performed on device(s)
-message ActionRequest {
+// Sets attributes for the requested state/actions to be performed on device(s)
+message DeviceState {
 
   message Choice {
     enum Enum {
       unspecified = 0;
-      lacp = 1;
+      lacp_pdu_transmit_state = 1;
     }
   }
   // Description missing in models
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  optional LacpActionRequest lacp = 2;
+  optional LacpPduTransmitState lacp_pdu_transmit_state = 2;
+}
+
+// Set LACP PDU transmission state for LAG Member Port(s).
+message LacpPduTransmitState {
+
+  // The names of LAG member port objects to control. An empty or null list will control
+  // all LAG member port objects.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string port_names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      start = 1;
+      stop = 2;
+    }
+  }
+  // The LACP PDU Transmission state. 'start' will start transmission of PDUs on selected
+  // member ports. 'stop' will stop transmission of PDUs on selected member ports.
+  // required = true
+  State.Enum state = 2;
 }
 
 // Description missing in models
@@ -5016,46 +5040,6 @@ message Response {
   // Result of the ping request.
   // default = Result.Enum.failure
   optional Result.Enum result = 3;
-}
-
-// Request to traffic generator for choice of action on LACP protocol
-message LacpActionRequest {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      set_transmission_state = 1;
-    }
-  }
-  // Description missing in models
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  optional LacpTransmissionState set_transmission_state = 2;
-}
-
-// Set LACP PDU transmission state for LAG Member Port.
-message LacpTransmissionState {
-
-  // The names of LAG member port objects to control. An empty or null list will control
-  // all LAG member port objects.
-  // 
-  // x-constraint:
-  // - /components/schemas/Port/properties/name
-  // 
-  repeated string port_names = 1;
-
-  message State {
-    enum Enum {
-      unspecified = 0;
-      start = 1;
-      stop = 2;
-    }
-  }
-  // The LACP PDU Transmission state. 'start' will start transmission of PDUs on selected
-  // member ports. 'stop' will stop transmission of PDUs on selected member ports.
-  // required = true
-  State.Enum state = 2;
 }
 
 // Request to traffic generator for metrics of choice
@@ -13663,10 +13647,10 @@ message SetProtocolStateResponse {
 }
 
 
-message SetActionRequest {
-  ActionRequest action_request = 1;
+message SetDeviceStateRequest {
+  DeviceState device_state = 1;
 }
-message SetActionResponse {
+message SetDeviceStateResponse {
   optional ResponseWarning status_code_200 = 1;
   optional ResponseError status_code_400 = 2;
   optional ResponseError status_code_500 = 3;
@@ -13729,8 +13713,8 @@ service Openapi {
   rpc SendPing(SendPingRequest) returns (SendPingResponse);
   // Sets all configured protocols to `start` or `stop` state.
   rpc SetProtocolState(SetProtocolStateRequest) returns (SetProtocolStateResponse);
-  // Set specific action/trigger on configuration resources on the traffic generator.
-  rpc SetAction(SetActionRequest) returns (SetActionResponse);
+  // Set specific state/actions on device configuration resources on the traffic generator.
+  rpc SetDeviceState(SetDeviceStateRequest) returns (SetDeviceStateResponse);
   // Description missing in models
   rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
   // Description missing in models

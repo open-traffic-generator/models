@@ -4,19 +4,33 @@ components:
       x-include: 
       - '../common/common.yaml#/components/schemas/Named.Object'
       description: >-
-        The container for multiple LAG ports
+        The container for LAG (ports group) - aggregation of multiple LAG members (ports)
       type: object
       properties:
         ports:
           type: array
           items:
             $ref: '#/components/schemas/Lag.Port'
+          minItems: 1
+          maxItems: 32
+
+        protocol:
+          $ref: '#/components/schemas/Lag.Protocol'
+        min_links:
+          description: >-
+            Specifies the mininum number of member interfaces that must be active
+            for the aggregate interface to be available
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 32
+          default: 1
     
     Lag.Port:
       description: >-
         The container for a port's ethernet interface and LAG protocol settings
       type: object
-      required: [port_name, protocol, ethernet]
+      required: [port_name, ethernet]
       properties:
         port_name:
           description: >- 
@@ -24,8 +38,8 @@ components:
           type: string
           x-constraint:
           - '/components/schemas/Port/properties/name'
-        protocol:
-          $ref: '#/components/schemas/Lag.Protocol'
+        lacp:
+          $ref: '#/components/schemas/Lag.Port.Lacp'
         ethernet:
           $ref: '../device/ethernet.yaml#/components/schemas/Device.EthernetBase'
 
@@ -34,16 +48,16 @@ components:
       properties:
         choice:
           description: >-
-            The type of LAG protocol.
+            The type of controlling protocol for the LAG (ports group).
           type: string
           enum: [lacp, static]
           default: lacp
         lacp:
-          $ref: '#/components/schemas/Lag.Lacp'
+          $ref: '#/components/schemas/Lag.Protocol.Lacp'
         static:
-          $ref: '#/components/schemas/Lag.Static'
+          $ref: '#/components/schemas/Lag.Protocol.Static'
 
-    Lag.Static:
+    Lag.Protocol.Static:
       description: >-
         The container for static link aggregation protocol settings.
       type: object
@@ -56,11 +70,24 @@ components:
           maximum: 65535
           default: 0
 
-    Lag.Lacp:
+    Lag.Protocol.Lacp:
       description: >-
-        The container for link aggregation control protocol settings.
+        The container for link aggregation control protocol settings of a LAG (ports group).
       type: object
       properties:
+        actor_system_id:
+          description: >-
+            The actor system id
+          type: string
+          format: mac
+          default: 00:00:00:00:00:00
+        actor_system_priority:
+          description: >-
+            The actor system priority
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
         actor_key:
           description: >-
             The actor key
@@ -68,6 +95,12 @@ components:
           minimum: 0
           maximum: 65535
           default: 0
+
+    Lag.Port.Lacp:
+      description: >-
+        The container for link aggregation control protocol settings of a LAG member (port).
+      type: object
+      properties:
         actor_port_number:
           description: >-
             The actor port number
@@ -82,19 +115,18 @@ components:
           minimum: 0
           maximum: 65535
           default: 1
-        actor_system_id:
+        actor_activity:        
           description: >-
-            The actor system id
+            Sets the value of LACP actor activity as either passive or active.
+
+            Passive indicates the port's preference for not transmitting 
+            LACPDUs unless its partner's control is Active.
+
+            Active indicates the port's preference to participate in the 
+            protocol regardless of the partner's control value.
           type: string
-          format: mac
-          default: 00:00:00:00:00:00
-        actor_system_priority:
-          description: >-
-            The actor system priority
-          type: integer
-          minimum: 0
-          maximum: 65535
-          default: 0
+          enum: [passive, active]
+          default: active
         lacpdu_periodic_time_interval:
           x-constants:
             fast: 1
@@ -119,15 +151,3 @@ components:
           minimum: 0
           maximum: 65535
           default: 0
-        actor_activity:        
-          description: >-
-            Sets the value of LACP actor activity as either passive or active
-
-            Passive indicates the port's preference for not transmitting 
-            LACPDUs unless its partner's control is Active
-
-            Active indicates the port's preference to participate in the 
-            protocol regardless of the partner's control value
-          type: string
-          enum: [passive, active]
-          default: active

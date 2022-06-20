@@ -7,7 +7,7 @@ info:
     \ issue](https://github.com/open-traffic-generator/models/issues) in the models\
     \ repository\n- [fork the models repository](https://github.com/open-traffic-generator/models)\
     \ and submit a PR"
-  version: 0.7.13
+  version: 0.7.15
   contact:
     url: https://github.com/open-traffic-generator/models
   license:
@@ -1665,6 +1665,11 @@ components:
             If it is true, the Point-to-Point circuit will include 3-way TLV in its Point-to-Point IIH  and attempt to establish the adjacency as specified in RFC 5303. This field is not applicable if network_type is set to 'broadcast' type in ISIS interface.
           type: boolean
           default: true
+        p2p_hellos_to_unicast_mac:
+          description: "If it is true, the Point-to-Point Hello messages will be sent\
+            \ to the unicast MAC address. "
+          type: boolean
+          default: false
     IsisInterface.LinkProtection:
       description: |-
         Optional container for the link protection sub TLV (type 20).
@@ -6791,11 +6796,14 @@ components:
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
+          - bgp_prefixes
           default: ipv4_neighbors
         ipv4_neighbors:
           $ref: '#/components/schemas/Neighborsv4.States.Request'
         ipv6_neighbors:
           $ref: '#/components/schemas/Neighborsv6.States.Request'
+        bgp_prefixes:
+          $ref: '#/components/schemas/BgpPrefix.State.Request'
     States.Response:
       description: |-
         Response containing chosen traffic generator states
@@ -6806,6 +6814,7 @@ components:
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
+          - bgp_prefixes
           default: ipv4_neighbors
         ipv4_neighbors:
           type: array
@@ -6815,6 +6824,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Neighborsv6.State'
+        bgp_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpPrefixes.State'
     Neighborsv4.States.Request:
       description: |-
         The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -6891,6 +6904,182 @@ components:
             The link-layer address (MAC) of the neighbor.
           type: string
           format: mac
+    BgpPrefix.State.Request:
+      description: |-
+        The request to retrieve BGP peer prefix information.
+      type: object
+      properties:
+        bgp_peer_names:
+          description: |
+            The names of BGP peers for which prefix information will be retrieved. If no names are specified then the results will contain prefix information for all configured BGP peers.
+
+            x-constraint:
+            - /components/schemas/Bgp.v4Peer/properties/name
+            - /components/schemas/Bgp.v6Peer/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Bgp.v4Peer/properties/name
+          - /components/schemas/Bgp.v6Peer/properties/name
+        prefix_filters:
+          description: |-
+            Specify which prefixes to return. If the list is empty or missing then all prefixes will be returned.
+          type: array
+          items:
+            type: string
+            enum:
+            - ipv4_unicast
+            - ipv6_unicast
+        ipv4_unicast_filters:
+          description: |-
+            The IPv4 unicast results can be filtered by specifying additional prefix search criteria. If the ipv4_unicast_filters property is missing or empty then all IPv4 prefixes will be returned.
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpPrefix.Ipv4Unicast.Filter'
+        ipv6_unicast_filters:
+          description: |-
+            The IPv6 unicast results can be filtered by specifying additional prefix search criteria. If the ipv6_unicast_filters property is missing or empty then all IPv6 prefixes will be returned.
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpPrefix.Ipv6Unicast.Filter'
+    BgpPrefix.Ipv4Unicast.Filter:
+      type: object
+      properties:
+        addresses:
+          description: |-
+            The addresses to match. If the addresses property is missing or empty then all addresses will match.
+          type: array
+          items:
+            type: string
+            format: ipv4
+        prefix_length:
+          description: |-
+            The prefix length to match. If the prefix length is missing then all prefix lengths will match.
+          type: integer
+        origin:
+          description: |-
+            The origin to match. If the origin is missing then all origins will match.
+          type: string
+          enum:
+          - igp
+          - egp
+        path_id:
+          description: |-
+            The path id to match. If the path id is missing then all path ids will match.
+          type: integer
+    BgpPrefix.Ipv6Unicast.Filter:
+      type: object
+      properties:
+        addresses:
+          description: |-
+            The addresses to match. If the addresses property is missing or empty then all addresses will match.
+          type: array
+          items:
+            type: string
+            format: ipv6
+        prefix_length:
+          description: |-
+            The prefix length to match. If the prefix length is missing then all prefix lengths will match.
+          type: integer
+        origin:
+          description: |-
+            The origin to match. If the origin is missing then all origins will match.
+          type: string
+          enum:
+          - igp
+          - egp
+        path_id:
+          description: |-
+            The path id to match. If the path id is missing then all path ids will match.
+          type: integer
+    BgpPrefixes.State:
+      description: |-
+        BGP peer prefixes.
+      type: object
+      properties:
+        bgp_peer_name:
+          description: |-
+            The name of a BGP peer.
+          type: string
+        ipv4_unicast_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpPrefixIpv4Unicast.State'
+        ipv6_unicast_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpPrefixIpv6Unicast.State'
+    BgpPrefixIpv4Unicast.State:
+      description: |-
+        IPv4 unicast prefix.
+        BGP peer prefix.
+      type: object
+      properties:
+        ipv4_address:
+          description: |-
+            An IPv4 unicast address
+          type: string
+        prefix_length:
+          description: |-
+            The length of the prefix.
+          type: integer
+        origin:
+          description: |-
+            The origin of the prefix.
+          type: string
+          enum:
+          - igp
+          - egp
+        path_id:
+          description: |-
+            The path id.
+          type: integer
+        ipv4_next_hop:
+          description: |-
+            The IPv4 address of the egress interface.
+          type: string
+          format: ipv4
+        ipv6_next_hop:
+          description: |-
+            The IPv6 address of the egress interface.
+          type: string
+          format: ipv6
+    BgpPrefixIpv6Unicast.State:
+      description: |-
+        IPv6 unicast prefix.
+        BGP peer prefix.
+      type: object
+      properties:
+        ipv6_address:
+          description: |-
+            An IPv6 unicast address
+          type: string
+        prefix_length:
+          description: |-
+            The length of the prefix.
+          type: integer
+        origin:
+          description: |-
+            The origin of the prefix.
+          type: string
+          enum:
+          - igp
+          - egp
+        path_id:
+          description: |-
+            The path id.
+          type: integer
+        ipv4_next_hop:
+          description: |-
+            The IPv4 address of the egress interface.
+          type: string
+          format: ipv4
+        ipv6_next_hop:
+          description: |-
+            The IPv6 address of the egress interface.
+          type: string
+          format: ipv6
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.

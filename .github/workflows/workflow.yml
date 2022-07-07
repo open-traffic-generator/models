@@ -49,9 +49,22 @@ jobs:
         with:
           args: 'bundle artifacts/openapi.yaml -o artifacts/openapi.html'
 
+      - name: Get version
+        id: get_version
+        run: |
+          echo "::set-output name=version::v$(grep version api/info.yaml | cut -d: -f2 | sed -e 's/ //g')"
+
+      - name: Check tag for current version
+        uses: mukunku/tag-exists-action@v1.0.0
+        id: check_tag
+        with:
+          tag: ${{ steps.get_version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Commit openapi.yaml and otg.proto
         id: commit_generated
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || steps.check_tag.outputs.exists == 'false'
         run: |
           git config user.name "Github Actions Bot"
           git config user.email "actions@github.com"
@@ -65,19 +78,6 @@ jobs:
             else
               echo "No changed auto generated content"
           fi
-
-      - name: Get version
-        id: get_version
-        run: |
-          echo "::set-output name=version::v$(grep version api/info.yaml | cut -d: -f2 | sed -e 's/ //g')"
-
-      - name: Check tag for current version
-        uses: mukunku/tag-exists-action@v1.0.0
-        id: check_tag
-        with:
-          tag: ${{ steps.get_version.outputs.version }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create release and publish artifacts
         if: steps.check_tag.outputs.exists == 'false'

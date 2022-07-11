@@ -7,7 +7,7 @@ info:
     \ issue](https://github.com/open-traffic-generator/models/issues) in the models\
     \ repository\n- [fork the models repository](https://github.com/open-traffic-generator/models)\
     \ and submit a PR"
-  version: 0.7.16
+  version: 0.8.3
   contact:
     url: https://github.com/open-traffic-generator/models
   license:
@@ -197,6 +197,26 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Protocol.State'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /control/devices:
+    post:
+      tags:
+      - Control
+      operationId: set_device_state
+      description: |-
+        Set specific state/actions on device configuration resources on the traffic generator.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Device.State'
       responses:
         '200':
           $ref: '#/components/responses/Success'
@@ -400,13 +420,25 @@ components:
           default: false
     Lag:
       description: |-
-        The container for multiple LAG ports
+        The container for LAG (ports group) - aggregation of multiple LAG members (ports)
       type: object
       properties:
         ports:
           type: array
           items:
             $ref: '#/components/schemas/Lag.Port'
+          minItems: 1
+          maxItems: 32
+        protocol:
+          $ref: '#/components/schemas/Lag.Protocol'
+        min_links:
+          description: |-
+            Specifies the mininum number of member interfaces that must be active for the aggregate interface to be available
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 32
+          default: 1
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -420,7 +452,6 @@ components:
       type: object
       required:
       - port_name
-      - protocol
       - ethernet
       properties:
         port_name:
@@ -429,8 +460,8 @@ components:
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
-        protocol:
-          $ref: '#/components/schemas/Lag.Protocol'
+        lacp:
+          $ref: '#/components/schemas/Lag.Port.Lacp'
         ethernet:
           $ref: '#/components/schemas/Device.EthernetBase'
     Lag.Protocol:
@@ -438,17 +469,17 @@ components:
       properties:
         choice:
           description: |-
-            The type of LAG protocol.
+            The type of controlling protocol for the LAG (ports group).
           type: string
           enum:
           - lacp
           - static
           default: lacp
         lacp:
-          $ref: '#/components/schemas/Lag.Lacp'
+          $ref: '#/components/schemas/Lag.Protocol.Lacp'
         static:
-          $ref: '#/components/schemas/Lag.Static'
-    Lag.Static:
+          $ref: '#/components/schemas/Lag.Protocol.Static'
+    Lag.Protocol.Static:
       description: |-
         The container for static link aggregation protocol settings.
       type: object
@@ -460,11 +491,24 @@ components:
           minimum: 0
           maximum: 65535
           default: 0
-    Lag.Lacp:
+    Lag.Protocol.Lacp:
       description: |-
-        The container for link aggregation control protocol settings.
+        The container for link aggregation control protocol settings of a LAG (ports group).
       type: object
       properties:
+        actor_system_id:
+          description: |-
+            The actor system id
+          type: string
+          format: mac
+          default: 00:00:00:00:00:00
+        actor_system_priority:
+          description: |-
+            The actor system priority
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
         actor_key:
           description: |-
             The actor key
@@ -472,6 +516,11 @@ components:
           minimum: 0
           maximum: 65535
           default: 0
+    Lag.Port.Lacp:
+      description: |-
+        The container for link aggregation control protocol settings of a LAG member (port).
+      type: object
+      properties:
         actor_port_number:
           description: |-
             The actor port number
@@ -486,19 +535,16 @@ components:
           minimum: 0
           maximum: 65535
           default: 1
-        actor_system_id:
+        actor_activity:
           description: |-
-            The actor system id
+            Sets the value of LACP actor activity as either passive or active.
+            Passive indicates the port's preference for not transmitting  LACPDUs unless its partner's control is Active.
+            Active indicates the port's preference to participate in the  protocol regardless of the partner's control value.
           type: string
-          format: mac
-          default: 00:00:00:00:00:00
-        actor_system_priority:
-          description: |-
-            The actor system priority
-          type: integer
-          minimum: 0
-          maximum: 65535
-          default: 0
+          enum:
+          - passive
+          - active
+          default: active
         lacpdu_periodic_time_interval:
           x-constants:
             fast: 1
@@ -521,16 +567,6 @@ components:
           minimum: 0
           maximum: 65535
           default: 0
-        actor_activity:
-          description: |-
-            Sets the value of LACP actor activity as either passive or active
-            Passive indicates the port's preference for not transmitting  LACPDUs unless its partner's control is Active
-            Active indicates the port's preference to participate in the  protocol regardless of the partner's control value
-          type: string
-          enum:
-          - passive
-          - active
-          default: active
     Device.EthernetBase:
       description: |-
         Base Ethernet interface.
@@ -2131,6 +2167,8 @@ components:
           $ref: '#/components/schemas/Bgp.Advanced'
         capability:
           $ref: '#/components/schemas/Bgp.Capability'
+        learned_information_filter:
+          $ref: '#/components/schemas/Bgp.LearnedInformationFilter'
         v4_routes:
           description: |-
             Emulated BGPv4 route ranges.
@@ -2348,6 +2386,23 @@ components:
             Support for IPv6 Unicast Add Path Capability.
           type: boolean
           default: false
+    Bgp.LearnedInformationFilter:
+      x-status: under-review
+      description: |-
+        Status: under-review
+        Configuration for controlling storage of BGP learned information recieved from the peer.
+      type: object
+      properties:
+        unicast_ipv4_prefix:
+          description: |-
+            If enabled, will store the information related to Unicast IPv4 Prefixes recieved from the peer.
+          type: boolean
+          default: false
+        unicast_ipv6_prefix:
+          description: |-
+            If enabled, will store the information related to Unicast IPv6 Prefixes recieved from the peer.
+          type: boolean
+          default: false
     Bgp.V4RouteRange:
       description: |-
         Emulated BGPv4 route range.
@@ -2452,7 +2507,7 @@ components:
           maximum: 65535
           default: 0
         as_custom:
-          description: "Last two octets of the community AS number. "
+          description: "Last two octets of the community value. "
           type: integer
           minimum: 0
           maximum: 65535
@@ -3864,6 +3919,8 @@ components:
           $ref: '#/components/schemas/Bgp.Advanced'
         capability:
           $ref: '#/components/schemas/Bgp.Capability'
+        learned_information_filter:
+          $ref: '#/components/schemas/Bgp.LearnedInformationFilter'
         v4_routes:
           description: |-
             Emulated BGPv4 route ranges.
@@ -5650,6 +5707,17 @@ components:
           enum:
           - start
           - stop
+    Device.State:
+      description: |-
+        Sets attributes for the requested state/actions to be performed on device(s)
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - lacp_member_state
+        lacp_member_state:
+          $ref: '#/components/schemas/LacpMember.State'
     Ping:
       type: object
       properties:
@@ -5734,6 +5802,31 @@ components:
           - success
           - failure
           default: failure
+    LacpMember.State:
+      description: |-
+        Set LACP state for specified LAG Member Port(s).
+      type: object
+      required:
+      - state
+      properties:
+        lag_member_port_names:
+          description: |
+            The names of LAG members (ports) for which the state has to be applied. An empty or null list will control all LAG members.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        state:
+          description: |-
+            The LACP Member admin state. 'up' will start transmission of LACPDUs on selected member ports. 'down' will send a LACPDU with 'sync' flag unset and then stop transmission of LACPDUs on selected member ports.
+          type: string
+          enum:
+          - up
+          - down
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice
@@ -5747,6 +5840,8 @@ components:
           - bgpv4
           - bgpv6
           - isis
+          - lag
+          - lacp_lag_member
           default: port
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
@@ -5758,6 +5853,10 @@ components:
           $ref: '#/components/schemas/Bgpv6.Metrics.Request'
         isis:
           $ref: '#/components/schemas/Isis.Metrics.Request'
+        lag:
+          $ref: '#/components/schemas/Lag.Metrics.Request'
+        lacp_lag_member:
+          $ref: '#/components/schemas/LacpLagMember.Metrics.Request'
     Metrics.Response:
       description: |-
         Response containing chosen traffic generator metrics
@@ -5771,6 +5870,8 @@ components:
           - bgpv4_metrics
           - bgpv6_metrics
           - isis_metrics
+          - lag_metrics
+          - lacp_lag_member_metrics
           default: port_metrics
         port_metrics:
           type: array
@@ -5792,6 +5893,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Isis.Metric'
+        lag_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lag.Metric'
+        lacp_lag_member_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/LacpLagMember.Metric'
     Port.Metrics.Request:
       description: |-
         The port result request to the traffic generator
@@ -6459,6 +6568,245 @@ components:
           description: |-
             Number of Level 2 (L2) Link State Protocol Data Units (LSPs) received.
           type: integer
+    Lag.Metrics.Request:
+      description: |-
+        The request to retrieve per LAG metrics/statistics.
+      type: object
+      properties:
+        lag_names:
+          description: |
+            The names of LAGs to return results for. An empty list will return results for all LAGs.
+
+            x-constraint:
+            - /components/schemas/Lag/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Lag/properties/name
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned. The name of the LAG cannot be excluded.
+          type: array
+          items:
+            type: string
+            enum:
+            - oper_states
+            - member_ports_up
+            - frames_tx
+            - frames_rx
+            - bytes_tx
+            - bytes_rx
+            - frames_tx_rate
+            - frames_rx_rate
+            - bytes_tx_rate
+            - bytes_rx_rate
+    Lag.Metric:
+      type: object
+      properties:
+        name:
+          description: |
+            The name of a configured LAG
+
+            x-constraint:
+            - /components/schemas/Lag/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Lag/properties/name
+        oper_status:
+          description: |-
+            The current operational state of the LAG. The state can be up or down. State 'up' indicates member_ports_up >= min_links.
+          type: string
+          enum:
+          - up
+          - down
+        member_ports_up:
+          description: |-
+            The number of LAG member ports up.
+          type: integer
+        frames_tx:
+          description: |-
+            The current total number of frames transmitted.
+          type: integer
+          format: int64
+          minimum: 0
+        frames_rx:
+          description: |-
+            The current total number of valid frames received.
+          type: integer
+          format: int64
+          minimum: 0
+        bytes_tx:
+          description: |-
+            The current total number of bytes transmitted.
+          type: integer
+          format: int64
+          minimum: 0
+        bytes_rx:
+          description: |-
+            The current total number of valid bytes received.
+          type: integer
+          format: int64
+          minimum: 0
+        frames_tx_rate:
+          description: |-
+            The current rate of frames transmitted.
+          type: number
+        frames_rx_rate:
+          description: |-
+            The current rate of valid frames received.
+          type: number
+        bytes_tx_rate:
+          description: |-
+            The current rate of bytes transmitted.
+          type: number
+        bytes_rx_rate:
+          description: |-
+            The current rate of bytes received.
+          type: number
+    LacpLagMember.Metrics.Request:
+      description: |-
+        The request to retrieve LACP per LAG member metrics/statistics.
+      type: object
+      properties:
+        lag_names:
+          description: |
+            The names of LAG (ports group) for which LACP metrics to be returned. An empty list will return metrics for all LAGs.
+
+            x-constraint:
+            - /components/schemas/Lag/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Lag/properties/name
+        lag_member_port_names:
+          description: |
+            The names of LAG members (ports) for which LACP metrics to be returned. An empty list will return metrics for all LAG members.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned. The name of LAG and LAG member can not be excluded.
+          type: array
+          items:
+            type: string
+            enum:
+            - lacp_in_pkts
+            - lacp_out_pkts
+            - lacp_rx_errors
+            - activity
+            - timeout
+            - synchronization
+            - aggregatable
+            - collecting
+            - distributing
+            - system_id
+            - oper_key
+            - partner_id
+            - partner_key
+            - port_num
+            - partner_port_num
+    LacpLagMember.Metric:
+      description: |-
+        LACP metrics (statistics) per LAG member.
+      type: object
+      properties:
+        lag_name:
+          description: |-
+            The name of a LAG (ports group) configured with LACP.
+          type: string
+        lag_member_port_name:
+          description: |-
+            The name of a LAG member (port) configured with LACP.
+          type: string
+        lacp_in_pkts:
+          description: |-
+            Number of LACPDUs received.
+          type: integer
+          format: int64
+          minimum: 0
+        lacp_out_pkts:
+          description: |-
+            Number of LACPDUs transmitted.
+          type: integer
+          format: int64
+          minimum: 0
+        lacp_rx_errors:
+          description: |-
+            Number of LACPDUs receive packet errors.
+          type: integer
+          format: int64
+          minimum: 0
+        activity:
+          description: |-
+            Indicates participant is active or passive.
+          type: string
+          enum:
+          - active
+          - passive
+        timeout:
+          description: |-
+            The timeout type (short or long) used by the participant.
+          type: string
+          enum:
+          - short
+          - long
+        synchronization:
+          description: |-
+            Indicates whether the participant is in-sync or out-of-sync.
+          type: string
+          enum:
+          - in_sync
+          - out_sync
+        aggregatable:
+          description: |-
+            A true value indicates that the participant will allow the link to be used as part of the aggregate. A false value indicates the link should be used as an  individual link.
+          type: boolean
+        collecting:
+          description: |-
+            If true, the participant is collecting incoming frames on the link, otherwise false.
+          type: boolean
+        distributing:
+          description: |-
+            When true, the participant is distributing outgoing frames; when false, distribution is disabled.
+          type: boolean
+        system_id:
+          description: |-
+            MAC address that defines the local system ID for the aggregate interface.
+          type: string
+          format: mac
+        oper_key:
+          description: |-
+            Current operational value of the key for the aggregate interface.
+          type: integer
+          format: int32
+        partner_id:
+          description: |-
+            MAC address representing the protocol partner's interface system ID.
+          type: string
+          format: mac
+        partner_key:
+          description: |-
+            Operational value of the protocol partner's key.
+          type: integer
+          format: int32
+        port_num:
+          description: |-
+            Port number of the local (actor) aggregation member.
+          type: integer
+          format: int32
+        partner_port_num:
+          description: |-
+            Port number of the partner (remote) port for this member port.
+          type: integer
+          format: int32
     States.Request:
       description: |-
         Request to traffic generator for states of choice
@@ -6725,9 +7073,7 @@ components:
           items:
             $ref: '#/components/schemas/Bgp.Community'
         as_path:
-          description: |-
-            Optional AS Path attributes.
-          $ref: '#/components/schemas/Bgp.AsPath'
+          $ref: '#/components/schemas/Result.BgpAsPath'
     BgpPrefixIpv6Unicast.State:
       description: |-
         IPv6 unicast prefix.
@@ -6770,9 +7116,41 @@ components:
           items:
             $ref: '#/components/schemas/Bgp.Community'
         as_path:
+          $ref: '#/components/schemas/Result.BgpAsPath'
+    Result.BgpAsPath:
+      description: |-
+        This attribute identifies the autonomous systems through  which routing information carried in this UPDATE message has passed.
+      type: object
+      properties:
+        segments:
+          description: "AS Path segments present in the received AS Path attribute. "
+          type: array
+          items:
+            $ref: '#/components/schemas/Result.BgpAsPathSegment'
+    Result.BgpAsPathSegment:
+      description: |-
+        Configuration for a single BGP AS path segment
+      type: object
+      properties:
+        type:
           description: |-
-            Optional AS Path attributes.
-          $ref: '#/components/schemas/Bgp.AsPath'
+            AS sequence is the most common type of AS_PATH, it contains the  list of ASNs starting with the most recent ASN being added read  from left to right.
+            The other three AS_PATH types are used for Confederations - AS_SET is the type of AS_PATH attribute that summarizes routes using using the aggregate-address command, allowing AS_PATHs to be  summarized in the update as well. - AS_CONFED_SEQ gives the list of ASNs in the path starting with the  most recent ASN to be added reading left to right - AS_CONFED_SET will allow summarization of multiple AS PATHs to be  sent in BGP Updates.
+          type: string
+          enum:
+          - as_seq
+          - as_set
+          - as_confed_seq
+          - as_confed_set
+        as_numbers:
+          description: |-
+            The AS numbers in this AS path segment.
+          type: array
+          items:
+            type: integer
+            format: int64
+            minimum: 0
+            maximum: 4294967295
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.

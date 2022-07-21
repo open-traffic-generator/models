@@ -53,20 +53,20 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /control/transmit:
+  /control/state:
     post:
       tags:
       - Control
-      operationId: set_transmit_state
+      operationId: set_state
       description: |-
-        Updates the state of configuration resources on the traffic generator.
+        Sets the state of resources configured on the traffic generator.
         The Response.Warnings in the Success response is available for implementers to disclose additional information about a state change including any implicit changes that are outside the scope of the state change.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Transmit.State'
+              $ref: '#/components/schemas/Control.State'
       responses:
         '200':
           $ref: '#/components/responses/Success'
@@ -74,149 +74,46 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /control/link:
+  /control/action:
     post:
       tags:
       - Control
-      operationId: set_link_state
+      operationId: set_action
       description: |-
-        Updates the state of configuration resources on the traffic generator.
+        Triggers action on the resources configured on the traffic generator.
+        The Response.Warnings in the 200 response is available for implementers to disclose additional information about a state change including any implicit changes that are outside the scope of the state change.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Link.State'
-      responses:
-        '200':
-          $ref: '#/components/responses/Success'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-  /control/capture:
-    post:
-      tags:
-      - Control
-      operationId: set_capture_state
-      description: |-
-        Updates the state of configuration resources on the traffic generator.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Capture.State'
-      responses:
-        '200':
-          $ref: '#/components/responses/Success'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-  /control/flows:
-    post:
-      tags:
-      - Control
-      operationId: update_flows
-      description: |-
-        Updates flow properties without disruption of transmit state.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Flows.Update'
+              $ref: '#/components/schemas/Control.Action.Request'
       responses:
         '200':
           description: |-
-            Response with updated Config from the traffic generator
+            Response from traffic generator for actions triggered
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Config'
+                $ref: '#/components/schemas/Control.Action.Response'
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /control/routes:
+  /control/patch:
     post:
       tags:
       - Control
-      operationId: set_route_state
+      operationId: set_patch
       description: |-
-        Updates the state of configuration resources on the traffic generator.
+        Patches properties of resources configured on the traffic generator.
+        The Response.Warnings in the Success response is available for implementers to disclose additional information about a state change including any implicit changes that are outside the scope of the state change.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Route.State'
-      responses:
-        '200':
-          $ref: '#/components/responses/Success'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-  /control/ping:
-    post:
-      tags:
-      - Control
-      operationId: send_ping
-      description: |-
-        API to send an IPv4 and/or IPv6 ICMP Echo Request(s) between endpoints. For each endpoint 1 ping packet will be sent and API shall wait for ping response to either be successful or timeout. The API wait timeout for each request is 300ms.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Ping.Request'
-      responses:
-        '200':
-          description: |-
-            Responses for Ping
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Ping.Response'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-  /control/protocols:
-    post:
-      tags:
-      - Control
-      operationId: set_protocol_state
-      description: |-
-        Sets all configured protocols to `start` or `stop` state.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Protocol.State'
-      responses:
-        '200':
-          $ref: '#/components/responses/Success'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-  /control/devices:
-    post:
-      tags:
-      - Control
-      operationId: set_device_state
-      description: |-
-        Set specific state/actions on device configuration resources on the traffic generator.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Device.State'
+              $ref: '#/components/schemas/Control.Patch'
       responses:
         '200':
           $ref: '#/components/responses/Success'
@@ -5545,7 +5442,34 @@ components:
           type: array
           items:
             type: string
-    Link.State:
+    Control.State:
+      description: |-
+        Request for setting state of resources in traffic generator
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - flow_transmit
+          - protocol
+          - route
+          - port_link
+          - port_capture
+          - lacp
+          default: flow_transmit
+        flow_transmit:
+          $ref: '#/components/schemas/Flow.Transmit.State'
+        protocol:
+          $ref: '#/components/schemas/Protocol.State'
+        route:
+          $ref: '#/components/schemas/Route.State'
+        port_link:
+          $ref: '#/components/schemas/Port.Link.State'
+        port_capture:
+          $ref: '#/components/schemas/Port.Capture.State'
+        lacp:
+          $ref: '#/components/schemas/Lacp.State'
+    Port.Link.State:
       description: |-
         Port link state.
       type: object
@@ -5570,7 +5494,7 @@ components:
           enum:
           - up
           - down
-    Transmit.State:
+    Flow.Transmit.State:
       description: |-
         Flow transmit state.
       type: object
@@ -5602,7 +5526,7 @@ components:
           - stop
           - pause
           - resume
-    Capture.State:
+    Port.Capture.State:
       description: |-
         Control port capture state
       type: object
@@ -5628,29 +5552,6 @@ components:
           enum:
           - start
           - stop
-    Flows.Update:
-      description: |-
-        A container of flows with associated properties to be updated without affecting the flows current transmit state.
-      type: object
-      required:
-      - property_names
-      - flows
-      properties:
-        property_names:
-          description: |-
-            Flow properties to be updated without affecting the transmit state.
-          type: array
-          items:
-            type: string
-            enum:
-            - rate
-            - size
-        flows:
-          description: |-
-            The list of configured flows for which given property will be updated.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow'
     Route.State:
       description: |-
         Sets the device route state
@@ -5682,17 +5583,6 @@ components:
           enum:
           - withdraw
           - advertise
-    Ping.Request:
-      description: |-
-        Ping request details
-      type: object
-      properties:
-        endpoints:
-          description: |-
-            Array of ping requests
-          type: array
-          items:
-            $ref: '#/components/schemas/Ping'
     Protocol.State:
       description: |-
         Sets all configured protocols to `start` or `stop` state.
@@ -5707,17 +5597,53 @@ components:
           enum:
           - start
           - stop
-    Device.State:
+    Lacp.State:
       description: |-
-        Sets attributes for the requested state/actions to be performed on device(s)
+        Set LACP state for specified LAG Member Port(s).
+      type: object
+      required:
+      - state
+      properties:
+        lag_member_port_names:
+          description: |
+            The names of LAG members (ports) for which the state has to be applied. An empty or null list will control all LAG members.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+        state:
+          description: |-
+            The LACP Member admin state. 'up' will start transmission of LACPDUs on selected member ports. 'down' will send a LACPDU with 'sync' flag unset and then stop transmission of LACPDUs on selected member ports.
+          type: string
+          enum:
+          - up
+          - down
+    Control.Action.Request:
+      description: |-
+        Request for triggering action on resources in traffic generator
       type: object
       properties:
         choice:
           type: string
           enum:
-          - lacp_member_state
-        lacp_member_state:
-          $ref: '#/components/schemas/LacpMember.State'
+          - ping
+        ping:
+          $ref: '#/components/schemas/Ping.Request'
+    Control.Action.Response:
+      description: |-
+        Response upon triggering action on resources in traffic generator
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - ping
+        ping:
+          $ref: '#/components/schemas/Ping.Response'
     Ping:
       type: object
       properties:
@@ -5767,6 +5693,17 @@ components:
             IPv6 addresses to ping.
           type: string
           format: ipv6
+    Ping.Request:
+      description: |-
+        Ping request details
+      type: object
+      properties:
+        endpoints:
+          description: |-
+            Array of ping requests
+          type: array
+          items:
+            $ref: '#/components/schemas/Ping'
     Ping.Response:
       description: |-
         A container for ping responses.
@@ -5802,31 +5739,40 @@ components:
           - success
           - failure
           default: failure
-    LacpMember.State:
+    Control.Patch:
       description: |-
-        Set LACP state for specified LAG Member Port(s).
+        Request for triggering action on resources in traffic generator
+      type: object
+      properties:
+        choice:
+          type: string
+          enum:
+          - flows
+        flows:
+          $ref: '#/components/schemas/Flows.Patch'
+    Flows.Patch:
+      description: |-
+        A container of flows with associated properties to be updated without affecting the flows current transmit state.
       type: object
       required:
-      - state
+      - property_names
+      - flows
       properties:
-        lag_member_port_names:
-          description: |
-            The names of LAG members (ports) for which the state has to be applied. An empty or null list will control all LAG members.
-
-            x-constraint:
-            - /components/schemas/Port/properties/name
+        property_names:
+          description: |-
+            Flow properties to be updated without affecting the transmit state.
           type: array
           items:
             type: string
-          x-constraint:
-          - /components/schemas/Port/properties/name
-        state:
+            enum:
+            - rate
+            - size
+        flows:
           description: |-
-            The LACP Member admin state. 'up' will start transmission of LACPDUs on selected member ports. 'down' will send a LACPDU with 'sync' flag unset and then stop transmission of LACPDUs on selected member ports.
-          type: string
-          enum:
-          - up
-          - down
+            The list of configured flows for which given property will be updated.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow'
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice

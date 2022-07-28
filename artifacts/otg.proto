@@ -1210,6 +1210,11 @@ message IsisBasic {
   // is described in RFC3784.
   // default = True
   optional bool enable_wide_metric = 3;
+
+  // Configuration for controlling storage of ISIS learned LSPs are received from the
+  // neighbors.
+  // default = False
+  optional bool learned_lsp_filter = 4;
 }
 
 // Contains ISIS router advanced properties.
@@ -5929,6 +5934,7 @@ message StatesRequest {
       ipv4_neighbors = 1;
       ipv6_neighbors = 2;
       bgp_prefixes = 3;
+      isis_lsp_states = 4;
     }
   }
   // Description missing in models
@@ -5943,6 +5949,9 @@ message StatesRequest {
 
   // Description missing in models
   optional BgpPrefixStateRequest bgp_prefixes = 4;
+
+  // Description missing in models
+  optional IsisLspsStateRequest isis_lsp_states = 5;
 }
 
 // Response containing chosen traffic generator states
@@ -5954,6 +5963,7 @@ message StatesResponse {
       ipv4_neighbors = 1;
       ipv6_neighbors = 2;
       bgp_prefixes = 3;
+      isis_lsp_states = 4;
     }
   }
   // Description missing in models
@@ -5968,6 +5978,9 @@ message StatesResponse {
 
   // Description missing in models
   repeated BgpPrefixesState bgp_prefixes = 4;
+
+  // Description missing in models
+  repeated IsisLspsState isis_lsp_states = 5;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -6230,6 +6243,248 @@ message ResultBgpAsPathSegment {
 
   // The AS numbers in this AS path segment.
   repeated int64 as_numbers = 2;
+}
+
+// The request to retrieve BGP peer prefix information.
+message IsisLspsStateRequest {
+
+  // The names of ISIS Routers to return results for. An empty list will return results
+  // for all ISIS router.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.IsisRouter/properties/name
+  // 
+  repeated string isis_router_names = 1;
+
+  // Specify which LSPs to return. If the list is empty or missing then all LSPs will
+  // be returned, e.g. '6400000000010000'.
+  repeated string lsp_filters = 2;
+}
+
+// ISIS LSP.
+message IsisLspsState {
+
+  // The name of a ISIS Router.
+  optional string isis_router_name = 1;
+
+  // Description missing in models
+  repeated IsisLspState lsps = 2;
+}
+
+// ISIS LSP.
+message IsisLspState {
+
+  // LSP ID of the LSP, e.g. '6400000000010000'.
+  optional string lsp_id = 1;
+
+  message PduType {
+    enum Enum {
+      unspecified = 0;
+      level_1 = 1;
+      level_2 = 2;
+    }
+  }
+  // Link State PDU type.
+  optional PduType.Enum pdu_type = 2;
+
+  // Remaining lifetime in seconds before the LSP expiration.
+  optional int64 remaining_lifetime = 3;
+
+  // Sequence number of the LSP.
+  optional int64 sequence_number = 4;
+
+  // Total length of the LSP.
+  optional int32 pdu_length = 5;
+
+  // LSP Type-Block flags.
+  optional IsisLspFlags flags = 6;
+
+  // Type of neighboring system.
+  optional int32 is_type = 7;
+
+  // This container defines TLV 137.
+  optional string hostname = 8;
+
+  // This container describes list of ISIS neighbors and attributes.
+  optional IsisLspIsReachability is_reachability = 9;
+
+  // This container describes list of ISIS neighbors and attributes.
+  optional IsisLspExtendedIsReachability extended_is_reachability = 10;
+
+  // This container defines list of IPv4 internal reachability information.
+  // This is advertised when the origin-type is set 'internal' in route range configurations
+  optional IsisLspIpv4InternalReachability ipv4_internal_reachability = 11;
+
+  // This container defines list of IPv4 external reachability information.
+  // This is advertised when the origin-type is set 'external' in route range configurations
+  optional IsisLspIpv4ExternalReachability ipv4_external_reachability = 12;
+
+  // This container defines list of IPv4 extended reachability information.
+  // It is advertised when the 'wide metric' is enabled.
+  optional IsisLspExtendedIpv4Reachability extended_ipv4_reachability = 13;
+
+  // This container defines list of IPv6 reachability information.
+  optional IsisLspIpv6Reachability ipv6_reachability = 14;
+}
+
+// LSP Type flags.
+message IsisLspFlags {
+
+  // When set, the originator supports partition repair.
+  optional bool partition_repair = 1;
+
+  // When set, the originator is attached to another area using the referred metric.
+  optional bool attached_error = 2;
+
+  // When set, the originator is attached to another
+  // area using the referred metric.
+  optional bool attached_expense = 3;
+
+  // When set, the originator is attached to another
+  // area using the referred metric.
+  optional bool attached_delay = 4;
+
+  // When set, the originator is attached to another
+  // area using the referred metric.
+  optional bool attached_default = 5;
+
+  // When set, the originator is overloaded, and must
+  // be avoided in path calculation.
+  optional bool overload = 6;
+}
+
+// This container describes list of ISIS neighbors and attributes.
+message IsisLspIsReachability {
+
+  // This container describes IS neighbors.
+  repeated IsisLspneighbor neighbors = 1;
+}
+
+// This container describes list of ISIS neighbors and attributes.
+message IsisLspExtendedIsReachability {
+
+  // This container describes IS neighbors.
+  repeated IsisLspneighbor neighbors = 1;
+}
+
+// This container describes IS neighbors.
+message IsisLspneighbor {
+
+  // The System ID for this emulated ISIS router, e.g. 640100010000.
+  optional string system_id = 1;
+}
+
+// This container defines list of IPv4 internal reachability information.
+message IsisLspIpv4InternalReachability {
+
+  // This container describes IS neighbors.
+  repeated IsisLspV4Prefix prefixes = 1;
+}
+
+// This container defines list of IPv4 external reachability information.
+message IsisLspIpv4ExternalReachability {
+
+  // This container describes IS neighbors.
+  repeated IsisLspV4Prefix prefixes = 1;
+}
+
+// This group defines attributes of an IPv4 standard prefix.
+message IsisLspV4Prefix {
+
+  // An IPv4 address.
+  optional string ipv4_address = 1;
+
+  message RedistributionType {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Up (0)-used when a prefix is initially advertised within the ISIS L3 hierarchy,
+  // and for all other prefixes in L1 and L2 LSPs. (default)
+  // Down (1)-used when an L1/L2 router advertises L2 prefixes in L1 LSPs.
+  // The prefixes are being advertised from a higher level (L2) down to a lower level
+  // (L1).
+  optional RedistributionType.Enum redistribution_type = 2;
+}
+
+// This container defines list of IPv4 extended reachability information.
+message IsisLspExtendedIpv4Reachability {
+
+  // IPv4 prefix contained within extended reachability TLVs.
+  repeated IsisLspExtendedV4Prefix prefixes = 1;
+}
+
+// This group defines attributes of an IPv4 standard prefix.
+message IsisLspExtendedV4Prefix {
+
+  // An IPv4 unicast address
+  optional string ipv4_address = 1;
+
+  message RedistributionType {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Up (0)-used when a prefix is initially advertised within the ISIS L3 hierarchy,
+  // and for all other prefixes in L1 and L2 LSPs. (default)
+  // Down (1)-used when an L1/L2 router advertises L2 prefixes in L1 LSPs.
+  // The prefixes are being advertised from a higher level (L2) down to a lower level
+  // (L1).
+  optional RedistributionType.Enum redistribution_type = 2;
+
+  // ISIS wide metric.
+  optional int32 metric = 3;
+
+  // The Sub-TLV present bit. If UNSET, the octets of Sub-TLVs
+  // are not present. Otherwise, the bit is set and the octet
+  // following the prefix will contain the length of the Sub-TLV
+  // portion of the structure.
+  optional bool s_bit = 4;
+}
+
+// This container defines list of IPv6 extended reachability information.
+message IsisLspIpv6Reachability {
+
+  // IPv6 prefix contained within reachability TLVs.
+  repeated IsisLspV6Prefix prefixes = 1;
+}
+
+// This group defines attributes of an IPv6 standard prefix.
+message IsisLspV6Prefix {
+
+  // An IPv6 address
+  optional string ipv4_address = 1;
+
+  message RedistributionType {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Up (0)-used when a prefix is initially advertised within the ISIS L3 hierarchy,
+  // and for all other prefixes in L1 and L2 LSPs. (default)
+  // Down (1)-used when an L1/L2 router advertises L2 prefixes in L1 LSPs.
+  // The prefixes are being advertised from a higher level (L2) down to a lower level
+  // (L1).
+  optional RedistributionType.Enum redistribution_type = 2;
+
+  // The external bit. Set when the prefix was distributed into
+  // IS-IS from another routing protocol.
+  optional bool x_bit = 3;
+
+  // The Sub-TLV present bit. If UNSET, the octets of Sub-TLVs
+  // are not present. Otherwise, the bit is set and the octet
+  // following the prefix will contain the length of the Sub-TLV
+  // portion of the structure.
+  optional bool s_bit = 4;
+
+  // ISIS wide metric.
+  optional int32 metric = 5;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the

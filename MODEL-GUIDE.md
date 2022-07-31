@@ -13,6 +13,7 @@ This document describes the philosophy and the best practices to be followed whi
   * [Keyword Limitations](#keyword-limitations)
   * [Keyword Extensions](#keyword-extensions)
   * [Descriptions](#descriptions)
+  * [Field UID](#Field-UID)
 * [Pull Requests](#pull-requests)
 
 ## Philosophy
@@ -313,6 +314,95 @@ The build script will enforce the following keyword conventions:
   * For description of `session_flap_count` in bgpv4 metrics response:
     * _"Number of times `session_state` changed from `up` to `down`"_ instead of
     * _"Number of times the session went from Up to Down state"_
+
+### Field-UID
+
+  Filed unique identification (UID) are necessary to defined model. Please go through these use cases
+* Add a new property in an object 
+  * Add `x-field-uid` for all properties
+  * `x-field-uid` never change in entire cycle.
+  * It should be unique
+  * Number range should follow protobuff [Assigning Field Numbers](https://developers.google.com/protocol-buffers/docs/proto3#assigning_field_numbers)
+```yaml
+components:
+  schemas:  
+    Prefix.Config:
+      properties:
+        ieee_802_1qbb:
+          type: boolean
+          x-field-uid: 1
+```
+* Removing a property from an object
+  * User never use that number
+  * That number should include within existing or new `x-reserved-field-uids`
+  * e.g: `x-field-uid` with value `1` removed
+```yaml
+components:
+  schemas:  
+    Prefix.Config:
+      x-reserved-field-uids: [1]
+      properties:
+        full_duplex_100_mb:
+          type: integer
+          x-field-uid: 2
+```
+* Adding enum value
+  * enum should replace with `x-enum`. 
+  * We will populate enum at the time of bundling. So, it will follow OpenAPI standard.
+  * `x-enum` remain within final yaml file to generate unique proto uid.
+```yaml
+components:
+  schemas:  
+    Prefix.Config:
+      properties:
+        d_values:
+          type: array
+          items:
+            type: string
+            x-enum:
+              a:
+                x-field-uid: 1
+              b:
+                x-field-uid: 2
+              c:
+                x-field-uid: 3
+          x-field-uid: 10
+```
+* Removing enum value
+  * User never use that number
+  * That `x-field-uid` should include within existing or new `x-reserved-field-uids`
+```yaml
+components:
+  schemas:  
+    Prefix.Config:
+      properties:
+        d_values:
+          type: array
+          x-reserved-field-uids: [2]          
+          items:
+            type: string            
+            x-enum:
+              a:
+                x-field-uid: 1
+              c:
+                x-field-uid: 3
+          x-field-uid: 10
+```
+* Include existing object
+  * Model will use `x-include` to include only the name of the property
+  * Use same properties name referred by `x-include`
+  * All the characteristics within that property should inherit except `x-field-uid`
+```yaml
+components:
+  schemas:
+    Prefix.Config:
+      properties:
+        name:
+          x-include: '..#/components/schemas/GlobalObject/properties/name'
+          x-field-uid: 1
+```
+* Adding and Removing of responses should same as properties
+  * `x-field-uid`, `x-include` and `x-reserved-field-uids` also applicable for responses
 
 ## Pull Requests
 

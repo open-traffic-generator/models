@@ -13,7 +13,6 @@ This document describes the philosophy and the best practices to be followed whi
   * [Keyword Limitations](#keyword-limitations)
   * [Keyword Extensions](#keyword-extensions)
   * [Descriptions](#descriptions)
-  * [Field UID](#Field-UID)
 * [Pull Requests](#pull-requests)
 
 ## Philosophy
@@ -145,9 +144,10 @@ The build script will enforce the following keyword conventions:
   ```
 
 * `x-include`
-  * For object composition use the `x-include` keyword to merge schema objects into other schema objects instead of using the allOf keyword.
+  * For object composition use the `x-include` keyword to merge property objects field into other property objects field of using the allOf keyword.
   * Tooling does not handle the `allOf` keyword correctly in all cases and this allows the [bundler](https://github.com/open-traffic-generator/openapiart) to generate a lowest common denominator file.
   * The bundler will correctly merge the `x-include` and drop the `x-include` keyword from the merged object.
+  * Same property name must be use in `x-include`
   * The `x-include` value follows the same notation as the $ref.
 
   ```yaml
@@ -165,11 +165,12 @@ The build script will enforce the following keyword conventions:
         pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
 
       Composite.Object:
-        x-include: '#/components/schemas/Named.Object'
         description: >
           This object will include all the items of the Named.Object in
           addition to its own properties
         properties:
+          name:
+            x-include: '#/components/schemas/Named.Object/properties/name'
           sample:
             type: string
   ```
@@ -302,6 +303,79 @@ The build script will enforce the following keyword conventions:
         value: 0.0.0.0
     ```
 
+* x-field-uid
+
+  * Field Unique Identifiers (UIDs) are required for every property/enum/included object.  
+  * They need to be unique (within the object), and once assigned can never be changed/re-used, even if the field itself is deprecated and eventually removed.  
+  * They are required for maintaining protobuff backwards compatibility.  
+  * Should follow protobuff [Assigning Field Numbers](https://developers.google.com/protocol-buffers/docs/proto3#assigning_field_numbers) conventions.
+
+  * Use-Case : Adding a New Property to an Existing Object
+    * Adding a new property 'peer_name' to an existing object.
+    * `x-field-uid` must be added with different value (e.g. 2)
+
+    <img src="images/use_case_1.PNG" alt="drawing" width="500"/>
+
+  * Use-Case : Adding an enum value
+    * enum must be replaced with `x-enum` 
+    * Adding a new enum `fiber` to the existing property field (`media`)
+    * `x-field-uid` must be added with different value (e.g. 2)
+    * The bundler will populate `enum` at the time of bundling. So, it will follow OpenAPI standard. 
+    * `x-enum` remain within final yaml file to generate unique proto uid.
+
+    <img src="images/use_case_2.PNG" alt="drawing" width="500"/>
+
+  * Use-Case : Including a Pre-Existing Object
+    * `x-include` to include only the field of the property (`..#/components/schemas/GlobalObject/properties/name`)
+    * Same property name (`uniquename`) must be used for both base and derived property. 
+    * The bundler will correctly merge the `x-include` (e.g. `type` and `pattern`) and drop the `x-include` keyword from the merged object.
+    * At the time of merge it will not include base `x-field-uid` `x-field-uid: 2` should present in the derived property.
+    
+    <img src="images/use_case_3.PNG" alt="drawing" width="500"/>
+
+  * Use-Case : Deprecating a Property 
+    * Model should maintain `x-field-uid: 1` when property will deprecate 
+    * `x-status` must be added with status deprecated
+
+    <img src="images/use_case_4.PNG" alt="drawing" width="500"/>
+
+  * Use-Case : Removing a Property
+    * User must never use the numbers added in `x-reserved-field-uids` again.
+    * That `x-field-uid` number should include within existing or new `x-reserved-field-uids`
+    * Try to remove `ieee_802_1qbb` which have `x-field-uid: 1`. That number must be included within `x-reserved-field-uids: [1]`
+
+    <img src="images/use_case_5.PNG" alt="drawing" width="500"/>
+
+  * Use-Case : Removing an enum value
+    * User must never use the numbers added in `x-reserved-field-uids` again.
+    * That `x-field-uid` number should include within existing or new `x-reserved-field-uids`
+    * Removing property `b` which have `x-field-uid: 2`. That number must be included within `x-reserved-field-uids: [2]`
+  
+    <img src="images/use_case_6.PNG" alt="drawing" width="500"/>
+
+  * Use-Case : Removing a Pre-Existing Object
+    * Remove the exiting 'Prefix.Config' object.
+    * All the properties and field within that object must be removed.
+
+    <img src="images/use_case_7.PNG" alt="drawing" width="500"/>
+
+  * Use-Case : Adding / Removing a Response Field 
+    * Adding a new response `400` in the exiting responses. New unique `x-field-uid: 3` is assigned.
+    * User must not use the field UID present within `x-reserved-field-uids: [2]`
+    * That reserved field UID (e.g. 2) used by other property which was removed.
+
+    <img src="images/use_case_8.PNG" alt="drawing" width="500"/>
+
+  * x-reserved-field-uids
+
+    * When a property/response is removed, the `x-field-uid` assigned to that property/response is included in the list of `x-reserved-field-uids` so that those values are never ever re-used.
+    * Use-Case : Removing a Property
+      * User must never use the numbers added in `x-reserved-field-uids` again.
+      * That `x-field-uid` number should include within existing or new `x-reserved-field-uids`
+      * Try to remove `ieee_802_1qbb` which have `x-field-uid: 1`. That number must be included within `x-reserved-field-uids: [1]`
+
+      <img src="images/use_case_5.PNG" alt="drawing" width="500"/>
+    
 ### Descriptions
 
 * Well-written descriptions are a MUST!
@@ -315,94 +389,6 @@ The build script will enforce the following keyword conventions:
     * _"Number of times `session_state` changed from `up` to `down`"_ instead of
     * _"Number of times the session went from Up to Down state"_
 
-### Field-UID
-
-  Filed unique identification (UID) are necessary to defined model. Please go through these use cases
-* Add a new property in an object 
-  * Add `x-field-uid` for all properties
-  * `x-field-uid` never change in entire cycle.
-  * It should be unique
-  * Number range should follow protobuff [Assigning Field Numbers](https://developers.google.com/protocol-buffers/docs/proto3#assigning_field_numbers)
-```yaml
-components:
-  schemas:  
-    Prefix.Config:
-      properties:
-        ieee_802_1qbb:
-          type: boolean
-          x-field-uid: 1
-```
-* Removing a property from an object
-  * User never use that number
-  * That number should include within existing or new `x-reserved-field-uids`
-  * e.g: `x-field-uid` with value `1` removed
-```yaml
-components:
-  schemas:  
-    Prefix.Config:
-      x-reserved-field-uids: [1]
-      properties:
-        full_duplex_100_mb:
-          type: integer
-          x-field-uid: 2
-```
-* Adding enum value
-  * enum should replace with `x-enum`. 
-  * We will populate enum at the time of bundling. So, it will follow OpenAPI standard.
-  * `x-enum` remain within final yaml file to generate unique proto uid.
-```yaml
-components:
-  schemas:  
-    Prefix.Config:
-      properties:
-        d_values:
-          type: array
-          items:
-            type: string
-            x-enum:
-              a:
-                x-field-uid: 1
-              b:
-                x-field-uid: 2
-              c:
-                x-field-uid: 3
-          x-field-uid: 10
-```
-* Removing enum value
-  * User never use that number
-  * That `x-field-uid` should include within existing or new `x-reserved-field-uids`
-```yaml
-components:
-  schemas:  
-    Prefix.Config:
-      properties:
-        d_values:
-          type: array
-          x-reserved-field-uids: [2]          
-          items:
-            type: string            
-            x-enum:
-              a:
-                x-field-uid: 1
-              c:
-                x-field-uid: 3
-          x-field-uid: 10
-```
-* Include existing object
-  * Model will use `x-include` to include only the name of the property
-  * Use same properties name referred by `x-include`
-  * All the characteristics within that property should inherit except `x-field-uid`
-```yaml
-components:
-  schemas:
-    Prefix.Config:
-      properties:
-        name:
-          x-include: '..#/components/schemas/GlobalObject/properties/name'
-          x-field-uid: 1
-```
-* Adding and Removing of responses should same as properties
-  * `x-field-uid`, `x-include` and `x-reserved-field-uids` also applicable for responses
 
 ## Pull Requests
 

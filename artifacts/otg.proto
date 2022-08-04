@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 0.8.4
+/* Open Traffic Generator API 0.8.6
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -4356,7 +4356,8 @@ message FlowIgmpv1 {
   optional PatternFlowIgmpv1GroupAddress group_address = 5;
 }
 
-// Mpls packet header
+// MPLS packet header; When configuring multiple such headers, the count shall not exceed
+// 20.
 message FlowMpls {
 
   // Description missing in models
@@ -6169,7 +6170,7 @@ message BgpPrefixIpv4UnicastState {
   optional string ipv6_next_hop = 6;
 
   // Optional community attributes.
-  repeated BgpCommunity communities = 7;
+  repeated ResultBgpCommunity communities = 7;
 
   // Description missing in models
   optional ResultBgpAsPath as_path = 8;
@@ -6205,10 +6206,37 @@ message BgpPrefixIpv6UnicastState {
   optional string ipv6_next_hop = 6;
 
   // Optional community attributes.
-  repeated BgpCommunity communities = 7;
+  repeated ResultBgpCommunity communities = 7;
 
   // Description missing in models
   optional ResultBgpAsPath as_path = 8;
+}
+
+// BGP communities provide additional capability for tagging routes and  for modifying
+// BGP routing policy on upstream and downstream routers. BGP community is a 32-bit
+// number which is broken into 16-bit AS number and  a 16-bit custom value.
+message ResultBgpCommunity {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      manual_as_number = 1;
+      no_export = 2;
+      no_advertised = 3;
+      no_export_subconfed = 4;
+      llgr_stale = 5;
+      no_llgr = 6;
+    }
+  }
+  // The type of community AS number. If community type is manual_as_number then as_number
+  // and as_custom will be available.
+  optional Type.Enum type = 1;
+
+  // First two octets of 32 bit community AS number.
+  optional int32 as_number = 2;
+
+  // Last two octets of the community value.
+  optional int32 as_custom = 3;
 }
 
 // This attribute identifies the autonomous systems through  which routing information
@@ -13947,12 +13975,13 @@ message PatternFlowMplsBottomOfStack {
       unspecified = 0;
       value = 1;
       values = 2;
-      increment = 3;
-      decrement = 4;
+      auto = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -13963,17 +13992,23 @@ message PatternFlowMplsBottomOfStack {
   // default = [1]
   repeated int32 values = 3;
 
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 1
+  optional int32 auto = 4;
+
   // A unique name is used to indicate to the system that the field may extend the metric
   // row key and create an aggregate metric row for every unique value. To have metric
   // group columns appear in the flow metric rows the flow metric request allows for the
   // metric_group value to be specified as part of the request.
-  optional string metric_group = 4;
+  optional string metric_group = 5;
 
   // Description missing in models
-  optional PatternFlowMplsBottomOfStackCounter increment = 5;
+  optional PatternFlowMplsBottomOfStackCounter increment = 6;
 
   // Description missing in models
-  optional PatternFlowMplsBottomOfStackCounter decrement = 6;
+  optional PatternFlowMplsBottomOfStackCounter decrement = 7;
 }
 
 // integer counter pattern

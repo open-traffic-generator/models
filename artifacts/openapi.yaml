@@ -464,6 +464,8 @@ components:
           $ref: '#/components/schemas/Lag.Port.Lacp'
         ethernet:
           $ref: '#/components/schemas/Device.EthernetBase'
+        lldp:
+          $ref: '#/components/schemas/Device.Lldp'
     Lag.Protocol:
       type: object
       properties:
@@ -853,6 +855,42 @@ components:
           type: string
           format: ipv6
           default: ::0
+        name:
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+    Device.Lldp:
+      description: |-
+        Configuration for one or more LLDP neighbors.
+      type: object
+      required:
+      - eth_name
+      - name
+      properties:
+        eth_name:
+          description: |
+            The unique name of the Ethernet interface on which LLDP is running. Two LLDP devices cannot share the same Ethernet.
+
+            x-constraint:
+            - /components/schemas/Device.Ethernet/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+        hold_time:
+          description: |-
+            Specifies the amount of time a receiving device should maintain LLDP information sent  by the device before discarding it.
+          type: integer
+          minimum: 10
+          maximum: 65535
+          default: 120
+        advertisement_interval:
+          description: |-
+            Set the transmission frequency of LLDP updates in seconds.
+          type: integer
+          minimum: 5
+          maximum: 65534
+          default: 30
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -1287,6 +1325,10 @@ components:
           description: |-
             Configuration of VXLAN tunnel interfaces RFC Ref: https://datatracker.ietf.org/doc/html/rfc7348
           $ref: '#/components/schemas/Device.Vxlan'
+        lldp:
+          description: |-
+            Configuration of LLDP protocol IEEE Ref: https://www.ieee802.org/1/files/public/docs2002/lldp-protocol-00.pdf
+          $ref: '#/components/schemas/Device.Lldp'
         name:
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
@@ -5842,6 +5884,7 @@ components:
           - isis
           - lag
           - lacp_lag_member
+          - lldp
           default: port
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
@@ -5857,6 +5900,8 @@ components:
           $ref: '#/components/schemas/Lag.Metrics.Request'
         lacp_lag_member:
           $ref: '#/components/schemas/LacpLagMember.Metrics.Request'
+        lldp:
+          $ref: '#/components/schemas/Lldp.Metrics.Request'
     Metrics.Response:
       description: |-
         Response containing chosen traffic generator metrics
@@ -5872,6 +5917,7 @@ components:
           - isis_metrics
           - lag_metrics
           - lacp_lag_member_metrics
+          - lldp_metrics
           default: port_metrics
         port_metrics:
           type: array
@@ -5901,6 +5947,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LacpLagMember.Metric'
+        lldp_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lldp.Metric'
     Port.Metrics.Request:
       description: |-
         The port result request to the traffic generator
@@ -6807,6 +6857,87 @@ components:
             Port number of the partner (remote) port for this member port.
           type: integer
           format: int32
+    Lldp.Metrics.Request:
+      description: |-
+        The request to retrieve LLDP per interface metrics/statistics.
+      type: object
+      properties:
+        lldp_names:
+          description: |
+            The names of LLDP interfaces to return results for. An empty list will return results for all LLDP interfaces.
+
+            x-constraint:
+            - /components/schemas/Device.Lldp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Lldp/properties/name
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned. The name of LLDP interface can not be excluded.
+          type: array
+          items:
+            type: string
+            enum:
+            - frames_in
+            - frames_out
+            - frames_error_in
+            - frames_discard
+            - tlvs_discard
+            - tlvs_unknown
+            - frames_error_out
+    Lldp.Metric:
+      description: |-
+        LLDP per interface statistics information.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of a configured LLDP interface.
+          type: string
+        frames_in:
+          description: |-
+            Number of LLDP frames received.
+          type: integer
+          format: int64
+          minimum: 0
+        frames_out:
+          description: |-
+            Number of LLDP frames transmitted.
+          type: integer
+          format: int64
+          minimum: 0
+        frames_error_in:
+          description: |-
+            Number of LLDP frames received with packet errors.
+          type: integer
+          format: int64
+          minimum: 0
+        frames_discard:
+          description: |-
+            Number of LLDP frames received that are discarded.
+          type: integer
+          format: int64
+          minimum: 0
+        tlvs_discard:
+          description: |-
+            Number of LLDP tlvs received that are discarded.
+          type: integer
+          format: int64
+          minimum: 0
+        tlvs_unknown:
+          description: |-
+            Number of LLDP unknown tlvs received.
+          type: integer
+          format: int64
+          minimum: 0
+        frames_error_out:
+          description: |-
+            Number of LLDP frames transmitted with packet errors
+          type: integer
+          format: int64
+          minimum: 0
     States.Request:
       description: |-
         Request to traffic generator for states of choice

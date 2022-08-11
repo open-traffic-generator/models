@@ -121,6 +121,9 @@ message LagPort {
   // Description missing in models
   // required = true
   DeviceEthernetBase ethernet = 3;
+
+  // Description missing in models
+  optional DeviceLldp lldp = 4;
 }
 
 // Description missing in models
@@ -421,6 +424,33 @@ message DeviceIpv6Loopback {
   // objects.
   // required = true
   string name = 3;
+}
+
+// Configuration for one or more LLDP neighbors.
+message DeviceLldp {
+
+  // The unique name of the Ethernet interface on which LLDP is running. Two LLDP devices
+  // cannot share the same Ethernet.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  // required = true
+  string eth_name = 1;
+
+  // Specifies the amount of time a receiving device should maintain LLDP information
+  // sent  by the device before discarding it.
+  // default = 120
+  optional int32 hold_time = 2;
+
+  // Set the transmission frequency of LLDP updates in seconds.
+  // default = 30
+  optional int32 advertisement_interval = 3;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  string name = 4;
 }
 
 // A container for layer1 settings.
@@ -864,10 +894,13 @@ message Device {
   // Configuration of VXLAN tunnel interfaces RFC Ref: https://datatracker.ietf.org/doc/html/rfc7348
   optional DeviceVxlan vxlan = 6;
 
+  // Configuration of LLDP protocol IEEE Ref: https://www.ieee802.org/1/files/public/docs2002/lldp-protocol-00.pdf
+  optional DeviceLldp lldp = 7;
+
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  string name = 7;
+  string name = 8;
 }
 
 // Status: under-review
@@ -5076,6 +5109,7 @@ message MetricsRequest {
       isis = 5;
       lag = 6;
       lacp_lag_member = 7;
+      lldp = 8;
     }
   }
   // Description missing in models
@@ -5102,6 +5136,9 @@ message MetricsRequest {
 
   // Description missing in models
   optional LacpLagMemberMetricsRequest lacp_lag_member = 8;
+
+  // Description missing in models
+  optional LldpMetricsRequest lldp = 9;
 }
 
 // Response containing chosen traffic generator metrics
@@ -5117,6 +5154,7 @@ message MetricsResponse {
       isis_metrics = 5;
       lag_metrics = 6;
       lacp_lag_member_metrics = 7;
+      lldp_metrics = 8;
     }
   }
   // Description missing in models
@@ -5143,6 +5181,9 @@ message MetricsResponse {
 
   // Description missing in models
   repeated LacpLagMemberMetric lacp_lag_member_metrics = 8;
+
+  // Description missing in models
+  repeated LldpMetric lldp_metrics = 9;
 }
 
 // The port result request to the traffic generator
@@ -5919,6 +5960,62 @@ message LacpLagMemberMetric {
 
   // Port number of the partner (remote) port for this member port.
   optional int32 partner_port_num = 17;
+}
+
+// The request to retrieve LLDP per interface metrics/statistics.
+message LldpMetricsRequest {
+
+  // The names of LLDP interfaces to return results for. An empty list will return results
+  // for all LLDP interfaces.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Lldp/properties/name
+  // 
+  repeated string lldp_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      frames_in = 1;
+      frames_out = 2;
+      frames_error_in = 3;
+      frames_discard = 4;
+      tlvs_discard = 5;
+      tlvs_unknown = 6;
+      frames_error_out = 7;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned. The name of LLDP interface can not be excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// LLDP per interface statistics information.
+message LldpMetric {
+
+  // The name of a configured LLDP interface.
+  optional string name = 1;
+
+  // Number of LLDP frames received.
+  optional int64 frames_in = 2;
+
+  // Number of LLDP frames transmitted.
+  optional int64 frames_out = 3;
+
+  // Number of LLDP frames received with packet errors.
+  optional int64 frames_error_in = 4;
+
+  // Number of LLDP frames received that are discarded.
+  optional int64 frames_discard = 5;
+
+  // Number of LLDP tlvs received that are discarded.
+  optional int64 tlvs_discard = 6;
+
+  // Number of LLDP unknown tlvs received.
+  optional int64 tlvs_unknown = 7;
+
+  // Number of LLDP frames transmitted with packet errors
+  optional int64 frames_error_out = 8;
 }
 
 // Request to traffic generator for states of choice

@@ -364,7 +364,7 @@ The build script will enforce the following keyword conventions:
     * The bundler will correctly merge the `x-include` (e.g. `type` and `pattern`) and drop the `x-include` keyword from the merged object.
     * At the time of merge it will not include base `x-field-uid` `x-field-uid: 2` should present in the derived property.
     
-    <img src="images/use_case_3.PNG" alt="drawing" width="800"/>
+    <img src="images/use_case_3.PNG" alt="drawing" width="900"/>
 
   * Use-Case : Deprecating a Property 
     * Model should maintain `x-field-uid: 1` when property will deprecate 
@@ -380,11 +380,18 @@ The build script will enforce the following keyword conventions:
 
     <img src="images/use_case_5.PNG" alt="drawing" width="700"/>
 
+  * Use-Case : Deprecating an enum value
+    * Model should maintain `x-field-uid: 1` when property will deprecate 
+    * `x-status` must be added with status deprecated
+  
+<img src="images/use_case_5a.PNG" alt="drawing" width="700"/>
+
   * Use-Case : Removing an enum value
+    * Enum must be in deprecated state. Any active enum can not remove without deprecation.
     * User must never use the numbers added in `x-reserved-field-uids` again.
     * That `x-field-uid` number must be included within existing or new `x-reserved-field-uids`
     * Removing property `b` which has `x-field-uid: 2`. That number must be included within `x-reserved-field-uids: [2]`
-  
+    
     <img src="images/use_case_6.PNG" alt="drawing" width="700"/>
 
   * Use-Case : Removing a Pre-Existing Object
@@ -398,7 +405,7 @@ The build script will enforce the following keyword conventions:
     * User must not use the field UID present within `x-reserved-field-uids: [2]`
     * That reserved field UID (e.g. 2) used by other property which was removed.
 
-    <img src="images/use_case_8.PNG" alt="drawing" width="800"/>
+    <img src="images/use_case_8.PNG" alt="drawing" width="900"/>
     
 ### Descriptions
 

@@ -58,7 +58,7 @@ This document describes the philosophy and the best practices to be followed whi
 
 * `property names` MUST be snake_case.
 * `schema object names` MUST be PascalCase (upper camel case).
-* `enum names` MUST be lowercase with underscores at natural word breaks.  Valid characters are `^[a-z0-9_]+$`.  Enum names MUST start with an alphabetic character.
+* `x-enum names` MUST be lowercase with underscores at natural word breaks.  Valid characters are `^[a-z0-9_]+$`.  x-enum names MUST start with an alphabetic character.
   * VALID: one_hundred_gbps
   * INVALID: 100_gpbs
 * `namespaces` MUST be PascalCase (upper camel case) and use a `.` separator
@@ -91,7 +91,13 @@ The build script will enforce the following keyword conventions:
         properties:
           choice:
             type: string
-            enum: [a, b, c]
+            x-enum: 
+              a:
+                x-field-uid: 1
+              b:
+                x-field-uid: 2
+              c:
+                x-field-uid: 3
             default: a
           a:
             $ref: '#/components/schemas/Choice.A'
@@ -136,7 +142,15 @@ The build script will enforce the following keyword conventions:
                   - `under-review` indicates that the object or property is subject
                   to change at any time.
                 type: string
-                enum: [current, deprecated, obsolete, under_review]
+                x-enum: 
+                  current:
+                    x-field-uid: 1
+                  deprecated:
+                    x-field-uid: 2
+                  obsolete:
+                    x-field-uid: 3
+                  under_review:
+                    x-field-uid: 4
                 default: current
               additional_information:
                 type: string
@@ -208,12 +222,17 @@ The build script will enforce the following keyword conventions:
         description: >-
           Controls the shape of the generated schema object.
         type: string
-        enum:
-        - mac
-        - ipv4
-        - ipv6
-        - integer
-        - checksum
+        x-enum:
+          mac:
+            x-field-uid: 1
+          ipv4:
+            x-field-uid: 2
+          ipv6:
+            x-field-uid: 3
+          integer:
+            x-field-uid: 4
+          checksum:
+            x-field-uid: 5
     length:
       description: >-
         The length of integer values in bits.
@@ -232,7 +251,13 @@ The build script will enforce the following keyword conventions:
         the bounds of the length property.
     features:
       type: string
-      enum: [count, auto, metric_group]
+      x-enum:
+        count:
+          x-field-uid: 1
+        auto:
+          x-field-uid: 2
+        metric_group:
+          x-field-uid: 3
       description: >-
         count:
         Used to specify whether or not a count property is included in the
@@ -276,7 +301,15 @@ The build script will enforce the following keyword conventions:
       properties:
         choice:
           type: string
-          enum: [value, values, increment, decrement]
+          enum:
+            value:
+              x-field-uid: 1
+            values:
+              x-field-uid: 2
+            increment:
+              x-field-uid: 3
+            decrement:
+              x-field-uid: 4
           default: value
         value:
           type: string
@@ -314,16 +347,16 @@ The build script will enforce the following keyword conventions:
     * Adding a new property 'peer_name' to an existing object.
     * `x-field-uid` must be added with different value (e.g. 2)
 
-    <img src="images/use_case_1.PNG" alt="drawing" width="500"/>
+    <img src="images/use_case_1.PNG" alt="drawing" width="700"/>
 
   * Use-Case : Adding an enum value
     * enum must be replaced with `x-enum` 
     * Adding a new enum `fiber` to the existing property field (`media`)
     * `x-field-uid` must be added with different value (e.g. 2)
     * The bundler will populate `enum` at the time of bundling. So, it will follow OpenAPI standard. 
-    * `x-enum` remain within final yaml file to generate unique proto uid.
+    * `x-enum` will remain within final yaml file to generate unique proto uid.
 
-    <img src="images/use_case_2.PNG" alt="drawing" width="500"/>
+    <img src="images/use_case_2.PNG" alt="drawing" width="700"/>
 
   * Use-Case : Including a Pre-Existing Object
     * `x-include` to include only the field of the property (`..#/components/schemas/GlobalObject/properties/name`)
@@ -331,50 +364,41 @@ The build script will enforce the following keyword conventions:
     * The bundler will correctly merge the `x-include` (e.g. `type` and `pattern`) and drop the `x-include` keyword from the merged object.
     * At the time of merge it will not include base `x-field-uid` `x-field-uid: 2` should present in the derived property.
     
-    <img src="images/use_case_3.PNG" alt="drawing" width="500"/>
+    <img src="images/use_case_3.PNG" alt="drawing" width="800"/>
 
   * Use-Case : Deprecating a Property 
     * Model should maintain `x-field-uid: 1` when property will deprecate 
     * `x-status` must be added with status deprecated
 
-    <img src="images/use_case_4.PNG" alt="drawing" width="500"/>
+    <img src="images/use_case_4.PNG" alt="drawing" width="700"/>
 
   * Use-Case : Removing a Property
-    * User must never use the numbers added in `x-reserved-field-uids` again.
-    * That `x-field-uid` number should include within existing or new `x-reserved-field-uids`
-    * Try to remove `ieee_802_1qbb` which have `x-field-uid: 1`. That number must be included within `x-reserved-field-uids: [1]`
+    * Property must be in deprecated state. Any active property can not remove without deprecation. 
+    * User never use the numbers added in `x-reserved-field-uids` again.
+    * That `x-field-uid` number must be within existing or new `x-reserved-field-uids`
+    * To remove `ieee_802_1qbb` which has `x-field-uid: 1`. That number must be included within `x-reserved-field-uids: [1]`
 
-    <img src="images/use_case_5.PNG" alt="drawing" width="500"/>
+    <img src="images/use_case_5.PNG" alt="drawing" width="700"/>
 
   * Use-Case : Removing an enum value
     * User must never use the numbers added in `x-reserved-field-uids` again.
-    * That `x-field-uid` number should include within existing or new `x-reserved-field-uids`
-    * Removing property `b` which have `x-field-uid: 2`. That number must be included within `x-reserved-field-uids: [2]`
+    * That `x-field-uid` number must be included within existing or new `x-reserved-field-uids`
+    * Removing property `b` which has `x-field-uid: 2`. That number must be included within `x-reserved-field-uids: [2]`
   
-    <img src="images/use_case_6.PNG" alt="drawing" width="500"/>
+    <img src="images/use_case_6.PNG" alt="drawing" width="700"/>
 
   * Use-Case : Removing a Pre-Existing Object
     * Remove the exiting 'Prefix.Config' object.
     * All the properties and field within that object must be removed.
 
-    <img src="images/use_case_7.PNG" alt="drawing" width="500"/>
+    <img src="images/use_case_7.PNG" alt="drawing" width="700"/>
 
   * Use-Case : Adding / Removing a Response Field 
     * Adding a new response `400` in the exiting responses. New unique `x-field-uid: 3` is assigned.
     * User must not use the field UID present within `x-reserved-field-uids: [2]`
     * That reserved field UID (e.g. 2) used by other property which was removed.
 
-    <img src="images/use_case_8.PNG" alt="drawing" width="500"/>
-
-  * x-reserved-field-uids
-
-    * When a property/response is removed, the `x-field-uid` assigned to that property/response is included in the list of `x-reserved-field-uids` so that those values are never ever re-used.
-    * Use-Case : Removing a Property
-      * User must never use the numbers added in `x-reserved-field-uids` again.
-      * That `x-field-uid` number should include within existing or new `x-reserved-field-uids`
-      * Try to remove `ieee_802_1qbb` which have `x-field-uid: 1`. That number must be included within `x-reserved-field-uids: [1]`
-
-      <img src="images/use_case_5.PNG" alt="drawing" width="500"/>
+    <img src="images/use_case_8.PNG" alt="drawing" width="800"/>
     
 ### Descriptions
 

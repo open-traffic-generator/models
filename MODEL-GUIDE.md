@@ -384,7 +384,7 @@ The build script will enforce the following keyword conventions:
     * Model should maintain `x-field-uid: 1` when property will deprecate 
     * `x-status` must be added with status deprecated
   
-<img src="images/use_case_5a.PNG" alt="drawing" width="700"/>
+    <img src="images/use_case_5a.PNG" alt="drawing" width="700"/>
 
   * Use-Case : Removing an enum value
     * Enum must be in deprecated state. Any active enum can not remove without deprecation.

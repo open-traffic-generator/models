@@ -361,8 +361,8 @@ The build script will enforce the following keyword conventions:
   * Use-Case : Including a Pre-Existing Object
     * `x-include` to include only the field of the property (`..#/components/schemas/GlobalObject/properties/name`)
     * Same property name (`uniquename`) must be used for both base and derived property. 
-    * The bundler will correctly merge the `x-include` (e.g. `type` and `pattern`) and drop the `x-include` keyword from the merged object.
-    * At the time of merge it will not include base `x-field-uid` `x-field-uid: 2` should present in the derived property.
+    * The bundler will correctly merge the `x-include` and drop the `x-include` keyword from the merged object.
+    * At the time of merge, bundler will not consider `x-field-uid` of the base property.
     
     <img src="images/use_case_3.PNG" alt="drawing" width="900"/>
 

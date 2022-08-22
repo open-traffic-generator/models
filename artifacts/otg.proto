@@ -4788,6 +4788,40 @@ message ResponseWarning {
   repeated string warnings = 1;
 }
 
+// Request for patching specific attributes of resources in traffic generator
+message ConfigPatch {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      flows = 1;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional FlowsPatch flows = 2;
+}
+
+// A container of flows with associated properties to be updated without affecting their
+// transmit state.
+message FlowsPatch {
+
+  message PropertyNames {
+    enum Enum {
+      unspecified = 0;
+      rate = 1;
+      size = 2;
+    }
+  }
+  // Flow properties to be updated without affecting the transmit state.
+  repeated PropertyNames.Enum property_names = 1;
+
+  // The list of configured flows for which given property will be updated.
+  repeated Flow flows = 2;
+}
+
 // Request for setting state of resources in traffic generator
 message ControlState {
 
@@ -5110,40 +5144,6 @@ message Response {
   // Result of the ping request.
   // default = Result.Enum.failure
   optional Result.Enum result = 3;
-}
-
-// Request for patching specific attributes of resources in traffic generator
-message ControlPatch {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      flows = 1;
-    }
-  }
-  // Description missing in models
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  optional FlowsPatch flows = 2;
-}
-
-// A container of flows with associated properties to be updated without affecting their
-// transmit state.
-message FlowsPatch {
-
-  message PropertyNames {
-    enum Enum {
-      unspecified = 0;
-      rate = 1;
-      size = 2;
-    }
-  }
-  // Flow properties to be updated without affecting the transmit state.
-  repeated PropertyNames.Enum property_names = 1;
-
-  // The list of configured flows for which given property will be updated.
-  repeated Flow flows = 2;
 }
 
 // Request to traffic generator for metrics of choice
@@ -13908,6 +13908,10 @@ message InternalServerError {
 message SetConfigRequest {
   Config config = 1;
 }
+
+message PatchConfigRequest {
+  ConfigPatch config_patch = 1;
+}
 message SetConfigResponse {
   optional ResponseWarning status_code_200 = 1;
   optional ResponseError status_code_400 = 2;
@@ -13916,6 +13920,12 @@ message SetConfigResponse {
 
 message GetConfigResponse {
   optional Config status_code_200 = 1;
+  optional ResponseError status_code_400 = 2;
+  optional ResponseError status_code_500 = 3;
+}
+
+message PatchConfigResponse {
+  optional ResponseWarning status_code_200 = 1;
   optional ResponseError status_code_400 = 2;
   optional ResponseError status_code_500 = 3;
 }
@@ -13936,16 +13946,6 @@ message SetControlActionRequest {
 }
 message SetControlActionResponse {
   optional ControlActionResponse status_code_200 = 1;
-  optional ResponseError status_code_400 = 2;
-  optional ResponseError status_code_500 = 3;
-}
-
-
-message SetControlPatchRequest {
-  ControlPatch control_patch = 1;
-}
-message SetControlPatchResponse {
-  optional ResponseWarning status_code_200 = 1;
   optional ResponseError status_code_400 = 2;
   optional ResponseError status_code_500 = 3;
 }
@@ -13988,6 +13988,9 @@ service Openapi {
   rpc SetConfig(SetConfigRequest) returns (SetConfigResponse);
   // Description missing in models
   rpc GetConfig(google.protobuf.Empty) returns (GetConfigResponse);
+  // Patches specific attributes of resources configured on the traffic generator. The
+  // fetched configuration shall reflect the patches applied successfully.
+  rpc PatchConfig(PatchConfigRequest) returns (PatchConfigResponse);
   // Sets the state of resources configured on the traffic generator.
   // The Response.Warnings in the Success response is available for implementers to disclose
   // additional information about a state change including any implicit changes that are
@@ -13998,12 +14001,6 @@ service Openapi {
   // additional information about a state change including any implicit changes that are
   // outside the scope of the state change.
   rpc SetControlAction(SetControlActionRequest) returns (SetControlActionResponse);
-  // Patches specific attributes of resources configured on the traffic generator. The
-  // fetched configuration shall reflect the patches applied successfully.
-  // The Response.Warnings in the Success response is available for implementers to disclose
-  // additional information about a state change including any implicit changes that are
-  // outside the scope of the state change.
-  rpc SetControlPatch(SetControlPatchRequest) returns (SetControlPatchResponse);
   // Description missing in models
   rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
   // Description missing in models

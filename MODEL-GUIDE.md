@@ -301,7 +301,7 @@ The build script will enforce the following keyword conventions:
       properties:
         choice:
           type: string
-          enum:
+          x-enum:
             value:
               x-field-uid: 1
             values:
@@ -336,7 +336,52 @@ The build script will enforce the following keyword conventions:
         value: 0.0.0.0
     ```
 
-* x-field-uid
+* `x-enum`
+  * Model not support `enum`, `x-enum` MUST be configured instate of `enum`
+  * `x-enum names` MUST be lowercase with underscores at natural word breaks.  Valid characters are `^[a-z0-9_]+$`.  x-enum names MUST start with an alphabetic character.
+    * VALID: one_hundred_gbps
+    * INVALID: 100_gpbs
+  * `x-field-uid` must be added with different value
+  * It must be configured in key-value format. (e.g.`description: message`)
+  * The bundler will populate `enum` at the time of bundling. So, it will follow OpenAPI standard.
+  * sample property of `x-enum`
+
+    ```yaml
+    properties:
+      auth_type:
+        description: |-
+          The authentication method.
+        type: string
+        x-field-uid: 1
+        x-enum:
+          md5:
+            description: md5 authentication
+            x-field-uid: 1
+          password:
+            description: plain text authentication    
+            x-field-uid: 2
+    ```
+
+  * sample property after bundle (e.g. auto-populate `enum: [md5, password]`)
+  
+    ```yaml
+    properties:
+      auth_type:
+        description: |-
+          The authentication method.
+        type: string
+        x-field-uid: 1
+        enum: [md5, password]
+        x-enum:
+          md5:
+            description: md5 authentication
+            x-field-uid: 1
+          password:
+            description: plain text authentication    
+            x-field-uid: 2
+    ```
+
+* `x-field-uid`
 
   * Field Unique Identifiers (UIDs) are required for every property/enum/included object.  
   * They need to be unique (within the object), and once assigned can never be changed/re-used, even if the field itself is deprecated and eventually removed.  

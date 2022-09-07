@@ -31,12 +31,21 @@ components:
         name:
           x-include: ../../common/common.yaml#/components/schemas/Named.Object/properties/name
           x-field-uid: 2
+        chassis_id:
+          x-include: ./lldp.yaml#/components/schemas/Lldp.Interface/properties/chassis_id
+          x-field-uid: 3
+        port_id:
+          x-include: ./lldp.yaml#/components/schemas/Lldp.Interface/properties/port_id
+          x-field-uid: 4
+        system_name:
+          x-include: ./lldp.yaml#/components/schemas/Lldp.Interface/properties/system_name
+          x-field-uid: 5
         hold_time:
           x-include: ./lldp.yaml#/components/schemas/Lldp.Interface/properties/hold_time
-          x-field-uid: 3
+          x-field-uid: 6
         advertisement_interval:
           x-include: ./lldp.yaml#/components/schemas/Lldp.Interface/properties/advertisement_interval
-          x-field-uid: 4
+          x-field-uid: 7
 
     Lldp.Interface:
       description: >-
@@ -47,6 +56,25 @@ components:
         name:
           x-include: ../../common/common.yaml#/components/schemas/Named.Object/properties/name
           x-field-uid: 1
+        chassis_id:
+          description: >-
+            The Chassis ID is a mandatory TLV which identifies the chassis component of the endpoint identifier associated 
+            with the transmitting LLDP agent. If mac address is specified it should be in colon seperated mac address format.
+          $ref: '#/components/schemas/Lldp.Interface.ChassisIdSubType'
+          x-field-uid: 2
+        port_id:
+          description: >-
+            The Port ID is a mandatory TLV which identifies the port component of the endpoint identifier associated with 
+            the transmitting LLDP agent. If the specified port is an IEEE 802.3 Repeater port, then this TLV is optional.
+          $ref: '#/components/schemas/Lldp.Interface.PortIdSubType'
+          x-field-uid: 3
+        system_name:
+          description: >-
+            The system name field shall contain an alpha-numeric string that indicates the system's administratively assigned 
+            name. The system name should be the system's fully qualified domain name. If implementations support IETF RFC 
+            3418, the sysName object should be used for this field.
+          $ref: '#/components/schemas/Lldp.Interface.SystemName'
+          x-field-uid: 4
         hold_time:
           description: >-
             Specifies the amount of time in seconds a receiving device should maintain LLDP information sent 
@@ -55,7 +83,7 @@ components:
           minimum: 10
           maximum: 65535
           default: 120
-          x-field-uid: 2
+          x-field-uid: 5
         advertisement_interval:
           description: >-
             Set the transmission frequency of LLDP updates in seconds.
@@ -63,6 +91,158 @@ components:
           minimum: 5
           maximum: 65534
           default: 30
+          x-field-uid: 6
+
+
+    Lldp.Interface.ChassisIdSubType:
+      description: >-
+        This field identifies the format and source of the chassis identifier string. It is an enumerator 
+        defined by the LldpChassisIdSubtype object from IEEE 802.1AB MIB.
+      type: object
+      properties:
+        choice:
+          description: mac_address, interface_name or local
+          type: string
+          default: mac_address
+          x-field-uid: 1
+          x-enum:
+            mac_address:
+              x-field-uid: 1
+            interface_name:
+              x-field-uid: 2
+            local:
+              x-field-uid: 3
+        mac_address:
+          description: MAC Address of the management interface of the chassis.
+          type: string
+          x-constraint:
+          - '/components/schemas/Port/properties/Lldp.Interface.ChassisMacSubType'
+          x-field-uid: 2
+        interface_name:
+          description: Name of the management interface of the chassis.
+          type: string
           x-field-uid: 3
-   
+        local:
+          description: Locally assigned name of the chassis.
+          type: string
+          x-field-uid: 4
+
+    Lldp.Interface.PortIdSubType:
+      description: >-
+         This field identifies the format and source of the port identifier string. It is an enumerator defined by the
+            PtopoPortIdType object from RFC2922.
+      type: object
+      properties:
+        choice:
+          description: mac_address, interface_name or local
+          type: string
+          default: interface_name
+          x-field-uid: 1
+          x-enum:
+            mac_address:
+              x-field-uid: 1
+            interface_name:
+              x-field-uid: 2
+            local:
+              x-field-uid: 3
+        mac_address:
+          description: MAC Address of the interface on which LLDP is configured.
+          type: string
+          x-field-uid: 2
+        interface_name:
+          description: Name of the interface on which LLDP is configured.
+          type: string
+          x-constraint:
+          - '/components/schemas/Port/properties/Lldp.Interface.PortInterfaceNameSubType'
+          x-field-uid: 3
+        local:
+          description: Locally assigned name of the LLDP port.
+          type: string
+          x-field-uid: 4
+
+    Lldp.Interface.ChassisMacSubType:
+      description: >-
+        By default auto(use the system generated i.e the mac address of management interface) is set. 
+        Setting a value would mean LLDP would carry the value specified as chassis id. 
+      type: object
+      properties:
+        choice:
+          description: auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+        auto:
+          description: >-
+            The OTG implementation can provide a system generated value for this property.
+            If the OTG is unable to generate a value the default value must be used.
+          type: string
+          format: mac
+          default: "00:00:00:00:00:00"
+          x-field-uid: 2
+        value:
+          type: string
+          format: mac
+          default: "00:00:00:00:00:00"
+          x-field-uid: 3
+
+    Lldp.Interface.PortInterfaceNameSubType:
+      description: >-
+        By default auto(use the system generated i.e the interface name of the emulated interface if which LLDP is enabled
+        on emulated interface else the name of the port on which LLDP is enabled) is set. Setting a value would mean LLDP 
+        would carry the value specified as port id. 
+      type: object
+      properties:
+        choice:
+          description: auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+        auto:
+          description: >-
+            The OTG implementation can provide a system generated value for this property.
+            If the OTG is unable to generate a value the default value must be used.
+          type: string
+          default: "eth1"
+          x-field-uid: 2
+        value:
+          type: string
+          x-field-uid: 3
+
+    Lldp.Interface.SystemName:
+      description: >-
+        By default auto(use the system generated i.e the name of the container in container environment for LLDP running on ports, 
+        but for LLDPs running on emulated interfaces use the emulated device name). 
+      type: object
+      properties:
+        choice:
+          description: auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+        auto:
+          description: >-
+            The OTG implementation can provide a system generated value for this property.
+            If the OTG is unable to generate a value the default value must be used.
+          type: string
+          default: "Ixia-c"
+          x-field-uid: 2
+        value:
+          type: string
+          x-field-uid: 3
+
 

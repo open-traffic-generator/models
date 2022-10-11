@@ -1,11 +1,9 @@
 openapi: 3.1.0
-
 info:
   title: Control models
   description: >-
     All control schemas
   version: ^0.0.0
-
 components:
   schemas:
     Link.State:
@@ -23,15 +21,20 @@ components:
             type: string
           x-constraint:
           - '/components/schemas/Port/properties/name'
+          x-field-uid: 1
         state:
           description: >-
             The link state.
           type: string
-          enum: [up, down]
-
+          x-field-uid: 2
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
     Transmit.State:
       description: >-
-        Control the transmit state of flows.
+        Flow transmit state.
       type: object
       required: [state]
       properties:
@@ -40,17 +43,47 @@ components:
             The names of flows to which the transmit state will be applied to.
             If the list of flow_names is empty or null the state will be applied
             to all configured flows.
+
+            If the list is not empty any flow that is not included in the list
+            of flow_names MUST be ignored and not included in the state change.
           type: array
           items:
             type: string
           x-constraint:
           - '/components/schemas/Flow/properties/name'
+          x-field-uid: 1
         state:
           description: >-
             The transmit state.
-          type: string
-          enum: [start, stop, pause]
 
+            If the value of the state property is 'start' then all flows
+            defined by the 'flow_names' property will be started and the metric
+            counters MUST be cleared prior to starting the flow(s).
+
+            If the value of the state property is 'stop' then all flows
+            defined by the 'flow_names' property will be stopped and the metric
+            counters MUST NOT be cleared.
+
+            If the value of the state property is 'pause' then all flows
+            defined by the 'flow_names' property will be paused and the metric
+            counters MUST NOT be cleared.
+
+            If the value of the state property is 'resume' then any paused flows
+            defined by the 'flow_names' property will start transmit at the
+            point at which they were paused. Any flow that is stopped will
+            start transmit at the beginning of the flow.
+            The flow(s) MUST NOT have their metric counters cleared.
+          type: string
+          x-field-uid: 2
+          x-enum:
+            start:
+              x-field-uid: 1
+            stop:
+              x-field-uid: 2
+            pause:
+              x-field-uid: 3
+            resume:
+              x-field-uid: 4
     Capture.State:
       description: >-
         Control port capture state
@@ -59,37 +92,54 @@ components:
       properties:
         port_names:
           description: >-
-            The name of ports to start capturing packets on.
-            An empty or null list will control all port objects.
+            The names of ports to which the capture state will be applied to.
+            If the list of port_names is empty or null the state will be applied
+            to all configured ports.
+
+            If the list is not empty any port that is not included in the list
+            of port_names MUST be ignored and not included in the state change.
           type: array
           items:
             type: string
           x-constraint:
           - '/components/schemas/Port/properties/name'
+          x-field-uid: 1
         state:
           description: >-
             The capture state.
           type: string
-          enum: [start, stop]
-
+          x-field-uid: 2
+          x-enum:
+            start:
+              x-field-uid: 1
+            stop:
+              x-field-uid: 2
     Flows.Update:
-      description: A container of flows with associated properties to be updated without affecting the transmit state
+      description: >-
+        A container of flows with associated properties to be updated without
+        affecting the flows current transmit state.
       type: object
       required: [property_names, flows]
       properties:
         property_names:
-          description: Flow properties to be updated without affecting the transmit state
+          description: >-
+            Flow properties to be updated without affecting the transmit state.
           type: array
-          items: 
+          items:
             type: string
-            enum: [rate, size]
+            x-enum:
+              rate:
+                x-field-uid: 1
+              size:
+                x-field-uid: 2
+          x-field-uid: 1
         flows:
           description: >-
             The list of configured flows for which given property will be updated.
           type: array
           items:
             $ref: '#/components/schemas/Flow'
-
+          x-field-uid: 2
     Route.State:
       description: >-
         Sets the device route state
@@ -107,24 +157,30 @@ components:
           x-constraint:
           - '/components/schemas/Bgp.V4RouteRange/properties/name'
           - '/components/schemas/Bgp.V6RouteRange/properties/name'
+          - '/components/schemas/Isis.V4RouteRange/properties/name'
+          - '/components/schemas/Isis.V6RouteRange/properties/name'
+          x-field-uid: 1
         state:
           description: >-
             Route specific states
           type: string
-          enum: [withdraw, advertise]
-
+          x-field-uid: 2
+          x-enum:
+            withdraw:
+              x-field-uid: 1
+            advertise:
+              x-field-uid: 2
     Ping.Request:
       description: >-
         Ping request details
       type: object
       properties:
         endpoints:
-          description:
-            Array of ping requests
+          description: Array of ping requests
           type: array
           items:
             $ref: './ping.yaml#/components/schemas/Ping'
-
+          x-field-uid: 1
     Protocol.State:
       description: >-
         Sets all configured protocols to `start` or `stop` state.
@@ -135,4 +191,23 @@ components:
           description: >-
             Protocol specific states
           type: string
-          enum: [start, stop]
+          x-field-uid: 1
+          x-enum:
+            start:
+              x-field-uid: 1
+            stop:
+              x-field-uid: 2
+    Device.State:
+      description: >-
+        Sets attributes for the requested state/actions to be performed on device(s)
+      type: object
+      properties:
+        choice:
+          type: string
+          x-field-uid: 1
+          x-enum:
+            lacp_member_state:
+              x-field-uid: 1
+        lacp_member_state:
+          $ref: './lacp.yaml#/components/schemas/LacpMember.State'
+          x-field-uid: 2

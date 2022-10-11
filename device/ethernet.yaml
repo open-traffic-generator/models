@@ -1,18 +1,17 @@
 components:
   schemas:
     Device.EthernetBase:
-      x-include: 
-      - '../common/common.yaml#/components/schemas/Named.Object'
       description: >-
         Base Ethernet interface.
       type: object
-      required: [mac]
+      required: [mac, name]
       properties:
         mac:
           description: >-
             Media Access Control address.
           type: string
           format: mac
+          x-field-uid: 1
         mtu:
           description: >-
             Maximum Transmission Unit.
@@ -20,38 +19,48 @@ components:
           minimum: 0
           maximum: 65535
           default: 1500
+          x-field-uid: 2
         vlans:
           description: >-
             List of VLANs
           type: array
           items:
             $ref: './vlan.yaml#/components/schemas/Device.Vlan'
-
+          x-field-uid: 3
+        name:
+          x-include: ../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 4
     Device.Ethernet:
-      x-include: 
-      - '#/components/schemas/Device.EthernetBase'
       description: >-
         An Ethernet interface with IPv4 and IPv6 addresses.
       type: object
       properties:
-        port_name: 
+        port_name:
           description: |-
             The unique name of a Port or a LAG that will emulate this interface.
-          x-status: deprecated
+            port_name is deprecated and will be removed in future release.port_name and connection can't be used together, use either port_name or connection.
+          x-status:
+            status: deprecated
+            additional_information: |-
+              property port_name is deprecated from the snappi version x.x.x.
+              please use connection.port_name instead of port_name
           type: string
           x-constraint:
           - '/components/schemas/Port/properties/name'
           - '/components/schemas/Lag/properties/name'
-        connection: 
+          x-field-uid: 1
+        connection:
           description: |-
             Device connection to physical, LAG or another device.
-          $ref : '#/components/schemas/Ethernet.Connection'
+          $ref: '#/components/schemas/Ethernet.Connection'
+          x-field-uid: 2
         ipv4_addresses:
           description: |-
             List of IPv4 addresses and their gateways. 
           type: array
           items:
-            $ref: './ipv4.yaml#/components/schemas/Device.Ipv4' 
+            $ref: './ipv4.yaml#/components/schemas/Device.Ipv4'
+          x-field-uid: 3
         ipv6_addresses:
           description: |-
             List of global IPv6 addresses and their gateways.
@@ -59,7 +68,20 @@ components:
           type: array
           items:
             $ref: './ipv6.yaml#/components/schemas/Device.Ipv6'
-      
+          x-field-uid: 4
+        mac:
+          x-include: '#/components/schemas/Device.EthernetBase/properties/mac'
+          x-field-uid: 5
+        mtu:
+          x-include: '#/components/schemas/Device.EthernetBase/properties/mtu'
+          x-field-uid: 6
+        vlans:
+          x-include: '#/components/schemas/Device.EthernetBase/properties/vlans'
+          x-field-uid: 7
+        name:
+          x-include: '#/components/schemas/Device.EthernetBase/properties/name'
+          x-field-uid: 8
+      required: [mac, name]
     Ethernet.Connection:
       description: Ethernet interface connection to a port, LAG or VXLAN tunnel.
       type: object
@@ -67,20 +89,32 @@ components:
         choice:
           description: port_name, lag_name or vxlan_name
           type: string
-          enum: [port_name, lag_name, vxlan_name]
+          x-field-uid: 1
+          x-enum:
+            port_name:
+              x-field-uid: 1
+            lag_name:
+              x-field-uid: 2
+            vxlan_name:
+              x-field-uid: 3
         port_name:
-          description: Name of the port that the Ethernet interface is configured on.
+          description: Name of the port that the Ethernet interface is configured
+            on.
           type: string
           x-constraint:
           - '/components/schemas/Port/properties/name'
+          x-field-uid: 2
         lag_name:
           description: Name of the LAG that the Ethernet interface is configured on.
           type: string
           x-constraint:
           - '/components/schemas/Lag/properties/name'
+          x-field-uid: 3
         vxlan_name:
-          description: Name of the VXLAN instance (or VXLAN tunnel) that this Ethernet interface is connected to.
+          description: Name of the VXLAN instance (or VXLAN tunnel) that this Ethernet
+            interface is connected to.
           type: string
           x-constraint:
           - '#/components/schemas/VXlan.V4Tunnel/properties/name'
           - '#/components/schemas/VXlan.V6Tunnel/properties/name'
+          x-field-uid: 4

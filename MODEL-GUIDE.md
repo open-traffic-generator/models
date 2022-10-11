@@ -58,7 +58,7 @@ This document describes the philosophy and the best practices to be followed whi
 
 * `property names` MUST be snake_case.
 * `schema object names` MUST be PascalCase (upper camel case).
-* `enum names` MUST be lowercase with underscores at natural word breaks.  Valid characters are `^[a-z0-9_]+$`.  Enum names MUST start with an alphabetic character.
+* `x-enum names` MUST be lowercase with underscores at natural word breaks.  Valid characters are `^[a-z0-9_]+$`.  x-enum names MUST start with an alphabetic character.
   * VALID: one_hundred_gbps
   * INVALID: 100_gpbs
 * `namespaces` MUST be PascalCase (upper camel case) and use a `.` separator
@@ -91,7 +91,13 @@ The build script will enforce the following keyword conventions:
         properties:
           choice:
             type: string
-            enum: [a, b, c]
+            x-enum: 
+              a:
+                x-field-uid: 1
+              b:
+                x-field-uid: 2
+              c:
+                x-field-uid: 3
             default: a
           a:
             $ref: '#/components/schemas/Choice.A'
@@ -122,24 +128,40 @@ The build script will enforce the following keyword conventions:
       Extensions:
         properties:
           x-status:
-            description: |-
-              - current means that the definition is current and valid.
-              - deprecated indicates an obsolete definition, but it permits new /
-              continued implementation  in order to foster interoperability
-              with older/existing implementations.
-              - `obsolete` means the definition is obsolete and SHOULD NOT be
-              implemented and/or can be removed from implementations.
-              - `under-review` indicates that the object or property is subject
-              to change at any time.
-            type: string
-            enum: [current, deprecated, obsolete, under_review]
-            default: current
+            type: object
+            required: [status]
+            properties:
+              status:
+                description: |-
+                  - current means that the definition is current and valid.
+                  - deprecated indicates an obsolete definition, but it permits new /
+                  continued implementation  in order to foster interoperability
+                  with older/existing implementations.
+                  - `obsolete` means the definition is obsolete and SHOULD NOT be
+                  implemented and/or can be removed from implementations.
+                  - `under-review` indicates that the object or property is subject
+                  to change at any time.
+                type: string
+                x-enum: 
+                  current:
+                    x-field-uid: 1
+                  deprecated:
+                    x-field-uid: 2
+                  obsolete:
+                    x-field-uid: 3
+                  under_review:
+                    x-field-uid: 4
+                default: current
+              additional_information:
+                type: string
+                description: Use this property to provide additional information about the status property
   ```
 
 * `x-include`
-  * For object composition use the `x-include` keyword to merge schema objects into other schema objects instead of using the allOf keyword.
+  * For object composition use the `x-include` keyword to merge property objects field into other property objects field of using the allOf keyword.
   * Tooling does not handle the `allOf` keyword correctly in all cases and this allows the [bundler](https://github.com/open-traffic-generator/openapiart) to generate a lowest common denominator file.
   * The bundler will correctly merge the `x-include` and drop the `x-include` keyword from the merged object.
+  * Same property name must be use in `x-include`
   * The `x-include` value follows the same notation as the $ref.
 
   ```yaml
@@ -157,11 +179,12 @@ The build script will enforce the following keyword conventions:
         pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
 
       Composite.Object:
-        x-include: '#/components/schemas/Named.Object'
         description: >
           This object will include all the items of the Named.Object in
           addition to its own properties
         properties:
+          name:
+            x-include: '#/components/schemas/Named.Object/properties/name'
           sample:
             type: string
   ```
@@ -199,12 +222,17 @@ The build script will enforce the following keyword conventions:
         description: >-
           Controls the shape of the generated schema object.
         type: string
-        enum:
-        - mac
-        - ipv4
-        - ipv6
-        - integer
-        - checksum
+        x-enum:
+          mac:
+            x-field-uid: 1
+          ipv4:
+            x-field-uid: 2
+          ipv6:
+            x-field-uid: 3
+          integer:
+            x-field-uid: 4
+          checksum:
+            x-field-uid: 5
     length:
       description: >-
         The length of integer values in bits.
@@ -223,7 +251,13 @@ The build script will enforce the following keyword conventions:
         the bounds of the length property.
     features:
       type: string
-      enum: [count, auto, metric_group]
+      x-enum:
+        count:
+          x-field-uid: 1
+        auto:
+          x-field-uid: 2
+        metric_group:
+          x-field-uid: 3
       description: >-
         count:
         Used to specify whether or not a count property is included in the
@@ -267,7 +301,15 @@ The build script will enforce the following keyword conventions:
       properties:
         choice:
           type: string
-          enum: [value, values, increment, decrement]
+          x-enum:
+            value:
+              x-field-uid: 1
+            values:
+              x-field-uid: 2
+            increment:
+              x-field-uid: 3
+            decrement:
+              x-field-uid: 4
           default: value
         value:
           type: string
@@ -294,6 +336,124 @@ The build script will enforce the following keyword conventions:
         value: 0.0.0.0
     ```
 
+* `x-enum`
+  * Model enforces use of `x-enum` over `enum` as for latter, adding metadata related to description, status and custom value is not supported.
+  * `x-enum names` MUST be lowercase with underscores at natural word breaks.  Valid characters are `^[a-z0-9_]+$`.  x-enum names MUST start with an alphabetic character.
+    * VALID: one_hundred_gbps
+    * INVALID: 100_gpbs
+  * `x-field-uid` must be added with different value
+  * It must be configured in key-value format. (e.g.`description: message`, `x-status: deprecated`)
+  * The bundler will populate `enum` at the time of bundling. So, it will follow OpenAPI standard.
+  * sample property of `x-enum`
+
+    ```yaml
+    properties:
+      auth_type:
+        description: |-
+          The authentication method.
+        type: string
+        x-field-uid: 1
+        x-enum:
+          md5:
+            description: md5 authentication
+            x-status: deprecated
+            x-field-uid: 1
+          password:
+            description: plain text authentication    
+            x-field-uid: 2
+    ```
+
+  * sample property after bundle (e.g. auto-populate `enum: [md5, password]`)
+  
+    ```yaml
+    properties:
+      auth_type:
+        description: |-
+          The authentication method.
+        type: string
+        x-field-uid: 1
+        enum: [md5, password]
+        x-enum:
+          md5:
+            description: md5 authentication
+            x-field-uid: 1
+            x-status: deprecated    
+          password:
+            description: plain text authentication    
+            x-field-uid: 2
+    ```
+
+* `x-field-uid`
+
+  * Field Unique Identifiers (UIDs) are required for every property/enum/included object.  
+  * They need to be unique (within the object), and once assigned can never be changed/re-used, even if the field itself is deprecated and eventually removed.  
+  * They are required for maintaining protobuff backwards compatibility.  
+  * Should follow protobuff [Assigning Field Numbers](https://developers.google.com/protocol-buffers/docs/proto3#assigning_field_numbers) conventions.
+
+  * Use-Case : Adding a New Property to an Existing Object
+    * Adding a new property 'peer_name' to an existing object.
+    * `x-field-uid` must be added with different value (e.g. 2)
+
+    <img src="images/use_case_1.PNG" alt="drawing" width="700"/>
+
+  * Use-Case : Adding an enum value
+    * enum must be replaced with `x-enum` 
+    * Adding a new enum `fiber` to the existing property field (`media`)
+    * `x-field-uid` must be added with different value (e.g. 2)
+    * The bundler will populate `enum` at the time of bundling. So, it will follow OpenAPI standard. 
+    * `x-enum` will remain within final yaml file to generate unique proto uid.
+
+    <img src="images/use_case_2.PNG" alt="drawing" width="700"/>
+
+  * Use-Case : Including a Pre-Existing Object
+    * `x-include` to include only the field of the property (`..#/components/schemas/GlobalObject/properties/name`)
+    * Same property name (`uniquename`) must be used for both base and derived property. 
+    * The bundler will correctly merge the `x-include` and drop the `x-include` keyword from the merged object.
+    * At the time of merge, bundler will not consider `x-field-uid` of the base property.
+    
+    <img src="images/use_case_3.PNG" alt="drawing" width="900"/>
+
+  * Use-Case : Deprecating a Property 
+    * Model should maintain `x-field-uid: 1` when property will deprecate 
+    * `x-status` must be added with status deprecated
+
+    <img src="images/use_case_4.PNG" alt="drawing" width="700"/>
+
+  * Use-Case : Removing a Property
+    * Property must be in deprecated state. Any active property can not remove without deprecation. 
+    * User never use the numbers added in `x-reserved-field-uids` again.
+    * That `x-field-uid` number must be within existing or new `x-reserved-field-uids`
+    * To remove `ieee_802_1qbb` which has `x-field-uid: 1`. That number must be included within `x-reserved-field-uids: [1]`
+
+    <img src="images/use_case_5.PNG" alt="drawing" width="700"/>
+
+  * Use-Case : Deprecating an enum value
+    * Model should maintain `x-field-uid: 1` when property will deprecate 
+    * `x-status` must be added with status deprecated
+  
+    <img src="images/use_case_5a.PNG" alt="drawing" width="700"/>
+
+  * Use-Case : Removing an enum value
+    * Enum must be in deprecated state. Any active enum can not remove without deprecation.
+    * User must never use the numbers added in `x-reserved-field-uids` again.
+    * That `x-field-uid` number must be included within existing or new `x-reserved-field-uids`
+    * Removing property `b` which has `x-field-uid: 2`. That number must be included within `x-reserved-field-uids: [2]`
+    
+    <img src="images/use_case_6.PNG" alt="drawing" width="700"/>
+
+  * Use-Case : Removing a Pre-Existing Object
+    * Remove the exiting 'Prefix.Config' object.
+    * All the properties and field within that object must be removed.
+
+    <img src="images/use_case_7.PNG" alt="drawing" width="700"/>
+
+  * Use-Case : Adding / Removing a Response Field 
+    * Adding a new response `400` in the exiting responses. New unique `x-field-uid: 3` is assigned.
+    * User must not use the field UID present within `x-reserved-field-uids: [2]`
+    * That reserved field UID (e.g. 2) used by other property which was removed.
+
+    <img src="images/use_case_8.PNG" alt="drawing" width="900"/>
+    
 ### Descriptions
 
 * Well-written descriptions are a MUST!
@@ -306,6 +466,7 @@ The build script will enforce the following keyword conventions:
   * For description of `session_flap_count` in bgpv4 metrics response:
     * _"Number of times `session_state` changed from `up` to `down`"_ instead of
     * _"Number of times the session went from Up to Down state"_
+
 
 ## Pull Requests
 

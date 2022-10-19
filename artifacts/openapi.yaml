@@ -425,9 +425,9 @@ components:
         options:
           $ref: '#/components/schemas/Config.Options'
           x-field-uid: 8
-        app:
+        apps:
           description: |-
-            The emulated Application configured on devices interface.
+            The emulated protocols such as TCP/UDP, HTTP, etc and attacks, which can be attached to device interface.
           type: array
           items:
             $ref: '#/components/schemas/App'
@@ -6949,7 +6949,7 @@ components:
           x-field-uid: 2
     App:
       description: |-
-        A container for emulated protocol and traffic configuration.
+        A container for emulated TCP/UDP , application protocols, attacks and it's traffic configurations.
       type: object
       properties:
         tcp:
@@ -6971,11 +6971,11 @@ components:
           items:
             $ref: '#/components/schemas/App.Ssl'
           x-field-uid: 3
-        traffic:
+        statefull_flows:
           description: "Traffic configuration of endpoints "
           type: array
           items:
-            $ref: '#/components/schemas/App.Traffic'
+            $ref: '#/components/schemas/Statefull_flow'
           x-field-uid: 4
         name:
           x-field-uid: 5
@@ -6987,55 +6987,63 @@ components:
       - name
     App.Tcp:
       description: |-
-        TCP configs.
+        The properties of TCP Configurations.
       type: object
-      required:
-      - ip_interface_name
       properties:
-        ip_interface_name:
-          description: |
-            IPv4/v6 interface name
-
-            x-constraint:
-            - /components/schemas/Device.Ipv4Base/properties/name
-            - /components/schemas/Device.Ipv6Base/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Device.Ipv4Base/properties/name
-          - /components/schemas/Device.Ipv6Base/properties/name
-          x-field-uid: 1
         keep_alive_time:
           description: |-
-            The TCP keep alive timer
-          type: integer
+            If a link has no activity on it for the time specified, keep-alive probes are sent to determine if the link is still up. The Keep-alive Time value is expressed in seconds.
+          type: number
           default: 7200
+          x-field-uid: 1
+        keep_alive_probes:
+          description: |-
+            Number of keep-alive probes sent out before determining that a link is down.
+          type: number
+          default: 9
           x-field-uid: 2
+        keep_alive_interval:
+          description: |-
+            The number of seconds between repeated keep-alive probes.
+          type: number
+          default: 75
+          x-field-uid: 3
         receive_buffer_size:
           description: |-
-            The TCP receive buffer size
-          type: integer
-          default: 4096
-          x-field-uid: 3
-        transmit_buffer_size:
-          description: |-
-            The TCP transmit buffer size
+            The TCP read buffer size.
           type: integer
           default: 4096
           x-field-uid: 4
-        name:
+        transmit_buffer_size:
+          description: |-
+            The TCP write buffer size.
+          type: integer
+          default: 4096
           x-field-uid: 5
+        name:
+          x-field-uid: 6
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
     App.Http:
       description: |-
-        HTTP configs.
+        Configurations of one or more HTTP client and server.
+      type: object
+      properties:
+        client:
+          $ref: '#/components/schemas/Http.Client'
+          x-field-uid: 1
+        server:
+          $ref: '#/components/schemas/Http.Server'
+          x-field-uid: 2
+    Http.Client:
+      description: "One or more HTTP Client configurations and its HTTP methods configs. "
       type: object
       properties:
         transport_name:
           description: |
-            TCP interface name
+            Transport interface that can be attached to TCP. In the same apps or different apps container.
 
             x-constraint:
             - /components/schemas/App.Tcp/properties/name
@@ -7046,46 +7054,49 @@ components:
         http_version:
           description: |-
             HTTP Version
-          type: integer
-          default: 1
-          x-field-uid: 3
-        enable_cookie_support:
+          type: string
+          x-field-uid: 2
+          x-enum:
+            '1.0':
+              x-field-uid: 1
+            '1.1':
+              x-field-uid: 2
+            '2.0':
+              x-field-uid: 3
+          default: '1.0'
+          enum:
+          - '1.0'
+          - '1.1'
+          - '2.0'
+        cookie_jar_size:
           description: |-
-            Enable cookie support for HTTP
-          type: boolean
-          default: false
-          x-field-uid: 4
-        max_sessions:
-          description: |-
-            Max HTTP sessions
-          type: integer
-          default: 1
-          x-field-uid: 5
-        max_streams:
-          description: |-
-            Max HTTP streams
-          type: integer
-          default: 1
-          x-field-uid: 6
-        command_timeout:
-          description: |-
-            Command timeout timer in seconds
-          type: integer
-          default: 600
-          x-field-uid: 7
-        url_stats_count:
-          description: "URL stats count "
+            cookie_jar_size the number of cookies that will be saved for each client. The maximum value of this is 300. (only if enable_cookie_support is enabled)
           type: integer
           default: 10
-          x-field-uid: 8
-        enable_per_conn_cookie_support:
+          x-field-uid: 3
+        cookie_reject_probability:
           description: |-
-            Enable cookie support for per connection
+            cookie_reject_probability indicates the probability, from 0 to 1, that a client will reject a request for a cookie’s contents from the server. (only if enable_cookie_support is enabled)
+          type: integer
+          default: 0
+          x-field-uid: 4
+        enable_cookie_support:
+          description: |-
+            The client will support cookie retention, as indicated in the cookie_jar_size and cookie_reject_probability
           type: boolean
           default: false
-          x-field-uid: 9
-        method:
-          $ref: '#/components/schemas/Http.Method'
+          x-field-uid: 5
+        command_timeout:
+          description: |-
+            HTTP command timeout timer in seconds
+          type: number
+          default: 600
+          x-field-uid: 6
+        methods:
+          description: "The HTTP methods such as GET, POST and its properties. "
+          type: array
+          items:
+            $ref: '#/components/schemas/Http.Method'
           x-field-uid: 10
         name:
           x-field-uid: 11
@@ -7116,40 +7127,83 @@ components:
           $ref: '#/components/schemas/Method.Post'
     Method.Get:
       description: |-
-        A GET operation of HTTP
+        A GET operation of HTTP client. Retrieves the page from the HTTP Server.
       type: object
       required:
-      - url
+      - server
       - page
       properties:
-        url:
+        server:
           description: |-
             Server name/IP address
           type: string
           x-field-uid: 1
         page:
           description: |-
-            The page name to perform get opertaion.
+            The page url/name to perform HTTP GET operation.
           type: string
           x-field-uid: 2
     Method.Post:
       description: |-
-        A POST operation of HTTP
+        A POST operation of HTTP client. To post the data on HTTP Server.
       type: object
       required:
-      - url
+      - server
       - page
       properties:
-        url:
+        server:
           description: |-
-            The Server name/IP address
+            Server name/IP address
           type: string
           x-field-uid: 1
         page:
           description: |-
-            The page name to perform post opertaion.
+            The page url/name to perform HTTP POST operation.
           type: string
           x-field-uid: 2
+    Http.Server:
+      description: "One or more HTTP Server configurations. "
+      type: object
+      properties:
+        transport_name:
+          description: |
+            Transport interface that can be attached to TCP. In the same apps or different apps container.
+
+            x-constraint:
+            - /components/schemas/App.Tcp/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/App.Tcp/properties/name
+          x-field-uid: 1
+        http_version:
+          description: |-
+            HTTP Version
+          type: string
+          x-field-uid: 2
+          x-enum:
+            '1.0':
+              x-field-uid: 1
+            '1.1':
+              x-field-uid: 2
+            '2.0':
+              x-field-uid: 3
+          default: '1.0'
+          enum:
+          - '1.0'
+          - '1.1'
+          - '2.0'
+        http_port:
+          description: |-
+            The port number to which the HTTP server will respond to non-SSL requests.
+          type: integer
+          default: 80
+          x-field-uid: 3
+        request_timeout:
+          description: |-
+            The amount of seconds that the server will wait for input on an open connection before closing the session with a ‘408’ error.
+          type: integer
+          default: 300
+          x-field-uid: 4
     App.Ssl:
       description: |-
         SSL configuration .
@@ -7161,28 +7215,28 @@ components:
           type: boolean
           default: false
           x-field-uid: 1
-    App.Traffic:
-      description: |-
-        Traffic config.
+    Statefull_flow:
+      description: "Statefull_flows configure traffic for emulated protocols which\
+        \ is configured in apps. "
       type: object
       properties:
         client:
-          $ref: '#/components/schemas/Traffic.Client'
+          $ref: '#/components/schemas/Statefull_flow.Client'
           x-field-uid: 1
         server:
-          $ref: '#/components/schemas/Traffic.Server'
+          $ref: '#/components/schemas/Statefull_flow.Server'
           x-field-uid: 2
-        objective:
-          $ref: '#/components/schemas/Traffic.Objective'
+        objectives:
+          $ref: '#/components/schemas/Statefull_flow.Objective'
           x-field-uid: 3
-    Traffic.Client:
+    Statefull_flow.Client:
       description: |-
         Client traffic configs.
       type: object
       properties:
         endpoints:
           description: |-
-            EndPoint configuration for one or more emulated network interfaces.
+            EndPoint configuration for one or more emulated apps.
           type: array
           items:
             $ref: '#/components/schemas/Endpoints.Client'
@@ -7206,7 +7260,7 @@ components:
       properties:
         ip_interface_name:
           description: |
-            IPv4/v6 interface name
+            IPv4/v6 interface name, which is configured in devices.
 
             x-constraint:
             - /components/schemas/Device.Ipv4Base/properties/name
@@ -7264,14 +7318,14 @@ components:
             IPv4/v6 address
           type: string
           x-field-uid: 3
-    Traffic.Server:
+    Statefull_flow.Server:
       description: |-
-        Server traffic configs .
+        Traffic configuration for server(s).
       type: object
       properties:
         endpoints:
           description: |-
-            EndPoint configuration for one or more emulated network interfaces.
+            EndPoint configuration for one or more emulated apps.
           type: array
           items:
             $ref: '#/components/schemas/Endpoints.Server'
@@ -7288,7 +7342,7 @@ components:
           - /components/schemas/App.Tcp/properties/name
           - /components/schemas/App.Http/properties/name
           x-field-uid: 2
-    Traffic.Objective:
+    Statefull_flow.Objective:
       description: |-
         objective config such simulated user, thoughput, conncurrent connections.
       type: object
@@ -7334,16 +7388,29 @@ components:
             Ramp up type for test.
           type: string
           x-field-uid: 2
+          x-enum:
+            users_intervals:
+              x-field-uid: 1
+            max_pending_user:
+              x-field-uid: 2
+            immediate:
+              x-field-uid: 3
+          default: '1.0'
+          enum:
+          - users_intervals
+          - max_pending_user
+          - immediate
         ramp_up_value:
           description: |-
-            Ramp up value in seconds.
+            Value applied to ramp_up_type to either bring up users at a certain rate.
           type: integer
           x-field-uid: 3
         sutain_time:
-          description: "sutain time of the test in seconds. "
+          description: |-
+            Amount of time when all users are up and performing the central test objectives, such as retrieving or serving pages.
           type: integer
           x-field-uid: 4
-        rampu_down_time:
+        ramp_down_time:
           description: |-
             Rampu down time in seconds.
           type: integer
@@ -7359,25 +7426,16 @@ components:
             Throughput value.
           type: integer
           x-field-uid: 1
-        ramp_up_type:
-          description: |-
-            ramp_up_type.
-          type: string
-          x-field-uid: 2
-        ramp_up_value:
-          description: |-
-            ramp_up_value.
-          type: integer
-          x-field-uid: 3
         sutain_time:
-          description: "sutain time of the test. "
-          type: integer
-          x-field-uid: 4
-        rampu_down_time:
           description: |-
-            rampu_down_time.
-          type: integer
-          x-field-uid: 5
+            Amount of seconds when all users are up and performing the central test objectives, such as retrieving or serving pages.
+          type: number
+          x-field-uid: 2
+        ramp_down_time:
+          description: |-
+            Amount of seconds used for closing any connections that are still open after all transactions are complete.
+          type: number
+          x-field-uid: 3
     Objective.Conn_curr:
       description: |-
         Conncurrent connections objectives
@@ -7390,25 +7448,21 @@ components:
             Throughput value.
           type: integer
           x-field-uid: 1
-        ramp_up_type:
-          description: |-
-            ramp_up_type.
-          type: string
-          x-field-uid: 2
-        ramp_up_value:
-          description: |-
-            ramp_up_value.
-          type: integer
-          x-field-uid: 3
         sutain_time:
-          description: "sutain time of the test. "
-          type: integer
-          x-field-uid: 4
-        rampu_down_time:
           description: |-
-            rampu_down_time.
-          type: integer
-          x-field-uid: 5
+            Amount of seconds when all users are up and performing the central test objectives, such as retrieving or serving pages.
+          type: number
+          x-field-uid: 2
+        ramp_down_time:
+          description: |-
+            Amount of seconds used for closing any connections that are still open after all transactions are complete.
+          type: number
+          x-field-uid: 3
+        ramp_down_value:
+          description: |-
+            Amount of seconds used for closing any connections that are still open after all transactions are complete.
+          type: number
+          x-field-uid: 4
     Response.Error:
       description: |-
         A list of errors that may have occurred while executing the request.

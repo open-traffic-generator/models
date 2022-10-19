@@ -45,8 +45,9 @@ message Config {
   // Description missing in models
   optional ConfigOptions options = 8;
 
-  // The emulated Application configured on devices interface.
-  repeated App app = 9;
+  // The emulated protocols such as TCP/UDP, HTTP, etc and attacks, which can be attached
+  // to device interface.
+  repeated App apps = 9;
 }
 
 // Global configuration options.
@@ -4839,7 +4840,8 @@ message EventSubscription {
   optional string callbackurl = 2;
 }
 
-// A container for emulated protocol and traffic configuration.
+// A container for emulated TCP/UDP , application protocols, attacks and it's traffic
+// configurations.
 message App {
 
   // The properties of TCP and its children,
@@ -4852,7 +4854,7 @@ message App {
   repeated AppSsl ssl = 3;
 
   // Traffic configuration of endpoints
-  repeated AppTraffic traffic = 4;
+  repeated Statefull_flow statefull_flows = 4;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -4860,75 +4862,90 @@ message App {
   string name = 5;
 }
 
-// TCP configs.
+// The properties of TCP Configurations.
 message AppTcp {
 
-  // IPv4/v6 interface name
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.Ipv4Base/properties/name
-  // - /components/schemas/Device.Ipv6Base/properties/name
-  // 
-  // required = true
-  string ip_interface_name = 1;
-
-  // The TCP keep alive timer
+  // If a link has no activity on it for the time specified, keep-alive probes are sent
+  // to determine if the link is still up. The Keep-alive Time value is expressed in seconds.
   // default = 7200
-  optional int32 keep_alive_time = 2;
+  optional float keep_alive_time = 1;
 
-  // The TCP receive buffer size
-  // default = 4096
-  optional int32 receive_buffer_size = 3;
+  // Number of keep-alive probes sent out before determining that a link is down.
+  // default = 9
+  optional float keep_alive_probes = 2;
 
-  // The TCP transmit buffer size
+  // The number of seconds between repeated keep-alive probes.
+  // default = 75
+  optional float keep_alive_interval = 3;
+
+  // The TCP read buffer size.
   // default = 4096
-  optional int32 transmit_buffer_size = 4;
+  optional int32 receive_buffer_size = 4;
+
+  // The TCP write buffer size.
+  // default = 4096
+  optional int32 transmit_buffer_size = 5;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
-  optional string name = 5;
+  optional string name = 6;
 }
 
-// HTTP configs.
+// Configurations of one or more HTTP client and server.
 message AppHttp {
 
-  // TCP interface name
+  // Description missing in models
+  optional HttpClient client = 1;
+
+  // Description missing in models
+  optional HttpServer server = 2;
+}
+
+// One or more HTTP Client configurations and its HTTP methods configs.
+message HttpClient {
+
+  // Transport interface that can be attached to TCP. In the same apps or different apps
+  // container.
   // 
   // x-constraint:
   // - /components/schemas/App.Tcp/properties/name
   // 
   optional string transport_name = 1;
 
+  message HttpVersion {
+    enum Enum {
+      unspecified = 0;
+      1.0 = 1;
+      1.1 = 2;
+      2.0 = 3;
+    }
+  }
   // HTTP Version
-  // default = 1
-  optional int32 http_version = 3;
+  // default = HttpVersion.Enum.1.0
+  optional HttpVersion.Enum http_version = 2;
 
-  // Enable cookie support for HTTP
-  // default = False
-  optional bool enable_cookie_support = 4;
-
-  // Max HTTP sessions
-  // default = 1
-  optional int32 max_sessions = 5;
-
-  // Max HTTP streams
-  // default = 1
-  optional int32 max_streams = 6;
-
-  // Command timeout timer in seconds
-  // default = 600
-  optional int32 command_timeout = 7;
-
-  // URL stats count
+  // cookie_jar_size the number of cookies that will be saved for each client. The maximum
+  // value of this is 300. (only if enable_cookie_support is enabled)
   // default = 10
-  optional int32 url_stats_count = 8;
+  optional int32 cookie_jar_size = 3;
 
-  // Enable cookie support for per connection
+  // cookie_reject_probability indicates the probability, from 0 to 1, that a client will
+  // reject a request for a cookieâ€™s contents from the server. (only if enable_cookie_support
+  // is enabled)
+  // default = 0
+  optional int32 cookie_reject_probability = 4;
+
+  // The client will support cookie retention, as indicated in the cookie_jar_size and
+  // cookie_reject_probability
   // default = False
-  optional bool enable_per_conn_cookie_support = 9;
+  optional bool enable_cookie_support = 5;
 
-  // Description missing in models
-  optional HttpMethod method = 10;
+  // HTTP command timeout timer in seconds
+  // default = 600
+  optional float command_timeout = 6;
+
+  // The HTTP methods such as GET, POST and its properties.
+  repeated HttpMethod methods = 10;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -4956,28 +4973,61 @@ message HttpMethod {
   optional MethodPost post = 3;
 }
 
-// A GET operation of HTTP
+// A GET operation of HTTP client. Retrieves the page from the HTTP Server.
 message MethodGet {
 
   // Server name/IP address
   // required = true
-  string url = 1;
+  string server = 1;
 
-  // The page name to perform get opertaion.
+  // The page url/name to perform HTTP GET operation.
   // required = true
   string page = 2;
 }
 
-// A POST operation of HTTP
+// A POST operation of HTTP client. To post the data on HTTP Server.
 message MethodPost {
 
-  // The Server name/IP address
+  // Server name/IP address
   // required = true
-  string url = 1;
+  string server = 1;
 
-  // The page name to perform post opertaion.
+  // The page url/name to perform HTTP POST operation.
   // required = true
   string page = 2;
+}
+
+// One or more HTTP Server configurations.
+message HttpServer {
+
+  // Transport interface that can be attached to TCP. In the same apps or different apps
+  // container.
+  // 
+  // x-constraint:
+  // - /components/schemas/App.Tcp/properties/name
+  // 
+  optional string transport_name = 1;
+
+  message HttpVersion {
+    enum Enum {
+      unspecified = 0;
+      1.0 = 1;
+      1.1 = 2;
+      2.0 = 3;
+    }
+  }
+  // HTTP Version
+  // default = HttpVersion.Enum.1.0
+  optional HttpVersion.Enum http_version = 2;
+
+  // The port number to which the HTTP server will respond to non-SSL requests.
+  // default = 80
+  optional int32 http_port = 3;
+
+  // The amount of seconds that the server will wait for input on an open connection before
+  // closing the session with a â€˜408â€™ error.
+  // default = 300
+  optional int32 request_timeout = 4;
 }
 
 // SSL configuration .
@@ -4988,23 +5038,24 @@ message AppSsl {
   optional bool enable = 1;
 }
 
-// Traffic config.
-message AppTraffic {
+// Statefull_flows configure traffic for emulated protocols which is configured in apps.
+// 
+message Statefull_flow {
 
   // Description missing in models
-  optional TrafficClient client = 1;
+  optional Statefull_flowClient client = 1;
 
   // Description missing in models
-  optional TrafficServer server = 2;
+  optional Statefull_flowServer server = 2;
 
   // Description missing in models
-  optional TrafficObjective objective = 3;
+  optional Statefull_flowObjective objectives = 3;
 }
 
 // Client traffic configs.
-message TrafficClient {
+message Statefull_flowClient {
 
-  // EndPoint configuration for one or more emulated network interfaces.
+  // EndPoint configuration for one or more emulated apps.
   repeated EndpointsClient endpoints = 1;
 
   // Protocol to use for test, such as HTTP, TCP
@@ -5019,7 +5070,7 @@ message TrafficClient {
 // Endpoint configs for Client.
 message EndpointsClient {
 
-  // IPv4/v6 interface name
+  // IPv4/v6 interface name, which is configured in devices.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv4Base/properties/name
@@ -5067,10 +5118,10 @@ message EndpointsDest {
   optional string ip_address = 3;
 }
 
-// Server traffic configs .
-message TrafficServer {
+// Traffic configuration for server(s).
+message Statefull_flowServer {
 
-  // EndPoint configuration for one or more emulated network interfaces.
+  // EndPoint configuration for one or more emulated apps.
   repeated EndpointsServer endpoints = 1;
 
   // Protocol to use for test, such as HTTP, TCP
@@ -5083,7 +5134,7 @@ message TrafficServer {
 }
 
 // objective config such simulated user, thoughput, conncurrent connections.
-message TrafficObjective {
+message Statefull_flowObjective {
 
   message Choice {
     enum Enum {
@@ -5114,17 +5165,27 @@ message ObjectiveSimulated_user {
   // required = true
   int32 value = 1;
 
+  message RampUpType {
+    enum Enum {
+      unspecified = 0;
+      users_intervals = 1;
+      max_pending_user = 2;
+      immediate = 3;
+    }
+  }
   // Ramp up type for test.
-  optional string ramp_up_type = 2;
+  // default = RampUpType.Enum.1.0
+  optional RampUpType.Enum ramp_up_type = 2;
 
-  // Ramp up value in seconds.
+  // Value applied to ramp_up_type to either bring up users at a certain rate.
   optional int32 ramp_up_value = 3;
 
-  // sutain time of the test in seconds.
+  // Amount of time when all users are up and performing the central test objectives,
+  // such as retrieving or serving pages.
   optional int32 sutain_time = 4;
 
   // Rampu down time in seconds.
-  optional int32 rampu_down_time = 5;
+  optional int32 ramp_down_time = 5;
 }
 
 // Throughput traffic
@@ -5134,17 +5195,13 @@ message ObjectiveThroughput {
   // required = true
   int32 value = 1;
 
-  // ramp_up_type.
-  optional string ramp_up_type = 2;
+  // Amount of seconds when all users are up and performing the central test objectives,
+  // such as retrieving or serving pages.
+  optional float sutain_time = 2;
 
-  // ramp_up_value.
-  optional int32 ramp_up_value = 3;
-
-  // sutain time of the test.
-  optional int32 sutain_time = 4;
-
-  // rampu_down_time.
-  optional int32 rampu_down_time = 5;
+  // Amount of seconds used for closing any connections that are still open after all
+  // transactions are complete.
+  optional float ramp_down_time = 3;
 }
 
 // Conncurrent connections objectives
@@ -5154,17 +5211,17 @@ message ObjectiveConn_curr {
   // required = true
   int32 value = 1;
 
-  // ramp_up_type.
-  optional string ramp_up_type = 2;
+  // Amount of seconds when all users are up and performing the central test objectives,
+  // such as retrieving or serving pages.
+  optional float sutain_time = 2;
 
-  // ramp_up_value.
-  optional int32 ramp_up_value = 3;
+  // Amount of seconds used for closing any connections that are still open after all
+  // transactions are complete.
+  optional float ramp_down_time = 3;
 
-  // sutain time of the test.
-  optional int32 sutain_time = 4;
-
-  // rampu_down_time.
-  optional int32 rampu_down_time = 5;
+  // Amount of seconds used for closing any connections that are still open after all
+  // transactions are complete.
+  optional float ramp_down_value = 4;
 }
 
 // A list of errors that may have occurred while executing the request.

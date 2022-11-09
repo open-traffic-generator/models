@@ -6979,7 +6979,7 @@ components:
           x-field-uid: 3
     Egress.Custom:
       description: |-
-        Custom packet header
+        Custom packet header that can be used as a template for for protocols not yet defined
       type: object
       properties:
         header_length:
@@ -6989,7 +6989,7 @@ components:
           x-field-uid: 1
         field:
           description: |-
-            A custom packet header field
+            A custom packet header field which will be offset from the start of this packet
           $ref: '#/components/schemas/Egress.MetricGroup'
           x-field-uid: 2
     Egress.Ethernet:
@@ -7939,7 +7939,7 @@ components:
         metric_groups:
           description: |-
             A list of metric groups used to disaggregate flows. A metric group that does not exist for a flow group MUST return an error.
-          $ref: '#/components/schemas/Flow.MetricGroup.Request'
+          $ref: '#/components/schemas/Flow.MetricGroup.Filter'
           x-field-uid: 2
         metric_names:
           description: |-
@@ -7971,45 +7971,31 @@ components:
             - frames_tx_rate
             - frames_rx_rate
           x-field-uid: 3
-    Flow.MetricGroup.Request:
+    Flow.MetricGroup.Filter:
+      description: |-
+        A container for filtering ingress and/or egress metric groups
       type: object
       properties:
-        choice:
-          description: |-
-            The type of disaggregation to be applied to the flow metrics.
+        name:
+          description: |
+            A metric group name that MUST exist in a flow packet or
+            flow egress_packet configuration
+
+            x-constraint:
+            - None
           type: string
-          default: ingress
+          x-constraint:
+          - null
           x-field-uid: 1
-          x-enum:
-            ingress:
-              x-field-uid: 1
-            egress:
-              x-field-uid: 2
-          enum:
-          - ingress
-          - egress
-        ingress:
-          description: "Disaggregate the flow metrics by ingress packet header field\
-            \ names.\nIf the items is empty then no disaggregation will be done. \n\
-            \nx-constraint:\n- /components/schemas/Flow/properties/packet/../metric_group\n"
+        filters:
+          description: |-
+            A list of filters that can be applied to the metric group name.
+            By default all values will be included in the flow metric results.
           type: array
-          default: []
           items:
             type: string
-          x-constraint:
-          - /components/schemas/Flow/properties/packet/../metric_group
+            format: hex
           x-field-uid: 2
-        egress:
-          description: "Disaggregate the flow metrics by egress packet header field\
-            \ names \nIf the items is empty then no disaggregation will be done. \n\
-            \nx-constraint:\n- /components/schemas/Flow/properties/egress/../metric_group\n"
-          type: array
-          default: []
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Flow/properties/egress/../metric_group
-          x-field-uid: 3
     Flow.Metric:
       description: |-
         A container for flow metrics.
@@ -8138,10 +8124,12 @@ components:
           format: double
           x-field-uid: 2
     Metric.Latency:
-      description: "The container for latency metrics. \nThe min/max/avg values are\
-        \ dependent on the type of latency measurement \nmode that is configured.\n\
-        The container will be empty if the latency has not been configured for\nthe\
-        \ flow."
+      description: |-
+        The container for latency metrics.
+        The min/max/avg values are dependent on the type of latency measurement
+        mode that is configured.
+        The container will be empty if the latency has not been configured for
+        the flow.
       type: object
       properties:
         minimum_ns:

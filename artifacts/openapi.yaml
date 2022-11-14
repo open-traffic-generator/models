@@ -7014,28 +7014,34 @@ components:
           items:
             $ref: '#/components/schemas/App.Tcp'
           x-field-uid: 1
-        http:
-          description: "The properties of HTTP and its children, "
+        http_client:
+          description: "The properties of HTTP client, "
           type: array
           items:
-            $ref: '#/components/schemas/App.Http'
+            $ref: '#/components/schemas/App.HttpClient'
           x-field-uid: 2
+        http_server:
+          description: "The properties of HTTP server, "
+          type: array
+          items:
+            $ref: '#/components/schemas/App.HttpServer'
+          x-field-uid: 3
         ssl:
           description: |-
             SSL configuration
           type: array
           items:
             $ref: '#/components/schemas/App.Ssl'
-          x-field-uid: 3
-        statefull_flows:
+          x-field-uid: 4
+        stateful_flows:
           description: |-
             Traffic configuration of endpoints.
           type: array
           items:
-            $ref: '#/components/schemas/Statefull_flow'
-          x-field-uid: 4
-        name:
+            $ref: '#/components/schemas/StatefulFlow'
           x-field-uid: 5
+        name:
+          x-field-uid: 6
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
@@ -7085,18 +7091,15 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
-    App.Http:
+    App.HttpClient:
       description: |-
-        Configurations of one or more HTTP client and server.
+        Configurations of one or more HTTP client.
       type: object
       properties:
         client:
-          $ref: '#/components/schemas/Http.Client'
+          $ref: '#/components/schemas/HttpClient.Client'
           x-field-uid: 1
-        server:
-          $ref: '#/components/schemas/Http.Server'
-          x-field-uid: 2
-    Http.Client:
+    HttpClient.Client:
       description: "One or more HTTP Client configurations and its HTTP methods configs. "
       type: object
       properties:
@@ -7135,8 +7138,8 @@ components:
           x-field-uid: 3
         cookie_reject_probability:
           description: |-
-            cookie_reject_probability indicates the probability, from 0 to 1, that a client will reject a request for a cookie(s) contents from the server. (only if enable_cookie_support is enabled)
-          type: integer
+            cookie_reject_probability indicates the probability, from 0 or 1, that a client will reject a request for a cookie(s) contents from the server. (only if enable_cookie_support is enabled)
+          type: boolean
           default: 0
           x-field-uid: 4
         enable_cookie_support:
@@ -7221,7 +7224,15 @@ components:
             The page url/name to perform HTTP POST operation.
           type: string
           x-field-uid: 2
-    Http.Server:
+    App.HttpServer:
+      description: |-
+        Configurations of one or more HTTP server.
+      type: object
+      properties:
+        server:
+          $ref: '#/components/schemas/HttpServer.Server'
+          x-field-uid: 1
+    HttpServer.Server:
       description: "One or more HTTP Server configurations. "
       type: object
       properties:
@@ -7260,7 +7271,7 @@ components:
           x-field-uid: 3
         request_timeout:
           description: |-
-            The amount of seconds that the server will wait for input on an open connection before closing the session with a 408 error.
+            The number of seconds that the server will wait for input on an open connection before closing the session with a 408 error.
           type: integer
           default: 300
           x-field-uid: 4
@@ -7275,21 +7286,21 @@ components:
           type: boolean
           default: false
           x-field-uid: 1
-    Statefull_flow:
+    StatefulFlow:
       description: "Statefull_flows configure traffic for emulated protocols which\
         \ is configured in apps. "
       type: object
       properties:
         client:
-          $ref: '#/components/schemas/Statefull_flow.Client'
+          $ref: '#/components/schemas/StatefulFlow.Client'
           x-field-uid: 1
         server:
-          $ref: '#/components/schemas/Statefull_flow.Server'
+          $ref: '#/components/schemas/StatefulFlow.Server'
           x-field-uid: 2
         objectives:
-          $ref: '#/components/schemas/Statefull_flow.Objective'
+          $ref: '#/components/schemas/StatefulFlow.Objective'
           x-field-uid: 3
-    Statefull_flow.Client:
+    StatefulFlow.Client:
       description: |-
         Client traffic configs.
       type: object
@@ -7356,11 +7367,14 @@ components:
           x-enum:
             name:
               x-field-uid: 1
-            ip_address:
+            ipv4_address:
               x-field-uid: 2
+            ipv6_address:
+              x-field-uid: 3
           enum:
           - name
-          - ip_address
+          - ipv4_address
+          - ipv6_address
         name:
           description: |
             IPv4/v6 interface name
@@ -7373,12 +7387,19 @@ components:
           - /components/schemas/Device.Ipv4Base/properties/name
           - /components/schemas/Device.Ipv6Base/properties/name
           x-field-uid: 2
-        ip_address:
+        ipv4_address:
           description: |-
-            IPv4/v6 address
+            IPv4 address of the server with prefix length of 32.
           type: string
           x-field-uid: 3
-    Statefull_flow.Server:
+          format: ipv4
+        ipv6_address:
+          description: |-
+            IPv6 address of the server with prefix length of 128.
+          type: string
+          x-field-uid: 4
+          format: ipv6
+    StatefulFlow.Server:
       description: |-
         Traffic configuration for server(s).
       type: object
@@ -7402,7 +7423,7 @@ components:
           - /components/schemas/App.Tcp/properties/name
           - /components/schemas/App.Http/properties/name
           x-field-uid: 2
-    Statefull_flow.Objective:
+    StatefulFlow.Objective:
       description: |-
         objective config such simulated user, thoughput, conncurrent connections.
       type: object
@@ -7424,14 +7445,14 @@ components:
           - concurrent_connections
         simulated_user:
           x-field-uid: 2
-          $ref: '#/components/schemas/Objective.Simulated_user'
+          $ref: '#/components/schemas/Objective.Simulated.User'
         throughput:
           x-field-uid: 3
           $ref: '#/components/schemas/Objective.Throughput'
         concurrent_connections:
           x-field-uid: 4
-          $ref: '#/components/schemas/Objective.Conn_curr'
-    Objective.Simulated_user:
+          $ref: '#/components/schemas/Objective.Connection.Conncurrent'
+    Objective.Simulated.User:
       description: |-
         simulated user traffic
       type: object
@@ -7445,7 +7466,7 @@ components:
           x-field-uid: 1
         ramp_up_type:
           description: |-
-            Ramp up type to either bring up users at a certain rate.
+            Ramp up type to defines the type of user execution profiles during the ramp_up_time, .
           type: string
           x-field-uid: 2
           x-enum:
@@ -7465,14 +7486,14 @@ components:
             Value applied to ramp_up_type to either bring up users at a certain rate.
           type: integer
           x-field-uid: 3
-        sutain_time:
+        sustain_time:
           description: |-
             Amount of time when all users are up and performing the central test objectives, such as retrieving or serving pages.
           type: integer
           x-field-uid: 4
         ramp_down_time:
           description: |-
-            Rampu down time in seconds.
+            Amount of seconds used for closing any connections that are still open after all transactions are complete.
           type: integer
           x-field-uid: 5
     Objective.Throughput:
@@ -7486,7 +7507,7 @@ components:
             Throughput value.
           type: integer
           x-field-uid: 1
-        sutain_time:
+        sustain_time:
           description: |-
             Amount of seconds when all users are up and performing the central test objectives, such as retrieving or serving pages.
           type: number
@@ -7496,7 +7517,7 @@ components:
             Amount of seconds used for closing any connections that are still open after all transactions are complete.
           type: number
           x-field-uid: 3
-    Objective.Conn_curr:
+    Objective.Connection.Conncurrent:
       description: |-
         Conncurrent connections objectives
       type: object
@@ -7508,7 +7529,7 @@ components:
             Throughput value.
           type: integer
           x-field-uid: 1
-        sutain_time:
+        sustain_time:
           description: |-
             Amount of seconds when all users are up and performing the central test objectives, such as retrieving or serving pages.
           type: number

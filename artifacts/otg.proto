@@ -4858,19 +4858,22 @@ message App {
   // The properties of TCP and its children,
   repeated AppTcp tcp = 1;
 
-  // The properties of HTTP and its children,
-  repeated AppHttp http = 2;
+  // The properties of HTTP client,
+  repeated AppHttpClient http_client = 2;
+
+  // The properties of HTTP server,
+  repeated AppHttpServer http_server = 3;
 
   // SSL configuration
-  repeated AppSsl ssl = 3;
+  repeated AppSsl ssl = 4;
 
   // Traffic configuration of endpoints.
-  repeated Statefull_flow statefull_flows = 4;
+  repeated StatefulFlow stateful_flows = 5;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  string name = 5;
+  string name = 6;
 }
 
 // The properties of TCP Configurations.
@@ -4902,18 +4905,15 @@ message AppTcp {
   optional string name = 6;
 }
 
-// Configurations of one or more HTTP client and server.
-message AppHttp {
+// Configurations of one or more HTTP client.
+message AppHttpClient {
 
   // Description missing in models
-  optional HttpClient client = 1;
-
-  // Description missing in models
-  optional HttpServer server = 2;
+  optional HttpClientClient client = 1;
 }
 
 // One or more HTTP Client configurations and its HTTP methods configs.
-message HttpClient {
+message HttpClientClient {
 
   // Transport interface that can be attached to TCP. In the same apps or different apps
   // container.
@@ -4940,11 +4940,11 @@ message HttpClient {
   // default = 10
   optional int32 cookie_jar_size = 3;
 
-  // cookie_reject_probability indicates the probability, from 0 to 1, that a client will
+  // cookie_reject_probability indicates the probability, from 0 or 1, that a client will
   // reject a request for a cookie(s) contents from the server. (only if enable_cookie_support
   // is enabled)
   // default = 0
-  optional int32 cookie_reject_probability = 4;
+  optional bool cookie_reject_probability = 4;
 
   // The client will support cookie retention, as indicated in the cookie_jar_size and
   // cookie_reject_probability
@@ -5008,8 +5008,15 @@ message MethodPost {
   string page = 2;
 }
 
+// Configurations of one or more HTTP server.
+message AppHttpServer {
+
+  // Description missing in models
+  optional HttpServerServer server = 1;
+}
+
 // One or more HTTP Server configurations.
-message HttpServer {
+message HttpServerServer {
 
   // Transport interface that can be attached to TCP. In the same apps or different apps
   // container.
@@ -5035,7 +5042,7 @@ message HttpServer {
   // default = 80
   optional int32 http_port = 3;
 
-  // The amount of seconds that the server will wait for input on an open connection before
+  // The number of seconds that the server will wait for input on an open connection before
   // closing the session with a 408 error.
   // default = 300
   optional int32 request_timeout = 4;
@@ -5051,20 +5058,20 @@ message AppSsl {
 
 // Statefull_flows configure traffic for emulated protocols which is configured in apps.
 // 
-message Statefull_flow {
+message StatefulFlow {
 
   // Description missing in models
-  optional Statefull_flowClient client = 1;
+  optional StatefulFlowClient client = 1;
 
   // Description missing in models
-  optional Statefull_flowServer server = 2;
+  optional StatefulFlowServer server = 2;
 
   // Description missing in models
-  optional Statefull_flowObjective objectives = 3;
+  optional StatefulFlowObjective objectives = 3;
 }
 
 // Client traffic configs.
-message Statefull_flowClient {
+message StatefulFlowClient {
 
   // EndPoint configuration for one or more emulated apps.
   repeated EndpointsClient endpoints = 1;
@@ -5110,7 +5117,8 @@ message EndpointsDest {
     enum Enum {
       unspecified = 0;
       name = 1;
-      ip_address = 2;
+      ipv4_address = 2;
+      ipv6_address = 3;
     }
   }
   // Description missing in models
@@ -5125,12 +5133,15 @@ message EndpointsDest {
   // 
   optional string name = 2;
 
-  // IPv4/v6 address
-  optional string ip_address = 3;
+  // IPv4 address of the server with prefix length of 32.
+  optional string ipv4_address = 3;
+
+  // IPv6 address of the server with prefix length of 128.
+  optional string ipv6_address = 4;
 }
 
 // Traffic configuration for server(s).
-message Statefull_flowServer {
+message StatefulFlowServer {
 
   // EndPoint configuration for one or more emulated apps.
   repeated EndpointsServer endpoints = 1;
@@ -5145,7 +5156,7 @@ message Statefull_flowServer {
 }
 
 // objective config such simulated user, thoughput, conncurrent connections.
-message Statefull_flowObjective {
+message StatefulFlowObjective {
 
   message Choice {
     enum Enum {
@@ -5160,17 +5171,17 @@ message Statefull_flowObjective {
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  optional ObjectiveSimulated_user simulated_user = 2;
+  optional ObjectiveSimulatedUser simulated_user = 2;
 
   // Description missing in models
   optional ObjectiveThroughput throughput = 3;
 
   // Description missing in models
-  optional ObjectiveConn_curr concurrent_connections = 4;
+  optional ObjectiveConnectionConncurrent concurrent_connections = 4;
 }
 
 // simulated user traffic
-message ObjectiveSimulated_user {
+message ObjectiveSimulatedUser {
 
   // Number of simulated user.
   // required = true
@@ -5184,7 +5195,8 @@ message ObjectiveSimulated_user {
       immediate = 3;
     }
   }
-  // Ramp up type to either bring up users at a certain rate.
+  // Ramp up type to defines the type of user execution profiles during the ramp_up_time,
+  // .
   // default = RampUpType.Enum.users_intervals
   optional RampUpType.Enum ramp_up_type = 2;
 
@@ -5193,9 +5205,10 @@ message ObjectiveSimulated_user {
 
   // Amount of time when all users are up and performing the central test objectives,
   // such as retrieving or serving pages.
-  optional int32 sutain_time = 4;
+  optional int32 sustain_time = 4;
 
-  // Rampu down time in seconds.
+  // Amount of seconds used for closing any connections that are still open after all
+  // transactions are complete.
   optional int32 ramp_down_time = 5;
 }
 
@@ -5208,7 +5221,7 @@ message ObjectiveThroughput {
 
   // Amount of seconds when all users are up and performing the central test objectives,
   // such as retrieving or serving pages.
-  optional float sutain_time = 2;
+  optional float sustain_time = 2;
 
   // Amount of seconds used for closing any connections that are still open after all
   // transactions are complete.
@@ -5216,7 +5229,7 @@ message ObjectiveThroughput {
 }
 
 // Conncurrent connections objectives
-message ObjectiveConn_curr {
+message ObjectiveConnectionConncurrent {
 
   // Throughput value.
   // required = true
@@ -5224,7 +5237,7 @@ message ObjectiveConn_curr {
 
   // Amount of seconds when all users are up and performing the central test objectives,
   // such as retrieving or serving pages.
-  optional float sutain_time = 2;
+  optional float sustain_time = 2;
 
   // Amount of seconds used for closing any connections that are still open after all
   // transactions are complete.

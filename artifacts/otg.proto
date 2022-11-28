@@ -6676,6 +6676,7 @@ message StatesRequest {
       ipv6_neighbors = 2;
       bgp_prefixes = 3;
       isis_lsps = 4;
+      rsvp_lsps = 5;
     }
   }
   // Description missing in models
@@ -6693,6 +6694,9 @@ message StatesRequest {
 
   // Description missing in models
   optional IsisLspsStateRequest isis_lsps = 5;
+
+  // Description missing in models
+  optional RsvpLspsStateRequest rsvp_lsps = 6;
 }
 
 // Response containing chosen traffic generator states
@@ -6705,6 +6709,7 @@ message StatesResponse {
       ipv6_neighbors = 2;
       bgp_prefixes = 3;
       isis_lsps = 4;
+      rsvp_lsps = 5;
     }
   }
   // Description missing in models
@@ -6722,6 +6727,9 @@ message StatesResponse {
 
   // Description missing in models
   repeated IsisLspsState isis_lsps = 5;
+
+  // Description missing in models
+  repeated RsvpLspsState rsvp_lsps = 6;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -7321,6 +7329,132 @@ message IsisLspPrefixAttributes {
 
   // Node Flag (Bit 2)
   optional bool n_flag = 3;
+}
+
+// The request to retrieve RSVP Label Switched Path (LSP) information learned by the
+// router.
+message RsvpLspsStateRequest {
+
+  // The names of RSVP-TE routers for which learned information is requested. An empty
+  // list will return results for all RSVP=TE routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Rsvp/properties/name
+  // 
+  repeated string rsvp_router_names = 1;
+}
+
+// Discovered LSPs of a RSVP-TE router.
+message RsvpLspsState {
+
+  // The name of the RSVP-TE Router.
+  optional string rsvp_router_name = 1;
+
+  // Discovered IPv4LSPs of a RSVP-TE router.
+  repeated RsvpIPv4LspState ipv4_lsps = 2;
+}
+
+// IPv4 RSVP-TE Discovered LSPs.
+message RsvpIPv4LspState {
+
+  // The origin IPV4 address of RSVP session.
+  optional string source_address = 1;
+
+  // The IPV4 destination address of RSVP session.
+  optional string destination_address = 2;
+
+  // It refers to the RSVP LSP properties.
+  optional RsvpLspState lsp = 3;
+
+  // It refers to RSVP RRO objects container.
+  repeated RsvpLspIpv4Rro rros = 4;
+
+  // It refers to RSVP ERO objects container.
+  repeated RsvpLspIpv4Ero eros = 5;
+}
+
+// IPv4 RSVP-TE Discovered LSPs.
+message RsvpLspState {
+
+  // The tunnel id of RSVP session which acts as an identifier that remains constant over
+  // the life of the tunnel.
+  optional int32 tunnel_id = 1;
+
+  // The lsp-id of RSVP session which acts as a differentiator for two lsps originating
+  // from the same headend, commonly used to distinguish RSVP sessions during make before
+  // break operations.
+  optional int32 lsp_id = 2;
+
+  // The name of RSVP-TE session.
+  optional int32 session_name = 3;
+
+  // The label received by RSVP-TE ingress.
+  optional int32 label_in = 4;
+
+  // The label assigned by RSVP-TE egress.
+  optional int32 label_out = 5;
+
+  message SessionStatus {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Operational state of the RSVP LSP.
+  optional SessionStatus.Enum session_status = 6;
+
+  message LastFlapReason {
+    enum Enum {
+      unspecified = 0;
+      resv_tear = 1;
+      path_tear = 2;
+      path_timeout = 3;
+    }
+  }
+  // The reason for the last flap of this RSVP session.
+  optional LastFlapReason.Enum last_flap_reason = 7;
+
+  // The tunnel UP time in milli seconds.
+  optional int64 up_time = 8;
+}
+
+// This contains the list of MPLS RRO objects associated with the traffic engineering
+// tunnel.
+message RsvpLspIpv4Rro {
+
+  // The origin IPV4 address of RSVP session.
+  optional string address = 1;
+
+  // Label reported for RRO hop.
+  optional int32 reported_label = 2;
+}
+
+// This contains the list of MPLS ERO objects associated with the traffic engineering
+// tunnel.
+message RsvpLspIpv4Ero {
+
+  // The IPv4 prefix indicated by the ERO. Specified only when the ERO hop is an IPv4
+  // prefix.
+  optional string prefix = 1;
+
+  // The autonomous system number indicated by the ERO. Specified only when the ERO hop
+  // is an  2 or 4-byte AS number.
+  optional int32 asn = 2;
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+      asn = 3;
+      asn4 = 4;
+      label = 5;
+      unnumbered_interface = 6;
+    }
+  }
+  // The type indicated by the ERO.
+  optional Type.Enum type = 3;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the

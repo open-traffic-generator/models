@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 0.8.1
+/* Open Traffic Generator API 0.9.10
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -44,6 +44,9 @@ message Config {
 
   // Description missing in models
   optional ConfigOptions options = 8;
+
+  // LLDP protocol that will be configured on traffic generator.
+  repeated Lldp lldp = 9;
 }
 
 // Global configuration options.
@@ -94,7 +97,10 @@ message Lag {
   optional LagProtocol protocol = 2;
 
   // Specifies the mininum number of member interfaces that must be active for the aggregate
-  // interface to be available
+  // interface to be available.
+  // If the aggregate interface is not available due to min-links criterion not being
+  // met, LACPDUs continue to be transmitted and received by the member interfaces if
+  // LACP is enabled, but other PDUs are not transmitted or received.
   // default = 1
   optional int32 min_links = 3;
 
@@ -224,7 +230,6 @@ message DeviceEthernetBase {
 }
 
 // An Ethernet interface with IPv4 and IPv6 addresses.
-// Base Ethernet interface.
 message DeviceEthernet {
 
   // Status: deprecated
@@ -297,8 +302,8 @@ message EthernetConnection {
   // to.
   // 
   // x-constraint:
-  // - #/components/schemas/VXlan.V4Tunnel/properties/name
-  // - #/components/schemas/VXlan.V6Tunnel/properties/name
+  // - #/components/schemas/Vxlan.V4Tunnel/properties/name
+  // - #/components/schemas/Vxlan.V6Tunnel/properties/name
   // 
   optional string vxlan_name = 4;
 }
@@ -335,25 +340,27 @@ message DeviceVlan {
 }
 
 // An IPv4 interface with gateway
-// A base IPv4 interface.
 message DeviceIpv4 {
 
   // The IPv4 address of the gateway
   // required = true
   string gateway = 1;
 
+  // Description missing in models
+  optional DeviceIpv4GatewayMAC gateway_mac = 2;
+
   // The IPv4 address
   // required = true
-  string address = 2;
+  string address = 3;
 
   // The prefix of the IPv4 address.
   // default = 24
-  optional int32 prefix = 3;
+  optional int32 prefix = 4;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  string name = 4;
+  string name = 5;
 }
 
 // An IPv4 Loopback interface.
@@ -378,27 +385,56 @@ message DeviceIpv4Loopback {
   string name = 3;
 }
 
-// Status: under-review
+// By default auto(resolved gateway mac) is set.  Setting a value would mean that ARP
+// will not be used for learning MAC of connected device. The user-configured MAC address
+// will be used for auto-filling the destination
+// MAC address in the control and data packets sent from this IPv4 endpoint
+// whenever applicable.
+message DeviceIpv4GatewayMAC {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // auto or configured value.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation can provide a system generated value for this property. If
+  // the OTG is unable to generate a value the default value must be used.
+  // default = 00:00:00:00:00:00
+  optional string auto = 2;
+
+  // Description missing in models
+  // default = 00:00:00:00:00:00
+  optional string value = 3;
+}
+
 // An IPv6 interface with gateway.
-// A base IPv6 interface.
 message DeviceIpv6 {
 
   // The IPv6 gateway address.
   // required = true
   string gateway = 1;
 
+  // Description missing in models
+  optional DeviceIpv6GatewayMAC gateway_mac = 2;
+
   // The IPv6 address.
   // required = true
-  string address = 2;
+  string address = 3;
 
   // The network prefix.
   // default = 64
-  optional int32 prefix = 3;
+  optional int32 prefix = 4;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  string name = 4;
+  string name = 5;
 }
 
 // An IPv6 Loopback interface
@@ -421,6 +457,34 @@ message DeviceIpv6Loopback {
   // objects.
   // required = true
   string name = 3;
+}
+
+// By default auto(resolved gateway mac) is set. Setting a value would mean that ND
+// will not be used for learning MAC of connected device. The user-configured MAC address
+// will be used for auto-filling the destination
+// MAC address in the control and data packets sent from this IPv6 endpoint
+// whenever applicable.
+message DeviceIpv6GatewayMAC {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // auto or configured value.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation can provide a system generated value for this property. If
+  // the OTG is unable to generate a value the default value must be used.
+  // default = 00:00:00:00:00:00
+  optional string auto = 2;
+
+  // Description missing in models
+  // default = 00:00:00:00:00:00
+  optional string value = 3;
 }
 
 // A container for layer1 settings.
@@ -1210,6 +1274,11 @@ message IsisBasic {
   // is described in RFC3784.
   // default = True
   optional bool enable_wide_metric = 3;
+
+  // Configuration for controlling storage of ISIS learned LSPs are received from the
+  // neighbors.
+  // default = False
+  optional bool learned_lsp_filter = 4;
 }
 
 // Contains ISIS router advanced properties.
@@ -1301,9 +1370,6 @@ message IsisAuthenticationBase {
 }
 
 // Emulated ISIS IPv4 routes.
-// Configuration for ISIS route ranges.
-// This contains the properties of ISIS Prefix attributes for  the extended IPv4 and
-// IPv6 reachability. https://www.rfc-editor.org/rfc/rfc7794.html
 message IsisV4RouteRange {
 
   // A list of group of IPv4 route addresses.
@@ -1323,7 +1389,8 @@ message IsisV4RouteRange {
   // The origin of the advertised route-internal or external to the ISIS area. Options
   // include the following:
   // Internal-for intra-area routes, through Level 1 LSPs.
-  // External-for inter-area routes redistributed within L1, through Level 1 LSPs.
+  // External-for inter-area routes redistributed within L1, through Level
+  // 1 LSPs.
   // default = OriginType.Enum.internal
   optional OriginType.Enum origin_type = 3;
 
@@ -1336,10 +1403,12 @@ message IsisV4RouteRange {
   }
   // Defines the Up/Down (Redistribution) bit defined for TLVs 128 and 130 by RFC 2966.
   // It is used for domain-wide advertisement of prefix information.
-  // Up (0)-used when a prefix is initially advertised within the ISIS L3 hierarchy,
   // 
+  // Up (0)-used when a prefix is initially advertised within the ISIS L3
+  // hierarchy,
   // and for all other prefixes in L1 and L2 LSPs. (default)
   // Down (1)-used when an L1/L2 router advertises L2 prefixes in L1 LSPs.
+  // 
   // The prefixes are being advertised from a higher level (L2) down to a lower level
   // (L1).
   // default = RedistributionType.Enum.up
@@ -1432,9 +1501,6 @@ message MACRouteAddress {
 }
 
 // Emulated ISIS IPv6 routes.
-// Configuration for ISIS route ranges.
-// This contains the properties of ISIS Prefix attributes for  the extended IPv4 and
-// IPv6 reachability. https://www.rfc-editor.org/rfc/rfc7794.html
 message IsisV6RouteRange {
 
   // A list of group of IPv6 route addresses.
@@ -1454,7 +1520,8 @@ message IsisV6RouteRange {
   // The origin of the advertised route-internal or external to the ISIS area. Options
   // include the following:
   // Internal-for intra-area routes, through Level 1 LSPs.
-  // External-for inter-area routes redistributed within L1, through Level 1 LSPs.
+  // External-for inter-area routes redistributed within L1, through Level
+  // 1 LSPs.
   // default = OriginType.Enum.internal
   optional OriginType.Enum origin_type = 3;
 
@@ -1467,10 +1534,12 @@ message IsisV6RouteRange {
   }
   // Defines the Up/Down (Redistribution) bit defined for TLVs 128 and 130 by RFC 2966.
   // It is used for domain-wide advertisement of prefix information.
-  // Up (0)-used when a prefix is initially advertised within the ISIS L3 hierarchy,
   // 
+  // Up (0)-used when a prefix is initially advertised within the ISIS L3
+  // hierarchy,
   // and for all other prefixes in L1 and L2 LSPs. (default)
   // Down (1)-used when an L1/L2 router advertises L2 prefixes in L1 LSPs.
+  // 
   // The prefixes are being advertised from a higher level (L2) down to a lower level
   // (L1).
   // default = RedistributionType.Enum.up
@@ -1516,9 +1585,7 @@ message DeviceBgpRouter {
   repeated BgpV6Interface ipv6_interfaces = 3;
 }
 
-// Status: under-review
 // Configuration for emulated BGPv4 peers and routes.
-// Configuration for basic emulated BGP peer settings.
 message BgpV4Peer {
 
   // IPv4 address of the BGP peer for the session.
@@ -1605,6 +1672,8 @@ message BgpV4Peer {
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
   // required = true
   string name = 13;
 }
@@ -1624,6 +1693,443 @@ message BgpV4Interface {
 
   // This contains the list of BGPv4 peers configured on this interface.
   repeated BgpV4Peer peers = 2;
+}
+
+// Configuration for BGP Ethernet Segment ranges. Advertises following routes -
+// 
+// Type 4 - Ethernet Segment Route
+message BgpV4EthernetSegment {
+
+  // Designated Forwarder (DF) election configuration.
+  optional BgpEthernetSegmentDfElection df_election = 1;
+
+  // This contains the list of EVIs.
+  repeated BgpV4EvpnEvis evis = 2;
+
+  // 10-octet Ethernet Segment Identifier (ESI) Example - For multi-home scenario nonZero
+  // ESI is '10000000000000000000' .
+  // default = 00000000000000000000
+  optional string esi = 3;
+
+  message ActiveMode {
+    enum Enum {
+      unspecified = 0;
+      single_active = 1;
+      all_active = 2;
+    }
+  }
+  // Single Active or All Active mode Redundancy mode selection for Multi-home.
+  // default = ActiveMode.Enum.all_active
+  optional ActiveMode.Enum active_mode = 4;
+
+  // The label value to be advertised as ESI Label in ESI Label Extended Community. This
+  // is included in Ethernet Auto-discovery per ES Routes advertised by a router.
+  // default = 0
+  optional int32 esi_label = 5;
+
+  // Description missing in models
+  optional BgpRouteAdvanced advanced = 6;
+
+  // Optional community settings.
+  repeated BgpCommunity communities = 7;
+
+  // Optional Extended Community settings.
+  repeated BgpExtCommunity ext_communities = 8;
+
+  // Optional AS PATH settings.
+  optional BgpAsPath as_path = 9;
+}
+
+// Configuration for Designated Forwarder (DF) election among the Provider Edge (PE)
+// routers on the same Ethernet Segment.
+message BgpEthernetSegmentDfElection {
+
+  // The DF election timer in seconds.
+  // default = 3
+  optional int32 election_timer = 1;
+}
+
+// Configuration for advanced BGP route range settings.
+message BgpRouteAdvanced {
+
+  // BGP Multi Exit Discriminator attribute sent to the peer to help in the route selection
+  // process.  If set to true, the Multi Exit Discriminator attribute will be included
+  // in the route advertisement.
+  // default = True
+  optional bool include_multi_exit_discriminator = 3;
+
+  // The multi exit discriminator (MED) value used for route selection sent to the peer.
+  optional int32 multi_exit_discriminator = 1;
+
+  // If set to true, the Origin attribute will be included in the route advertisement.
+  // default = True
+  optional bool include_origin = 4;
+
+  message Origin {
+    enum Enum {
+      unspecified = 0;
+      igp = 1;
+      egp = 2;
+      incomplete = 3;
+    }
+  }
+  // The origin attribute of a prefix can take three values: the prefix originates from
+  // an interior routing protocol 'igp',  it originates from 'egp' or the origin is 'incomplete',
+  // if the prefix is learned through other means.
+  // default = Origin.Enum.igp
+  optional Origin.Enum origin = 2;
+
+  // BGP Local Preference attribute sent to the peer to indicate the degree of preference
+  // for externally learned routes. If set to true, the Local Preference attribute will
+  // be included  in the route advertisement. This should be included only for internal
+  // peers.
+  // default = True
+  optional bool include_local_preference = 5;
+
+  // Value to be set in Local Preference attribute if include_local_preference is set
+  // to true. It is  used for the selection of the path for the traffic leaving the AS.
+  // The route with the  highest local preference value is preferred.
+  // default = 100
+  optional int32 local_preference = 6;
+}
+
+// BGP communities provide additional capability for tagging routes and  for modifying
+// BGP routing policy on upstream and downstream routers. BGP community is a 32-bit
+// number which is broken into 16-bit AS number and  a 16-bit custom value.
+message BgpCommunity {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      manual_as_number = 1;
+      no_export = 2;
+      no_advertised = 3;
+      no_export_subconfed = 4;
+      llgr_stale = 5;
+      no_llgr = 6;
+    }
+  }
+  // The type of community AS number.
+  optional Type.Enum type = 1;
+
+  // First two octets of 32 bit community AS number.
+  // default = 0
+  optional int32 as_number = 2;
+
+  // Last two octets of the community value.
+  // default = 0
+  optional int32 as_custom = 3;
+}
+
+// The Extended Communities Attribute is a transitive optional BGP attribute, with the
+// Type Code 16. Community and Extended Communities  attributes to trigger routing decisions,
+// such as acceptance, rejection,  preference, or redistribution. An extended community
+// is an 8-Bytes value. It is also divided into two main parts. The first 2 Bytes of
+// the community encode a type and sub-type fields and the last 6 Bytes carry a unique
+// set of data in a  format defined by the type and sub-type field. Extended communities
+// provide a larger  range for grouping or categorizing communities.
+message BgpExtCommunity {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      administrator_as_2octet = 1;
+      administrator_ipv4_address = 2;
+      administrator_as_4octet = 3;
+      opaque = 4;
+      evpn = 5;
+      administrator_as_2octet_link_bandwidth = 6;
+    }
+  }
+  // Extended Community Type field of 1 Byte.
+  // - administrator_as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).
+  // - administrator_ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).
+  // - administrator_as_4octet:  4-Octet AS Specific Extended Community (RFC 5668).
+  // - opaque: Opaque Extended Community (RFC 7432).
+  // - evpn: EVPN Extended Community (RFC 7153).
+  // - administrator_as_2octet_link_bandwidth : Link Bandwidth Extended Community (RFC
+  // 7153).
+  optional Type.Enum type = 1;
+
+  message Subtype {
+    enum Enum {
+      unspecified = 0;
+      route_target = 1;
+      origin = 2;
+      extended_bandwidth = 3;
+      color = 4;
+      encapsulation = 5;
+      mac_address = 6;
+    }
+  }
+  // Extended Community Sub Type field of 1 Byte.
+  // - route_target: Route Target.
+  // - origin: Origin.
+  // - extended_bandwidth: Specifies the link bandwidth.
+  // - color: Specifies the color value.
+  // - encapsulation: Specifies the Encapsulation Extended Community.
+  // - mac_address: Specifies the Extended community MAC address.
+  optional Subtype.Enum subtype = 2;
+
+  // Extended Community value of 6 Bytes. Example - for the Opaque type and Color subtype
+  // value can be '0000000000c8'  for the color value 200.
+  optional string value = 3;
+}
+
+// This attribute identifies the autonomous systems through  which routing information
+// carried in this UPDATE message has passed. This contains the configuration of how
+// to include the Local AS in the AS path attribute of the MP REACH NLRI. It also contains
+// optional configuration of additional AS Path Segments that can be included in the
+// AS Path attribute. The AS Path consists of a Set or Sequence of Autonomous Systems
+// (AS) numbers  that a routing information passes through to reach the destination.
+message BgpAsPath {
+
+  message AsSetMode {
+    enum Enum {
+      unspecified = 0;
+      do_not_include_local_as = 1;
+      include_as_seq = 2;
+      include_as_set = 3;
+      include_as_confed_seq = 4;
+      include_as_confed_set = 5;
+      prepend_to_first_segment = 6;
+    }
+  }
+  // Defines how the Local AS should be included in the MP REACH NLRI. For iBGP sessions,
+  // Do Not Include Local AS must be chosen. For eBGP sessions, any choice other than
+  // Do Not Include Local AS can be chosen.
+  // default = AsSetMode.Enum.do_not_include_local_as
+  optional AsSetMode.Enum as_set_mode = 1;
+
+  // The additional AS path segments to be added in the NLRI.  By default, an empty AS
+  // path is always included and  the local AS is added to it as per the value of 'as_set_mode'
+  // attribute.
+  repeated BgpAsPathSegment segments = 2;
+}
+
+// Configuration for a single BGP AS path segment
+message BgpAsPathSegment {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      as_seq = 1;
+      as_set = 2;
+      as_confed_seq = 3;
+      as_confed_set = 4;
+    }
+  }
+  // AS sequence is the most common type of AS_PATH, it contains the  list of ASNs starting
+  // with the most recent ASN being added read  from left to right.
+  // The other three AS_PATH types are used for Confederations - AS_SET is the type of
+  // AS_PATH attribute that summarizes routes using using the aggregate-address command,
+  // allowing AS_PATHs to be  summarized in the update as well. - AS_CONFED_SEQ gives
+  // the list of ASNs in the path starting with the  most recent ASN to be added reading
+  // left to right - AS_CONFED_SET will allow summarization of multiple AS PATHs to be
+  // sent in BGP Updates.
+  // default = Type.Enum.as_seq
+  optional Type.Enum type = 1;
+
+  // The AS numbers in this AS path segment.
+  repeated int64 as_numbers = 2;
+}
+
+// This contains a list of different flavors of EVPN.
+// For example EVPN over VXLAN or EVPN over MPLS etc to be configured per Ethernet segment.
+// 
+// Need to instantiate correct type of EVPN instance as per requirement.
+message BgpV4EvpnEvis {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      evi_vxlan = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.evi_vxlan
+  optional Choice.Enum choice = 1;
+
+  // EVPN VXLAN instance to be configured per Ethernet Segment.
+  optional BgpV4EviVxlan evi_vxlan = 2;
+}
+
+// Configuration for BGP EVPN EVI. Advertises following routes -
+// 
+// Type 3 - Inclusive Multicast Ethernet Tag Route
+// 
+// Type 1 -  Ethernet Auto-discovery Route (Per EVI)
+// 
+// Type 1 -  Ethernet Auto-discovery Route (Per ES)
+message BgpV4EviVxlan {
+
+  // This contains the list of Broadcast Domains to be configured per EVI.
+  repeated BgpV4EviVxlanBroadcastDomain broadcast_domains = 1;
+
+  message ReplicationType {
+    enum Enum {
+      unspecified = 0;
+      ingress_replication = 1;
+    }
+  }
+  // This model only supports Ingress Replication
+  // default = ReplicationType.Enum.ingress_replication
+  optional ReplicationType.Enum replication_type = 2;
+
+  // Downstream assigned VNI to be carried as Part of P-Multicast Service Interface Tunnel
+  // attribute (PMSI Tunnel Attribute) in Type 3 Inclusive Multicast Ethernet Tag Route.
+  // default = 16
+  optional int32 pmsi_label = 3;
+
+  // The Auto-discovery Route label (AD label) value, which gets advertised in the Ethernet
+  // Auto-discovery Route per <EVI, ESI>
+  // default = 0
+  optional int32 ad_label = 4;
+
+  // Colon separated Extended Community value of 6 Bytes - AS number: Value identifying
+  // an EVI.            Example - for the as_2octet 60005:100.
+  optional BgpRouteDistinguisher route_distinguisher = 5;
+
+  // List of Layer 2 Virtual Network Identifier (L2VNI) export targets associated with
+  // this EVI.
+  repeated BgpRouteTarget route_target_export = 6;
+
+  // List of L2VNI import targets associated with this EVI.
+  repeated BgpRouteTarget route_target_import = 7;
+
+  // List of Layer 3 Virtual Network Identifier (L3VNI) Export Route Targets.
+  repeated BgpRouteTarget l3_route_target_export = 8;
+
+  // List of L3VNI Import Route Targets.
+  repeated BgpRouteTarget l3_route_target_import = 9;
+
+  // Description missing in models
+  optional BgpRouteAdvanced advanced = 10;
+
+  // Optional community settings.
+  repeated BgpCommunity communities = 11;
+
+  // Optional Extended Community settings.
+  repeated BgpExtCommunity ext_communities = 12;
+
+  // Optional AS PATH settings.
+  optional BgpAsPath as_path = 13;
+}
+
+// Configuration for Broadcast Domains per EVI.
+message BgpV4EviVxlanBroadcastDomain {
+
+  // This contains the list of Customer MAC/IP Ranges to be configured per Broadcast Domain.
+  // 
+  // 
+  // Advertises following route -
+  // Type 2 - MAC/IP Advertisement Route.
+  repeated BgpCMacIpRange cmac_ip_range = 1;
+
+  // The Ethernet Tag ID of the Broadcast Domain.
+  // default = 0
+  optional int64 ethernet_tag_id = 2;
+
+  // VLAN-Aware service to be enabled or disabled.
+  // default = False
+  optional bool vlan_aware_service = 3;
+}
+
+// Configuration for MAC/IP Ranges per Broadcast Domain.
+// 
+// Advertises following route -
+// 
+// Type 2 - MAC/IP Advertisement Route.
+message BgpCMacIpRange {
+
+  // Host MAC address range per Broadcast Domain.
+  optional MACRouteAddress mac_addresses = 1;
+
+  // Layer 2 Virtual Network Identifier (L2VNI) to be advertised with MAC/IP Advertisement
+  // Route (Type 2)
+  // default = 0
+  optional int32 l2vni = 2;
+
+  // Host IPv4 address range per Broadcast Domain.
+  optional V4RouteAddress ipv4_addresses = 3;
+
+  // Host IPv6 address range per Broadcast Domain.
+  optional V6RouteAddress ipv6_addresses = 4;
+
+  // Layer 3 Virtual Network Identifier (L3VNI) to be advertised with MAC/IP Advertisement
+  // Route (Type 2).
+  // default = 0
+  optional int32 l3vni = 5;
+
+  // Include default Gateway Extended Community in MAC/IP Advertisement Route (Type 2).
+  // default = False
+  optional bool include_default_gateway = 6;
+
+  // Description missing in models
+  optional BgpRouteAdvanced advanced = 7;
+
+  // Optional community settings.
+  repeated BgpCommunity communities = 8;
+
+  // Optional Extended Community settings.
+  repeated BgpExtCommunity ext_communities = 9;
+
+  // Optional AS PATH settings.
+  optional BgpAsPath as_path = 10;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  string name = 11;
+}
+
+// BGP Route Distinguisher.
+message BgpRouteDistinguisher {
+
+  message RdType {
+    enum Enum {
+      unspecified = 0;
+      as_2octet = 1;
+      ipv4_address = 2;
+      as_4octet = 3;
+    }
+  }
+  // Route Distinguisher Type field of 2 Byte.
+  // - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).
+  // - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).
+  // - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668).
+  // default = RdType.Enum.as_2octet
+  optional RdType.Enum rd_type = 1;
+
+  // Allow to automatically configure RD IP address  from local ip.
+  // default = False
+  optional bool auto_config_rd_ip_addr = 2;
+
+  // Colon separated Extended Community value of 6 Bytes - AS number: Value.  Example
+  // - for the as_2octet or as_4octet 60005:100,  for ipv4_address 1.1.1.1:100
+  optional string rd_value = 3;
+}
+
+// BGP Route Target.
+message BgpRouteTarget {
+
+  message RtType {
+    enum Enum {
+      unspecified = 0;
+      as_2octet = 1;
+      ipv4_address = 2;
+      as_4octet = 3;
+    }
+  }
+  // Extended Community Type field of 2 Byte.
+  // - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).
+  // - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).
+  // - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668).
+  optional RtType.Enum rt_type = 1;
+
+  // Colon separated Extended Community value of 6 Bytes - AS number: Assigned Number.
+  // Example - for the as_2octet or as_4octet 60005:100,  for ipv4_address 1.1.1.1:100
+  optional string rt_value = 2;
 }
 
 // Status: under-review
@@ -1789,7 +2295,6 @@ message BgpLearnedInformationFilter {
 }
 
 // Emulated BGPv4 route range.
-// Configuration for BGP route ranges.
 message BgpV4RouteRange {
 
   // A list of group of IPv4 route addresses.
@@ -1804,7 +2309,8 @@ message BgpV4RouteRange {
   }
   // Specify the NextHop in MP REACH NLRI. The mode for setting the IP address  of the
   // NextHop in the MP REACH NLRI can be one of the following:
-  // Local IP: Automatically fills the Nexthop with the Local IP of the BGP peer.
+  // Local IP: Automatically fills the Nexthop with the Local IP of the BGP
+  // peer.
   // If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.
   // Manual: Override the Nexthop with any arbitrary IPv4/IPv6 address.
   // default = NextHopMode.Enum.local_ip
@@ -1849,111 +2355,6 @@ message BgpV4RouteRange {
   string name = 10;
 }
 
-// Configuration for advanced BGP route range settings.
-message BgpRouteAdvanced {
-
-  // The multi exit discriminator (MED) value.  A null value means the MED feature is
-  // not enabled.
-  optional int32 multi_exit_discriminator = 1;
-
-  message Origin {
-    enum Enum {
-      unspecified = 0;
-      igp = 1;
-      egp = 2;
-    }
-  }
-  // The origin value.  A null value means the origin feature is not enabled.
-  // default = Origin.Enum.igp
-  optional Origin.Enum origin = 2;
-}
-
-// BGP communities provide additional capability for tagging routes and  for modifying
-// BGP routing policy on upstream and downstream routers. BGP community is a 32-bit
-// number which is broken into 16-bit AS number and  a 16-bit custom value.
-message BgpCommunity {
-
-  message Type {
-    enum Enum {
-      unspecified = 0;
-      manual_as_number = 1;
-      no_export = 2;
-      no_advertised = 3;
-      no_export_subconfed = 4;
-      llgr_stale = 5;
-      no_llgr = 6;
-    }
-  }
-  // The type of community AS number.
-  optional Type.Enum type = 1;
-
-  // First two octets of 32 bit community AS number.
-  // default = 0
-  optional int32 as_number = 2;
-
-  // Last two octets of the community AS number.
-  // default = 0
-  optional int32 as_custom = 3;
-}
-
-// This attribute identifies the autonomous systems through  which routing information
-// carried in this UPDATE message has passed. This contains the configuration of how
-// to include the Local AS in the AS path attribute of the MP REACH NLRI. It also contains
-// optional configuration of additional AS Path Segments that can be included in the
-// AS Path attribute. The AS Path consists of a Set or Sequence of Autonomous Systems
-// (AS) numbers  that a routing information passes through to reach the destination.
-message BgpAsPath {
-
-  message AsSetMode {
-    enum Enum {
-      unspecified = 0;
-      do_not_include_local_as = 1;
-      include_as_seq = 2;
-      include_as_set = 3;
-      include_as_confed_seq = 4;
-      include_as_confed_set = 5;
-      prepend_to_first_segment = 6;
-    }
-  }
-  // Defines how the Local AS should be included in the MP REACH NLRI. For iBGP sessions,
-  // Do Not Include Local AS must be chosen. For eBGP sessions, any choice other than
-  // Do Not Include Local AS can be chosen.
-  // default = AsSetMode.Enum.do_not_include_local_as
-  optional AsSetMode.Enum as_set_mode = 1;
-
-  // The additional AS path segments to be added in the NLRI.  By default, an empty AS
-  // path is always included and  the local AS is added to it as per the value of 'as_set_mode'
-  // attribute.
-  repeated BgpAsPathSegment segments = 2;
-}
-
-// Configuration for a single BGP AS path segment
-message BgpAsPathSegment {
-
-  message Type {
-    enum Enum {
-      unspecified = 0;
-      as_seq = 1;
-      as_set = 2;
-      as_confed_seq = 3;
-      as_confed_set = 4;
-    }
-  }
-  // AS sequence is the most common type of AS_PATH, it contains the  list of ASNs starting
-  // with the most recent ASN being added read  from left to right.
-  // The other three AS_PATH types are used for Confederations - AS_SET is the type of
-  // AS_PATH attribute that summarizes routes using using the aggregate-address command,
-  // allowing AS_PATHs to be  summarized in the update as well. - AS_CONFED_SEQ gives
-  // the list of ASNs in the path starting with the  most recent ASN to be added reading
-  // left to right - AS_CONFED_SET will allow summarization of multiple AS PATHs to be
-  // sent in BGP Updates.
-  // default = Type.Enum.as_seq
-  optional Type.Enum type = 1;
-
-  // The AS numbers in this AS path segment.
-  repeated int64 as_numbers = 2;
-}
-
 // The BGP Additional Paths feature is a BGP extension that allows the  advertisement
 // of multiple paths for the same prefix without the new  paths implicitly replacing
 // any previous paths.
@@ -1965,7 +2366,6 @@ message BgpAddPath {
 }
 
 // Emulated BGPv6 route range.
-// Configuration for BGP route ranges.
 message BgpV6RouteRange {
 
   // A list of group of IPv6 route addresses.
@@ -1980,7 +2380,8 @@ message BgpV6RouteRange {
   }
   // Specify the NextHop in MP REACH NLRI. The mode for setting the IP address  of the
   // NextHop in the MP REACH NLRI can be one of the following:
-  // Local IP: Automatically fills the Nexthop with the Local IP of the BGP peer.
+  // Local IP: Automatically fills the Nexthop with the Local IP of the BGP
+  // peer.
   // If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.
   // Manual: Override the Nexthop with any arbitrary IPv4/IPv6 address.
   // default = NextHopMode.Enum.local_ip
@@ -2111,61 +2512,6 @@ message BgpSrteV4Policy {
   // advertise just this part of the configuration to the peer.
   // default = True
   optional bool active = 15;
-}
-
-// The Extended Communities Attribute is a transitive optional BGP attribute, with the
-// Type Code 16. Community and Extended Communities  attributes to trigger routing decisions,
-// such as acceptance, rejection,  preference, or redistribution. An extended community
-// is an 8-Bytes value. It is also divided into two main parts. The first 2 Bytes of
-// the community encode a type and sub-type fields and the last 6 Bytes carry a unique
-// set of data in a  format defined by the type and sub-type field. Extended communities
-// provide a larger  range for grouping or categorizing communities.
-message BgpExtCommunity {
-
-  message Type {
-    enum Enum {
-      unspecified = 0;
-      administrator_as_2octet = 1;
-      administrator_ipv4_address = 2;
-      administrator_as_4octet = 3;
-      opaque = 4;
-      evpn = 5;
-      administrator_as_2octet_link_bandwidth = 6;
-    }
-  }
-  // Extended Community Type field of 1 Byte.
-  // - administrator_as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).
-  // - administrator_ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).
-  // - administrator_as_4octet:  4-Octet AS Specific Extended Community (RFC 5668).
-  // - opaque: Opaque Extended Community (RFC 7432).
-  // - evpn: EVPN Extended Community (RFC 7153).
-  // - administrator_as_2octet_link_bandwidth : Link Bandwidth Extended Community (RFC
-  // 7153).
-  optional Type.Enum type = 1;
-
-  message Subtype {
-    enum Enum {
-      unspecified = 0;
-      route_target = 1;
-      origin = 2;
-      extended_bandwidth = 3;
-      color = 4;
-      encapsulation = 5;
-      mac_address = 6;
-    }
-  }
-  // Extended Community Sub Type field of 1 Byte.
-  // - route_target: Route Target.
-  // - origin: Origin.
-  // - extended_bandwidth: Specifies the link bandwidth.
-  // - color: Specifies the color value.
-  // - encapsulation: Specifies the Encapsulation Extended Community.
-  // - mac_address: Specifies the Extended community MAC address.
-  optional Subtype.Enum subtype = 2;
-
-  // Extended Community value of 6 Bytes. Example - for the Opaque type and Color subtype
-  // value can be '0000000000c8'  for the color value 200.
-  optional string value = 3;
 }
 
 // Configuration for BGP SRTE Tunnel TLV.
@@ -2470,7 +2816,6 @@ message BgpSrteSRv6SIDEndpointBehaviorAndStructure {
 }
 
 // Type  A: SID only, in the form of MPLS Label.
-// Configuration for SR-MPLS with Label, TC, Bottom-of-Stack and TTL.
 message BgpSrteSegmentATypeSubTlv {
 
   // One octet bitmap for flags including V-Flag, A-Flag, S-Flag, B-Flag etc. as defined
@@ -2834,261 +3179,7 @@ message BgpSrteV6TunnelTlv {
   optional bool active = 10;
 }
 
-// Configuration for BGP Ethernet Segment ranges. Advertises following routes -
-// 
-// Type 4 - Ethernet Segment Route
-message BgpV4EthernetSegment {
-
-  // Designated Forwarder (DF) election configuration.
-  optional BgpEthernetSegmentDfElection df_election = 1;
-
-  // This contains the list of EVIs.
-  repeated BgpV4EvpnEvis evis = 2;
-
-  // 10-octet Ethernet Segment Identifier (ESI) Example - For multi-home scenario nonZero
-  // ESI is '10000000000000000000' .
-  // default = 00000000000000000000
-  optional string esi = 3;
-
-  message ActiveMode {
-    enum Enum {
-      unspecified = 0;
-      single_active = 1;
-      all_active = 2;
-    }
-  }
-  // Single Active or All Active mode Redundancy mode selection for Multi-home.
-  // default = ActiveMode.Enum.all_active
-  optional ActiveMode.Enum active_mode = 4;
-
-  // The label value to be advertised as ESI Label in ESI Label Extended Community. This
-  // is included in Ethernet Auto-discovery per ES Routes advertised by a router.
-  // default = 0
-  optional int32 esi_label = 5;
-
-  // Description missing in models
-  optional BgpRouteAdvanced advanced = 6;
-
-  // Optional community settings.
-  repeated BgpCommunity communities = 7;
-
-  // Optional Extended Community settings.
-  repeated BgpExtCommunity ext_communities = 8;
-
-  // Optional AS PATH settings.
-  optional BgpAsPath as_path = 9;
-}
-
-// Configuration for Designated Forwarder (DF) election among the Provider Edge (PE)
-// routers on the same Ethernet Segment.
-message BgpEthernetSegmentDfElection {
-
-  // The DF election timer in seconds.
-  // default = 3
-  optional int32 election_timer = 1;
-}
-
-// This contains a list of different flavors of EVPN.
-// For example EVPN over VXLAN or EVPN over MPLS etc to be configured per Ethernet segment.
-// 
-// Need to instantiate correct type of EVPN instance as per requirement.
-message BgpV4EvpnEvis {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      evi_vxlan = 1;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.evi_vxlan
-  optional Choice.Enum choice = 1;
-
-  // EVPN VXLAN instance to be configured per Ethernet Segment.
-  optional BgpV4EviVxlan evi_vxlan = 2;
-}
-
-// Configuration for BGP EVPN EVI. Advertises following routes -
-// 
-// Type 3 - Inclusive Multicast Ethernet Tag Route
-// 
-// Type 1 -  Ethernet Auto-discovery Route (Per EVI)
-// 
-// Type 1 -  Ethernet Auto-discovery Route (Per ES)
-message BgpV4EviVxlan {
-
-  // This contains the list of Broadcast Domains to be configured per EVI.
-  repeated BgpV4EviVxlanBroadcastDomain broadcast_domains = 1;
-
-  message ReplicationType {
-    enum Enum {
-      unspecified = 0;
-      ingress_replication = 1;
-    }
-  }
-  // This model only supports Ingress Replication
-  // default = ReplicationType.Enum.ingress_replication
-  optional ReplicationType.Enum replication_type = 2;
-
-  // Downstream assigned VNI to be carried as Part of P-Multicast Service Interface Tunnel
-  // attribute (PMSI Tunnel Attribute) in Type 3 Inclusive Multicast Ethernet Tag Route.
-  // default = 16
-  optional int32 pmsi_label = 3;
-
-  // The Auto-discovery Route label (AD label) value, which gets advertised in the Ethernet
-  // Auto-discovery Route per <EVI, ESI>
-  // default = 0
-  optional int32 ad_label = 4;
-
-  // Colon separated Extended Community value of 6 Bytes - AS number: Value identifying
-  // an EVI.            Example - for the as_2octet 60005:100.
-  optional BgpRouteDistinguisher route_distinguisher = 5;
-
-  // List of Layer 2 Virtual Network Identifier (L2VNI) export targets associated with
-  // this EVI.
-  repeated BgpRouteTarget route_target_export = 6;
-
-  // List of L2VNI import targets associated with this EVI.
-  repeated BgpRouteTarget route_target_import = 7;
-
-  // List of Layer 3 Virtual Network Identifier (L3VNI) Export Route Targets.
-  repeated BgpRouteTarget l3_route_target_export = 8;
-
-  // List of L3VNI Import Route Targets.
-  repeated BgpRouteTarget l3_route_target_import = 9;
-
-  // Description missing in models
-  optional BgpRouteAdvanced advanced = 10;
-
-  // Optional community settings.
-  repeated BgpCommunity communities = 11;
-
-  // Optional Extended Community settings.
-  repeated BgpExtCommunity ext_communities = 12;
-
-  // Optional AS PATH settings.
-  optional BgpAsPath as_path = 13;
-}
-
-// BGP Route Distinguisher.
-message BgpRouteDistinguisher {
-
-  message RdType {
-    enum Enum {
-      unspecified = 0;
-      as_2octet = 1;
-      ipv4_address = 2;
-      as_4octet = 3;
-    }
-  }
-  // Route Distinguisher Type field of 2 Byte.
-  // - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).
-  // - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).
-  // - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668).
-  // default = RdType.Enum.as_2octet
-  optional RdType.Enum rd_type = 1;
-
-  // Allow to automatically configure RD IP address  from local ip.
-  // default = False
-  optional bool auto_config_rd_ip_addr = 2;
-
-  // Colon separated Extended Community value of 6 Bytes - AS number: Value.  Example
-  // - for the as_2octet or as_4octet 60005:100,  for ipv4_address 1.1.1.1:100
-  optional string rd_value = 3;
-}
-
-// BGP Route Target.
-message BgpRouteTarget {
-
-  message RtType {
-    enum Enum {
-      unspecified = 0;
-      as_2octet = 1;
-      ipv4_address = 2;
-      as_4octet = 3;
-    }
-  }
-  // Extended Community Type field of 2 Byte.
-  // - as_2octet: Two-Octet AS Specific Extended Community (RFC 4360).
-  // - ipv4_address: IPv4 Address Specific Extended Community (RFC 4360).
-  // - as_4octet:  4-Octet AS Specific Extended Community (RFC 5668).
-  optional RtType.Enum rt_type = 1;
-
-  // Colon separated Extended Community value of 6 Bytes - AS number: Assigned Number.
-  // Example - for the as_2octet or as_4octet 60005:100,  for ipv4_address 1.1.1.1:100
-  optional string rt_value = 2;
-}
-
-// Configuration for Broadcast Domains per EVI.
-message BgpV4EviVxlanBroadcastDomain {
-
-  // This contains the list of Customer MAC/IP Ranges to be configured per Broadcast Domain.
-  // 
-  // 
-  // Advertises following route -
-  // Type 2 - MAC/IP Advertisement Route.
-  repeated BgpCMacIpRange cmac_ip_range = 1;
-
-  // The Ethernet Tag ID of the Broadcast Domain.
-  // default = 0
-  optional int64 ethernet_tag_id = 2;
-
-  // VLAN-Aware service to be enabled or disabled.
-  // default = False
-  optional bool vlan_aware_service = 3;
-}
-
-// Configuration for MAC/IP Ranges per Broadcast Domain.
-// 
-// Advertises following route -
-// 
-// Type 2 - MAC/IP Advertisement Route.
-message BgpCMacIpRange {
-
-  // Host MAC address range per Broadcast Domain.
-  optional MACRouteAddress mac_addresses = 1;
-
-  // Layer 2 Virtual Network Identifier (L2VNI) to be advertised with MAC/IP Advertisement
-  // Route (Type 2)
-  // default = 0
-  optional int32 l2vni = 2;
-
-  // Host IPv4 address range per Broadcast Domain.
-  optional V4RouteAddress ipv4_addresses = 3;
-
-  // Host IPv6 address range per Broadcast Domain.
-  optional V6RouteAddress ipv6_addresses = 4;
-
-  // Layer 3 Virtual Network Identifier (L3VNI) to be advertised with MAC/IP Advertisement
-  // Route (Type 2).
-  // default = 0
-  optional int32 l3vni = 5;
-
-  // Include default Gateway Extended Community in MAC/IP Advertisement Route (Type 2).
-  // default = False
-  optional bool include_default_gateway = 6;
-
-  // Description missing in models
-  optional BgpRouteAdvanced advanced = 7;
-
-  // Optional community settings.
-  repeated BgpCommunity communities = 8;
-
-  // Optional Extended Community settings.
-  repeated BgpExtCommunity ext_communities = 9;
-
-  // Optional AS PATH settings.
-  optional BgpAsPath as_path = 10;
-
-  // Globally unique name of an object. It also serves as the primary key for arrays of
-  // objects.
-  // required = true
-  string name = 11;
-}
-
-// Status: under-review
 // Configuration for BGPv6 peer settings and routes.
-// Configuration for basic emulated BGP peer settings.
 message BgpV6Peer {
 
   // IPv6 address of the BGP peer for the session
@@ -3176,6 +3267,8 @@ message BgpV6Peer {
   // (AFI).
   repeated BgpSrteV6Policy v6_srte_policies = 13;
 
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
@@ -3414,6 +3507,8 @@ message VxlanV4Tunnel {
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
   // required = true
   string name = 4;
 }
@@ -3438,6 +3533,8 @@ message VxlanV6Tunnel {
   // required = true
   int32 vni = 3;
 
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
@@ -3515,7 +3612,6 @@ message VxlanTunnelDestinationIPModeUnicastArpSuppressionCache {
 }
 
 // VTEP (VXLAN Tunnel End Point (VTEP)) parameters
-// DestinationIPMode Unicast VTEP Base
 message VxlanV4TunnelDestinationIPModeUnicastVtep {
 
   // Remote VXLAN Tunnel End Point address
@@ -3530,7 +3626,6 @@ message VxlanV4TunnelDestinationIPModeUnicastVtep {
 }
 
 // VTEP (VXLAN Tunnel End Point (VTEP)) parameters
-// DestinationIPMode Unicast VTEP Base
 message VxlanV6TunnelDestinationIPModeUnicastVtep {
 
   // Remote VXLAN Tunnel End Point address
@@ -4261,9 +4356,6 @@ message FlowIcmp {
 }
 
 // Packet Header for ICMP echo request
-// Common properties for ICMP packet headers that require checksum
-// Common properties for ICMP packet headers that require identifier and sequence number
-// properties
 message FlowIcmpEcho {
 
   // Description missing in models
@@ -4300,7 +4392,6 @@ message FlowIcmpv6 {
 }
 
 // Packet Header for ICMPv6 Echo
-// Common properties for ICMPv6 packet headers that require checksum
 message FlowIcmpv6Echo {
 
   // Description missing in models
@@ -4351,7 +4442,8 @@ message FlowIgmpv1 {
   optional PatternFlowIgmpv1GroupAddress group_address = 5;
 }
 
-// Mpls packet header
+// MPLS packet header; When configuring multiple such headers, the count shall not exceed
+// 20.
 message FlowMpls {
 
   // Description missing in models
@@ -4772,6 +4864,187 @@ message EventSubscription {
   optional string callbackurl = 2;
 }
 
+// Configuration of LLDP protocol IEEE Ref: https://www.ieee802.org/1/files/public/docs2002/lldp-protocol-00.pdf
+message Lldp {
+
+  // The unique name of the object on which LLDP is running.
+  // required = true
+  LldpConnection connection = 1;
+
+  // The Chassis ID is a mandatory TLV which identifies the chassis component of the endpoint
+  // identifier associated  with the transmitting LLDP agent. If mac address is specified
+  // it should be in colon seperated mac address format.
+  optional LldpChassisId chassis_id = 2;
+
+  // The Port ID is a mandatory TLV which identifies the port component of the endpoint
+  // identifier associated with  the transmitting LLDP agent. If the specified port is
+  // an IEEE 802.3 Repeater port, then this TLV is optional.
+  optional LldpPortId port_id = 3;
+
+  // The system name field shall contain an alpha-numeric string that indicates the system's
+  // administratively assigned  name. The system name should be the system's fully qualified
+  // domain name. If implementations support IETF RFC  3418, the sysName object should
+  // be used for this field.
+  optional LldpSystemName system_name = 4;
+
+  // Specifies the amount of time in seconds a receiving device should maintain LLDP information
+  // sent  by the device before discarding it.
+  // default = 120
+  optional int32 hold_time = 5;
+
+  // Set the transmission frequency of LLDP updates in seconds.
+  // default = 30
+  optional int32 advertisement_interval = 6;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  string name = 7;
+}
+
+// LLDP connection to a test port. In future if more connection options arise  LLDP
+// connection object will be enhanced.
+message LldpConnection {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      port_name = 1;
+    }
+  }
+  // The name of the test port or other connection objects on which LLDP is configured.
+  optional Choice.Enum choice = 1;
+
+  // Name of the test port on which LLDP is configured on.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  optional string port_name = 2;
+}
+
+// The Chassis ID is a mandatory TLV which identifies the chassis component of the endpoint
+// identifier associated  with the transmitting LLDP agent. This field identifies the
+// format and source of the chassis identifier string.  It is based on the enumerator
+// defined by the LldpChassisIdSubtype object from IEEE 802.1AB MIB.
+message LldpChassisId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      mac_address_subtype = 1;
+      interface_name_subtype = 2;
+      local_subtype = 3;
+    }
+  }
+  // Chassis ID subtype to be used in Chassis ID TLV.
+  // default = Choice.Enum.mac_address_subtype
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional LldpChassisMacSubType mac_address_subtype = 2;
+
+  // Name of an interface of the chassis that uniquely identifies the chassis.
+  optional string interface_name_subtype = 3;
+
+  // Locally assigned name of the chassis.
+  optional string local_subtype = 4;
+}
+
+// The Port ID is a mandatory TLV which identifies the port component of the endpoint
+// identifier associated with  the transmitting LLDP agent.This field identifies the
+// format and source of the port identifier string. It is  based on the enumerator defined
+// by the PtopoPortIdType object from RFC2922.
+message LldpPortId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      mac_address_subtype = 1;
+      interface_name_subtype = 2;
+      local_subtype = 3;
+    }
+  }
+  // Port ID subtype to be used in Port ID TLV.
+  // default = Choice.Enum.interface_name_subtype
+  optional Choice.Enum choice = 1;
+
+  // The MAC Address configured in the Port ID TLV.
+  optional string mac_address_subtype = 2;
+
+  // Description missing in models
+  optional LldpPortInterfaceNameSubType interface_name_subtype = 3;
+
+  // The Locally assigned name configured in the Port ID TLV.
+  optional string local_subtype = 4;
+}
+
+// The MAC address configured in the Chassis ID TLV.
+message LldpChassisMacSubType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // In auto mode the system generated value is set for this property, while if the choice
+  // is selected as value,  a user configured value will be used for this property.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation must provide a system generated value for this property.
+  optional string auto = 2;
+
+  // User must specify a value if mode is not auto.
+  optional string value = 3;
+}
+
+// The interface name configured in the Port ID TLV.
+message LldpPortInterfaceNameSubType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // In auto mode the system generated value is set for this property, while if the choice
+  // is selected as value,  a user configured value will be used for this property.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation must provide a system generated value for this property.
+  optional string auto = 2;
+
+  // User must specify a value if mode is not auto.
+  optional string value = 3;
+}
+
+// The system Name configured in the System Name TLV.
+message LldpSystemName {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // In auto mode the system generated value is set for this property, while if the choice
+  // is selected as value,  a user configured value will be used for this property.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation must provide a system generated value for this property.
+  optional string auto = 2;
+
+  // User must specify a value if mode is not auto.
+  optional string value = 3;
+}
+
 // A list of errors that may have occurred while executing the request.
 message ResponseError {
 
@@ -4982,7 +5255,7 @@ message PingIpv4 {
   // A base IPv4 interface
   // 
   // x-constraint:
-  // - /components/schemas/Device.Ipv4Base/properties/name
+  // - /components/schemas/Device.Ipv4/properties/name
   // 
   optional string src_name = 1;
 
@@ -4996,7 +5269,7 @@ message PingIpv6 {
   // A base IPv6 interface
   // 
   // x-constraint:
-  // - /components/schemas/Device.Ipv6Base/properties/name
+  // - /components/schemas/Device.Ipv6/properties/name
   // 
   optional string src_name = 1;
 
@@ -5017,8 +5290,8 @@ message Response {
   // The name of the source IPv4 or IPv6 interface from which ping was sent.
   // 
   // x-constraint:
-  // - /components/schemas/Device.Ipv4Base/properties/name
-  // - /components/schemas/Device.Ipv6Base/properties/name
+  // - /components/schemas/Device.Ipv4/properties/name
+  // - /components/schemas/Device.Ipv6/properties/name
   // 
   optional string src_name = 1;
 
@@ -5055,9 +5328,9 @@ message LacpMemberState {
       down = 2;
     }
   }
-  // The LACP Member admin state. 'up' will start transmission of LACPDUs on selected
-  // member ports. 'down' will send a LACPDU with 'sync' flag unset and then stop transmission
-  // of LACPDUs on selected member ports.
+  // The LACP Member admin state. 'up' will send LACPDUs with 'sync' flag set on selected
+  // member ports. 'down' will send LACPDUs with 'sync' flag unset on selected member
+  // ports.
   // required = true
   State.Enum state = 2;
 }
@@ -5075,6 +5348,7 @@ message MetricsRequest {
       isis = 5;
       lag = 6;
       lacp_lag_member = 7;
+      lldp = 8;
     }
   }
   // Description missing in models
@@ -5101,6 +5375,9 @@ message MetricsRequest {
 
   // Description missing in models
   optional LacpLagMemberMetricsRequest lacp_lag_member = 8;
+
+  // Description missing in models
+  optional LldpMetricsRequest lldp = 9;
 }
 
 // Response containing chosen traffic generator metrics
@@ -5115,7 +5392,8 @@ message MetricsResponse {
       bgpv6_metrics = 4;
       isis_metrics = 5;
       lag_metrics = 6;
-      lacp_metrics = 7;
+      lacp_lag_member_metrics = 7;
+      lldp_metrics = 8;
     }
   }
   // Description missing in models
@@ -5141,7 +5419,10 @@ message MetricsResponse {
   repeated LagMetric lag_metrics = 7;
 
   // Description missing in models
-  repeated LacpLagMemberMetric lacp_metrics = 8;
+  repeated LacpLagMemberMetric lacp_lag_member_metrics = 8;
+
+  // Description missing in models
+  repeated LldpMetric lldp_metrics = 9;
 }
 
 // The port result request to the traffic generator
@@ -5235,6 +5516,16 @@ message PortMetric {
 
   // The current rate of bytes received
   optional float bytes_rx_rate = 12;
+
+  message Transmit {
+    enum Enum {
+      unspecified = 0;
+      started = 1;
+      stopped = 2;
+    }
+  }
+  // The transmit state of the flow.
+  optional Transmit.Enum transmit = 13;
 }
 
 // The container for a flow metric request.
@@ -5920,6 +6211,68 @@ message LacpLagMemberMetric {
   optional int32 partner_port_num = 17;
 }
 
+// The request to retrieve LLDP per instance metrics/statistics.
+message LldpMetricsRequest {
+
+  // The names of LLDP instances to return results for. An empty list will return results
+  // for all LLDP instances.
+  // 
+  // x-constraint:
+  // - /components/schemas/Lldp/properties/name
+  // 
+  repeated string lldp_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      frames_rx = 1;
+      frames_tx = 2;
+      frames_error_rx = 3;
+      frames_discard = 4;
+      tlvs_discard = 5;
+      tlvs_unknown = 6;
+    }
+  }
+  // The requested list of column names for the result set. If the list is empty then
+  // metrics for all columns will be returned. The name of LLDP instance can not be excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// LLDP per instance statistics information.
+message LldpMetric {
+
+  // The name of the configured LLDP instance.
+  optional string name = 1;
+
+  // Number of LLDP frames received.
+  optional int64 frames_rx = 2;
+
+  // Number of LLDP frames transmitted.
+  optional int64 frames_tx = 3;
+
+  // Number of LLDP frames received with packet errors. This stat should be incremented
+  // based on statsFramesInErrorsTotal increment rule in section 10.3.2 of IEEE Std 802.1
+  // AB-2005.
+  optional int64 frames_error_rx = 4;
+
+  // Number of LLDP frames received that are discarded. This stat should be incremented
+  // when one or more of the three mandatory  TLVs at the beginning of the LLDPDU is missing,
+  // out of order or  contains an out of range information string length. This stat should
+  // follow the validation rules in section 10.3.2 of IEEE  Std 802.1 AB-2005.
+  optional int64 frames_discard = 5;
+
+  // Number of LLDP tlvs received that are discarded. If any TLV contains  an error condition
+  // specific for that particular TLV or if any TLV  extends past the physical end of
+  // the frame then these TLVs will be discarded.
+  optional int64 tlvs_discard = 6;
+
+  // Number of LLDP unknown tlvs received. If the OUI of the organizationlly specific
+  // TLV and/or organizationally defined subtype are not recognized,or if TLV type  value
+  // is in the range of reserved TLV types then these TLVs will be considered as  unknown
+  // TLVs.
+  optional int64 tlvs_unknown = 7;
+}
+
 // Request to traffic generator for states of choice
 message StatesRequest {
 
@@ -5929,6 +6282,8 @@ message StatesRequest {
       ipv4_neighbors = 1;
       ipv6_neighbors = 2;
       bgp_prefixes = 3;
+      isis_lsps = 4;
+      lldp_neighbors = 5;
     }
   }
   // Description missing in models
@@ -5943,6 +6298,12 @@ message StatesRequest {
 
   // Description missing in models
   optional BgpPrefixStateRequest bgp_prefixes = 4;
+
+  // Description missing in models
+  optional IsisLspsStateRequest isis_lsps = 5;
+
+  // Description missing in models
+  optional LldpNeighborsStateRequest lldp_neighbors = 6;
 }
 
 // Response containing chosen traffic generator states
@@ -5954,6 +6315,8 @@ message StatesResponse {
       ipv4_neighbors = 1;
       ipv6_neighbors = 2;
       bgp_prefixes = 3;
+      isis_lsps = 4;
+      lldp_neighbors = 5;
     }
   }
   // Description missing in models
@@ -5968,6 +6331,12 @@ message StatesResponse {
 
   // Description missing in models
   repeated BgpPrefixesState bgp_prefixes = 4;
+
+  // Description missing in models
+  repeated IsisLspsState isis_lsps = 5;
+
+  // Description missing in models
+  repeated LldpNeighborsState lldp_neighbors = 6;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -6036,8 +6405,8 @@ message BgpPrefixStateRequest {
   // BGP peers.
   // 
   // x-constraint:
-  // - /components/schemas/Bgp.v4Peer/properties/name
-  // - /components/schemas/Bgp.v6Peer/properties/name
+  // - /components/schemas/Bgp.V4Peer/properties/name
+  // - /components/schemas/Bgp.V6Peer/properties/name
   // 
   repeated string bgp_peer_names = 1;
 
@@ -6079,6 +6448,7 @@ message BgpPrefixIpv4UnicastFilter {
       unspecified = 0;
       igp = 1;
       egp = 2;
+      incomplete = 3;
     }
   }
   // The origin to match. If the origin is missing then all origins will match.
@@ -6104,6 +6474,7 @@ message BgpPrefixIpv6UnicastFilter {
       unspecified = 0;
       igp = 1;
       egp = 2;
+      incomplete = 3;
     }
   }
   // The origin to match. If the origin is missing then all origins will match.
@@ -6127,7 +6498,6 @@ message BgpPrefixesState {
 }
 
 // IPv4 unicast prefix.
-// BGP peer prefix.
 message BgpPrefixIpv4UnicastState {
 
   // An IPv4 unicast address
@@ -6141,6 +6511,7 @@ message BgpPrefixIpv4UnicastState {
       unspecified = 0;
       igp = 1;
       egp = 2;
+      incomplete = 3;
     }
   }
   // The origin of the prefix.
@@ -6154,10 +6525,15 @@ message BgpPrefixIpv4UnicastState {
 
   // The IPv6 address of the egress interface.
   optional string ipv6_next_hop = 6;
+
+  // Optional community attributes.
+  repeated ResultBgpCommunity communities = 7;
+
+  // Description missing in models
+  optional ResultBgpAsPath as_path = 8;
 }
 
 // IPv6 unicast prefix.
-// BGP peer prefix.
 message BgpPrefixIpv6UnicastState {
 
   // An IPv6 unicast address
@@ -6171,6 +6547,7 @@ message BgpPrefixIpv6UnicastState {
       unspecified = 0;
       igp = 1;
       egp = 2;
+      incomplete = 3;
     }
   }
   // The origin of the prefix.
@@ -6184,6 +6561,543 @@ message BgpPrefixIpv6UnicastState {
 
   // The IPv6 address of the egress interface.
   optional string ipv6_next_hop = 6;
+
+  // Optional community attributes.
+  repeated ResultBgpCommunity communities = 7;
+
+  // Description missing in models
+  optional ResultBgpAsPath as_path = 8;
+}
+
+// BGP communities provide additional capability for tagging routes and  for modifying
+// BGP routing policy on upstream and downstream routers. BGP community is a 32-bit
+// number which is broken into 16-bit AS number and  a 16-bit custom value.
+message ResultBgpCommunity {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      manual_as_number = 1;
+      no_export = 2;
+      no_advertised = 3;
+      no_export_subconfed = 4;
+      llgr_stale = 5;
+      no_llgr = 6;
+    }
+  }
+  // The type of community AS number. If community type is manual_as_number then as_number
+  // and as_custom will be available.
+  optional Type.Enum type = 1;
+
+  // First two octets of 32 bit community AS number.
+  optional int32 as_number = 2;
+
+  // Last two octets of the community value.
+  optional int32 as_custom = 3;
+}
+
+// This attribute identifies the autonomous systems through  which routing information
+// carried in this UPDATE message has passed.
+message ResultBgpAsPath {
+
+  // AS Path segments present in the received AS Path attribute.
+  repeated ResultBgpAsPathSegment segments = 1;
+}
+
+// Configuration for a single BGP AS path segment
+message ResultBgpAsPathSegment {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      as_seq = 1;
+      as_set = 2;
+      as_confed_seq = 3;
+      as_confed_set = 4;
+    }
+  }
+  // AS sequence is the most common type of AS_PATH, it contains the  list of ASNs starting
+  // with the most recent ASN being added read  from left to right.
+  // The other three AS_PATH types are used for Confederations - AS_SET is the type of
+  // AS_PATH attribute that summarizes routes using using the aggregate-address command,
+  // allowing AS_PATHs to be  summarized in the update as well. - AS_CONFED_SEQ gives
+  // the list of ASNs in the path starting with the  most recent ASN to be added reading
+  // left to right - AS_CONFED_SET will allow summarization of multiple AS PATHs to be
+  // sent in BGP Updates.
+  optional Type.Enum type = 1;
+
+  // The AS numbers in this AS path segment.
+  repeated int64 as_numbers = 2;
+}
+
+// The request to retrieve ISIS Link State PDU (LSP) information learned by the router.
+message IsisLspsStateRequest {
+
+  // The names of ISIS routers for which learned information is requested. An empty list
+  // will return results for all ISIS routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.IsisRouter/properties/name
+  // 
+  repeated string isis_router_names = 1;
+}
+
+// The result of ISIS LSP information that are retrieved.
+message IsisLspsState {
+
+  // The name of the ISIS Router.
+  optional string isis_router_name = 1;
+
+  // One or more LSPs that are learned by this ISIS router.
+  repeated IsisLspState lsps = 2;
+}
+
+// ISIS LSP.
+message IsisLspState {
+
+  // LSP ID in the format, e.g. '640000000001-00-00'. LSP ID consists of the System ID
+  // of a neighbor, the Pseudonode ID, and the LSP number. The last two bytes represent
+  // Pseudonode ID and LSP number respectively. A pseudonode is a logical representation
+  // of the LAN which is generated by a Designated Intermediate System (DIS) on a LAN
+  // segment. If one LSP exceeds the maximum LSP size then it is sent in another LSP with
+  // the LSP number incremented by one. A router's learned LSP gets refreshed by 'remaining_lifetime'.
+  // Then the sequence number is incremented by 1.
+  // required = true
+  string lsp_id = 1;
+
+  message PduType {
+    enum Enum {
+      unspecified = 0;
+      level_1 = 1;
+      level_2 = 2;
+    }
+  }
+  // Link State PDU type.
+  optional PduType.Enum pdu_type = 2;
+
+  // Remaining lifetime in seconds before LSP expires.
+  optional int64 remaining_lifetime = 3;
+
+  // Sequence number of the LSP.
+  optional int64 sequence_number = 4;
+
+  // Total length of the LSP.
+  optional int32 pdu_length = 5;
+
+  // LSP Type-Block flags.
+  optional IsisLspFlags flags = 6;
+
+  // IS Type - bits 1 and 2 indicate the type of Intermediate System.
+  // 1 - ( i.e. bit 1 set) Level 1 Intermediate system.
+  // 2 - Unused value.
+  // 3 - (i.e. bits 1 and 2 set) Level 2 Intermediate system.
+  optional int32 is_type = 7;
+
+  // It refers to Link State PDU State TLVs container.
+  optional IsisLspTlvs tlvs = 8;
+}
+
+// This contains the list of TLVs present in one LSP.
+message IsisLspTlvs {
+
+  // Array of Hostname TLVs ( type 137) present in this LSP.
+  repeated IsisLspHostname hostname_tlvs = 1;
+
+  // Array of IS-Reachability TLVs (type 2) present in this LSP.
+  repeated IsisLspIsReachabilityTlv is_reachability_tlvs = 2;
+
+  // Array of Extended IS-Reachability TLVs (type 22) present in this LSP.
+  repeated IsisLspExtendedIsReachabilityTlv extended_is_reachability_tlvs = 3;
+
+  // Array of IPv4 Internal Reachability TLVs (type 128) present in this LSP.
+  repeated IsisLspIpv4InternalReachabilityTlv ipv4_internal_reachability_tlvs = 4;
+
+  // Array of IPv4 External Reachability TLVs (type 130) present in this LSP.
+  repeated IsisLspIpv4ExternalReachabilityTlv ipv4_external_reachability_tlvs = 5;
+
+  // Array of IPv4 Extended Reachability TLVs (type 135) present in this LSP.
+  repeated IsisLspExtendedIpv4ReachabilityTlv extended_ipv4_reachability_tlvs = 6;
+
+  // Array of IPv6 Reachability TLVs (type 236) present in this LSP.
+  repeated IsisLspIpv6ReachabilityTlv ipv6_reachability_tlvs = 7;
+}
+
+// It contains Hostname for the TLV 137.
+message IsisLspHostname {
+
+  // Hostname for an ISIS router.
+  optional string hostname = 1;
+}
+
+// LSP Type flags.
+message IsisLspFlags {
+
+  // When set, the originator supports partition repair.
+  optional bool partition_repair = 1;
+
+  // When set, the originator is attached to another area using the referred metric.
+  optional bool attached_error = 2;
+
+  // When set, the originator is attached to another
+  // area using the referred metric.
+  optional bool attached_expense = 3;
+
+  // Delay Metric - when set, the originator is attached to another
+  // area using the referred metric.
+  optional bool attached_delay = 4;
+
+  // Default Metric - when set, the originator is attached to another
+  // area using the referred metric.
+  optional bool attached_default = 5;
+
+  // Overload bit - when set, the originator is overloaded, and must
+  // be avoided in path calculation.
+  optional bool overload = 6;
+}
+
+// This container describes list of ISIS neighbors and attributes in IS-Reachability
+// TLV (type 2).
+message IsisLspIsReachabilityTlv {
+
+  // This container describes Intermediate System (IS) neighbors.
+  repeated IsisLspneighbor neighbors = 1;
+}
+
+// This is list of ISIS neighbors and attributes in Extended-IS-Reachability TLV (type
+// 22).
+message IsisLspExtendedIsReachabilityTlv {
+
+  // This container describes IS neighbors.
+  repeated IsisLspneighbor neighbors = 1;
+}
+
+// This contains IS neighbors.
+message IsisLspneighbor {
+
+  // The System ID for this emulated ISIS router, e.g. 640100010000.
+  optional string system_id = 1;
+}
+
+// This container defines list of IPv4 internal reachability information in one IPv4
+// internal reachability TLV.
+// This is advertised when the origin-type is set 'internal' in route range configurations.
+message IsisLspIpv4InternalReachabilityTlv {
+
+  // Describes list of IPv4 prefixes in this TLV.
+  repeated IsisLspV4Prefix prefixes = 1;
+}
+
+// This container defines list of IPv4 external reachability information in one IPv4
+// external reachability TLV.
+// This is advertised when the origin-type is set 'external' in route range configurations.
+message IsisLspIpv4ExternalReachabilityTlv {
+
+  // Describes list of IPv4 prefixes in this TLV..
+  repeated IsisLspV4Prefix prefixes = 1;
+}
+
+// This group defines attributes of an IPv4 standard prefix.
+message IsisLspV4Prefix {
+
+  // An IPv4 unicast prefix reachable via the originator of this LSP.
+  optional string ipv4_address = 1;
+
+  // The length of the IPv4 prefix.
+  optional int32 prefix_length = 2;
+
+  message RedistributionType {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Up (0)-used when a prefix is initially advertised within the ISIS L3 hierarchy,
+  // and for all other prefixes in L1 and L2 LSPs. (default)
+  // Down (1)-used when an L1/L2 router advertises L2 prefixes in L1 LSPs.
+  // The prefixes are being advertised from a higher level (L2) down to a lower level
+  // (L1).
+  optional RedistributionType.Enum redistribution_type = 3;
+
+  // ISIS default metric value.
+  optional int32 default_metric = 4;
+
+  message OriginType {
+    enum Enum {
+      unspecified = 0;
+      internal = 1;
+      external = 2;
+    }
+  }
+  // The origin of the advertised route-internal or external to the ISIS area. Options
+  // include the following:
+  // Internal-for intra-area routes, through Level 1 LSPs.
+  // External-for inter-area routes redistributed within L1, through Level
+  // 1 LSPs.
+  optional OriginType.Enum origin_type = 5;
+}
+
+// This container defines list of IPv4 extended reachability information in one Extended
+// IPv4 External Reachability TLV.
+// It is advertised when the 'wide metric' is enabled.
+message IsisLspExtendedIpv4ReachabilityTlv {
+
+  // IPv4 prefix contained within extended reachability TLVs.
+  repeated IsisLspExtendedV4Prefix prefixes = 1;
+}
+
+// This group defines attributes of an IPv4 standard prefix.
+message IsisLspExtendedV4Prefix {
+
+  // An IPv4 unicast prefix reachable via the originator of this LSP.
+  optional string ipv4_address = 1;
+
+  // The length of the IPv4 prefix.
+  optional int32 prefix_length = 2;
+
+  // ISIS wide metric.
+  optional int32 metric = 3;
+
+  message RedistributionType {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Up (0)-used when a prefix is initially advertised within the ISIS L3 hierarchy,
+  // and for all other prefixes in L1 and L2 LSPs. (default)
+  // Down (1)-used when an L1/L2 router advertises L2 prefixes in L1 LSPs.
+  // The prefixes are being advertised from a higher level (L2) down to a lower level
+  // (L1).
+  optional RedistributionType.Enum redistribution_type = 4;
+
+  // Description missing in models
+  optional IsisLspPrefixAttributes prefix_attributes = 5;
+}
+
+// It defines list of IPv6 extended reachability information in one IPv6 Reachability
+// TLV.
+message IsisLspIpv6ReachabilityTlv {
+
+  // IPv6 prefix contained within reachability TLVs.
+  repeated IsisLspV6Prefix prefixes = 1;
+}
+
+// It defines attributes of an IPv6 standard prefix.
+message IsisLspV6Prefix {
+
+  // An IPv6 unicast prefix reachable via the originator of this LSP.
+  optional string ipv6_address = 1;
+
+  // The length of the IPv6 prefix.
+  optional int32 prefix_length = 2;
+
+  // ISIS wide metric.
+  optional int32 metric = 3;
+
+  message RedistributionType {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Up (0)-used when a prefix is initially advertised within the ISIS L3 hierarchy,
+  // and for all other prefixes in L1 and L2 LSPs. (default)
+  // Down (1)-used when an L1/L2 router advertises L2 prefixes in L1 LSPs.
+  // The prefixes are being advertised from a higher level (L2) down to a lower level
+  // (L1).
+  optional RedistributionType.Enum redistribution_type = 4;
+
+  message OriginType {
+    enum Enum {
+      unspecified = 0;
+      internal = 1;
+      external = 2;
+    }
+  }
+  // The origin of the advertised route-internal or external to the ISIS area. Options
+  // include the following:
+  // Internal-for intra-area routes, through Level 1 LSPs.
+  // External-for inter-area routes redistributed within L1, through Level
+  // 1 LSPs.
+  optional OriginType.Enum origin_type = 5;
+
+  // Description missing in models
+  optional IsisLspPrefixAttributes prefix_attributes = 6;
+}
+
+// This contains the properties of ISIS Prefix attributes for  the extended IPv4 and
+// IPv6 reachability. https://www.rfc-editor.org/rfc/rfc7794.html
+message IsisLspPrefixAttributes {
+
+  // External Prefix Flag (Bit 0)
+  optional bool x_flag = 1;
+
+  // Re-advertisement Flag (Bit 1)
+  optional bool r_flag = 2;
+
+  // Node Flag (Bit 2)
+  optional bool n_flag = 3;
+}
+
+// The request to retrieve LLDP neighbor information for a given instance.
+message LldpNeighborsStateRequest {
+
+  // The names of LLDP instances for which neighbor information will be retrieved. If
+  // no names are specified then the results will contain neighbor information for all
+  // configured LLDP instances.
+  // 
+  // x-constraint:
+  // - /components/schemas/Lldp/properties/name
+  // 
+  repeated string lldp_names = 1;
+
+  // Specify the neighbors for which information will be returned. If empty  or missing
+  // then information for all neighbors will be returned.
+  repeated string neighbor_id_filters = 2;
+}
+
+// LLDP neighbor information.
+message LldpNeighborsState {
+
+  // The name of the LLDP instance.
+  optional string lldp_name = 1;
+
+  // The system name field shall contain an alpha-numeric string that  indicates the system's
+  // administratively assigned name. The system name  should be the system's fully qualified
+  // domain name. If implementations  support IETF RFC 3418, the sysName object should
+  // be used for this field.
+  optional string system_name = 2;
+
+  // The system description field shall contain an alpha-numeric string that  is the textual
+  // description of the network entity. The system description  should include the full
+  // name and version identification of the system's  hardware type, software operating
+  // system, and networking software. If  implementations support IETF RFC 3418, the sysDescr
+  // object should be used  for this field.
+  optional string system_description = 3;
+
+  // The Chassis ID is a mandatory TLV which identifies the chassis component of  the
+  // endpoint identifier associated with the transmitting LLDP agent.
+  optional string chassis_id = 4;
+
+  message ChassisIdType {
+    enum Enum {
+      unspecified = 0;
+      port_component = 1;
+      network_address = 2;
+      chassis_component = 3;
+      mac_address = 4;
+      interface_name = 5;
+      local = 6;
+      interface_alias = 7;
+    }
+  }
+  // This field identifies the format and source of the chassis identifier string.  It
+  // is an enumerator defined by the LldpChassisIdSubtype object from IEEE 802.1AB  MIB.
+  optional ChassisIdType.Enum chassis_id_type = 5;
+
+  // System generated identifier for the neighbor on the LLDP instance.
+  optional string neighbor_id = 6;
+
+  // Age since discovery in seconds.
+  optional int64 age = 7;
+
+  // Seconds since last update received.
+  optional int64 last_update = 8;
+
+  // The time-to-live (TTL) in seconds is a mandatory TLV which indicates how long information
+  // from the neighbor  should be considered valid.
+  optional int32 ttl = 9;
+
+  // The Port ID is a mandatory TLV which identifies the port component of the endpoint
+  // identifier associated with  the transmitting LLDP agent. If the specified port is
+  // an IEEE 802.3 Repeater port, then this TLV is optional.
+  optional string port_id = 10;
+
+  message PortIdType {
+    enum Enum {
+      unspecified = 0;
+      port_component = 1;
+      network_address = 2;
+      agent_circuit_id = 3;
+      mac_address = 4;
+      interface_name = 5;
+      local = 6;
+      interface_alias = 7;
+    }
+  }
+  // This field identifies the format and source of the port identifier string. It is
+  // an enumerator defined by the PtopoPortIdType object from RFC2922.
+  optional PortIdType.Enum port_id_type = 11;
+
+  // The binary string containing the actual port identifier for the port which this LLDP
+  // PDU was transmitted. The source  and format of this field is defined by PtopoPortId
+  // from RFC2922.
+  optional string port_description = 12;
+
+  // The Management Address is a mandatory TLV which identifies a network address associated
+  // with the local LLDP agent, which  can be used to reach the agent on the port identified
+  // in the Port ID TLV.
+  optional string management_address = 13;
+
+  // The enumerated value for the network address type identified in this TLV. This enumeration
+  // is defined in the 'Assigned Numbers'  RFC [RFC3232] and the ianaAddressFamilyNumbers
+  // object.
+  optional string management_address_type = 14;
+
+  // Description missing in models
+  repeated LldpCustomTLVState custom_tlvs = 15;
+
+  // Description missing in models
+  repeated LldpCapabilityState capabilities = 16;
+}
+
+// Custom TLV received from a neighbor.Custom TLVs are organization specific TLVs advertised
+// with TLV type 127.
+message LldpCustomTLVState {
+
+  // The integer value identifying the type of information contained in the value field.
+  optional int32 custom_type = 1;
+
+  // The organizationally unique identifier field shall contain the organization's OUI
+  // as defined in Clause 9 of IEEE Std 802. The high-order octet is 0 and the low-order
+  // 3 octets are the SMI Network Management Private Enterprise Code of the Vendor in
+  // network byte order,  as defined in the 'Assigned Numbers' RFC [RFC3232].
+  optional string oui = 2;
+
+  // The organizationally defined subtype field shall contain a unique subtype value assigned
+  // by the defining organization.
+  optional string oui_subtype = 3;
+}
+
+// LLDP system capability advertised by the neighbor
+message LldpCapabilityState {
+
+  message CapabilityName {
+    enum Enum {
+      unspecified = 0;
+      mac_bridge = 1;
+      two_port_mac_relay = 2;
+      repeater = 3;
+      docsis_cable_device = 4;
+      s_vlan = 5;
+      telephone = 6;
+      other = 7;
+      router = 8;
+      c_vlan = 9;
+      station_only = 10;
+      wlan_access_point = 11;
+    }
+  }
+  // Name of the system capability advertised by the neighbor. Capabilities are represented
+  // in a bitmap that defines the primary functions of the system.  The capabilities are
+  // defined in IEEE 802.1AB.
+  optional CapabilityName.Enum capability_name = 1;
+
+  // Indicates whether the corresponding system capability is enabled on the neighbor.
+  optional bool capability_enabled = 2;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the
@@ -6221,9 +7135,9 @@ message PatternFlowEthernetDst {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -6281,10 +7195,10 @@ message PatternFlowEthernetSrc {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6334,9 +7248,9 @@ message PatternFlowEthernetEtherType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -6394,10 +7308,10 @@ message PatternFlowEthernetPfcQueue {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6447,10 +7361,10 @@ message PatternFlowVlanPriority {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6500,10 +7414,10 @@ message PatternFlowVlanCfi {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6553,10 +7467,10 @@ message PatternFlowVlanId {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6606,10 +7520,10 @@ message PatternFlowVlanTpid {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6661,10 +7575,10 @@ message PatternFlowVxlanFlags {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6714,10 +7628,10 @@ message PatternFlowVxlanReserved0 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6767,9 +7681,9 @@ message PatternFlowVxlanVni {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -6827,10 +7741,10 @@ message PatternFlowVxlanReserved1 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6880,10 +7794,10 @@ message PatternFlowIpv4Version {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -6933,9 +7847,9 @@ message PatternFlowIpv4HeaderLength {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -6993,9 +7907,9 @@ message PatternFlowIpv4TotalLength {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -7053,10 +7967,10 @@ message PatternFlowIpv4Identification {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7106,10 +8020,10 @@ message PatternFlowIpv4Reserved {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7160,10 +8074,10 @@ message PatternFlowIpv4DontFragment {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7213,10 +8127,10 @@ message PatternFlowIpv4MoreFragments {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7266,10 +8180,10 @@ message PatternFlowIpv4FragmentOffset {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7319,10 +8233,10 @@ message PatternFlowIpv4TimeToLive {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7372,9 +8286,9 @@ message PatternFlowIpv4Protocol {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -7461,10 +8375,10 @@ message PatternFlowIpv4Src {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7514,10 +8428,10 @@ message PatternFlowIpv4Dst {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7567,10 +8481,10 @@ message PatternFlowIpv4PriorityRaw {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7620,10 +8534,10 @@ message PatternFlowIpv4DscpPhb {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7673,10 +8587,10 @@ message PatternFlowIpv4DscpEcn {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7726,10 +8640,10 @@ message PatternFlowIpv4TosPrecedence {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7779,10 +8693,10 @@ message PatternFlowIpv4TosDelay {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7832,10 +8746,10 @@ message PatternFlowIpv4TosThroughput {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7885,10 +8799,10 @@ message PatternFlowIpv4TosReliability {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7938,10 +8852,10 @@ message PatternFlowIpv4TosMonetary {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -7991,10 +8905,10 @@ message PatternFlowIpv4TosUnused {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8044,10 +8958,10 @@ message PatternFlowIpv6Version {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8097,10 +9011,10 @@ message PatternFlowIpv6TrafficClass {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8150,10 +9064,10 @@ message PatternFlowIpv6FlowLabel {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8203,9 +9117,9 @@ message PatternFlowIpv6PayloadLength {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -8263,9 +9177,9 @@ message PatternFlowIpv6NextHeader {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -8323,10 +9237,10 @@ message PatternFlowIpv6HopLimit {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8376,10 +9290,10 @@ message PatternFlowIpv6Src {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8429,10 +9343,10 @@ message PatternFlowIpv6Dst {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8482,10 +9396,10 @@ message PatternFlowPfcPauseDst {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8535,10 +9449,10 @@ message PatternFlowPfcPauseSrc {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8588,10 +9502,10 @@ message PatternFlowPfcPauseEtherType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8641,10 +9555,10 @@ message PatternFlowPfcPauseControlOpCode {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8694,10 +9608,10 @@ message PatternFlowPfcPauseClassEnableVector {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8747,10 +9661,10 @@ message PatternFlowPfcPausePauseClass0 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8800,10 +9714,10 @@ message PatternFlowPfcPausePauseClass1 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8853,10 +9767,10 @@ message PatternFlowPfcPausePauseClass2 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8906,10 +9820,10 @@ message PatternFlowPfcPausePauseClass3 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -8959,10 +9873,10 @@ message PatternFlowPfcPausePauseClass4 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9012,10 +9926,10 @@ message PatternFlowPfcPausePauseClass5 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9065,10 +9979,10 @@ message PatternFlowPfcPausePauseClass6 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9118,10 +10032,10 @@ message PatternFlowPfcPausePauseClass7 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9171,10 +10085,10 @@ message PatternFlowEthernetPauseDst {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9224,10 +10138,10 @@ message PatternFlowEthernetPauseSrc {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9277,10 +10191,10 @@ message PatternFlowEthernetPauseEtherType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9330,10 +10244,10 @@ message PatternFlowEthernetPauseControlOpCode {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9383,10 +10297,10 @@ message PatternFlowEthernetPauseTime {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9436,10 +10350,10 @@ message PatternFlowTcpSrcPort {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9489,10 +10403,10 @@ message PatternFlowTcpDstPort {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9542,10 +10456,10 @@ message PatternFlowTcpSeqNum {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9595,10 +10509,10 @@ message PatternFlowTcpAckNum {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9648,10 +10562,10 @@ message PatternFlowTcpDataOffset {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9701,10 +10615,10 @@ message PatternFlowTcpEcnNs {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9754,10 +10668,10 @@ message PatternFlowTcpEcnCwr {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9808,10 +10722,10 @@ message PatternFlowTcpEcnEcho {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9861,10 +10775,10 @@ message PatternFlowTcpCtlUrg {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9914,10 +10828,10 @@ message PatternFlowTcpCtlAck {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -9967,10 +10881,10 @@ message PatternFlowTcpCtlPsh {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10020,10 +10934,10 @@ message PatternFlowTcpCtlRst {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10073,10 +10987,10 @@ message PatternFlowTcpCtlSyn {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10126,10 +11040,10 @@ message PatternFlowTcpCtlFin {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10179,10 +11093,10 @@ message PatternFlowTcpWindow {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10232,10 +11146,10 @@ message PatternFlowUdpSrcPort {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10285,10 +11199,10 @@ message PatternFlowUdpDstPort {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10338,10 +11252,10 @@ message PatternFlowUdpLength {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10420,10 +11334,10 @@ message PatternFlowGreChecksumPresent {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10473,10 +11387,10 @@ message PatternFlowGreReserved0 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10526,10 +11440,10 @@ message PatternFlowGreVersion {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10579,10 +11493,10 @@ message PatternFlowGreProtocol {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10662,10 +11576,10 @@ message PatternFlowGreReserved1 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10715,10 +11629,10 @@ message PatternFlowGtpv1Version {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10768,10 +11682,10 @@ message PatternFlowGtpv1ProtocolType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10821,10 +11735,10 @@ message PatternFlowGtpv1Reserved {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10874,10 +11788,10 @@ message PatternFlowGtpv1EFlag {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10927,10 +11841,10 @@ message PatternFlowGtpv1SFlag {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -10980,10 +11894,10 @@ message PatternFlowGtpv1PnFlag {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11034,10 +11948,10 @@ message PatternFlowGtpv1MessageType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11088,10 +12002,10 @@ message PatternFlowGtpv1MessageLength {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11141,10 +12055,10 @@ message PatternFlowGtpv1Teid {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11195,10 +12109,10 @@ message PatternFlowGtpv1SquenceNumber {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11249,10 +12163,10 @@ message PatternFlowGtpv1NPduNumber {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11303,10 +12217,10 @@ message PatternFlowGtpv1NextExtensionHeaderType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11358,10 +12272,10 @@ message PatternFlowGtpExtensionExtensionLength {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11411,10 +12325,10 @@ message PatternFlowGtpExtensionContents {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11465,10 +12379,10 @@ message PatternFlowGtpExtensionNextExtensionHeader {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11518,10 +12432,10 @@ message PatternFlowGtpv2Version {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11572,10 +12486,10 @@ message PatternFlowGtpv2PiggybackingFlag {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11627,10 +12541,10 @@ message PatternFlowGtpv2TeidFlag {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11680,10 +12594,10 @@ message PatternFlowGtpv2Spare1 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11734,10 +12648,10 @@ message PatternFlowGtpv2MessageType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11788,10 +12702,10 @@ message PatternFlowGtpv2MessageLength {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11842,10 +12756,10 @@ message PatternFlowGtpv2Teid {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11895,10 +12809,10 @@ message PatternFlowGtpv2SequenceNumber {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -11948,10 +12862,10 @@ message PatternFlowGtpv2Spare2 {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12001,10 +12915,10 @@ message PatternFlowArpHardwareType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12054,10 +12968,10 @@ message PatternFlowArpProtocolType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12107,10 +13021,10 @@ message PatternFlowArpHardwareLength {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12160,10 +13074,10 @@ message PatternFlowArpProtocolLength {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12213,10 +13127,10 @@ message PatternFlowArpOperation {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12266,10 +13180,10 @@ message PatternFlowArpSenderHardwareAddr {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12319,10 +13233,10 @@ message PatternFlowArpSenderProtocolAddr {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12372,10 +13286,10 @@ message PatternFlowArpTargetHardwareAddr {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12425,10 +13339,10 @@ message PatternFlowArpTargetProtocolAddr {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12478,10 +13392,10 @@ message PatternFlowIcmpEchoType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12531,10 +13445,10 @@ message PatternFlowIcmpEchoCode {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12613,10 +13527,10 @@ message PatternFlowIcmpEchoIdentifier {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12666,10 +13580,10 @@ message PatternFlowIcmpEchoSequenceNumber {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12748,10 +13662,10 @@ message PatternFlowIcmpNextFieldsIdentifier {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12801,10 +13715,10 @@ message PatternFlowIcmpNextFieldsSequenceNumber {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12854,10 +13768,10 @@ message PatternFlowIcmpv6EchoType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12907,10 +13821,10 @@ message PatternFlowIcmpv6EchoCode {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -12960,10 +13874,10 @@ message PatternFlowIcmpv6EchoIdentifier {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -13013,10 +13927,10 @@ message PatternFlowIcmpv6EchoSequenceNumber {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -13124,10 +14038,10 @@ message PatternFlowPppAddress {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -13177,10 +14091,10 @@ message PatternFlowPppControl {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -13230,9 +14144,9 @@ message PatternFlowPppProtocolType {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -13290,10 +14204,10 @@ message PatternFlowIgmpv1Version {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -13343,10 +14257,10 @@ message PatternFlowIgmpv1Type {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -13396,10 +14310,10 @@ message PatternFlowIgmpv1Unused {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -13478,10 +14392,10 @@ message PatternFlowIgmpv1GroupAddress {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -13531,9 +14445,9 @@ message PatternFlowMplsLabel {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      auto = 3;
+      value = 2;
+      values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -13591,10 +14505,10 @@ message PatternFlowMplsTrafficClass {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
@@ -13644,14 +14558,15 @@ message PatternFlowMplsBottomOfStack {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      auto = 1;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -13662,17 +14577,23 @@ message PatternFlowMplsBottomOfStack {
   // default = [1]
   repeated int32 values = 3;
 
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 1
+  optional int32 auto = 4;
+
   // A unique name is used to indicate to the system that the field may extend the metric
   // row key and create an aggregate metric row for every unique value. To have metric
   // group columns appear in the flow metric rows the flow metric request allows for the
   // metric_group value to be specified as part of the request.
-  optional string metric_group = 4;
+  optional string metric_group = 5;
 
   // Description missing in models
-  optional PatternFlowMplsBottomOfStackCounter increment = 5;
+  optional PatternFlowMplsBottomOfStackCounter increment = 6;
 
   // Description missing in models
-  optional PatternFlowMplsBottomOfStackCounter decrement = 6;
+  optional PatternFlowMplsBottomOfStackCounter decrement = 7;
 }
 
 // integer counter pattern
@@ -13697,10 +14618,10 @@ message PatternFlowMplsTimeToLive {
   message Choice {
     enum Enum {
       unspecified = 0;
-      value = 1;
-      values = 2;
-      increment = 3;
-      decrement = 4;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
     }
   }
   // Description missing in models

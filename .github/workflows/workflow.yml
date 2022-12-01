@@ -49,23 +49,6 @@ jobs:
         with:
           args: 'bundle artifacts/openapi.yaml -o artifacts/openapi.html'
 
-      - name: Commit openapi.yaml and otg.proto
-        id: commit_generated
-        if: github.event_name == 'pull_request'
-        run: |
-          git config user.name "Github Actions Bot"
-          git config user.email "actions@github.com"
-          git add --force artifacts/openapi.yaml
-          git add --force artifacts/otg.proto
-          git add --force artifacts/openapi.html
-          if git status --porcelain | grep .
-            then
-              git commit -m "Update auto generated content" 
-              git push
-            else
-              echo "No changed auto generated content"
-          fi
-
       - name: Get version
         id: get_version
         run: |
@@ -78,6 +61,22 @@ jobs:
           tag: ${{ steps.get_version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Commit openapi.yaml and otg.proto
+        id: commit_generated
+        run: |
+          git config user.name "Github Actions Bot"
+          git config user.email "actions@github.com"
+          git add --force artifacts/openapi.yaml
+          git add --force artifacts/otg.proto
+          git add --force artifacts/openapi.html
+          if git status --porcelain | grep .
+            then
+              git commit -m "Update auto generated content" 
+              git push
+            else
+              echo "No changed auto generated content"
+          fi        
 
       - name: Create release and publish artifacts
         if: steps.check_tag.outputs.exists == 'false'

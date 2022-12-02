@@ -10128,12 +10128,15 @@ components:
               x-field-uid: 4
             lldp_neighbors:
               x-field-uid: 5
+            rsvp_lsps:
+              x-field-uid: 6
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
           - bgp_prefixes
           - isis_lsps
           - lldp_neighbors
+          - rsvp_lsps
         ipv4_neighbors:
           $ref: '#/components/schemas/Neighborsv4.States.Request'
           x-field-uid: 2
@@ -10149,6 +10152,9 @@ components:
         lldp_neighbors:
           $ref: '#/components/schemas/LldpNeighbors.State.Request'
           x-field-uid: 6
+        rsvp_lsps:
+          $ref: '#/components/schemas/RsvpLsps.State.Request'
+          x-field-uid: 7
     States.Response:
       description: |-
         Response containing chosen traffic generator states
@@ -10169,12 +10175,15 @@ components:
               x-field-uid: 4
             lldp_neighbors:
               x-field-uid: 5
+            rsvp_lsps:
+              x-field-uid: 6
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
           - bgp_prefixes
           - isis_lsps
           - lldp_neighbors
+          - rsvp_lsps
         ipv4_neighbors:
           type: array
           items:
@@ -10200,6 +10209,11 @@ components:
           items:
             $ref: '#/components/schemas/LldpNeighbors.State'
           x-field-uid: 6
+        rsvp_lsps:
+          type: array
+          items:
+            $ref: '#/components/schemas/RsvpLsps.State'
+          x-field-uid: 7
     Neighborsv4.States.Request:
       description: |-
         The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -11305,6 +11319,204 @@ components:
             Indicates whether the corresponding system capability is enabled on the neighbor.
           type: boolean
           x-field-uid: 2
+    RsvpLsps.State.Request:
+      description: |-
+        The request to retrieve RSVP Label Switched Path (LSP) information learned by the router.
+      type: object
+      properties:
+        rsvp_router_names:
+          description: |
+            The names of RSVP-TE routers for which learned information is requested. An empty list will return results for all RSVP=TE routers.
+
+            x-constraint:
+            - /components/schemas/Device.Rsvp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Rsvp/properties/name
+          x-field-uid: 1
+    RsvpLsps.State:
+      description: |-
+        Discovered IPv4 Point-to-Point LSPs of a RSVP-TE router.
+      type: object
+      properties:
+        rsvp_router_name:
+          description: |-
+            The name of the RSVP-TE Router.
+          type: string
+          x-field-uid: 1
+        ipv4_lsps:
+          description: |-
+            IPv4 Point-to-Point RSVP-TE Discovered LSPs.
+          type: array
+          items:
+            $ref: '#/components/schemas/RsvpIPv4Lsp.State'
+          x-field-uid: 2
+    RsvpIPv4Lsp.State:
+      description: |-
+        IPv4 RSVP-TE Discovered LSPs.
+      type: object
+      properties:
+        source_address:
+          description: |-
+            The origin IPv4 address of RSVP session.
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        destination_address:
+          description: |-
+            The IPv4 destination address of RSVP session.
+          type: string
+          format: ipv4
+          x-field-uid: 2
+        lsp:
+          description: |-
+            It refers to the RSVP LSP properties.
+          $ref: '#/components/schemas/RsvpLsp.State'
+          x-field-uid: 3
+        rros:
+          description: |-
+            It refers to RSVP RRO objects container.
+          items:
+            $ref: '#/components/schemas/RsvpLsp.Ipv4Rro'
+          type: array
+          x-field-uid: 4
+        eros:
+          description: |-
+            It refers to RSVP ERO objects container.
+          items:
+            $ref: '#/components/schemas/RsvpLsp.Ipv4Ero'
+          type: array
+          x-field-uid: 5
+    RsvpLsp.State:
+      description: |-
+        IPv4 RSVP-TE Discovered LSPs.
+      type: object
+      properties:
+        tunnel_id:
+          description: |-
+            The tunnel id of RSVP session which acts as an identifier that remains constant over the life of the tunnel.
+          type: integer
+          x-field-uid: 1
+        lsp_id:
+          description: |-
+            The lsp-id of RSVP session which acts as a differentiator for two lsps originating from the same headend, commonly used to distinguish RSVP sessions during make before break operations.
+          type: integer
+          x-field-uid: 2
+        session_name:
+          description: |-
+            The name of RSVP-TE session.
+          type: integer
+          x-field-uid: 3
+        label_in:
+          description: |-
+            The label received by RSVP-TE ingress.
+          type: integer
+          x-field-uid: 4
+        label_out:
+          description: |-
+            The label assigned by RSVP-TE egress.
+          type: integer
+          x-field-uid: 5
+        session_status:
+          description: |-
+            Operational state of the RSVP LSP.
+          type: string
+          x-field-uid: 6
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+          enum:
+          - up
+          - down
+        last_flap_reason:
+          description: |-
+            The reason for the last flap of this RSVP session.
+          type: string
+          x-field-uid: 7
+          x-enum:
+            resv_tear:
+              x-field-uid: 1
+            path_tear:
+              x-field-uid: 2
+            path_timeout:
+              x-field-uid: 3
+          enum:
+          - resv_tear
+          - path_tear
+          - path_timeout
+        up_time:
+          description: |-
+            The tunnel UP time in milli seconds. If the tunnel is DOWN the UP time will be zero.
+          type: integer
+          format: int64
+          x-field-uid: 8
+    RsvpLsp.Ipv4Rro:
+      description: "This contains the list of Record Route Object(RRO) objects associated\
+        \ with the traffic engineering tunnel. The  Record Route Object(RRO) is used\
+        \ in RSVP-TE to record the route traversed by the LSP. The RRO might be present\
+        \ in both   Path message and Resv message, the RRO stores the IP addresses\
+        \ of the routers that the traffic engineering tunnel  traversed and also the\
+        \ label generated and distributed by the routers. The RROs in the Resv message\
+        \ mirrors that of  the Path message, the only difference is that the RRO in\
+        \ a Resv message records the path information in the reverse  direction. "
+      properties:
+        address:
+          description: |-
+            The IPv4 addresses of the routers that the traffic engineering tunnel traversed.
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        reported_label:
+          description: "Label reported for RRO hop. When the Label_Recording flag\
+            \ is set in the Session Attribute object, nodes doing route recording\
+            \ should include the Label Record subobject containing the reported label. "
+          type: integer
+          x-field-uid: 2
+    RsvpLsp.Ipv4Ero:
+      description: |-
+        This contains the list of sub-objects included in the Explicit Route Object(ERO) object send in the PATH message from the ingress. These sub-objects contain the intermediate hops to be traversed by the LSP while being forwarded  towards the egress endpoint.
+      type: object
+      properties:
+        prefix:
+          description: |-
+            The IPv4 prefix indicated by the ERO. Specified only when the ERO hop is an IPv4 prefix.
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        asn:
+          description: |-
+            The autonomous system number indicated by the ERO. Specified only when the ERO hop is an  2 or 4-byte AS number.
+          type: integer
+          x-field-uid: 2
+        type:
+          description: |-
+            The type indicated by the ERO.
+          type: string
+          x-field-uid: 3
+          x-enum:
+            ipv4:
+              x-field-uid: 1
+            ipv6:
+              x-field-uid: 2
+            asn:
+              x-field-uid: 3
+            asn4:
+              x-field-uid: 4
+            label:
+              x-field-uid: 5
+            unnumbered_interface:
+              x-field-uid: 6
+          enum:
+          - ipv4
+          - ipv6
+          - asn
+          - asn4
+          - label
+          - unnumbered_interface
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.

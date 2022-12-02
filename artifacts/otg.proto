@@ -6952,6 +6952,7 @@ message StatesRequest {
       bgp_prefixes = 3;
       isis_lsps = 4;
       lldp_neighbors = 5;
+      rsvp_lsps = 6;
     }
   }
   // Description missing in models
@@ -6972,6 +6973,9 @@ message StatesRequest {
 
   // Description missing in models
   optional LldpNeighborsStateRequest lldp_neighbors = 6;
+
+  // Description missing in models
+  optional RsvpLspsStateRequest rsvp_lsps = 7;
 }
 
 // Response containing chosen traffic generator states
@@ -6985,6 +6989,7 @@ message StatesResponse {
       bgp_prefixes = 3;
       isis_lsps = 4;
       lldp_neighbors = 5;
+      rsvp_lsps = 6;
     }
   }
   // Description missing in models
@@ -7005,6 +7010,9 @@ message StatesResponse {
 
   // Description missing in models
   repeated LldpNeighborsState lldp_neighbors = 6;
+
+  // Description missing in models
+  repeated RsvpLspsState rsvp_lsps = 7;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -7766,6 +7774,141 @@ message LldpCapabilityState {
 
   // Indicates whether the corresponding system capability is enabled on the neighbor.
   optional bool capability_enabled = 2;
+}
+
+// The request to retrieve RSVP Label Switched Path (LSP) information learned by the
+// router.
+message RsvpLspsStateRequest {
+
+  // The names of RSVP-TE routers for which learned information is requested. An empty
+  // list will return results for all RSVP=TE routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Rsvp/properties/name
+  // 
+  repeated string rsvp_router_names = 1;
+}
+
+// Discovered IPv4 Point-to-Point LSPs of a RSVP-TE router.
+message RsvpLspsState {
+
+  // The name of the RSVP-TE Router.
+  optional string rsvp_router_name = 1;
+
+  // IPv4 Point-to-Point RSVP-TE Discovered LSPs.
+  repeated RsvpIPv4LspState ipv4_lsps = 2;
+}
+
+// IPv4 RSVP-TE Discovered LSPs.
+message RsvpIPv4LspState {
+
+  // The origin IPv4 address of RSVP session.
+  optional string source_address = 1;
+
+  // The IPv4 destination address of RSVP session.
+  optional string destination_address = 2;
+
+  // It refers to the RSVP LSP properties.
+  optional RsvpLspState lsp = 3;
+
+  // It refers to RSVP RRO objects container.
+  repeated RsvpLspIpv4Rro rros = 4;
+
+  // It refers to RSVP ERO objects container.
+  repeated RsvpLspIpv4Ero eros = 5;
+}
+
+// IPv4 RSVP-TE Discovered LSPs.
+message RsvpLspState {
+
+  // The tunnel id of RSVP session which acts as an identifier that remains constant over
+  // the life of the tunnel.
+  optional int32 tunnel_id = 1;
+
+  // The lsp-id of RSVP session which acts as a differentiator for two lsps originating
+  // from the same headend, commonly used to distinguish RSVP sessions during make before
+  // break operations.
+  optional int32 lsp_id = 2;
+
+  // The name of RSVP-TE session.
+  optional int32 session_name = 3;
+
+  // The label received by RSVP-TE ingress.
+  optional int32 label_in = 4;
+
+  // The label assigned by RSVP-TE egress.
+  optional int32 label_out = 5;
+
+  message SessionStatus {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Operational state of the RSVP LSP.
+  optional SessionStatus.Enum session_status = 6;
+
+  message LastFlapReason {
+    enum Enum {
+      unspecified = 0;
+      resv_tear = 1;
+      path_tear = 2;
+      path_timeout = 3;
+    }
+  }
+  // The reason for the last flap of this RSVP session.
+  optional LastFlapReason.Enum last_flap_reason = 7;
+
+  // The tunnel UP time in milli seconds. If the tunnel is DOWN the UP time will be zero.
+  optional int64 up_time = 8;
+}
+
+// This contains the list of Record Route Object(RRO) objects associated with the traffic
+// engineering tunnel. The  Record Route Object(RRO) is used in RSVP-TE to record the
+// route traversed by the LSP. The RRO might be present in both   Path message and Resv
+// message, the RRO stores the IP addresses of the routers that the traffic engineering
+// tunnel  traversed and also the label generated and distributed by the routers. The
+// RROs in the Resv message mirrors that of  the Path message, the only difference is
+// that the RRO in a Resv message records the path information in the reverse  direction.
+// 
+message RsvpLspIpv4Rro {
+
+  // The IPv4 addresses of the routers that the traffic engineering tunnel traversed.
+  optional string address = 1;
+
+  // Label reported for RRO hop. When the Label_Recording flag is set in the Session Attribute
+  // object, nodes doing route recording should include the Label Record subobject containing
+  // the reported label.
+  optional int32 reported_label = 2;
+}
+
+// This contains the list of sub-objects included in the Explicit Route Object(ERO)
+// object send in the PATH message from the ingress. These sub-objects contain the intermediate
+// hops to be traversed by the LSP while being forwarded  towards the egress endpoint.
+message RsvpLspIpv4Ero {
+
+  // The IPv4 prefix indicated by the ERO. Specified only when the ERO hop is an IPv4
+  // prefix.
+  optional string prefix = 1;
+
+  // The autonomous system number indicated by the ERO. Specified only when the ERO hop
+  // is an  2 or 4-byte AS number.
+  optional int32 asn = 2;
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+      asn = 3;
+      asn4 = 4;
+      label = 5;
+      unnumbered_interface = 6;
+    }
+  }
+  // The type indicated by the ERO.
+  optional Type.Enum type = 3;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the

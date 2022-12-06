@@ -7,7 +7,7 @@ info:
     \ issue](https://github.com/open-traffic-generator/models/issues) in the models\
     \ repository\n- [fork the models repository](https://github.com/open-traffic-generator/models)\
     \ and submit a PR"
-  version: 0.9.10
+  version: 0.10.4
   contact:
     url: https://github.com/open-traffic-generator/models
   license:
@@ -440,6 +440,9 @@ components:
         port_options:
           $ref: '#/components/schemas/Port.Options'
           x-field-uid: 1
+        device_options:
+          $ref: '#/components/schemas/Device.Options'
+          x-field-uid: 2
     Port:
       description: |-
         An abstract test port.
@@ -1658,6 +1661,16 @@ components:
           x-field-uid: 8
       required:
       - name
+    Device.Options:
+      description: "Common options that apply to all configured devices. "
+      type: object
+      properties:
+        auto_start_all:
+          description: |-
+            When set to true, all underlying resources for configured devices  shall be created and corresponding protocol session negotiation shall  be initiated. Otherwise, when set to false, corresponding protocol  session negotiation will need to be initiated using a separate  set_protocol_state API call.
+          type: boolean
+          default: true
+          x-field-uid: 1
     Device.IsisRouter:
       x-status: under-review
       description: |-
@@ -5516,11 +5529,9 @@ components:
           format: ipv6
           x-field-uid: 1
     Device.Rsvp:
-      x-status:
-        status: under-review
-        additional_information: Device.Rsvp is under review
+      x-status: under-review
       description: |-
-        Status: {'status': 'under-review', 'additional_information': 'Device.Rsvp is under review'}
+        Status: under-review
         Configuration for one or more RSVP interfaces, ingress and egress LSPs. In this model, currently IPv4 RSVP and point-to-point LSPs are supported as per RFC3209 and related specifications.
       type: object
       properties:
@@ -5546,11 +5557,9 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
     Rsvp.Ipv4Interface:
-      x-status:
-        status: under-review
-        additional_information: Rsvp.Ipv4Interface is under review
+      x-status: under-review
       description: |-
-        Status: {'status': 'under-review', 'additional_information': 'Rsvp.Ipv4Interface is under review'}
+        Status: under-review
         Configuration for RSVP Interface.
       type: object
       required:
@@ -5640,11 +5649,9 @@ components:
           maximum: 10
           x-field-uid: 11
     Rsvp.LspIpv4Interface:
-      x-status:
-        status: under-review
-        additional_information: Rsvp.LspIpv4Interface is under review
+      x-status: under-review
       description: |-
-        Status: {'status': 'under-review', 'additional_information': 'Rsvp.LspIpv4Interface is under review'}
+        Status: under-review
         Configuration for RSVP LSP IPv4 Interface.
       type: object
       required:
@@ -8121,7 +8128,7 @@ components:
           x-field-uid: 1
     Protocol.State:
       description: |-
-        Sets all configured protocols to `start` or `stop` state.
+        Sets all configured protocols to `start` or `stop` state. Setting protocol state to `start`  shall be a no-op if preceding `set_config` API call was made with  `config.options.device_options.auto_start_all` set to `true` or if all the configured protocols are already started.
       type: object
       required:
       - state
@@ -8314,7 +8321,7 @@ components:
               x-field-uid: 5
             lag:
               x-field-uid: 6
-            lacp_lag_member:
+            lacp:
               x-field-uid: 7
             lldp:
               x-field-uid: 8
@@ -8327,7 +8334,7 @@ components:
           - bgpv6
           - isis
           - lag
-          - lacp_lag_member
+          - lacp
           - lldp
           - rsvp
         port:
@@ -8348,8 +8355,8 @@ components:
         lag:
           $ref: '#/components/schemas/Lag.Metrics.Request'
           x-field-uid: 7
-        lacp_lag_member:
-          $ref: '#/components/schemas/LacpLagMember.Metrics.Request'
+        lacp:
+          $ref: '#/components/schemas/Lacp.Metrics.Request'
           x-field-uid: 8
         lldp:
           $ref: '#/components/schemas/Lldp.Metrics.Request'
@@ -8379,7 +8386,7 @@ components:
               x-field-uid: 5
             lag_metrics:
               x-field-uid: 6
-            lacp_lag_member_metrics:
+            lacp_metrics:
               x-field-uid: 7
             lldp_metrics:
               x-field-uid: 8
@@ -8392,7 +8399,7 @@ components:
           - bgpv6_metrics
           - isis_metrics
           - lag_metrics
-          - lacp_lag_member_metrics
+          - lacp_metrics
           - lldp_metrics
           - rsvp_metrics
         port_metrics:
@@ -8425,10 +8432,10 @@ components:
           items:
             $ref: '#/components/schemas/Lag.Metric'
           x-field-uid: 7
-        lacp_lag_member_metrics:
+        lacp_metrics:
           type: array
           items:
-            $ref: '#/components/schemas/LacpLagMember.Metric'
+            $ref: '#/components/schemas/Lacp.Metric'
           x-field-uid: 8
         lldp_metrics:
           type: array
@@ -9431,7 +9438,7 @@ components:
           items:
             type: string
             x-enum:
-              oper_states:
+              oper_status:
                 x-field-uid: 1
               member_ports_up:
                 x-field-uid: 2
@@ -9452,7 +9459,7 @@ components:
               bytes_rx_rate:
                 x-field-uid: 10
             enum:
-            - oper_states
+            - oper_status
             - member_ports_up
             - frames_tx
             - frames_rx
@@ -9542,7 +9549,7 @@ components:
             The current rate of bytes received.
           type: number
           x-field-uid: 11
-    LacpLagMember.Metrics.Request:
+    Lacp.Metrics.Request:
       description: |-
         The request to retrieve LACP per LAG member metrics/statistics.
       type: object
@@ -9578,9 +9585,9 @@ components:
           items:
             type: string
             x-enum:
-              lacp_in_pkts:
+              lacp_packets_rx:
                 x-field-uid: 1
-              lacp_out_pkts:
+              lacp_packets_tx:
                 x-field-uid: 2
               lacp_rx_errors:
                 x-field-uid: 3
@@ -9609,8 +9616,8 @@ components:
               partner_port_num:
                 x-field-uid: 15
             enum:
-            - lacp_in_pkts
-            - lacp_out_pkts
+            - lacp_packets_rx
+            - lacp_packets_tx
             - lacp_rx_errors
             - activity
             - timeout
@@ -9625,7 +9632,7 @@ components:
             - port_num
             - partner_port_num
           x-field-uid: 3
-    LacpLagMember.Metric:
+    Lacp.Metric:
       description: |-
         LACP metrics (statistics) per LAG member.
       type: object
@@ -9640,14 +9647,14 @@ components:
             The name of a LAG member (port) configured with LACP.
           type: string
           x-field-uid: 2
-        lacp_in_pkts:
+        lacp_packets_rx:
           description: |-
             Number of LACPDUs received.
           type: integer
           format: int64
           minimum: 0
           x-field-uid: 3
-        lacp_out_pkts:
+        lacp_packets_tx:
           description: |-
             Number of LACPDUs transmitted.
           type: integer

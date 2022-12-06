@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 0.9.10
+/* Open Traffic Generator API 0.10.4
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -54,6 +54,9 @@ message ConfigOptions {
 
   // Description missing in models
   optional PortOptions port_options = 1;
+
+  // Description missing in models
+  optional DeviceOptions device_options = 2;
 }
 
 // An abstract test port.
@@ -935,6 +938,17 @@ message Device {
 
   // The properties of an RSVP router and its children.
   optional DeviceRsvp rsvp = 8;
+}
+
+// Common options that apply to all configured devices.
+message DeviceOptions {
+
+  // When set to true, all underlying resources for configured devices  shall be created
+  // and corresponding protocol session negotiation shall  be initiated. Otherwise, when
+  // set to false, corresponding protocol  session negotiation will need to be initiated
+  // using a separate  set_protocol_state API call.
+  // default = True
+  optional bool auto_start_all = 1;
 }
 
 // Status: under-review
@@ -3656,8 +3670,7 @@ message VxlanV6TunnelDestinationIPModeMulticast {
   optional string address = 1;
 }
 
-// Status: {'status': 'under-review', 'additional_information': 'Device.Rsvp is under
-// review'}
+// Status: under-review
 // Configuration for one or more RSVP interfaces, ingress and egress LSPs. In this model,
 // currently IPv4 RSVP and point-to-point LSPs are supported as per RFC3209 and related
 // specifications.
@@ -3676,8 +3689,7 @@ message DeviceRsvp {
   optional string name = 3;
 }
 
-// Status: {'status': 'under-review', 'additional_information': 'Rsvp.Ipv4Interface
-// is under review'}
+// Status: under-review
 // Configuration for RSVP Interface.
 message RsvpIpv4Interface {
 
@@ -3742,8 +3754,7 @@ message RsvpIpv4Interface {
   optional int32 timeout_multiplier = 11;
 }
 
-// Status: {'status': 'under-review', 'additional_information': 'Rsvp.LspIpv4Interface
-// is under review'}
+// Status: under-review
 // Configuration for RSVP LSP IPv4 Interface.
 message RsvpLspIpv4Interface {
 
@@ -5701,7 +5712,9 @@ message PingRequest {
   repeated Ping endpoints = 1;
 }
 
-// Sets all configured protocols to `start` or `stop` state.
+// Sets all configured protocols to `start` or `stop` state. Setting protocol state
+// to `start`  shall be a no-op if preceding `set_config` API call was made with  `config.options.device_options.auto_start_all`
+// set to `true` or if all the configured protocols are already started.
 message ProtocolState {
 
   message State {
@@ -5851,7 +5864,7 @@ message MetricsRequest {
       bgpv6 = 4;
       isis = 5;
       lag = 6;
-      lacp_lag_member = 7;
+      lacp = 7;
       lldp = 8;
       rsvp = 9;
     }
@@ -5879,7 +5892,7 @@ message MetricsRequest {
   optional LagMetricsRequest lag = 7;
 
   // Description missing in models
-  optional LacpLagMemberMetricsRequest lacp_lag_member = 8;
+  optional LacpMetricsRequest lacp = 8;
 
   // Description missing in models
   optional LldpMetricsRequest lldp = 9;
@@ -5900,7 +5913,7 @@ message MetricsResponse {
       bgpv6_metrics = 4;
       isis_metrics = 5;
       lag_metrics = 6;
-      lacp_lag_member_metrics = 7;
+      lacp_metrics = 7;
       lldp_metrics = 8;
       rsvp_metrics = 9;
     }
@@ -5928,7 +5941,7 @@ message MetricsResponse {
   repeated LagMetric lag_metrics = 7;
 
   // Description missing in models
-  repeated LacpLagMemberMetric lacp_lag_member_metrics = 8;
+  repeated LacpMetric lacp_metrics = 8;
 
   // Description missing in models
   repeated LldpMetric lldp_metrics = 9;
@@ -6533,7 +6546,7 @@ message LagMetricsRequest {
   message ColumnNames {
     enum Enum {
       unspecified = 0;
-      oper_states = 1;
+      oper_status = 1;
       member_ports_up = 2;
       frames_tx = 3;
       frames_rx = 4;
@@ -6600,7 +6613,7 @@ message LagMetric {
 }
 
 // The request to retrieve LACP per LAG member metrics/statistics.
-message LacpLagMemberMetricsRequest {
+message LacpMetricsRequest {
 
   // The names of LAG (ports group) for which LACP metrics to be returned. An empty list
   // will return metrics for all LAGs.
@@ -6621,8 +6634,8 @@ message LacpLagMemberMetricsRequest {
   message ColumnNames {
     enum Enum {
       unspecified = 0;
-      lacp_in_pkts = 1;
-      lacp_out_pkts = 2;
+      lacp_packets_rx = 1;
+      lacp_packets_tx = 2;
       lacp_rx_errors = 3;
       activity = 4;
       timeout = 5;
@@ -6645,7 +6658,7 @@ message LacpLagMemberMetricsRequest {
 }
 
 // LACP metrics (statistics) per LAG member.
-message LacpLagMemberMetric {
+message LacpMetric {
 
   // The name of a LAG (ports group) configured with LACP.
   optional string lag_name = 1;
@@ -6654,10 +6667,10 @@ message LacpLagMemberMetric {
   optional string lag_member_port_name = 2;
 
   // Number of LACPDUs received.
-  optional int64 lacp_in_pkts = 3;
+  optional int64 lacp_packets_rx = 3;
 
   // Number of LACPDUs transmitted.
-  optional int64 lacp_out_pkts = 4;
+  optional int64 lacp_packets_tx = 4;
 
   // Number of LACPDUs receive packet errors.
   optional int64 lacp_rx_errors = 5;

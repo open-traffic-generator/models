@@ -7,7 +7,7 @@ info:
     \ issue](https://github.com/open-traffic-generator/models/issues) in the models\
     \ repository\n- [fork the models repository](https://github.com/open-traffic-generator/models)\
     \ and submit a PR"
-  version: 0.9.6
+  version: 0.10.8
   contact:
     url: https://github.com/open-traffic-generator/models
   license:
@@ -425,6 +425,13 @@ components:
         options:
           $ref: '#/components/schemas/Config.Options'
           x-field-uid: 8
+        lldp:
+          description: |-
+            LLDP protocol that will be configured on traffic generator.
+          type: array
+          items:
+            $ref: '#/components/schemas/Lldp'
+          x-field-uid: 9
     Config.Options:
       description: |-
         Global configuration options.
@@ -433,6 +440,9 @@ components:
         port_options:
           $ref: '#/components/schemas/Port.Options'
           x-field-uid: 1
+        protocol_options:
+          $ref: '#/components/schemas/Protocol.Options'
+          x-field-uid: 2
     Port:
       description: |-
         An abstract test port.
@@ -487,7 +497,8 @@ components:
           x-field-uid: 2
         min_links:
           description: |-
-            Specifies the mininum number of member interfaces that must be active for the aggregate interface to be available
+            Specifies the mininum number of member interfaces that must be active for the aggregate interface to be available.
+            If the aggregate interface is not available due to min-links criterion not being met, LACPDUs continue to be transmitted and received by the member interfaces if LACP is enabled, but other PDUs are not transmitted or received.
           type: integer
           format: int32
           minimum: 0
@@ -693,20 +704,13 @@ components:
         port_name:
           description: |
             Status: deprecated
-            property port_name is deprecated from the snappi version x.x.x.
-            please use connection.port_name instead of port_name
             The unique name of a Port or a LAG that will emulate this interface.
             port_name is deprecated and will be removed in future release.port_name and connection can't be used together, use either port_name or connection.
 
             x-constraint:
             - /components/schemas/Port/properties/name
             - /components/schemas/Lag/properties/name
-          x-status:
-            status: deprecated
-            additional_information: 'property port_name is deprecated from the snappi
-              version x.x.x.
-
-              please use connection.port_name instead of port_name'
+          x-status: deprecated
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
@@ -1348,12 +1352,9 @@ components:
           default: 7
           x-field-uid: 9
     Capture:
-      x-status:
-        status: under-review
-        additional_information: Capture schema is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        Capture schema is under review
         Configuration for capture settings.
       type: object
       required:
@@ -1653,15 +1654,27 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
+        rsvp:
+          description: |-
+            The properties of an RSVP router and its children.
+          $ref: '#/components/schemas/Device.Rsvp'
+          x-field-uid: 8
       required:
       - name
+    Protocol.Options:
+      description: "Common options that apply to all configured protocols and interfaces. "
+      type: object
+      properties:
+        auto_start_all:
+          description: |-
+            When set to true, all underlying resources for configured protocols   and interfaces shall be created and corresponding protocol session negotiation shall be initiated. Otherwise, when set to false,  corresponding protocol session negotiation will need to be initiated  using a separate set_protocol_state API call.
+          type: boolean
+          default: true
+          x-field-uid: 1
     Device.IsisRouter:
-      x-status:
-        status: under-review
-        additional_information: Device.IsisRouter is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        Device.IsisRouter is under review
         A container of properties for an ISIS router and its interfaces.
       type: object
       required:
@@ -1723,11 +1736,9 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
     Device.IsisMultiInstance:
-      x-status:
-        status: under-review
-        additional_information: Device.IsisMultiInstance is under review
-      description: "Status: under-review\nDevice.IsisMultiInstance is under review\n\
-        This container properties of an Multi-Instance-capable router (MI-RTR). "
+      x-status: under-review
+      description: "Status: under-review\nThis container properties of an Multi-Instance-capable\
+        \ router (MI-RTR). "
       type: object
       properties:
         iid:
@@ -1749,12 +1760,9 @@ components:
             maximum: 65535
           x-field-uid: 2
     Isis.Interface:
-      x-status:
-        status: under-review
-        additional_information: Isis.Interface is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        Isis.Interface is under review
         Configuration for single ISIS interface.
       type: object
       required:
@@ -1883,12 +1891,9 @@ components:
           default: 30
           x-field-uid: 3
     Isis.MT:
-      x-status:
-        status: under-review
-        additional_information: Isis.MT is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        Isis.MT is under review
         Configuration of properties per interface per topology when multiple topologies are configured in an ISIS router.
         in a ISIS router.
       type: object
@@ -1910,12 +1915,9 @@ components:
           maximum: 16777215
           x-field-uid: 2
     LinkState.TE:
-      x-status:
-        status: under-review
-        additional_information: LinkState.TE is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        LinkState.TE is under review
         A container for Traffic Engineering properties on a interface.
       type: object
       properties:
@@ -2839,7 +2841,7 @@ components:
         ext_communities:
           x-field-uid: 8
           description: |-
-            Optional Extended Community settings.
+            Optional Extended Community settings. The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet, the valid sub types are route target and origin. The valid value for  administrator_as_2octet and administrator_as_4octet type is either two byte AS followed by four byte local administrator id or four byte AS followed by two  byte local administrator id.  When type is administrator_ipv4_address the valid sub types are route target and origin. The valid value for  administrator_ipv4_address is a four byte IPv4 address followed by a two byte local administrator id.  When type is opaque, valid sub types are color and encapsulation. When sub type is color, first two bytes of the value field contain flags and last four bytes  contains the value of the color. When sub type is encapsulation the first four bytes of value field are reserved and last two bytes carries the tunnel type from  IANA's "ETHER TYPES" registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth the valid sub type is extended_bandwidth. The first two bytes of the value field contains the AS number and the last four bytes contains the bandwidth in IEEE floating point format.  When type is evpn the valid subtype is mac_address. In the value field the low-order bit of the first byte(Flags) is defined as the "Sticky/static" flag and may be set to 1, indicating the MAC address is static and cannot move. The second byte is reserved and the  last four bytes contain the sequence number which is used to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates  occur for the same MAC address.
           type: array
           items:
             $ref: '#/components/schemas/Bgp.ExtCommunity'
@@ -2866,14 +2868,26 @@ components:
         Configuration for advanced BGP route range settings.
       type: object
       properties:
+        include_multi_exit_discriminator:
+          description: |-
+            BGP Multi Exit Discriminator attribute sent to the peer to help in the route selection process.  If set to true, the Multi Exit Discriminator attribute will be included in the route advertisement.
+          type: boolean
+          default: true
+          x-field-uid: 3
         multi_exit_discriminator:
           description: |-
-            The multi exit discriminator (MED) value.  A null value means the MED feature is not enabled.
+            The multi exit discriminator (MED) value used for route selection sent to the peer.
           type: integer
           x-field-uid: 1
+        include_origin:
+          description: |-
+            If set to true, the Origin attribute will be included in the route advertisement.
+          type: boolean
+          default: true
+          x-field-uid: 4
         origin:
           description: |-
-            The origin value.  A null value means the origin feature is not enabled.
+            The origin attribute of a prefix can take three values: the prefix originates from an interior routing protocol 'igp',  it originates from 'egp' or the origin is 'incomplete', if the prefix is learned through other means.
           type: string
           default: igp
           x-field-uid: 2
@@ -2882,9 +2896,24 @@ components:
               x-field-uid: 1
             egp:
               x-field-uid: 2
+            incomplete:
+              x-field-uid: 3
           enum:
           - igp
           - egp
+          - incomplete
+        include_local_preference:
+          description: |-
+            BGP Local Preference attribute sent to the peer to indicate the degree of preference  for externally learned routes. If set to true, the Local Preference attribute will be included  in the route advertisement. This should be included only for internal peers.
+          type: boolean
+          default: true
+          x-field-uid: 5
+        local_preference:
+          description: |-
+            Value to be set in Local Preference attribute if include_local_preference is set to true. It is  used for the selection of the path for the traffic leaving the AS. The route with the  highest local preference value is preferred.
+          type: integer
+          default: 100
+          x-field-uid: 6
     Bgp.Community:
       description: |-
         BGP communities provide additional capability for tagging routes and  for modifying BGP routing policy on upstream and downstream routers. BGP community is a 32-bit number which is broken into 16-bit AS number and  a 16-bit custom value.
@@ -2932,7 +2961,7 @@ components:
           x-field-uid: 3
     Bgp.ExtCommunity:
       description: |-
-        The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is also divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a  format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities.
+        The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a  format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities.
       type: object
       properties:
         type:
@@ -3184,7 +3213,7 @@ components:
         ext_communities:
           x-field-uid: 12
           description: |-
-            Optional Extended Community settings.
+            Optional Extended Community settings. The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet, the valid sub types are route target and origin. The valid value for  administrator_as_2octet and administrator_as_4octet type is either two byte AS followed by four byte local administrator id or four byte AS followed by two  byte local administrator id.  When type is administrator_ipv4_address the valid sub types are route target and origin. The valid value for  administrator_ipv4_address is a four byte IPv4 address followed by a two byte local administrator id.  When type is opaque, valid sub types are color and encapsulation. When sub type is color, first two bytes of the value field contain flags and last four bytes  contains the value of the color. When sub type is encapsulation the first four bytes of value field are reserved and last two bytes carries the tunnel type from  IANA's "ETHER TYPES" registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth the valid sub type is extended_bandwidth. The first two bytes of the value field contains the AS number and the last four bytes contains the bandwidth in IEEE floating point format.  When type is evpn the valid subtype is mac_address. In the value field the low-order bit of the first byte(Flags) is defined as the "Sticky/static" flag and may be set to 1, indicating the MAC address is static and cannot move. The second byte is reserved and the  last four bytes contain the sequence number which is used to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates  occur for the same MAC address.
           type: array
           items:
             $ref: '#/components/schemas/Bgp.ExtCommunity'
@@ -3272,7 +3301,7 @@ components:
           x-field-uid: 8
         ext_communities:
           description: |-
-            Optional Extended Community settings.
+            Optional Extended Community settings. The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet, the valid sub types are route target and origin. The valid value for  administrator_as_2octet and administrator_as_4octet type is either two byte AS followed by four byte local administrator id or four byte AS followed by two  byte local administrator id.  When type is administrator_ipv4_address the valid sub types are route target and origin. The valid value for  administrator_ipv4_address is a four byte IPv4 address followed by a two byte local administrator id.  When type is opaque, valid sub types are color and encapsulation. When sub type is color, first two bytes of the value field contain flags and last four bytes  contains the value of the color. When sub type is encapsulation the first four bytes of value field are reserved and last two bytes carries the tunnel type from  IANA's "ETHER TYPES" registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth the valid sub type is extended_bandwidth. The first two bytes of the value field contains the AS number and the last four bytes contains the bandwidth in IEEE floating point format.  When type is evpn the valid subtype is mac_address. In the value field the low-order bit of the first byte(Flags) is defined as the "Sticky/static" flag and may be set to 1, indicating the MAC address is static and cannot move. The second byte is reserved and the  last four bytes contain the sequence number which is used to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates  occur for the same MAC address.
           type: array
           items:
             $ref: '#/components/schemas/Bgp.ExtCommunity'
@@ -3355,12 +3384,9 @@ components:
           type: string
           x-field-uid: 2
     Bgp.Advanced:
-      x-status:
-        status: under-review
-        additional_information: Bgp.Advanced is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        Bgp.Advanced is under review
         Configuration for BGP advanced settings.
       type: object
       properties:
@@ -3394,12 +3420,9 @@ components:
           type: string
           x-field-uid: 5
     Bgp.Capability:
-      x-status:
-        status: under-review
-        additional_information: Bgp.Capability is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        Bgp.Capability is under review
         Configuration for BGP capability settings.
       type: object
       properties:
@@ -3555,12 +3578,9 @@ components:
           default: false
           x-field-uid: 25
     Bgp.LearnedInformationFilter:
-      x-status:
-        status: under-review
-        additional_information: Bgp.LearnedInformationFilter is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        Bgp.LearnedInformationFilter is under review
         Configuration for controlling storage of BGP learned information recieved from the peer.
       type: object
       properties:
@@ -3657,6 +3677,13 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
+        ext_communities:
+          x-field-uid: 11
+          description: |-
+            Optional Extended Community settings. The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet, the valid sub types are route target and origin. The valid value for  administrator_as_2octet and administrator_as_4octet type is either two byte AS followed by four byte local administrator id or four byte AS followed by two  byte local administrator id.  When type is administrator_ipv4_address the valid sub types are route target and origin. The valid value for  administrator_ipv4_address is a four byte IPv4 address followed by a two byte local administrator id.  When type is opaque, valid sub types are color and encapsulation. When sub type is color, first two bytes of the value field contain flags and last four bytes  contains the value of the color. When sub type is encapsulation the first four bytes of value field are reserved and last two bytes carries the tunnel type from  IANA's "ETHER TYPES" registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth the valid sub type is extended_bandwidth. The first two bytes of the value field contains the AS number and the last four bytes contains the bandwidth in IEEE floating point format.  When type is evpn the valid subtype is mac_address. In the value field the low-order bit of the first byte(Flags) is defined as the "Sticky/static" flag and may be set to 1, indicating the MAC address is static and cannot move. The second byte is reserved and the  last four bytes contain the sequence number which is used to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates  occur for the same MAC address.  Note evpn type is defined mainly for use with evpn route updates and not for IPv4 and IPv6 route updates.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.ExtCommunity'
       required:
       - name
     Bgp.AddPath:
@@ -3751,6 +3778,13 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
+        ext_communities:
+          x-field-uid: 11
+          description: |-
+            Optional Extended Community settings. The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet, the valid sub types are route target and origin. The valid value for  administrator_as_2octet and administrator_as_4octet type is either two byte AS followed by four byte local administrator id or four byte AS followed by two  byte local administrator id.  When type is administrator_ipv4_address the valid sub types are route target and origin. The valid value for  administrator_ipv4_address is a four byte IPv4 address followed by a two byte local administrator id.  When type is opaque, valid sub types are color and encapsulation. When sub type is color, first two bytes of the value field contain flags and last four bytes  contains the value of the color. When sub type is encapsulation the first four bytes of value field are reserved and last two bytes carries the tunnel type from  IANA's "ETHER TYPES" registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth the valid sub type is extended_bandwidth. The first two bytes of the value field contains the AS number and the last four bytes contains the bandwidth in IEEE floating point format.  When type is evpn the valid subtype is mac_address. In the value field the low-order bit of the first byte(Flags) is defined as the "Sticky/static" flag and may be set to 1, indicating the MAC address is static and cannot move. The second byte is reserved and the  last four bytes contain the sequence number which is used to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates  occur for the same MAC address.  Note evpn type is defined mainly for use with evpn route updates and not for IPv4 and IPv6 route updates.
+          type: array
+          items:
+            $ref: '#/components/schemas/Bgp.ExtCommunity'
       required:
       - name
     BgpSrte.V4Policy:
@@ -3843,7 +3877,7 @@ components:
           x-field-uid: 11
         ext_communities:
           description: |-
-            Optional Extended Community settings.
+            Optional Extended Community settings. The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet, the valid sub types are route target and origin. The valid value for  administrator_as_2octet and administrator_as_4octet type is either two byte AS followed by four byte local administrator id or four byte AS followed by two  byte local administrator id.  When type is administrator_ipv4_address the valid sub types are route target and origin. The valid value for  administrator_ipv4_address is a four byte IPv4 address followed by a two byte local administrator id.  When type is opaque, valid sub types are color and encapsulation. When sub type is color, first two bytes of the value field contain flags and last four bytes  contains the value of the color. When sub type is encapsulation the first four bytes of value field are reserved and last two bytes carries the tunnel type from  IANA's "ETHER TYPES" registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth the valid sub type is extended_bandwidth. The first two bytes of the value field contains the AS number and the last four bytes contains the bandwidth in IEEE floating point format.  When type is evpn the valid subtype is mac_address. In the value field the low-order bit of the first byte(Flags) is defined as the "Sticky/static" flag and may be set to 1, indicating the MAC address is static and cannot move. The second byte is reserved and the  last four bytes contain the sequence number which is used to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates  occur for the same MAC address.
           type: array
           items:
             $ref: '#/components/schemas/Bgp.ExtCommunity'
@@ -4081,12 +4115,9 @@ components:
           - push_ipv4_ipv6_enlp
           - do_not_push_enlp
     BgpSrte.SegmentList:
-      x-status:
-        status: under-review
-        additional_information: BgpSrte.SegmentList is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        BgpSrte.SegmentList is under review
         Optional configuration for BGP SR TE Policy segment list. The Segment List sub-TLV encodes a single explicit path towards the Endpoint.
       type: object
       properties:
@@ -4120,12 +4151,9 @@ components:
       required:
       - name
     BgpSrte.Segment:
-      x-status:
-        status: under-review
-        additional_information: BgpSrte.Segment is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        BgpSrte.Segment is under review
         A Segment sub-TLV describes a single segment in a segment list  i.e., a single element of the explicit path. The Segment sub-TLVs are optional.
       type: object
       required:
@@ -4360,12 +4388,9 @@ components:
           $ref: '#/components/schemas/BgpSrte.SRv6SIDEndpointBehaviorAndStructure'
           x-field-uid: 3
     BgpSrte.SegmentCTypeSubTlv:
-      x-status:
-        status: under-review
-        additional_information: BgpSrte.SegmentCTypeSubTlv is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        BgpSrte.SegmentCTypeSubTlv is under review
         Type C: IPv4 Node Address with optional SID.
       type: object
       required:
@@ -4797,7 +4822,7 @@ components:
           x-field-uid: 11
         extcommunities:
           description: |-
-            Optional Extended Community settings.
+            Optional Extended Community settings. The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet, the valid sub types are route target and origin. The valid value for  administrator_as_2octet and administrator_as_4octet type is either two byte AS followed by four byte local administrator id or four byte AS followed by two  byte local administrator id.  When type is administrator_ipv4_address the valid sub types are route target and origin. The valid value for  administrator_ipv4_address is a four byte IPv4 address followed by a two byte local administrator id.  When type is opaque, valid sub types are color and encapsulation. When sub type is color, first two bytes of the value field contain flags and last four bytes  contains the value of the color. When sub type is encapsulation the first four bytes of value field are reserved and last two bytes carries the tunnel type from  IANA's "ETHER TYPES" registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth the valid sub type is extended_bandwidth. The first two bytes of the value field contains the AS number and the last four bytes contains the bandwidth in IEEE floating point format.  When type is evpn the valid subtype is mac_address. In the value field the low-order bit of the first byte(Flags) is defined as the "Sticky/static" flag and may be set to 1, indicating the MAC address is static and cannot move. The second byte is reserved and the  last four bytes contain the sequence number which is used to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates  occur for the same MAC address.
           type: array
           items:
             $ref: '#/components/schemas/Bgp.ExtCommunity'
@@ -5009,12 +5034,9 @@ components:
             $ref: '#/components/schemas/Bgp.V6Peer'
           x-field-uid: 2
     Bgp.V6SegmentRouting:
-      x-status:
-        status: under-review
-        additional_information: Bgp.V6SegmentRouting is under review
+      x-status: under-review
       description: |-
         Status: under-review
-        Bgp.V6SegmentRouting is under review
         Configuration for BGPv6 segment routing settings.
       type: object
       properties:
@@ -5128,7 +5150,7 @@ components:
         ext_communities:
           x-field-uid: 8
           description: |-
-            Optional Extended Community settings.
+            Optional Extended Community settings. The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet, the valid sub types are route target and origin. The valid value for  administrator_as_2octet and administrator_as_4octet type is either two byte AS followed by four byte local administrator id or four byte AS followed by two  byte local administrator id.  When type is administrator_ipv4_address the valid sub types are route target and origin. The valid value for  administrator_ipv4_address is a four byte IPv4 address followed by a two byte local administrator id.  When type is opaque, valid sub types are color and encapsulation. When sub type is color, first two bytes of the value field contain flags and last four bytes  contains the value of the color. When sub type is encapsulation the first four bytes of value field are reserved and last two bytes carries the tunnel type from  IANA's "ETHER TYPES" registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth the valid sub type is extended_bandwidth. The first two bytes of the value field contains the AS number and the last four bytes contains the bandwidth in IEEE floating point format.  When type is evpn the valid subtype is mac_address. In the value field the low-order bit of the first byte(Flags) is defined as the "Sticky/static" flag and may be set to 1, indicating the MAC address is static and cannot move. The second byte is reserved and the  last four bytes contain the sequence number which is used to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates  occur for the same MAC address.
           type: array
           items:
             $ref: '#/components/schemas/Bgp.ExtCommunity'
@@ -5247,7 +5269,7 @@ components:
         ext_communities:
           x-field-uid: 12
           description: |-
-            Optional Extended Community settings.
+            Optional Extended Community settings. The Extended Communities Attribute is a transitive optional BGP attribute, with the Type Code 16. Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. An extended community is an 8-Bytes value. It is divided into two main parts. The first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes carry a unique set of data in a format defined by the type and sub-type field. Extended communities provide a larger  range for grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet, the valid sub types are route target and origin. The valid value for  administrator_as_2octet and administrator_as_4octet type is either two byte AS followed by four byte local administrator id or four byte AS followed by two  byte local administrator id.  When type is administrator_ipv4_address the valid sub types are route target and origin. The valid value for  administrator_ipv4_address is a four byte IPv4 address followed by a two byte local administrator id.  When type is opaque, valid sub types are color and encapsulation. When sub type is color, first two bytes of the value field contain flags and last four bytes  contains the value of the color. When sub type is encapsulation the first four bytes of value field are reserved and last two bytes carries the tunnel type from  IANA's "ETHER TYPES" registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth the valid sub type is extended_bandwidth. The first two bytes of the value field contains the AS number and the last four bytes contains the bandwidth in IEEE floating point format.  When type is evpn the valid subtype is mac_address. In the value field the low-order bit of the first byte(Flags) is defined as the "Sticky/static" flag and may be set to 1, indicating the MAC address is static and cannot move. The second byte is reserved and the  last four bytes contain the sequence number which is used to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates  occur for the same MAC address.
           type: array
           items:
             $ref: '#/components/schemas/Bgp.ExtCommunity'
@@ -5520,6 +5542,668 @@ components:
           type: string
           format: ipv6
           x-field-uid: 1
+    Device.Rsvp:
+      x-status: under-review
+      description: |-
+        Status: under-review
+        Configuration for one or more RSVP interfaces, ingress and egress LSPs. In this model, currently IPv4 RSVP and point-to-point LSPs are supported as per RFC3209 and related specifications.
+      type: object
+      properties:
+        ipv4_interfaces:
+          description: |-
+            List of IPv4 RSVP connected interfaces. At least one interface should be present for device connected to the DUT. For unconnected devices, this array must be empty.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rsvp.Ipv4Interface'
+          x-field-uid: 1
+        lsp_ipv4_interfaces:
+          description: |-
+            List of IPv4 Loopback or IPv4 connected interfaces acting as RSVP ingress and egress endpoints.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rsvp.LspIpv4Interface'
+          x-field-uid: 2
+        name:
+          x-field-uid: 3
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-unique: global
+    Rsvp.Ipv4Interface:
+      x-status: under-review
+      description: |-
+        Status: under-review
+        Configuration for RSVP Interface.
+      type: object
+      required:
+      - ipv4_name
+      - neighbor_ip
+      properties:
+        ipv4_name:
+          description: "The globally unique name of the IPv4 interface connected to\
+            \ the DUT. This name must match the \"name\" field of the \"ipv4_addresses\"\
+            \ on top which this RSVP interface is configured.          \n\nx-constraint:\n\
+            - /components/schemas/Device.Ipv4/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+          x-field-uid: 1
+        neighbor_ip:
+          description: |-
+            IPv4 address of the RSVP neighbor on this interface.
+          type: string
+          format: ipv4
+          x-field-uid: 2
+        label_space_start:
+          description: "The user-defined label space start value. The LSPs for which\
+            \ this router acts as a egress are assigned labels from this label pool.The\"\
+            label_space_start\" and \"label_space_end\" together defines this label-pool. "
+          type: integer
+          default: 1000
+          minimum: 0
+          maximum: 1048575
+          x-field-uid: 3
+        label_space_end:
+          description: |-
+            The user-defined label space end value.The last label value that can be assigned to the LSPs for which this router acts as egress.
+          type: integer
+          default: 100000
+          minimum: 0
+          maximum: 1048575
+          x-field-uid: 4
+        enable_refresh_reduction:
+          description: |-
+            Enables sending of Refresh Reduction as described in RFC2961.
+          type: boolean
+          default: false
+          x-field-uid: 5
+        summary_refresh_interval:
+          description: |-
+            The number of seconds between transmissions of successive Summary Refreshes. There is no specification specified maximum value. For clarity, setting the maximum to 1 hour.
+          type: integer
+          default: 30
+          minimum: 1
+          maximum: 3600
+          x-field-uid: 6
+        send_bundle:
+          description: |-
+            Enables aggregration of different RSVP messages within a single PDU.
+          type: boolean
+          default: false
+          x-field-uid: 7
+        bundle_threshold:
+          description: |-
+            The number of milliseconds to wait after which RSVP will bundle different RSVP messages and transmit Bundle messages.
+          type: integer
+          default: 50
+          minimum: 20
+          maximum: 1000
+          x-field-uid: 8
+        enable_hello:
+          description: "Enables sending of Hello Messages as per RFC3209.        \
+            \    "
+          type: boolean
+          default: false
+          x-field-uid: 9
+        hello_interval:
+          description: |-
+            If enable_hello is set to 'true', this specifies the minimum hello interval in seconds at which successive Hello Messages  are sent as per RFC3209. There is no specification specified maximum value. For clarity, setting the maximum to 1 hour.
+          type: integer
+          default: 9
+          minimum: 0
+          maximum: 3600
+          x-field-uid: 10
+        timeout_multiplier:
+          description: |-
+            The number of missed hellos after which the node should consider RSVP Neighbor to have timed out. There is no specification specified maximum value. Setting the maximum allowed value to 10.
+          type: integer
+          default: 3
+          minimum: 1
+          maximum: 10
+          x-field-uid: 11
+    Rsvp.LspIpv4Interface:
+      x-status: under-review
+      description: |-
+        Status: under-review
+        Configuration for RSVP LSP IPv4 Interface.
+      type: object
+      required:
+      - ipv4_name
+      properties:
+        ipv4_name:
+          description: |
+            The globally unique name of the IPv4 or Loopback IPv4 interface acting as the RSVP ingress and egress endpoint for  the LSPs configured on this interface. This must match the "name" field of either "ipv4_addresses" or "ipv4_loopbacks"  on which this LSP interface is configured.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv4/properties/name
+            - /components/schemas/Device.Ipv4Loopback/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+          - /components/schemas/Device.Ipv4Loopback/properties/name
+          x-field-uid: 1
+        p2p_egress_ipv4_lsps:
+          description: "Contains properties of Tail(Egress) LSPs. "
+          $ref: '#/components/schemas/Rsvp.LspIpv4Interface.P2PEgressIpv4Lsp'
+          x-field-uid: 2
+        p2p_ingress_ipv4_lsps:
+          description: |-
+            Array of point-to-point RSVP-TE P2P LSPs originating from this interface.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rsvp.LspIpv4Interface.P2PIngressIpv4Lsp'
+          x-field-uid: 3
+    Rsvp.LspIpv4Interface.P2PEgressIpv4Lsp:
+      description: |-
+        Configuration for RSVP Egress Point-to-Point(P2P) IPv4 LSPs.
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-unique: global
+        refresh_interval:
+          description: "The time in seconds between successive transmissions of RESV\
+            \ Refreshes. The actual refresh interval is jittered by upto 50%. There\
+            \ is no specification specified maximum value. For clarity, setting the\
+            \ maximum to 1 hour. "
+          type: integer
+          default: 30
+          minimum: 1
+          maximum: 3600
+          x-field-uid: 2
+        timeout_multiplier:
+          description: |-
+            The number of missed PATH refreshes after which a recieving node should consider the LSP state to have timed out. There is no specification specified maximum value. Setting the maximum allowed value to 10.
+          type: integer
+          default: 3
+          minimum: 1
+          maximum: 10
+          x-field-uid: 3
+        reservation_style:
+          description: |-
+            It determines how RSVP-TE enabled network devices set up reservations along the path between an end-to-end  QOS-enabled connection. If 'auto' is enabled, the style is chosen based on whether the incoming Path has 'SE Desired' flag set. Otherwise, the style is chosen based on the value selected for this attribute.
+          type: string
+          x-enum:
+            shared_explicit:
+              x-field-uid: 1
+            fixed_filter:
+              x-field-uid: 2
+            auto:
+              x-field-uid: 3
+          default: shared_explicit
+          x-field-uid: 4
+          enum:
+          - shared_explicit
+          - fixed_filter
+          - auto
+        enable_fixed_label:
+          description: "If enabled, a specific fixed label will be advertised by the\
+            \ egress or tail end for all Path messages received by this egress.  This\
+            \ can be leveraged to advertise Explicit or Implicit null labels.    \
+            \        "
+          type: boolean
+          default: false
+          x-field-uid: 5
+        fixed_label_value:
+          description: |-
+            The fixed label value as advertised by egress in RESV message. Applicable only if 'fixed_label' is set to 'true'. Special values are '0 - IPv4 Explicit NULL', '2 - IPv6 Explicit NULL' and '3 - Implicit NULL'.   Outside of this, labels are expected to have a minimum value of 16.
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 1048575
+          x-field-uid: 6
+    Rsvp.LspIpv4Interface.P2PIngressIpv4Lsp:
+      description: |-
+        Configuration for an RSVP Ingress point-to-point LSP.
+      type: object
+      required:
+      - remote_address
+      - name
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-unique: global
+        remote_address:
+          description: |-
+            IPv4 address of the remote endpoint of the LSP.
+          type: string
+          format: ipv4
+          x-field-uid: 2
+        tunnel_id:
+          description: |-
+            The Tunnel ID of the RSVP LSP. Carried in the SESSION object in Path Messages.
+          type: integer
+          default: 1
+          minimum: 1
+          maximum: 65535
+          x-field-uid: 3
+        lsp_id:
+          description: |-
+            The LSP ID of the RSVP LSP. Carried in the SENDER_TEMPLATE object in Path Messages.
+          type: integer
+          default: 1
+          minimum: 1
+          maximum: 65535
+          x-field-uid: 4
+        refresh_interval:
+          description: "The time in seconds between successive transmissions of PATH\
+            \ Refreshes.  The actual refresh interval is jittered by upto 50%. There\
+            \ is no specification specified maximum value. For clarity, setting the\
+            \ maximum to 1 hour. "
+          type: integer
+          default: 30
+          minimum: 1
+          maximum: 3600
+          x-field-uid: 5
+        timeout_multiplier:
+          description: |-
+            The number of missed RESV refreshes after which a recieving node should consider the LSP state to have timed out. There is no specification specified maximum value. Setting the maximum allowed value to 10.
+          type: integer
+          default: 3
+          minimum: 1
+          maximum: 10
+          x-field-uid: 6
+        backup_lsp_id:
+          description: |-
+            The LSP id that will be used when creating a Make-Before-Break LSP when the active LSP is using lsp_id. If the active LSP on which Make-Before-Break is being done is using the backup_lsp_id, the new LSP created will toggle to  use the lsp_id instead.
+          type: integer
+          default: 2
+          minimum: 1
+          maximum: 65535
+          x-field-uid: 7
+        lsp_switchover_delay:
+          description: |-
+            The amount of delay in milliseconds that an implementation should wait for before switching traffic to the new LSP created after  a Make-Before-Break is done on an LSP. The default value is 0 which means to switch immediately. An implementation should support a minimum delay value of at least 50ms . There is no specification specified maximum value. Setting maximum allowed value to 1 minute.  If a delay value is supplied which is lesser than the minimum delay value supported, a warning should be provided indicating that the minimum value of LSP switchover delay is automatically increased to the supported minimum value. This warning should be included in the list of warnings in the 'Response.Warning' attribute sent in the SetConfig 'Success' Response.
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 60000
+          x-field-uid: 8
+        session_attribute:
+          description: "This contains the values of the fields to be included in the\
+            \ SESSION_ATTRIBUTE object in the Path Message sent for the LSP.     \
+            \       "
+          $ref: '#/components/schemas/Rsvp.SessionAttribute'
+          x-field-uid: 9
+        tspec:
+          description: "This contains the values of the fields to be included in the\
+            \ TSPEC object in the Path Message sent for the LSP.            "
+          $ref: '#/components/schemas/Rsvp.Tspec'
+          x-field-uid: 10
+        fast_reroute:
+          description: "This contains the values of the fields to be included in the\
+            \ FAST_REROUTE object in the Path Message sent for the LSP. \nThis is\
+            \ an optional object . If this attribute is not included , the FAST_REROUTE\
+            \ object will not be included.           "
+          $ref: '#/components/schemas/Rsvp.FastReroute'
+          x-field-uid: 11
+        ero:
+          description: "This contains the values of the fields to be included in the\
+            \ ERO object in the Path Message sent for the LSP. \nThis is an optional\
+            \ object . If this attribute is not included , the ERO object will not\
+            \ be included.           "
+          $ref: '#/components/schemas/Rsvp.Ero'
+          x-field-uid: 12
+    Rsvp.SessionAttribute:
+      description: |-
+        Configuration for RSVP-TE SESSION_ATTRIBUTE object included in Path Messages as defined in RFC3209. The bandwidth_protection_desired and node_protection_desired flags are defined in RFC4090 (Fast Reroute).
+      type: object
+      properties:
+        auto_generate_session_name:
+          description: |-
+            If this is enabled, an auto-generated Session Name is included in the SESSION_ATTRIBUTE object in the Path Message for this LSP.
+          type: boolean
+          default: true
+          x-field-uid: 1
+        session_name:
+          description: "If auto_generate_session_name is set to 'false', then the\
+            \ value of this field is used to fill the Session Name field of the SESSION_ATTRIBUTE\
+            \ object in the Path Message for this LSP. It is suggested to include\
+            \ the Local IP, Remote IP, Tunnel ID and LSP ID in the auto-generated\
+            \ Session Name to ensure uniqueness of the name in the test. The maximum\
+            \ length of session name is 254 bytes.           "
+          type: string
+          minLength: 0
+          maxLength: 254
+          x-field-uid: 2
+        setup_priority:
+          description: |-
+            Specifies the value of the Setup Priority field. This controls whether the LSP should pre-empt existing  LSP setup with certain Holding Priority if resource limitation is encountered when setting up the LSP. (e.g. bandwidth availability). The value 0 is the highest priority while 7 is the lowest.
+          type: integer
+          default: 7
+          minimum: 0
+          maximum: 7
+          x-field-uid: 3
+        holding_priority:
+          description: |-
+            Specifies the value of the Holding Priority field. This controls whether a new LSP being created with certain Setup Priority should pre-empt this LSP if resource limitation is encountered when setting up the LSP. (e.g. bandwidth availability). The value 0 is the highest priority while 7 is the lowest.
+          type: integer
+          default: 7
+          minimum: 0
+          maximum: 7
+          x-field-uid: 4
+        local_protection_desired:
+          description: |-
+            This flag permits transit routers to use a local repair mechanism which may result in violation of the explicit route object.  When a fault is detected on an adjacent downstream link or node, a transit router can reroute traffic for fast service restoration.
+          type: boolean
+          default: false
+          x-field-uid: 5
+        label_recording_desired:
+          description: |-
+            This flag indicates that label information should be included when doing a route record.
+          type: boolean
+          default: false
+          x-field-uid: 6
+        se_style_desired:
+          description: |-
+            This flag indicates that the tunnel ingress node may choose to reroute this tunnel without tearing it down. A tunnel egress node SHOULD use the Shared Explicit(SE) Style when responding with a Resv message.
+          type: boolean
+          default: false
+          x-field-uid: 7
+        bandwidth_protection_desired:
+          description: |-
+            This flag in the SESSION_ATTRIBUTE object in the Path Message indicates to the PLRs along the protected LSP path that a  backup path with a bandwidth guarantee is desired.   This bandwidth has to be guaranteed for the protected LSP, if no FAST_REROUTE object is included in the PATH message. If a FAST_REROUTE object is present in the Path message, then the bandwidth specified therein is to be guaranteed.
+          type: boolean
+          default: false
+          x-field-uid: 8
+        node_protection_desired:
+          description: |-
+            This flag in the SESSION_ATTRIBUTE object in the Path Message indicates to the PLRs along a protected LSP path that it is desired to have a backup path that bypasses at least the next node of the protected LSP.
+          type: boolean
+          default: false
+          x-field-uid: 9
+        resource_affinities:
+          description: "This is an optional object. If included the extended SESSION_ATTRIBUTE\
+            \ object is sent in the Path message containing \nthe additional fields\
+            \ included in this object. This contains a set of three bitmaps using\
+            \ which further constraints can be\nset on the path calculated for the\
+            \ LSP based on the Admin Group settings in the IGP (e.g ISIS or OSPF interface).\
+            \        "
+          $ref: '#/components/schemas/Rsvp.ResourceAffinities'
+          x-field-uid: 10
+    Rsvp.ResourceAffinities:
+      description: "This is an optional object. If included, the extended SESSION_ATTRIBUTE\
+        \ object is sent in the Path message containing \nthe additional fields included\
+        \ in this object. This contains a set of three bitmaps using which further\
+        \ constraints can be\nset on the path calculated for the LSP based on the\
+        \ Admin Group settings in the IGP (e.g ISIS or OSPF interface)."
+      type: object
+      properties:
+        exclude_any:
+          description: "A 32-bit vector representing a set of attribute filters associated\
+            \ with a tunnel any of which renders a link unacceptable.  A null set\
+            \ (all bits set to zero) doesn't render the link unacceptable.  The most\
+            \ significant byte in the hex-string is the farthest  to the left in the\
+            \ byte sequence.  Leading zero bytes in the configured value may be omitted\
+            \ for brevity.          "
+          type: string
+          format: hex
+          default: '0'
+          minLength: 0
+          maxLength: 8
+          x-field-uid: 1
+        include_any:
+          description: "A 32-bit vector representing a set of attribute filters associated\
+            \ with a tunnel any of which renders a link acceptable. A null set (all\
+            \ bits set to zero) automatically passes. The most significant byte in\
+            \ the hex-string is the farthest  to the left in the byte sequence.  Leading\
+            \ zero bytes in the configured value may be omitted for brevity.     \
+            \    "
+          type: string
+          format: hex
+          default: '0'
+          minLength: 0
+          maxLength: 8
+          x-field-uid: 2
+        include_all:
+          description: "A 32-bit vector representing a set of attribute filters associated\
+            \ with a tunnel all of which must be present for a link to be acceptable.\
+            \ A null set (all bits set to zero) automatically passes. The most significant\
+            \ byte in the hex-string is the farthest  to the left in the byte sequence.\
+            \  Leading zero bytes in the configured value may be omitted for brevity.\
+            \         "
+          type: string
+          format: hex
+          default: '0'
+          minLength: 0
+          maxLength: 8
+          x-field-uid: 3
+    Rsvp.Tspec:
+      description: |-
+        Configuration for RSVP-TE TSPEC object included in Path Messages. The usage of these parameters is defined in RFC2215.
+      type: object
+      properties:
+        token_bucket_rate:
+          description: |-
+            The rate of the traffic to be carried in this LSP in bytes per second. This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215.
+          type: number
+          format: float
+          default: 0
+          x-field-uid: 1
+        token_bucket_size:
+          description: |-
+            The depth of the token bucket in bytes used to specify the Token Bucket characteristics of the traffic to be carried in the LSP. This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215.
+          type: number
+          format: float
+          default: 0
+          x-field-uid: 2
+        peak_data_rate:
+          description: |-
+            The peak data rate of the traffic in bytes per second used to specify the Token Bucket characteristics of the traffic  to be carried in the LSP. This is part of the Token Bucket specification defined for a traffic flow defined in RFC2215.
+          type: number
+          format: float
+          default: 0
+          x-field-uid: 3
+        minimum_policed_unit:
+          description: "Specifies the minium length of packet frames that will be\
+            \ policed. "
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 65535
+          x-field-uid: 4
+        maximum_policed_unit:
+          description: "Specifies the maximum length of packet frames that will be\
+            \ policed. "
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 65535
+          x-field-uid: 5
+    Rsvp.FastReroute:
+      description: "Configuration for the optional RSVP-TE FAST_REROUTE object included\
+        \ in Path Messages as defined in RFC4090. "
+      type: object
+      properties:
+        setup_priority:
+          description: |-
+            Specifies the value of the Setup Priority field. This controls whether the backup LSP should pre-empt existing LSP that is setup with certain Holding Priority. While setting up a backup LSP, preemption of existing LSP can happen  if resource limitation is encountered (e.g bandwidth availability).
+          type: integer
+          default: 7
+          minimum: 0
+          maximum: 7
+          x-field-uid: 1
+        holding_priority:
+          description: "Specifies the value of the Holding Priority field. This controls\
+            \ whether a new LSP being created with certain Setup Priority should pre-empt\
+            \ this LSP set up with this Holding Priority. While setting up a new LSP,\
+            \ preemption of existing LSP can happen  if resource limitation is encountered\
+            \ (e.g bandwidth availability).            "
+          type: integer
+          default: 7
+          minimum: 0
+          maximum: 7
+          x-field-uid: 2
+        hop_limit:
+          description: |-
+            Specifies the value of the Hop Limit field. This controls the maximum number of hops the LSP should traverse to reach the  LSP end-point.
+          type: integer
+          default: 3
+          minimum: 0
+          maximum: 255
+          x-field-uid: 3
+        bandwidth:
+          description: "Specifies the value of the Bandwidth field as a 32-bit IEEE\
+            \ floating point integer, in bytes per second, as desired for the LSP. "
+          type: number
+          format: float
+          default: 0
+          x-field-uid: 4
+        exclude_any:
+          description: "A 32-bit vector representing a set of attribute filters associated\
+            \ with a tunnel any of which renders a link unacceptable. A null set (all\
+            \ bits set to zero) doesn't render the link unacceptable. The most significant\
+            \ byte in the hex-string is the farthest  to the left in the byte sequence.\
+            \  Leading zero bytes in the configured value may be omitted for brevity.\
+            \           "
+          type: string
+          format: hex
+          default: '0'
+          minLength: 0
+          maxLength: 8
+          x-field-uid: 5
+        include_any:
+          description: "A 32-bit vector representing a set of attribute filters associated\
+            \ with a tunnel any of which renders a link acceptable. A null set (all\
+            \ bits set to zero) automatically passes. The most significant byte in\
+            \ the hex-string is the farthest  to the left in the byte sequence.  Leading\
+            \ zero bytes in the configured value may be omitted for brevity.     "
+          type: string
+          format: hex
+          default: '0'
+          minLength: 0
+          maxLength: 8
+          x-field-uid: 6
+        include_all:
+          description: "A 32-bit vector representing a set of attribute filters associated\
+            \ with a tunnel all of which must be present for a link to be acceptable.\
+            \ A null set (all bits set to zero) automatically passes. The most significant\
+            \ byte in the hex-string is the farthest  to the left in the byte sequence.\
+            \  Leading zero bytes in the configured value may be omitted for brevity.\
+            \          "
+          type: string
+          format: hex
+          default: '0'
+          minLength: 0
+          maxLength: 8
+          x-field-uid: 7
+        one_to_one_backup_desired:
+          description: "Requests protection via the one-to-one backup method.    \
+            \       "
+          type: boolean
+          default: false
+          x-field-uid: 8
+        facility_backup_desired:
+          description: "Requests protection via the facility backup method.      \
+            \     "
+          type: boolean
+          default: false
+          x-field-uid: 9
+    Rsvp.Ero:
+      description: "Configuration for the optional RSVP-TE explicit route object(ERO)\
+        \ object included in Path Messages. "
+      type: object
+      properties:
+        prepend_neighbor_ip:
+          description: |-
+            Determines whether the IP address of the RSVP neighbor should be added as an ERO sub-object. If it is to be included, it can be included as a Loose hop or as a Strict hop.
+          type: string
+          x-enum:
+            dont_prepend:
+              x-field-uid: 1
+            prepend_loose:
+              x-field-uid: 2
+            prepend_strict:
+              x-field-uid: 3
+          default: prepend_loose
+          x-field-uid: 1
+          enum:
+          - dont_prepend
+          - prepend_loose
+          - prepend_strict
+        prefix_length:
+          description: "If prepend_egress_ip is set to one of 'prepend_loose' or 'prepend_strict',\
+            \ then set this value as the prefix length of the ERO sub-object containing\
+            \ egress IP address.                        "
+          type: integer
+          default: 32
+          minimum: 0
+          maximum: 32
+          x-field-uid: 2
+        subobjects:
+          description: |-
+            Array of sub-objects to be included in the ERO. These sub-objects contain the intermediate hops to be traversed by the LSP while being forwarded towards the egress endpoint. These sub-objects are included after the optional sub-object containing IP address of egress endpoint of the LSP (when present).
+          type: array
+          items:
+            $ref: '#/components/schemas/Rsvp.Ero.Subobject'
+          x-field-uid: 3
+    Rsvp.Ero.Subobject:
+      description: |-
+        Configuration for the ERO sub-object.
+      type: object
+      properties:
+        type:
+          description: |-
+            The type of the ERO sub-object, one of IPv4 Address or AS Number.
+          type: string
+          x-enum:
+            ipv4:
+              x-field-uid: 1
+            as_number:
+              x-field-uid: 2
+          default: ipv4
+          x-field-uid: 1
+          enum:
+          - ipv4
+          - as_number
+        ipv4_address:
+          description: |-
+            IPv4 address that this LSP should traverse through. This field is applicable only if the value of 'type' is set to 'ipv4'.
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+          x-field-uid: 2
+        prefix_length:
+          description: |-
+            Prefix length for the IPv4 address in the ERO sub-object. This field is applicable only if the value of 'type' is set to 'ipv4'.
+          type: integer
+          default: 32
+          minimum: 0
+          maximum: 32
+          x-field-uid: 3
+        as_number:
+          description: |-
+            Autonomous System number to be set in the ERO sub-object that this LSP should traverse through. This field is applicable only if the value of 'type' is set to 'as_number'. Note that as per RFC3209, 4-byte AS encoding is not supported.
+          type: integer
+          default: 0
+          minimum: 0
+          maximum: 65535
+          x-field-uid: 4
+        hop_type:
+          description: |-
+            The hop type of the ERO sub-object, one of Strict or Loose.
+          type: string
+          x-enum:
+            strict:
+              x-field-uid: 1
+            loose:
+              x-field-uid: 2
+          default: loose
+          x-field-uid: 5
+          enum:
+          - strict
+          - loose
     Flow:
       description: |-
         A high level data plane traffic flow.
@@ -5673,6 +6357,9 @@ components:
           - /components/schemas/Bgp.V4RouteRange/properties/name
           - /components/schemas/Bgp.V6RouteRange/properties/name
           - /components/schemas/Bgp.CMacIpRange/properties/name
+          - /components/schemas/Rsvp.LspIpv4Interface.P2PIngressIpv4Lsp/properties/name
+          - /components/schemas/Isis.V4RouteRange/properties/name
+          - /components/schemas/Isis.V6RouteRange/properties/name
           example:
           - Eth 1
           - Eth 2
@@ -5692,6 +6379,9 @@ components:
             - /components/schemas/Bgp.V4RouteRange/properties/name
             - /components/schemas/Bgp.V6RouteRange/properties/name
             - /components/schemas/Bgp.CMacIpRange/properties/name
+            - /components/schemas/Rsvp.LspIpv4Interface.P2PIngressIpv4Lsp/properties/name
+            - /components/schemas/Isis.V4RouteRange/properties/name
+            - /components/schemas/Isis.V6RouteRange/properties/name
         rx_names:
           type: array
           items:
@@ -5705,6 +6395,9 @@ components:
           - /components/schemas/Bgp.V4RouteRange/properties/name
           - /components/schemas/Bgp.V6RouteRange/properties/name
           - /components/schemas/Bgp.CMacIpRange/properties/name
+          - /components/schemas/Rsvp.LspIpv4Interface.P2PEgressIpv4Lsp/properties/name
+          - /components/schemas/Isis.V4RouteRange/properties/name
+          - /components/schemas/Isis.V6RouteRange/properties/name
           example:
           - Eth 1
           - Eth 2
@@ -5724,6 +6417,9 @@ components:
             - /components/schemas/Bgp.V4RouteRange/properties/name
             - /components/schemas/Bgp.V6RouteRange/properties/name
             - /components/schemas/Bgp.CMacIpRange/properties/name
+            - /components/schemas/Rsvp.LspIpv4Interface.P2PEgressIpv4Lsp/properties/name
+            - /components/schemas/Isis.V4RouteRange/properties/name
+            - /components/schemas/Isis.V6RouteRange/properties/name
     Flow.Header:
       description: |-
         Configuration for all traffic packet headers
@@ -7249,7 +7945,7 @@ components:
         events:
           $ref: '#/components/schemas/Event.Request'
           x-field-uid: 1
-        callbackUrl:
+        callback_url:
           description: |-
             Indicates where a client wants to be notified of the events set in
             the events property.
@@ -7259,6 +7955,237 @@ components:
           format: uri
           example: https://127.0.0.1/event/notification
           x-field-uid: 2
+    Lldp:
+      description: |-
+        Configuration of LLDP protocol IEEE Ref: https://www.ieee802.org/1/files/public/docs2002/lldp-protocol-00.pdf
+      type: object
+      required:
+      - connection
+      - name
+      properties:
+        connection:
+          description: "The unique name of the object on which LLDP is running. "
+          $ref: '#/components/schemas/Lldp.Connection'
+          x-field-uid: 1
+        chassis_id:
+          description: |-
+            The Chassis ID is a mandatory TLV which identifies the chassis component of the endpoint identifier associated  with the transmitting LLDP agent. If mac address is specified it should be in colon seperated mac address format.
+          $ref: '#/components/schemas/Lldp.ChassisId'
+          x-field-uid: 2
+        port_id:
+          description: |-
+            The Port ID is a mandatory TLV which identifies the port component of the endpoint identifier associated with  the transmitting LLDP agent. If the specified port is an IEEE 802.3 Repeater port, then this TLV is optional.
+          $ref: '#/components/schemas/Lldp.PortId'
+          x-field-uid: 3
+        system_name:
+          description: |-
+            The system name field shall contain an alpha-numeric string that indicates the system's administratively assigned  name. The system name should be the system's fully qualified domain name. If implementations support IETF RFC  3418, the sysName object should be used for this field.
+          $ref: '#/components/schemas/Lldp.SystemName'
+          x-field-uid: 4
+        hold_time:
+          description: |-
+            Specifies the amount of time in seconds a receiving device should maintain LLDP information sent  by the device before discarding it.
+          type: integer
+          minimum: 10
+          maximum: 65535
+          default: 120
+          x-field-uid: 5
+        advertisement_interval:
+          description: |-
+            Set the transmission frequency of LLDP updates in seconds.
+          type: integer
+          minimum: 5
+          maximum: 65534
+          default: 30
+          x-field-uid: 6
+        name:
+          x-field-uid: 7
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-unique: global
+    Lldp.Connection:
+      description: "LLDP connection to a test port. In future if more connection options\
+        \ arise  LLDP connection object will be enhanced. "
+      type: object
+      properties:
+        choice:
+          description: |-
+            The name of the test port or other connection objects on which LLDP is configured.
+          type: string
+          x-field-uid: 1
+          x-enum:
+            port_name:
+              x-field-uid: 1
+          enum:
+          - port_name
+        port_name:
+          description: |
+            Name of the test port on which LLDP is configured on.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          x-field-uid: 2
+    Lldp.ChassisId:
+      description: |-
+        The Chassis ID is a mandatory TLV which identifies the chassis component of the endpoint identifier associated  with the transmitting LLDP agent. This field identifies the format and source of the chassis identifier string.  It is based on the enumerator defined by the LldpChassisIdSubtype object from IEEE 802.1AB MIB.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Chassis ID subtype to be used in Chassis ID TLV.
+          type: string
+          default: mac_address_subtype
+          x-field-uid: 1
+          x-enum:
+            mac_address_subtype:
+              x-field-uid: 1
+            interface_name_subtype:
+              x-field-uid: 2
+            local_subtype:
+              x-field-uid: 3
+          enum:
+          - mac_address_subtype
+          - interface_name_subtype
+          - local_subtype
+        mac_address_subtype:
+          $ref: '#/components/schemas/Lldp.ChassisMacSubType'
+          x-field-uid: 2
+        interface_name_subtype:
+          description: |-
+            Name of an interface of the chassis that uniquely identifies the chassis.
+          type: string
+          x-field-uid: 3
+        local_subtype:
+          description: |-
+            Locally assigned name of the chassis.
+          type: string
+          x-field-uid: 4
+    Lldp.PortId:
+      description: |-
+        The Port ID is a mandatory TLV which identifies the port component of the endpoint identifier associated with  the transmitting LLDP agent.This field identifies the format and source of the port identifier string. It is  based on the enumerator defined by the PtopoPortIdType object from RFC2922.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Port ID subtype to be used in Port ID TLV.
+          type: string
+          default: interface_name_subtype
+          x-field-uid: 1
+          x-enum:
+            mac_address_subtype:
+              x-field-uid: 1
+            interface_name_subtype:
+              x-field-uid: 2
+            local_subtype:
+              x-field-uid: 3
+          enum:
+          - mac_address_subtype
+          - interface_name_subtype
+          - local_subtype
+        mac_address_subtype:
+          description: |-
+            The MAC Address configured in the Port ID TLV.
+          type: string
+          x-field-uid: 2
+        interface_name_subtype:
+          $ref: '#/components/schemas/Lldp.PortInterfaceNameSubType'
+          x-field-uid: 3
+        local_subtype:
+          description: |-
+            The Locally assigned name configured in the Port ID TLV.
+          type: string
+          x-field-uid: 4
+    Lldp.ChassisMacSubType:
+      description: "The MAC address configured in the Chassis ID TLV. "
+      type: object
+      properties:
+        choice:
+          description: |-
+            In auto mode the system generated value is set for this property, while if the choice is selected as value,  a user configured value will be used for this property.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+          enum:
+          - auto
+          - value
+        auto:
+          description: |-
+            The OTG implementation must provide a system generated value for this property.
+          type: string
+          format: mac
+          x-field-uid: 2
+        value:
+          description: |-
+            User must specify a value if mode is not auto.
+          type: string
+          format: mac
+          x-field-uid: 3
+    Lldp.PortInterfaceNameSubType:
+      description: "The interface name configured in the Port ID TLV. "
+      type: object
+      properties:
+        choice:
+          description: |-
+            In auto mode the system generated value is set for this property, while if the choice is selected as value,  a user configured value will be used for this property.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+          enum:
+          - auto
+          - value
+        auto:
+          description: |-
+            The OTG implementation must provide a system generated value for this property.
+          type: string
+          x-field-uid: 2
+        value:
+          description: |-
+            User must specify a value if mode is not auto.
+          type: string
+          x-field-uid: 3
+    Lldp.SystemName:
+      description: "The system Name configured in the System Name TLV. "
+      type: object
+      properties:
+        choice:
+          description: |-
+            In auto mode the system generated value is set for this property, while if the choice is selected as value,  a user configured value will be used for this property.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+          enum:
+          - auto
+          - value
+        auto:
+          description: |-
+            The OTG implementation must provide a system generated value for this property.
+          type: string
+          x-field-uid: 2
+        value:
+          description: |-
+            User must specify a value if mode is not auto.
+          type: string
+          x-field-uid: 3
     Response.Error:
       description: |-
         A list of errors that may have occurred while executing the request.
@@ -7473,7 +8400,7 @@ components:
           x-field-uid: 1
     Protocol.State:
       description: |-
-        Sets all configured protocols to `start` or `stop` state.
+        Sets all configured protocols to `start` or `stop` state. Setting protocol state to `start`  shall be a no-op if preceding `set_config` API call was made with  `config.options.protocol_options.auto_start_all` set to `true` or if all the configured protocols are already started.
       type: object
       required:
       - state
@@ -7633,7 +8560,7 @@ components:
           x-field-uid: 1
         state:
           description: |-
-            The LACP Member admin state. 'up' will start transmission of LACPDUs on selected member ports. 'down' will send a LACPDU with 'sync' flag unset and then stop transmission of LACPDUs on selected member ports.
+            The LACP Member admin state. 'up' will send LACPDUs with 'sync' flag set on selected member ports. 'down' will send LACPDUs with 'sync' flag unset on selected member ports.
           type: string
           x-field-uid: 2
           x-enum:
@@ -7646,7 +8573,7 @@ components:
           - down
     Metrics.Request:
       description: |-
-        Request to traffic generator for metrics of choice
+        Request to traffic generator for metrics of choice.
       type: object
       properties:
         choice:
@@ -7666,8 +8593,12 @@ components:
               x-field-uid: 5
             lag:
               x-field-uid: 6
-            lacp_lag_member:
+            lacp:
               x-field-uid: 7
+            lldp:
+              x-field-uid: 8
+            rsvp:
+              x-field-uid: 9
           enum:
           - port
           - flow
@@ -7675,7 +8606,9 @@ components:
           - bgpv6
           - isis
           - lag
-          - lacp_lag_member
+          - lacp
+          - lldp
+          - rsvp
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
           x-field-uid: 2
@@ -7694,12 +8627,18 @@ components:
         lag:
           $ref: '#/components/schemas/Lag.Metrics.Request'
           x-field-uid: 7
-        lacp_lag_member:
-          $ref: '#/components/schemas/LacpLagMember.Metrics.Request'
+        lacp:
+          $ref: '#/components/schemas/Lacp.Metrics.Request'
           x-field-uid: 8
+        lldp:
+          $ref: '#/components/schemas/Lldp.Metrics.Request'
+          x-field-uid: 9
+        rsvp:
+          $ref: '#/components/schemas/Rsvp.Metrics.Request'
+          x-field-uid: 10
     Metrics.Response:
       description: |-
-        Response containing chosen traffic generator metrics
+        Response containing chosen traffic generator metrics.
       type: object
       properties:
         choice:
@@ -7719,8 +8658,12 @@ components:
               x-field-uid: 5
             lag_metrics:
               x-field-uid: 6
-            lacp_lag_member_metrics:
+            lacp_metrics:
               x-field-uid: 7
+            lldp_metrics:
+              x-field-uid: 8
+            rsvp_metrics:
+              x-field-uid: 9
           enum:
           - flow_metrics
           - port_metrics
@@ -7728,7 +8671,9 @@ components:
           - bgpv6_metrics
           - isis_metrics
           - lag_metrics
-          - lacp_lag_member_metrics
+          - lacp_metrics
+          - lldp_metrics
+          - rsvp_metrics
         port_metrics:
           type: array
           items:
@@ -7759,11 +8704,21 @@ components:
           items:
             $ref: '#/components/schemas/Lag.Metric'
           x-field-uid: 7
-        lacp_lag_member_metrics:
+        lacp_metrics:
           type: array
           items:
-            $ref: '#/components/schemas/LacpLagMember.Metric'
+            $ref: '#/components/schemas/Lacp.Metric'
           x-field-uid: 8
+        lldp_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lldp.Metric'
+          x-field-uid: 9
+        rsvp_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rsvp.Metric'
+          x-field-uid: 10
     Port.Metrics.Request:
       description: |-
         The port result request to the traffic generator
@@ -7918,6 +8873,19 @@ components:
             The current rate of bytes received
           type: number
           x-field-uid: 12
+        transmit:
+          description: |-
+            The transmit state of the flow.
+          type: string
+          x-field-uid: 13
+          x-enum:
+            started:
+              x-field-uid: 1
+            stopped:
+              x-field-uid: 2
+          enum:
+          - started
+          - stopped
     Flow.Metrics.Request:
       description: |-
         The container for a flow metric request.
@@ -7977,15 +8945,10 @@ components:
       type: object
       properties:
         name:
-          description: |
+          description: |-
             A metric group name that MUST exist in a flow packet or
             flow egress_packet configuration
-
-            x-constraint:
-            - None
           type: string
-          x-constraint:
-          - null
           x-field-uid: 1
         filters:
           description: |-
@@ -8202,6 +9165,8 @@ components:
                 x-field-uid: 13
               notifications_received:
                 x-field-uid: 14
+              fsm_state:
+                x-field-uid: 15
             enum:
             - session_state
             - session_flap_count
@@ -8217,6 +9182,7 @@ components:
             - keepalives_received
             - notifications_sent
             - notifications_received
+            - fsm_state
           x-field-uid: 2
     Bgpv4.Metric:
       description: |-
@@ -8306,6 +9272,31 @@ components:
             Number of Notification messages received.
           type: integer
           x-field-uid: 15
+        fsm_state:
+          description: |-
+            BGP peer FSM (Finite State Machine) state as Idle, Connect, Active, OpenSent, OpenConfirm and Established. In all the states except Established the BGP session is down. Idle refers to the Idle state of the FSM. Connect refers to the state where the session is waiting for the underlying transport session to be established. Active refers to the state where the session is awaiting for a connection from the remote peer. OpenSent refers to the state where the session is in the process of being established. The local system has sent an OPEN message. OpenConfirm refers to the state where the session is in the process of being established. The local system has sent and received an OPEN message and is awaiting a NOTIFICATION or KEEPALIVE message from remote peer. Established refers to the state where the BGP session with the peer is established.
+          type: string
+          x-field-uid: 16
+          x-enum:
+            idle:
+              x-field-uid: 1
+            connect:
+              x-field-uid: 2
+            active:
+              x-field-uid: 3
+            opensent:
+              x-field-uid: 4
+            openconfirm:
+              x-field-uid: 5
+            established:
+              x-field-uid: 6
+          enum:
+          - idle
+          - connect
+          - active
+          - opensent
+          - openconfirm
+          - established
     Bgpv6.Metrics.Request:
       description: |-
         The request to retrieve BGPv6 per peer metrics/statistics.
@@ -8358,6 +9349,8 @@ components:
                 x-field-uid: 13
               notifications_received:
                 x-field-uid: 14
+              fsm_state:
+                x-field-uid: 15
             enum:
             - session_state
             - session_flap_count
@@ -8373,6 +9366,7 @@ components:
             - keepalives_received
             - notifications_sent
             - notifications_received
+            - fsm_state
           x-field-uid: 2
     Bgpv6.Metric:
       description: |-
@@ -8462,6 +9456,31 @@ components:
             Number of Notification messages received.
           type: integer
           x-field-uid: 15
+        fsm_state:
+          description: |-
+            BGP peer FSM (Finite State Machine) state as Idle, Connect, Active, OpenSent, OpenConfirm and Established. In all the states except Established the BGP session is down. Idle refers to the Idle state of the FSM. Connect refers to the state where the session is waiting for the underlying transport session to be established. Active refers to the state where the session is awaiting for a connection from the remote peer. OpenSent refers to the state where the session is in the process of being established. The local system has sent an OPEN message. OpenConfirm refers to the state where the session is in the process of being established. The local system has sent and received an OPEN message and is awaiting a NOTIFICATION or KEEPALIVE message from remote peer. Established refers to the state where the BGP session with the peer is established.
+          type: string
+          x-field-uid: 16
+          x-enum:
+            idle:
+              x-field-uid: 1
+            connect:
+              x-field-uid: 2
+            active:
+              x-field-uid: 3
+            opensent:
+              x-field-uid: 4
+            openconfirm:
+              x-field-uid: 5
+            established:
+              x-field-uid: 6
+          enum:
+          - idle
+          - connect
+          - active
+          - opensent
+          - openconfirm
+          - established
     Isis.Metrics.Request:
       description: |-
         The request to retrieve ISIS per Router metrics/statistics.
@@ -8730,7 +9749,7 @@ components:
           items:
             type: string
             x-enum:
-              oper_states:
+              oper_status:
                 x-field-uid: 1
               member_ports_up:
                 x-field-uid: 2
@@ -8751,7 +9770,7 @@ components:
               bytes_rx_rate:
                 x-field-uid: 10
             enum:
-            - oper_states
+            - oper_status
             - member_ports_up
             - frames_tx
             - frames_rx
@@ -8841,7 +9860,7 @@ components:
             The current rate of bytes received.
           type: number
           x-field-uid: 11
-    LacpLagMember.Metrics.Request:
+    Lacp.Metrics.Request:
       description: |-
         The request to retrieve LACP per LAG member metrics/statistics.
       type: object
@@ -8877,9 +9896,9 @@ components:
           items:
             type: string
             x-enum:
-              lacp_in_pkts:
+              lacp_packets_rx:
                 x-field-uid: 1
-              lacp_out_pkts:
+              lacp_packets_tx:
                 x-field-uid: 2
               lacp_rx_errors:
                 x-field-uid: 3
@@ -8908,8 +9927,8 @@ components:
               partner_port_num:
                 x-field-uid: 15
             enum:
-            - lacp_in_pkts
-            - lacp_out_pkts
+            - lacp_packets_rx
+            - lacp_packets_tx
             - lacp_rx_errors
             - activity
             - timeout
@@ -8924,7 +9943,7 @@ components:
             - port_num
             - partner_port_num
           x-field-uid: 3
-    LacpLagMember.Metric:
+    Lacp.Metric:
       description: |-
         LACP metrics (statistics) per LAG member.
       type: object
@@ -8939,14 +9958,14 @@ components:
             The name of a LAG member (port) configured with LACP.
           type: string
           x-field-uid: 2
-        lacp_in_pkts:
+        lacp_packets_rx:
           description: |-
             Number of LACPDUs received.
           type: integer
           format: int64
           minimum: 0
           x-field-uid: 3
-        lacp_out_pkts:
+        lacp_packets_tx:
           description: |-
             Number of LACPDUs transmitted.
           type: integer
@@ -9050,6 +10069,363 @@ components:
           type: integer
           format: int32
           x-field-uid: 17
+    Lldp.Metrics.Request:
+      description: |-
+        The request to retrieve LLDP per instance metrics/statistics.
+      type: object
+      properties:
+        lldp_names:
+          description: |
+            The names of LLDP instances to return results for. An empty list will return results for all LLDP instances.
+
+            x-constraint:
+            - /components/schemas/Lldp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Lldp/properties/name
+          x-field-uid: 1
+        column_names:
+          description: |-
+            The requested list of column names for the result set. If the list is empty then metrics for all columns will be returned. The name of LLDP instance can not be excluded.
+          type: array
+          items:
+            type: string
+            x-enum:
+              frames_rx:
+                x-field-uid: 1
+              frames_tx:
+                x-field-uid: 2
+              frames_error_rx:
+                x-field-uid: 3
+              frames_discard:
+                x-field-uid: 4
+              tlvs_discard:
+                x-field-uid: 5
+              tlvs_unknown:
+                x-field-uid: 6
+            enum:
+            - frames_rx
+            - frames_tx
+            - frames_error_rx
+            - frames_discard
+            - tlvs_discard
+            - tlvs_unknown
+          x-field-uid: 2
+    Lldp.Metric:
+      description: |-
+        LLDP per instance statistics information.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of the configured LLDP instance.
+          type: string
+          x-field-uid: 1
+        frames_rx:
+          description: |-
+            Number of LLDP frames received.
+          type: integer
+          format: int64
+          x-field-uid: 2
+        frames_tx:
+          description: |-
+            Number of LLDP frames transmitted.
+          type: integer
+          format: int64
+          x-field-uid: 3
+        frames_error_rx:
+          description: |-
+            Number of LLDP frames received with packet errors. This stat should be incremented based on statsFramesInErrorsTotal increment rule in section 10.3.2 of IEEE Std 802.1 AB-2005.
+          type: integer
+          format: int64
+          x-field-uid: 4
+        frames_discard:
+          description: |-
+            Number of LLDP frames received that are discarded. This stat should be incremented when one or more of the three mandatory  TLVs at the beginning of the LLDPDU is missing, out of order or  contains an out of range information string length. This stat should follow the validation rules in section 10.3.2 of IEEE  Std 802.1 AB-2005.
+          type: integer
+          format: int64
+          x-field-uid: 5
+        tlvs_discard:
+          description: |-
+            Number of LLDP tlvs received that are discarded. If any TLV contains  an error condition specific for that particular TLV or if any TLV  extends past the physical end of the frame then these TLVs will be discarded.
+          type: integer
+          format: int64
+          x-field-uid: 6
+        tlvs_unknown:
+          description: |-
+            Number of LLDP unknown tlvs received. If the OUI of the organizationlly specific TLV and/or organizationally defined subtype are not recognized,or if TLV type  value is in the range of reserved TLV types then these TLVs will be considered as  unknown TLVs.
+          type: integer
+          format: int64
+          x-field-uid: 7
+    Rsvp.Metrics.Request:
+      description: |-
+        The request to retrieve RSVP-TE per Router metrics/statistics.
+      type: object
+      properties:
+        router_names:
+          description: |
+            The names of RSVP-TE Routers to return results for. An empty list as input will return results for all RSVP-TE routers.
+
+            x-constraint:
+            - /components/schemas/Device.Rsvp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Rsvp/properties/name
+          x-field-uid: 1
+        column_names:
+          description: "The list of column names that the returned result set will\
+            \ contain. If the input list is empty then all columns will be returned\
+            \ except for any result_groups.            "
+          type: array
+          items:
+            type: string
+            x-enum:
+              ingress_p2p_lsps_configured:
+                x-field-uid: 1
+              ingress_p2p_lsps_up:
+                x-field-uid: 2
+              egress_p2p_lsps_up:
+                x-field-uid: 3
+              lsp_flap_count:
+                x-field-uid: 4
+              paths_tx:
+                x-field-uid: 5
+              paths_rx:
+                x-field-uid: 6
+              resvs_tx:
+                x-field-uid: 7
+              resvs_rx:
+                x-field-uid: 8
+              path_tears_tx:
+                x-field-uid: 9
+              path_tears_rx:
+                x-field-uid: 10
+              resv_tears_tx:
+                x-field-uid: 11
+              resv_tears_rx:
+                x-field-uid: 12
+              path_errors_tx:
+                x-field-uid: 13
+              path_errors_rx:
+                x-field-uid: 14
+              resv_errors_tx:
+                x-field-uid: 15
+              resv_errors_rx:
+                x-field-uid: 16
+              resv_conf_tx:
+                x-field-uid: 17
+              resv_conf_rx:
+                x-field-uid: 18
+              hellos_tx:
+                x-field-uid: 19
+              hellos_rx:
+                x-field-uid: 20
+              acks_tx:
+                x-field-uid: 21
+              acks_rx:
+                x-field-uid: 22
+              nacks_tx:
+                x-field-uid: 23
+              nacks_rx:
+                x-field-uid: 24
+              srefresh_tx:
+                x-field-uid: 25
+              srefresh_rx:
+                x-field-uid: 26
+              bundle_tx:
+                x-field-uid: 27
+              bundle_rx:
+                x-field-uid: 28
+              path_reevaluation_request_tx:
+                x-field-uid: 29
+              path_reoptimizations:
+                x-field-uid: 30
+            enum:
+            - ingress_p2p_lsps_configured
+            - ingress_p2p_lsps_up
+            - egress_p2p_lsps_up
+            - lsp_flap_count
+            - paths_tx
+            - paths_rx
+            - resvs_tx
+            - resvs_rx
+            - path_tears_tx
+            - path_tears_rx
+            - resv_tears_tx
+            - resv_tears_rx
+            - path_errors_tx
+            - path_errors_rx
+            - resv_errors_tx
+            - resv_errors_rx
+            - resv_conf_tx
+            - resv_conf_rx
+            - hellos_tx
+            - hellos_rx
+            - acks_tx
+            - acks_rx
+            - nacks_tx
+            - nacks_rx
+            - srefresh_tx
+            - srefresh_rx
+            - bundle_tx
+            - bundle_rx
+            - path_reevaluation_request_tx
+            - path_reoptimizations
+          x-field-uid: 2
+    Rsvp.Metric:
+      description: |-
+        RSVP-TE per router statistics information.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of a configured RSVP router.
+          type: string
+          x-field-uid: 1
+        ingress_p2p_lsps_configured:
+          description: |-
+            The number of ingress point-to-point LSPs configured or transiting through the RSVP router which have been initated from the test port.
+          type: integer
+          x-field-uid: 2
+        ingress_p2p_lsps_up:
+          description: "The number of ingress point-to-point LSPs for which Resv has\
+            \ been received and is currently up. "
+          type: integer
+          x-field-uid: 3
+        egress_p2p_lsps_up:
+          description: |-
+            The number of egress point-to-point LSPs for which Path requests were successfully processed and is currently up.
+          type: integer
+          x-field-uid: 4
+        lsp_flap_count:
+          description: |-
+            The number of times an LSP went from up to down state either because it timed out while waiting for Refreshes or  a PathTear or ResvTear message was received which caused the LSP to flap.
+          type: integer
+          x-field-uid: 5
+        paths_tx:
+          description: |-
+            The number of Path messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 6
+        paths_rx:
+          description: |-
+            The number of Path messages received by this RSVP router.
+          type: integer
+          x-field-uid: 7
+        resvs_tx:
+          description: |-
+            The number of Resv messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 8
+        resvs_rx:
+          description: |-
+            The number of Resv messages received by this RSVP router.
+          type: integer
+          x-field-uid: 9
+        path_tears_tx:
+          description: |-
+            The number of  Path Tear messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 10
+        path_tears_rx:
+          description: "The number of Path Tear messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 11
+        resv_tears_tx:
+          description: |-
+            The number of  Resv Tear messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 12
+        resv_tears_rx:
+          description: "The number of Resv Tear messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 13
+        path_errors_tx:
+          description: |-
+            The number of Path Error messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 14
+        path_errors_rx:
+          description: "The number of Path Error messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 15
+        resv_errors_tx:
+          description: |-
+            The number of Resv Error messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 16
+        resv_errors_rx:
+          description: "The number of Resv Error messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 17
+        resv_conf_tx:
+          description: |-
+            The number of ResvConf messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 18
+        resv_conf_rx:
+          description: "The number of ResvConf messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 19
+        hellos_tx:
+          description: |-
+            The number of Hello messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 20
+        hellos_rx:
+          description: "The number of Hello messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 21
+        acks_tx:
+          description: |-
+            The number of Ack messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 22
+        acks_rx:
+          description: "The number of Ack messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 23
+        nacks_tx:
+          description: |-
+            The number of Nack messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 24
+        nacks_rx:
+          description: "The number of Nack messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 25
+        srefresh_tx:
+          description: |-
+            The number of SRefresh messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 26
+        srefresh_rx:
+          description: "The number of SRefresh messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 27
+        bundle_tx:
+          description: |-
+            The number of Bundle messages sent by this RSVP router.
+          type: integer
+          x-field-uid: 28
+        bundle_rx:
+          description: "The number of Bundle messages received by this RSVP router. "
+          type: integer
+          x-field-uid: 29
+        path_reevaluation_request_tx:
+          description: |-
+            The number of Path messages with Path Re-evaluation Request enabled sent by this RSVP router.
+          type: integer
+          x-field-uid: 30
+        path_reoptimizations:
+          description: |-
+            The number of successfully completed Make-Before-Break operations on LSPs on this RSVP router.
+          type: integer
+          x-field-uid: 31
     States.Request:
       description: |-
         Request to traffic generator for states of choice
@@ -9068,11 +10444,17 @@ components:
               x-field-uid: 3
             isis_lsps:
               x-field-uid: 4
+            lldp_neighbors:
+              x-field-uid: 5
+            rsvp_lsps:
+              x-field-uid: 6
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
           - bgp_prefixes
           - isis_lsps
+          - lldp_neighbors
+          - rsvp_lsps
         ipv4_neighbors:
           $ref: '#/components/schemas/Neighborsv4.States.Request'
           x-field-uid: 2
@@ -9085,6 +10467,12 @@ components:
         isis_lsps:
           $ref: '#/components/schemas/IsisLsps.State.Request'
           x-field-uid: 5
+        lldp_neighbors:
+          $ref: '#/components/schemas/LldpNeighbors.State.Request'
+          x-field-uid: 6
+        rsvp_lsps:
+          $ref: '#/components/schemas/RsvpLsps.State.Request'
+          x-field-uid: 7
     States.Response:
       description: |-
         Response containing chosen traffic generator states
@@ -9103,11 +10491,17 @@ components:
               x-field-uid: 3
             isis_lsps:
               x-field-uid: 4
+            lldp_neighbors:
+              x-field-uid: 5
+            rsvp_lsps:
+              x-field-uid: 6
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
           - bgp_prefixes
           - isis_lsps
+          - lldp_neighbors
+          - rsvp_lsps
         ipv4_neighbors:
           type: array
           items:
@@ -9128,6 +10522,16 @@ components:
           items:
             $ref: '#/components/schemas/IsisLsps.State'
           x-field-uid: 5
+        lldp_neighbors:
+          type: array
+          items:
+            $ref: '#/components/schemas/LldpNeighbors.State'
+          x-field-uid: 6
+        rsvp_lsps:
+          type: array
+          items:
+            $ref: '#/components/schemas/RsvpLsps.State'
+          x-field-uid: 7
     Neighborsv4.States.Request:
       description: |-
         The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -9286,9 +10690,12 @@ components:
               x-field-uid: 1
             egp:
               x-field-uid: 2
+            incomplete:
+              x-field-uid: 3
           enum:
           - igp
           - egp
+          - incomplete
         path_id:
           x-field-uid: 4
           description: |-
@@ -9320,9 +10727,12 @@ components:
               x-field-uid: 1
             egp:
               x-field-uid: 2
+            incomplete:
+              x-field-uid: 3
           enum:
           - igp
           - egp
+          - incomplete
         path_id:
           x-field-uid: 4
           description: |-
@@ -9373,9 +10783,12 @@ components:
               x-field-uid: 1
             egp:
               x-field-uid: 2
+            incomplete:
+              x-field-uid: 3
           enum:
           - igp
           - egp
+          - incomplete
         path_id:
           x-field-uid: 4
           description: |-
@@ -9428,9 +10841,12 @@ components:
               x-field-uid: 1
             egp:
               x-field-uid: 2
+            incomplete:
+              x-field-uid: 3
           enum:
           - igp
           - egp
+          - incomplete
         path_id:
           x-field-uid: 4
           description: |-
@@ -9994,6 +11410,431 @@ components:
             Node Flag (Bit 2)
           type: boolean
           x-field-uid: 3
+    LldpNeighbors.State.Request:
+      description: |-
+        The request to retrieve LLDP neighbor information for a given instance.
+      type: object
+      properties:
+        lldp_names:
+          description: |
+            The names of LLDP instances for which neighbor information will be retrieved. If no names are specified then the results will contain neighbor information for all configured LLDP instances.
+
+            x-constraint:
+            - /components/schemas/Lldp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Lldp/properties/name
+          x-field-uid: 1
+        neighbor_id_filters:
+          description: |-
+            Specify the neighbors for which information will be returned. If empty  or missing then information for all neighbors will be returned.
+          type: array
+          items:
+            type: string
+          x-field-uid: 2
+    LldpNeighbors.State:
+      description: |-
+        LLDP neighbor information.
+      type: object
+      properties:
+        lldp_name:
+          description: |-
+            The name of the LLDP instance.
+          type: string
+          x-field-uid: 1
+        system_name:
+          description: |-
+            The system name field shall contain an alpha-numeric string that  indicates the system's administratively assigned name. The system name  should be the system's fully qualified domain name. If implementations  support IETF RFC 3418, the sysName object should be used for this field.
+          type: string
+          x-field-uid: 2
+        system_description:
+          description: |-
+            The system description field shall contain an alpha-numeric string that  is the textual description of the network entity. The system description  should include the full name and version identification of the system's  hardware type, software operating system, and networking software. If  implementations support IETF RFC 3418, the sysDescr object should be used  for this field.
+          type: string
+          x-field-uid: 3
+        chassis_id:
+          description: |-
+            The Chassis ID is a mandatory TLV which identifies the chassis component of  the endpoint identifier associated with the transmitting LLDP agent.
+          type: string
+          x-field-uid: 4
+        chassis_id_type:
+          description: |-
+            This field identifies the format and source of the chassis identifier string.  It is an enumerator defined by the LldpChassisIdSubtype object from IEEE 802.1AB  MIB.
+          type: string
+          x-enum:
+            port_component:
+              x-field-uid: 1
+            network_address:
+              x-field-uid: 2
+            chassis_component:
+              x-field-uid: 3
+            mac_address:
+              x-field-uid: 4
+            interface_name:
+              x-field-uid: 5
+            local:
+              x-field-uid: 6
+            interface_alias:
+              x-field-uid: 7
+          x-field-uid: 5
+          enum:
+          - port_component
+          - network_address
+          - chassis_component
+          - mac_address
+          - interface_name
+          - local
+          - interface_alias
+        neighbor_id:
+          description: |-
+            System generated identifier for the neighbor on the LLDP instance.
+          type: string
+          x-field-uid: 6
+        age:
+          description: |-
+            Age since discovery in seconds.
+          type: integer
+          format: int64
+          x-field-uid: 7
+        last_update:
+          description: |-
+            Seconds since last update received.
+          type: integer
+          format: int64
+          x-field-uid: 8
+        ttl:
+          description: |-
+            The time-to-live (TTL) in seconds is a mandatory TLV which indicates how long information from the neighbor  should be considered valid.
+          type: integer
+          x-field-uid: 9
+        port_id:
+          description: |-
+            The Port ID is a mandatory TLV which identifies the port component of the endpoint identifier associated with  the transmitting LLDP agent. If the specified port is an IEEE 802.3 Repeater port, then this TLV is optional.
+          type: string
+          x-field-uid: 10
+        port_id_type:
+          description: |-
+            This field identifies the format and source of the port identifier string. It is an enumerator defined by the PtopoPortIdType object from RFC2922.
+          type: string
+          x-enum:
+            port_component:
+              x-field-uid: 1
+            network_address:
+              x-field-uid: 2
+            agent_circuit_id:
+              x-field-uid: 3
+            mac_address:
+              x-field-uid: 4
+            interface_name:
+              x-field-uid: 5
+            local:
+              x-field-uid: 6
+            interface_alias:
+              x-field-uid: 7
+          x-field-uid: 11
+          enum:
+          - port_component
+          - network_address
+          - agent_circuit_id
+          - mac_address
+          - interface_name
+          - local
+          - interface_alias
+        port_description:
+          description: |-
+            The binary string containing the actual port identifier for the port which this LLDP PDU was transmitted. The source  and format of this field is defined by PtopoPortId from RFC2922.
+          type: string
+          x-field-uid: 12
+        management_address:
+          description: |-
+            The Management Address is a mandatory TLV which identifies a network address associated with the local LLDP agent, which  can be used to reach the agent on the port identified in the Port ID TLV.
+          type: string
+          x-field-uid: 13
+        management_address_type:
+          description: |-
+            The enumerated value for the network address type identified in this TLV. This enumeration is defined in the 'Assigned Numbers'  RFC [RFC3232] and the ianaAddressFamilyNumbers object.
+          type: string
+          x-field-uid: 14
+        custom_tlvs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LldpCustomTLV.State'
+          x-field-uid: 15
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/LldpCapability.State'
+          x-field-uid: 16
+    LldpCustomTLV.State:
+      description: |-
+        Custom TLV received from a neighbor.Custom TLVs are organization specific TLVs advertised with TLV type 127.
+      type: object
+      properties:
+        custom_type:
+          description: |-
+            The integer value identifying the type of information contained in the value field.
+          type: integer
+          x-field-uid: 1
+        oui:
+          description: |-
+            The organizationally unique identifier field shall contain the organization's OUI as defined in Clause 9 of IEEE Std 802. The high-order octet is 0 and the low-order 3 octets are the SMI Network Management Private Enterprise Code of the Vendor in network byte order,  as defined in the 'Assigned Numbers' RFC [RFC3232].
+          type: string
+          x-field-uid: 2
+        oui_subtype:
+          description: |-
+            The organizationally defined subtype field shall contain a unique subtype value assigned by the defining organization.
+          type: string
+          x-field-uid: 3
+    LldpCapability.State:
+      description: |-
+        LLDP system capability advertised by the neighbor
+      type: object
+      properties:
+        capability_name:
+          description: |-
+            Name of the system capability advertised by the neighbor. Capabilities are represented in a bitmap that defines the primary functions of the system.  The capabilities are defined in IEEE 802.1AB.
+          type: string
+          x-enum:
+            mac_bridge:
+              x-field-uid: 1
+            two_port_mac_relay:
+              x-field-uid: 2
+            repeater:
+              x-field-uid: 3
+            docsis_cable_device:
+              x-field-uid: 4
+            s_vlan:
+              x-field-uid: 5
+            telephone:
+              x-field-uid: 6
+            other:
+              x-field-uid: 7
+            router:
+              x-field-uid: 8
+            c_vlan:
+              x-field-uid: 9
+            station_only:
+              x-field-uid: 10
+            wlan_access_point:
+              x-field-uid: 11
+          x-field-uid: 1
+          enum:
+          - mac_bridge
+          - two_port_mac_relay
+          - repeater
+          - docsis_cable_device
+          - s_vlan
+          - telephone
+          - other
+          - router
+          - c_vlan
+          - station_only
+          - wlan_access_point
+        capability_enabled:
+          description: |-
+            Indicates whether the corresponding system capability is enabled on the neighbor.
+          type: boolean
+          x-field-uid: 2
+    RsvpLsps.State.Request:
+      description: |-
+        The request to retrieve RSVP Label Switched Path (LSP) information learned by the router.
+      type: object
+      properties:
+        rsvp_router_names:
+          description: |
+            The names of RSVP-TE routers for which learned information is requested. An empty list will return results for all RSVP=TE routers.
+
+            x-constraint:
+            - /components/schemas/Device.Rsvp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Rsvp/properties/name
+          x-field-uid: 1
+    RsvpLsps.State:
+      description: |-
+        Discovered IPv4 Point-to-Point LSPs of a RSVP-TE router.
+      type: object
+      properties:
+        rsvp_router_name:
+          description: |-
+            The name of the RSVP-TE Router.
+          type: string
+          x-field-uid: 1
+        ipv4_lsps:
+          description: |-
+            IPv4 Point-to-Point RSVP-TE Discovered LSPs.
+          type: array
+          items:
+            $ref: '#/components/schemas/RsvpIPv4Lsp.State'
+          x-field-uid: 2
+    RsvpIPv4Lsp.State:
+      description: |-
+        IPv4 RSVP-TE Discovered LSPs.
+      type: object
+      properties:
+        source_address:
+          description: |-
+            The origin IPv4 address of RSVP session.
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        destination_address:
+          description: |-
+            The IPv4 destination address of RSVP session.
+          type: string
+          format: ipv4
+          x-field-uid: 2
+        lsp:
+          description: |-
+            It refers to the RSVP LSP properties.
+          $ref: '#/components/schemas/RsvpLsp.State'
+          x-field-uid: 3
+        rros:
+          description: |-
+            It refers to RSVP RRO objects container.
+          items:
+            $ref: '#/components/schemas/RsvpLsp.Ipv4Rro'
+          type: array
+          x-field-uid: 4
+        eros:
+          description: |-
+            It refers to RSVP ERO objects container.
+          items:
+            $ref: '#/components/schemas/RsvpLsp.Ipv4Ero'
+          type: array
+          x-field-uid: 5
+    RsvpLsp.State:
+      description: |-
+        IPv4 RSVP-TE Discovered LSPs.
+      type: object
+      properties:
+        tunnel_id:
+          description: |-
+            The tunnel id of RSVP session which acts as an identifier that remains constant over the life of the tunnel.
+          type: integer
+          x-field-uid: 1
+        lsp_id:
+          description: |-
+            The lsp-id of RSVP session which acts as a differentiator for two lsps originating from the same headend, commonly used to distinguish RSVP sessions during make before break operations.
+          type: integer
+          x-field-uid: 2
+        session_name:
+          description: |-
+            The value of RSVP-TE Session Name field of the Session Attribute object.
+          type: string
+          x-field-uid: 3
+        label_in:
+          description: |-
+            The label received by RSVP-TE ingress.
+          type: integer
+          x-field-uid: 4
+        label_out:
+          description: |-
+            The label assigned by RSVP-TE egress.
+          type: integer
+          x-field-uid: 5
+        session_status:
+          description: |-
+            Operational state of the RSVP LSP.
+          type: string
+          x-field-uid: 6
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+          enum:
+          - up
+          - down
+        last_flap_reason:
+          description: |-
+            The reason for the last flap of this RSVP session.
+          type: string
+          x-field-uid: 7
+          x-enum:
+            resv_tear:
+              x-field-uid: 1
+            path_tear:
+              x-field-uid: 2
+            path_timeout:
+              x-field-uid: 3
+          enum:
+          - resv_tear
+          - path_tear
+          - path_timeout
+        up_time:
+          description: |-
+            The tunnel UP time in milli seconds. If the tunnel is DOWN the UP time will be zero.
+          type: integer
+          format: int64
+          x-field-uid: 8
+    RsvpLsp.Ipv4Rro:
+      description: "This contains the list of Record Route Object(RRO) objects associated\
+        \ with the traffic engineering tunnel. The  Record Route Object(RRO) is used\
+        \ in RSVP-TE to record the route traversed by the LSP. The RRO might be present\
+        \ in both   Path message and Resv message, the RRO stores the IP addresses\
+        \ of the routers that the traffic engineering tunnel  traversed and also the\
+        \ label generated and distributed by the routers. The RROs in the Resv message\
+        \ mirrors that of  the Path message, the only difference is that the RRO in\
+        \ a Resv message records the path information in the reverse  direction. "
+      properties:
+        address:
+          description: |-
+            The IPv4 addresses of the routers that the traffic engineering tunnel traversed.
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        reported_label:
+          description: "Label reported for RRO hop. When the Label_Recording flag\
+            \ is set in the Session Attribute object, nodes doing route recording\
+            \ should include the Label Record subobject containing the reported label. "
+          type: integer
+          x-field-uid: 2
+    RsvpLsp.Ipv4Ero:
+      description: |-
+        This contains the list of sub-objects included in the Explicit Route Object(ERO) object send in the PATH message from the ingress. These sub-objects contain the intermediate hops to be traversed by the LSP while being forwarded  towards the egress endpoint.
+      type: object
+      properties:
+        prefix:
+          description: |-
+            The IPv4 prefix indicated by the ERO. Specified only when the ERO hop is an IPv4 prefix.
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        asn:
+          description: |-
+            The autonomous system number indicated by the ERO. Specified only when the ERO hop is an  2 or 4-byte AS number.
+          type: integer
+          x-field-uid: 2
+        type:
+          description: |-
+            The type indicated by the ERO.
+          type: string
+          x-field-uid: 3
+          x-enum:
+            ipv4:
+              x-field-uid: 1
+            ipv6:
+              x-field-uid: 2
+            asn:
+              x-field-uid: 3
+            asn4:
+              x-field-uid: 4
+            label:
+              x-field-uid: 5
+            unnumbered_interface:
+              x-field-uid: 6
+          enum:
+          - ipv4
+          - ipv6
+          - asn
+          - asn4
+          - label
+          - unnumbered_interface
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.

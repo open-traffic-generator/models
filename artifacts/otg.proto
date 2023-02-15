@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 0.9.6
+/* Open Traffic Generator API 0.10.8
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -12,6 +12,8 @@
 syntax = "proto3";
 
 package otg;
+
+option go_package = "./otg;otg";
 
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/empty.proto";
@@ -44,6 +46,9 @@ message Config {
 
   // Description missing in models
   optional ConfigOptions options = 8;
+
+  // LLDP protocol that will be configured on traffic generator.
+  repeated Lldp lldp = 9;
 }
 
 // Global configuration options.
@@ -51,6 +56,9 @@ message ConfigOptions {
 
   // Description missing in models
   optional PortOptions port_options = 1;
+
+  // Description missing in models
+  optional ProtocolOptions protocol_options = 2;
 }
 
 // An abstract test port.
@@ -94,7 +102,10 @@ message Lag {
   optional LagProtocol protocol = 2;
 
   // Specifies the mininum number of member interfaces that must be active for the aggregate
-  // interface to be available
+  // interface to be available.
+  // If the aggregate interface is not available due to min-links criterion not being
+  // met, LACPDUs continue to be transmitted and received by the member interfaces if
+  // LACP is enabled, but other PDUs are not transmitted or received.
   // default = 1
   optional int32 min_links = 3;
 
@@ -227,8 +238,6 @@ message DeviceEthernetBase {
 message DeviceEthernet {
 
   // Status: deprecated
-  // property port_name is deprecated from the snappi version x.x.x.
-  // please use connection.port_name instead of port_name
   // The unique name of a Port or a LAG that will emulate this interface.
   // port_name is deprecated and will be removed in future release.port_name and connection
   // can't be used together, use either port_name or connection.
@@ -674,7 +683,6 @@ message Layer1Ieee8021qbb {
 }
 
 // Status: under-review
-// Capture schema is under review
 // Configuration for capture settings.
 message Capture {
 
@@ -929,10 +937,23 @@ message Device {
   // objects.
   // required = true
   string name = 7;
+
+  // The properties of an RSVP router and its children.
+  optional DeviceRsvp rsvp = 8;
+}
+
+// Common options that apply to all configured protocols and interfaces.
+message ProtocolOptions {
+
+  // When set to true, all underlying resources for configured protocols   and interfaces
+  // shall be created and corresponding protocol session negotiation shall be initiated.
+  // Otherwise, when set to false,  corresponding protocol session negotiation will need
+  // to be initiated  using a separate set_protocol_state API call.
+  // default = True
+  optional bool auto_start_all = 1;
 }
 
 // Status: under-review
-// Device.IsisRouter is under review
 // A container of properties for an ISIS router and its interfaces.
 message DeviceIsisRouter {
 
@@ -969,7 +990,6 @@ message DeviceIsisRouter {
 }
 
 // Status: under-review
-// Device.IsisMultiInstance is under review
 // This container properties of an Multi-Instance-capable router (MI-RTR).
 message DeviceIsisMultiInstance {
 
@@ -984,7 +1004,6 @@ message DeviceIsisMultiInstance {
 }
 
 // Status: under-review
-// Isis.Interface is under review
 // Configuration for single ISIS interface.
 message IsisInterface {
 
@@ -1073,7 +1092,6 @@ message IsisInterfaceLevel {
 }
 
 // Status: under-review
-// Isis.MT is under review
 // Configuration of properties per interface per topology when multiple topologies are
 // configured in an ISIS router.
 // in a ISIS router.
@@ -1089,7 +1107,6 @@ message IsisMT {
 }
 
 // Status: under-review
-// LinkState.TE is under review
 // A container for Traffic Engineering properties on a interface.
 message LinkStateTE {
 
@@ -1735,7 +1752,33 @@ message BgpV4EthernetSegment {
   // Optional community settings.
   repeated BgpCommunity communities = 7;
 
-  // Optional Extended Community settings.
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an 8-Bytes value. It is
+  // divided into two main parts. The first 2 Bytes of the community encode a type and
+  // sub-type fields and the last 6 Bytes carry a unique set of data in a format defined
+  // by the type and sub-type field. Extended communities provide a larger  range for
+  // grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet,
+  // the valid sub types are route target and origin. The valid value for  administrator_as_2octet
+  // and administrator_as_4octet type is either two byte AS followed by four byte local
+  // administrator id or four byte AS followed by two  byte local administrator id.  When
+  // type is administrator_ipv4_address the valid sub types are route target and origin.
+  // The valid value for  administrator_ipv4_address is a four byte IPv4 address followed
+  // by a two byte local administrator id.  When type is opaque, valid sub types are color
+  // and encapsulation. When sub type is color, first two bytes of the value field contain
+  // flags and last four bytes  contains the value of the color. When sub type is encapsulation
+  // the first four bytes of value field are reserved and last two bytes carries the tunnel
+  // type from  IANA's ETHER TYPES registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol
+  // type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth
+  // the valid sub type is extended_bandwidth. The first two bytes of the value field
+  // contains the AS number and the last four bytes contains the bandwidth in IEEE floating
+  // point format.  When type is evpn the valid subtype is mac_address. In the value field
+  // the low-order bit of the first byte(Flags) is defined as the Sticky/static flag and
+  // may be set to 1, indicating the MAC address is static and cannot move. The second
+  // byte is reserved and the  last four bytes contain the sequence number which is used
+  // to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates
+  // occur for the same MAC address.
   repeated BgpExtCommunity ext_communities = 8;
 
   // Optional AS PATH settings.
@@ -1754,20 +1797,45 @@ message BgpEthernetSegmentDfElection {
 // Configuration for advanced BGP route range settings.
 message BgpRouteAdvanced {
 
-  // The multi exit discriminator (MED) value.  A null value means the MED feature is
-  // not enabled.
+  // BGP Multi Exit Discriminator attribute sent to the peer to help in the route selection
+  // process.  If set to true, the Multi Exit Discriminator attribute will be included
+  // in the route advertisement.
+  // default = True
+  optional bool include_multi_exit_discriminator = 3;
+
+  // The multi exit discriminator (MED) value used for route selection sent to the peer.
   optional int32 multi_exit_discriminator = 1;
+
+  // If set to true, the Origin attribute will be included in the route advertisement.
+  // default = True
+  optional bool include_origin = 4;
 
   message Origin {
     enum Enum {
       unspecified = 0;
       igp = 1;
       egp = 2;
+      incomplete = 3;
     }
   }
-  // The origin value.  A null value means the origin feature is not enabled.
+  // The origin attribute of a prefix can take three values: the prefix originates from
+  // an interior routing protocol 'igp',  it originates from 'egp' or the origin is 'incomplete',
+  // if the prefix is learned through other means.
   // default = Origin.Enum.igp
   optional Origin.Enum origin = 2;
+
+  // BGP Local Preference attribute sent to the peer to indicate the degree of preference
+  // for externally learned routes. If set to true, the Local Preference attribute will
+  // be included  in the route advertisement. This should be included only for internal
+  // peers.
+  // default = True
+  optional bool include_local_preference = 5;
+
+  // Value to be set in Local Preference attribute if include_local_preference is set
+  // to true. It is  used for the selection of the path for the traffic leaving the AS.
+  // The route with the  highest local preference value is preferred.
+  // default = 100
+  optional int32 local_preference = 6;
 }
 
 // BGP communities provide additional capability for tagging routes and  for modifying
@@ -1799,12 +1867,12 @@ message BgpCommunity {
 }
 
 // The Extended Communities Attribute is a transitive optional BGP attribute, with the
-// Type Code 16. Community and Extended Communities  attributes to trigger routing decisions,
-// such as acceptance, rejection,  preference, or redistribution. An extended community
-// is an 8-Bytes value. It is also divided into two main parts. The first 2 Bytes of
-// the community encode a type and sub-type fields and the last 6 Bytes carry a unique
-// set of data in a  format defined by the type and sub-type field. Extended communities
-// provide a larger  range for grouping or categorizing communities.
+// Type Code 16. Community and Extended Communities  attributes are utilized to trigger
+// routing decisions, such as acceptance, rejection,  preference, or redistribution.
+// An extended community is an 8-Bytes value. It is divided into two main parts. The
+// first 2 Bytes of the community encode a type and sub-type fields and the last 6 Bytes
+// carry a unique set of data in a  format defined by the type and sub-type field. Extended
+// communities provide a larger  range for grouping or categorizing communities.
 message BgpExtCommunity {
 
   message Type {
@@ -1986,7 +2054,33 @@ message BgpV4EviVxlan {
   // Optional community settings.
   repeated BgpCommunity communities = 11;
 
-  // Optional Extended Community settings.
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an 8-Bytes value. It is
+  // divided into two main parts. The first 2 Bytes of the community encode a type and
+  // sub-type fields and the last 6 Bytes carry a unique set of data in a format defined
+  // by the type and sub-type field. Extended communities provide a larger  range for
+  // grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet,
+  // the valid sub types are route target and origin. The valid value for  administrator_as_2octet
+  // and administrator_as_4octet type is either two byte AS followed by four byte local
+  // administrator id or four byte AS followed by two  byte local administrator id.  When
+  // type is administrator_ipv4_address the valid sub types are route target and origin.
+  // The valid value for  administrator_ipv4_address is a four byte IPv4 address followed
+  // by a two byte local administrator id.  When type is opaque, valid sub types are color
+  // and encapsulation. When sub type is color, first two bytes of the value field contain
+  // flags and last four bytes  contains the value of the color. When sub type is encapsulation
+  // the first four bytes of value field are reserved and last two bytes carries the tunnel
+  // type from  IANA's ETHER TYPES registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol
+  // type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth
+  // the valid sub type is extended_bandwidth. The first two bytes of the value field
+  // contains the AS number and the last four bytes contains the bandwidth in IEEE floating
+  // point format.  When type is evpn the valid subtype is mac_address. In the value field
+  // the low-order bit of the first byte(Flags) is defined as the Sticky/static flag and
+  // may be set to 1, indicating the MAC address is static and cannot move. The second
+  // byte is reserved and the  last four bytes contain the sequence number which is used
+  // to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates
+  // occur for the same MAC address.
   repeated BgpExtCommunity ext_communities = 12;
 
   // Optional AS PATH settings.
@@ -2048,7 +2142,33 @@ message BgpCMacIpRange {
   // Optional community settings.
   repeated BgpCommunity communities = 8;
 
-  // Optional Extended Community settings.
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an 8-Bytes value. It is
+  // divided into two main parts. The first 2 Bytes of the community encode a type and
+  // sub-type fields and the last 6 Bytes carry a unique set of data in a format defined
+  // by the type and sub-type field. Extended communities provide a larger  range for
+  // grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet,
+  // the valid sub types are route target and origin. The valid value for  administrator_as_2octet
+  // and administrator_as_4octet type is either two byte AS followed by four byte local
+  // administrator id or four byte AS followed by two  byte local administrator id.  When
+  // type is administrator_ipv4_address the valid sub types are route target and origin.
+  // The valid value for  administrator_ipv4_address is a four byte IPv4 address followed
+  // by a two byte local administrator id.  When type is opaque, valid sub types are color
+  // and encapsulation. When sub type is color, first two bytes of the value field contain
+  // flags and last four bytes  contains the value of the color. When sub type is encapsulation
+  // the first four bytes of value field are reserved and last two bytes carries the tunnel
+  // type from  IANA's ETHER TYPES registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol
+  // type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth
+  // the valid sub type is extended_bandwidth. The first two bytes of the value field
+  // contains the AS number and the last four bytes contains the bandwidth in IEEE floating
+  // point format.  When type is evpn the valid subtype is mac_address. In the value field
+  // the low-order bit of the first byte(Flags) is defined as the Sticky/static flag and
+  // may be set to 1, indicating the MAC address is static and cannot move. The second
+  // byte is reserved and the  last four bytes contain the sequence number which is used
+  // to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates
+  // occur for the same MAC address.
   repeated BgpExtCommunity ext_communities = 9;
 
   // Optional AS PATH settings.
@@ -2110,7 +2230,6 @@ message BgpRouteTarget {
 }
 
 // Status: under-review
-// Bgp.Advanced is under review
 // Configuration for BGP advanced settings.
 message BgpAdvanced {
 
@@ -2140,7 +2259,6 @@ message BgpAdvanced {
 }
 
 // Status: under-review
-// Bgp.Capability is under review
 // Configuration for BGP capability settings.
 message BgpCapability {
 
@@ -2258,7 +2376,6 @@ message BgpCapability {
 }
 
 // Status: under-review
-// Bgp.LearnedInformationFilter is under review
 // Configuration for controlling storage of BGP learned information recieved from the
 // peer.
 message BgpLearnedInformationFilter {
@@ -2333,6 +2450,36 @@ message BgpV4RouteRange {
   // objects.
   // required = true
   string name = 10;
+
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an 8-Bytes value. It is
+  // divided into two main parts. The first 2 Bytes of the community encode a type and
+  // sub-type fields and the last 6 Bytes carry a unique set of data in a format defined
+  // by the type and sub-type field. Extended communities provide a larger  range for
+  // grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet,
+  // the valid sub types are route target and origin. The valid value for  administrator_as_2octet
+  // and administrator_as_4octet type is either two byte AS followed by four byte local
+  // administrator id or four byte AS followed by two  byte local administrator id.  When
+  // type is administrator_ipv4_address the valid sub types are route target and origin.
+  // The valid value for  administrator_ipv4_address is a four byte IPv4 address followed
+  // by a two byte local administrator id.  When type is opaque, valid sub types are color
+  // and encapsulation. When sub type is color, first two bytes of the value field contain
+  // flags and last four bytes  contains the value of the color. When sub type is encapsulation
+  // the first four bytes of value field are reserved and last two bytes carries the tunnel
+  // type from  IANA's ETHER TYPES registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol
+  // type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth
+  // the valid sub type is extended_bandwidth. The first two bytes of the value field
+  // contains the AS number and the last four bytes contains the bandwidth in IEEE floating
+  // point format.  When type is evpn the valid subtype is mac_address. In the value field
+  // the low-order bit of the first byte(Flags) is defined as the Sticky/static flag and
+  // may be set to 1, indicating the MAC address is static and cannot move. The second
+  // byte is reserved and the  last four bytes contain the sequence number which is used
+  // to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates
+  // occur for the same MAC address.  Note evpn type is defined mainly for use with evpn
+  // route updates and not for IPv4 and IPv6 route updates.
+  repeated BgpExtCommunity ext_communities = 11;
 }
 
 // The BGP Additional Paths feature is a BGP extension that allows the  advertisement
@@ -2404,6 +2551,36 @@ message BgpV6RouteRange {
   // objects.
   // required = true
   string name = 10;
+
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an 8-Bytes value. It is
+  // divided into two main parts. The first 2 Bytes of the community encode a type and
+  // sub-type fields and the last 6 Bytes carry a unique set of data in a format defined
+  // by the type and sub-type field. Extended communities provide a larger  range for
+  // grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet,
+  // the valid sub types are route target and origin. The valid value for  administrator_as_2octet
+  // and administrator_as_4octet type is either two byte AS followed by four byte local
+  // administrator id or four byte AS followed by two  byte local administrator id.  When
+  // type is administrator_ipv4_address the valid sub types are route target and origin.
+  // The valid value for  administrator_ipv4_address is a four byte IPv4 address followed
+  // by a two byte local administrator id.  When type is opaque, valid sub types are color
+  // and encapsulation. When sub type is color, first two bytes of the value field contain
+  // flags and last four bytes  contains the value of the color. When sub type is encapsulation
+  // the first four bytes of value field are reserved and last two bytes carries the tunnel
+  // type from  IANA's ETHER TYPES registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol
+  // type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth
+  // the valid sub type is extended_bandwidth. The first two bytes of the value field
+  // contains the AS number and the last four bytes contains the bandwidth in IEEE floating
+  // point format.  When type is evpn the valid subtype is mac_address. In the value field
+  // the low-order bit of the first byte(Flags) is defined as the Sticky/static flag and
+  // may be set to 1, indicating the MAC address is static and cannot move. The second
+  // byte is reserved and the  last four bytes contain the sequence number which is used
+  // to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates
+  // occur for the same MAC address.  Note evpn type is defined mainly for use with evpn
+  // route updates and not for IPv4 and IPv6 route updates.
+  repeated BgpExtCommunity ext_communities = 11;
 }
 
 // Configuration for BGP Segment Routing Traffic Engineering(SRTE)
@@ -2475,7 +2652,33 @@ message BgpSrteV4Policy {
   // Optional Community settings.
   repeated BgpCommunity communities = 11;
 
-  // Optional Extended Community settings.
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an 8-Bytes value. It is
+  // divided into two main parts. The first 2 Bytes of the community encode a type and
+  // sub-type fields and the last 6 Bytes carry a unique set of data in a format defined
+  // by the type and sub-type field. Extended communities provide a larger  range for
+  // grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet,
+  // the valid sub types are route target and origin. The valid value for  administrator_as_2octet
+  // and administrator_as_4octet type is either two byte AS followed by four byte local
+  // administrator id or four byte AS followed by two  byte local administrator id.  When
+  // type is administrator_ipv4_address the valid sub types are route target and origin.
+  // The valid value for  administrator_ipv4_address is a four byte IPv4 address followed
+  // by a two byte local administrator id.  When type is opaque, valid sub types are color
+  // and encapsulation. When sub type is color, first two bytes of the value field contain
+  // flags and last four bytes  contains the value of the color. When sub type is encapsulation
+  // the first four bytes of value field are reserved and last two bytes carries the tunnel
+  // type from  IANA's ETHER TYPES registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol
+  // type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth
+  // the valid sub type is extended_bandwidth. The first two bytes of the value field
+  // contains the AS number and the last four bytes contains the bandwidth in IEEE floating
+  // point format.  When type is evpn the valid subtype is mac_address. In the value field
+  // the low-order bit of the first byte(Flags) is defined as the Sticky/static flag and
+  // may be set to 1, indicating the MAC address is static and cannot move. The second
+  // byte is reserved and the  last four bytes contain the sequence number which is used
+  // to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates
+  // occur for the same MAC address.
   repeated BgpExtCommunity ext_communities = 12;
 
   // List Tunnel Encapsulation Attributes.
@@ -2648,7 +2851,6 @@ message BgpSrteExplicitNullLabelPolicySubTlv {
 }
 
 // Status: under-review
-// BgpSrte.SegmentList is under review
 // Optional configuration for BGP SR TE Policy segment list. The Segment List sub-TLV
 // encodes a single explicit path towards the Endpoint.
 message BgpSrteSegmentList {
@@ -2674,7 +2876,6 @@ message BgpSrteSegmentList {
 }
 
 // Status: under-review
-// BgpSrte.Segment is under review
 // A Segment sub-TLV describes a single segment in a segment list  i.e., a single element
 // of the explicit path. The Segment sub-TLVs are optional.
 message BgpSrteSegment {
@@ -2833,7 +3034,6 @@ message BgpSrteSegmentBTypeSubTlv {
 }
 
 // Status: under-review
-// BgpSrte.SegmentCTypeSubTlv is under review
 // Type C: IPv4 Node Address with optional SID.
 message BgpSrteSegmentCTypeSubTlv {
 
@@ -3103,7 +3303,33 @@ message BgpSrteV6Policy {
   // Optional community settings.
   repeated BgpCommunity communities = 11;
 
-  // Optional Extended Community settings.
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an 8-Bytes value. It is
+  // divided into two main parts. The first 2 Bytes of the community encode a type and
+  // sub-type fields and the last 6 Bytes carry a unique set of data in a format defined
+  // by the type and sub-type field. Extended communities provide a larger  range for
+  // grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet,
+  // the valid sub types are route target and origin. The valid value for  administrator_as_2octet
+  // and administrator_as_4octet type is either two byte AS followed by four byte local
+  // administrator id or four byte AS followed by two  byte local administrator id.  When
+  // type is administrator_ipv4_address the valid sub types are route target and origin.
+  // The valid value for  administrator_ipv4_address is a four byte IPv4 address followed
+  // by a two byte local administrator id.  When type is opaque, valid sub types are color
+  // and encapsulation. When sub type is color, first two bytes of the value field contain
+  // flags and last four bytes  contains the value of the color. When sub type is encapsulation
+  // the first four bytes of value field are reserved and last two bytes carries the tunnel
+  // type from  IANA's ETHER TYPES registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol
+  // type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth
+  // the valid sub type is extended_bandwidth. The first two bytes of the value field
+  // contains the AS number and the last four bytes contains the bandwidth in IEEE floating
+  // point format.  When type is evpn the valid subtype is mac_address. In the value field
+  // the low-order bit of the first byte(Flags) is defined as the Sticky/static flag and
+  // may be set to 1, indicating the MAC address is static and cannot move. The second
+  // byte is reserved and the  last four bytes contain the sequence number which is used
+  // to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates
+  // occur for the same MAC address.
   repeated BgpExtCommunity extcommunities = 12;
 
   // List of optional tunnel TLV settings.
@@ -3276,7 +3502,6 @@ message BgpV6Interface {
 }
 
 // Status: under-review
-// Bgp.V6SegmentRouting is under review
 // Configuration for BGPv6 segment routing settings.
 message BgpV6SegmentRouting {
 
@@ -3351,7 +3576,33 @@ message BgpV6EthernetSegment {
   // Optional community settings.
   repeated BgpCommunity communities = 7;
 
-  // Optional Extended Community settings.
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an 8-Bytes value. It is
+  // divided into two main parts. The first 2 Bytes of the community encode a type and
+  // sub-type fields and the last 6 Bytes carry a unique set of data in a format defined
+  // by the type and sub-type field. Extended communities provide a larger  range for
+  // grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet,
+  // the valid sub types are route target and origin. The valid value for  administrator_as_2octet
+  // and administrator_as_4octet type is either two byte AS followed by four byte local
+  // administrator id or four byte AS followed by two  byte local administrator id.  When
+  // type is administrator_ipv4_address the valid sub types are route target and origin.
+  // The valid value for  administrator_ipv4_address is a four byte IPv4 address followed
+  // by a two byte local administrator id.  When type is opaque, valid sub types are color
+  // and encapsulation. When sub type is color, first two bytes of the value field contain
+  // flags and last four bytes  contains the value of the color. When sub type is encapsulation
+  // the first four bytes of value field are reserved and last two bytes carries the tunnel
+  // type from  IANA's ETHER TYPES registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol
+  // type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth
+  // the valid sub type is extended_bandwidth. The first two bytes of the value field
+  // contains the AS number and the last four bytes contains the bandwidth in IEEE floating
+  // point format.  When type is evpn the valid subtype is mac_address. In the value field
+  // the low-order bit of the first byte(Flags) is defined as the Sticky/static flag and
+  // may be set to 1, indicating the MAC address is static and cannot move. The second
+  // byte is reserved and the  last four bytes contain the sequence number which is used
+  // to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates
+  // occur for the same MAC address.
   repeated BgpExtCommunity ext_communities = 8;
 
   // Optional AS PATH settings.
@@ -3433,7 +3684,33 @@ message BgpV6EviVxlan {
   // Optional community settings.
   repeated BgpCommunity communities = 11;
 
-  // Optional Extended Community settings.
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an 8-Bytes value. It is
+  // divided into two main parts. The first 2 Bytes of the community encode a type and
+  // sub-type fields and the last 6 Bytes carry a unique set of data in a format defined
+  // by the type and sub-type field. Extended communities provide a larger  range for
+  // grouping or categorizing communities. When type is administrator_as_2octet or administrator_as_4octet,
+  // the valid sub types are route target and origin. The valid value for  administrator_as_2octet
+  // and administrator_as_4octet type is either two byte AS followed by four byte local
+  // administrator id or four byte AS followed by two  byte local administrator id.  When
+  // type is administrator_ipv4_address the valid sub types are route target and origin.
+  // The valid value for  administrator_ipv4_address is a four byte IPv4 address followed
+  // by a two byte local administrator id.  When type is opaque, valid sub types are color
+  // and encapsulation. When sub type is color, first two bytes of the value field contain
+  // flags and last four bytes  contains the value of the color. When sub type is encapsulation
+  // the first four bytes of value field are reserved and last two bytes carries the tunnel
+  // type from  IANA's ETHER TYPES registry e.g IPv4 (protocol type = 0x0800), IPv6 (protocol
+  // type = 0x86dd), and MPLS (protocol type = 0x8847). When type is administrator_as_2octet_link_bandwidth
+  // the valid sub type is extended_bandwidth. The first two bytes of the value field
+  // contains the AS number and the last four bytes contains the bandwidth in IEEE floating
+  // point format.  When type is evpn the valid subtype is mac_address. In the value field
+  // the low-order bit of the first byte(Flags) is defined as the Sticky/static flag and
+  // may be set to 1, indicating the MAC address is static and cannot move. The second
+  // byte is reserved and the  last four bytes contain the sequence number which is used
+  // to ensure that PEs retain the correct MAC/IP Advertisement route when multiple updates
+  // occur for the same MAC address.
   repeated BgpExtCommunity ext_communities = 12;
 
   // Optional AS PATH settings.
@@ -3637,6 +3914,502 @@ message VxlanV6TunnelDestinationIPModeMulticast {
   optional string address = 1;
 }
 
+// Status: under-review
+// Configuration for one or more RSVP interfaces, ingress and egress LSPs. In this model,
+// currently IPv4 RSVP and point-to-point LSPs are supported as per RFC3209 and related
+// specifications.
+message DeviceRsvp {
+
+  // List of IPv4 RSVP connected interfaces. At least one interface should be present
+  // for device connected to the DUT. For unconnected devices, this array must be empty.
+  repeated RsvpIpv4Interface ipv4_interfaces = 1;
+
+  // List of IPv4 Loopback or IPv4 connected interfaces acting as RSVP ingress and egress
+  // endpoints.
+  repeated RsvpLspIpv4Interface lsp_ipv4_interfaces = 2;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  optional string name = 3;
+}
+
+// Status: under-review
+// Configuration for RSVP Interface.
+message RsvpIpv4Interface {
+
+  // The globally unique name of the IPv4 interface connected to the DUT. This name must
+  // match the name field of the ipv4_addresses on top which this RSVP interface is configured.
+  // 
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv4/properties/name
+  // 
+  // required = true
+  string ipv4_name = 1;
+
+  // IPv4 address of the RSVP neighbor on this interface.
+  // required = true
+  string neighbor_ip = 2;
+
+  // The user-defined label space start value. The LSPs for which this router acts as
+  // a egress are assigned labels from this label pool.Thelabel_space_start and label_space_end
+  // together defines this label-pool.
+  // default = 1000
+  optional int32 label_space_start = 3;
+
+  // The user-defined label space end value.The last label value that can be assigned
+  // to the LSPs for which this router acts as egress.
+  // default = 100000
+  optional int32 label_space_end = 4;
+
+  // Enables sending of Refresh Reduction as described in RFC2961.
+  // default = False
+  optional bool enable_refresh_reduction = 5;
+
+  // The number of seconds between transmissions of successive Summary Refreshes. There
+  // is no specification specified maximum value. For clarity, setting the maximum to
+  // 1 hour.
+  // default = 30
+  optional int32 summary_refresh_interval = 6;
+
+  // Enables aggregration of different RSVP messages within a single PDU.
+  // default = False
+  optional bool send_bundle = 7;
+
+  // The number of milliseconds to wait after which RSVP will bundle different RSVP messages
+  // and transmit Bundle messages.
+  // default = 50
+  optional int32 bundle_threshold = 8;
+
+  // Enables sending of Hello Messages as per RFC3209.
+  // default = False
+  optional bool enable_hello = 9;
+
+  // If enable_hello is set to 'true', this specifies the minimum hello interval in seconds
+  // at which successive Hello Messages  are sent as per RFC3209. There is no specification
+  // specified maximum value. For clarity, setting the maximum to 1 hour.
+  // default = 9
+  optional int32 hello_interval = 10;
+
+  // The number of missed hellos after which the node should consider RSVP Neighbor to
+  // have timed out. There is no specification specified maximum value. Setting the maximum
+  // allowed value to 10.
+  // default = 3
+  optional int32 timeout_multiplier = 11;
+}
+
+// Status: under-review
+// Configuration for RSVP LSP IPv4 Interface.
+message RsvpLspIpv4Interface {
+
+  // The globally unique name of the IPv4 or Loopback IPv4 interface acting as the RSVP
+  // ingress and egress endpoint for  the LSPs configured on this interface. This must
+  // match the name field of either ipv4_addresses or ipv4_loopbacks  on which this LSP
+  // interface is configured.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv4/properties/name
+  // - /components/schemas/Device.Ipv4Loopback/properties/name
+  // 
+  // required = true
+  string ipv4_name = 1;
+
+  // Contains properties of Tail(Egress) LSPs.
+  optional RsvpLspIpv4InterfaceP2PEgressIpv4Lsp p2p_egress_ipv4_lsps = 2;
+
+  // Array of point-to-point RSVP-TE P2P LSPs originating from this interface.
+  repeated RsvpLspIpv4InterfaceP2PIngressIpv4Lsp p2p_ingress_ipv4_lsps = 3;
+}
+
+// Configuration for RSVP Egress Point-to-Point(P2P) IPv4 LSPs.
+message RsvpLspIpv4InterfaceP2PEgressIpv4Lsp {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  string name = 1;
+
+  // The time in seconds between successive transmissions of RESV Refreshes. The actual
+  // refresh interval is jittered by upto 50%. There is no specification specified maximum
+  // value. For clarity, setting the maximum to 1 hour.
+  // default = 30
+  optional int32 refresh_interval = 2;
+
+  // The number of missed PATH refreshes after which a recieving node should consider
+  // the LSP state to have timed out. There is no specification specified maximum value.
+  // Setting the maximum allowed value to 10.
+  // default = 3
+  optional int32 timeout_multiplier = 3;
+
+  message ReservationStyle {
+    enum Enum {
+      unspecified = 0;
+      shared_explicit = 1;
+      fixed_filter = 2;
+      auto = 3;
+    }
+  }
+  // It determines how RSVP-TE enabled network devices set up reservations along the path
+  // between an end-to-end  QOS-enabled connection. If 'auto' is enabled, the style is
+  // chosen based on whether the incoming Path has 'SE Desired' flag set. Otherwise, the
+  // style is chosen based on the value selected for this attribute.
+  // default = ReservationStyle.Enum.shared_explicit
+  optional ReservationStyle.Enum reservation_style = 4;
+
+  // If enabled, a specific fixed label will be advertised by the egress or tail end for
+  // all Path messages received by this egress.  This can be leveraged to advertise Explicit
+  // or Implicit null labels.
+  // default = False
+  optional bool enable_fixed_label = 5;
+
+  // The fixed label value as advertised by egress in RESV message. Applicable only if
+  // 'fixed_label' is set to 'true'. Special values are '0 - IPv4 Explicit NULL', '2 -
+  // IPv6 Explicit NULL' and '3 - Implicit NULL'.   Outside of this, labels are expected
+  // to have a minimum value of 16.
+  // default = 0
+  optional int32 fixed_label_value = 6;
+}
+
+// Configuration for an RSVP Ingress point-to-point LSP.
+message RsvpLspIpv4InterfaceP2PIngressIpv4Lsp {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  string name = 1;
+
+  // IPv4 address of the remote endpoint of the LSP.
+  // required = true
+  string remote_address = 2;
+
+  // The Tunnel ID of the RSVP LSP. Carried in the SESSION object in Path Messages.
+  // default = 1
+  optional int32 tunnel_id = 3;
+
+  // The LSP ID of the RSVP LSP. Carried in the SENDER_TEMPLATE object in Path Messages.
+  // default = 1
+  optional int32 lsp_id = 4;
+
+  // The time in seconds between successive transmissions of PATH Refreshes.  The actual
+  // refresh interval is jittered by upto 50%. There is no specification specified maximum
+  // value. For clarity, setting the maximum to 1 hour.
+  // default = 30
+  optional int32 refresh_interval = 5;
+
+  // The number of missed RESV refreshes after which a recieving node should consider
+  // the LSP state to have timed out. There is no specification specified maximum value.
+  // Setting the maximum allowed value to 10.
+  // default = 3
+  optional int32 timeout_multiplier = 6;
+
+  // The LSP id that will be used when creating a Make-Before-Break LSP when the active
+  // LSP is using lsp_id. If the active LSP on which Make-Before-Break is being done is
+  // using the backup_lsp_id, the new LSP created will toggle to  use the lsp_id instead.
+  // default = 2
+  optional int32 backup_lsp_id = 7;
+
+  // The amount of delay in milliseconds that an implementation should wait for before
+  // switching traffic to the new LSP created after  a Make-Before-Break is done on an
+  // LSP. The default value is 0 which means to switch immediately. An implementation
+  // should support a minimum delay value of at least 50ms . There is no specification
+  // specified maximum value. Setting maximum allowed value to 1 minute.  If a delay value
+  // is supplied which is lesser than the minimum delay value supported, a warning should
+  // be provided indicating that the minimum value of LSP switchover delay is automatically
+  // increased to the supported minimum value. This warning should be included in the
+  // list of warnings in the 'Response.Warning' attribute sent in the SetConfig 'Success'
+  // Response.
+  // default = 0
+  optional int32 lsp_switchover_delay = 8;
+
+  // This contains the values of the fields to be included in the SESSION_ATTRIBUTE object
+  // in the Path Message sent for the LSP.
+  optional RsvpSessionAttribute session_attribute = 9;
+
+  // This contains the values of the fields to be included in the TSPEC object in the
+  // Path Message sent for the LSP.
+  optional RsvpTspec tspec = 10;
+
+  // This contains the values of the fields to be included in the FAST_REROUTE object
+  // in the Path Message sent for the LSP.
+  // This is an optional object . If this attribute is not included , the FAST_REROUTE
+  // object will not be included.
+  optional RsvpFastReroute fast_reroute = 11;
+
+  // This contains the values of the fields to be included in the ERO object in the Path
+  // Message sent for the LSP.
+  // This is an optional object . If this attribute is not included , the ERO object will
+  // not be included.
+  optional RsvpEro ero = 12;
+}
+
+// Configuration for RSVP-TE SESSION_ATTRIBUTE object included in Path Messages as defined
+// in RFC3209. The bandwidth_protection_desired and node_protection_desired flags are
+// defined in RFC4090 (Fast Reroute).
+message RsvpSessionAttribute {
+
+  // If this is enabled, an auto-generated Session Name is included in the SESSION_ATTRIBUTE
+  // object in the Path Message for this LSP.
+  // default = True
+  optional bool auto_generate_session_name = 1;
+
+  // If auto_generate_session_name is set to 'false', then the value of this field is
+  // used to fill the Session Name field of the SESSION_ATTRIBUTE object in the Path Message
+  // for this LSP. It is suggested to include the Local IP, Remote IP, Tunnel ID and LSP
+  // ID in the auto-generated Session Name to ensure uniqueness of the name in the test.
+  // The maximum length of session name is 254 bytes.
+  optional string session_name = 2;
+
+  // Specifies the value of the Setup Priority field. This controls whether the LSP should
+  // pre-empt existing  LSP setup with certain Holding Priority if resource limitation
+  // is encountered when setting up the LSP. (e.g. bandwidth availability). The value
+  // 0 is the highest priority while 7 is the lowest.
+  // default = 7
+  optional int32 setup_priority = 3;
+
+  // Specifies the value of the Holding Priority field. This controls whether a new LSP
+  // being created with certain Setup Priority should pre-empt this LSP if resource limitation
+  // is encountered when setting up the LSP. (e.g. bandwidth availability). The value
+  // 0 is the highest priority while 7 is the lowest.
+  // default = 7
+  optional int32 holding_priority = 4;
+
+  // This flag permits transit routers to use a local repair mechanism which may result
+  // in violation of the explicit route object.  When a fault is detected on an adjacent
+  // downstream link or node, a transit router can reroute traffic for fast service restoration.
+  // default = False
+  optional bool local_protection_desired = 5;
+
+  // This flag indicates that label information should be included when doing a route
+  // record.
+  // default = False
+  optional bool label_recording_desired = 6;
+
+  // This flag indicates that the tunnel ingress node may choose to reroute this tunnel
+  // without tearing it down. A tunnel egress node SHOULD use the Shared Explicit(SE)
+  // Style when responding with a Resv message.
+  // default = False
+  optional bool se_style_desired = 7;
+
+  // This flag in the SESSION_ATTRIBUTE object in the Path Message indicates to the PLRs
+  // along the protected LSP path that a  backup path with a bandwidth guarantee is desired.
+  // This bandwidth has to be guaranteed for the protected LSP, if no FAST_REROUTE object
+  // is included in the PATH message. If a FAST_REROUTE object is present in the Path
+  // message, then the bandwidth specified therein is to be guaranteed.
+  // default = False
+  optional bool bandwidth_protection_desired = 8;
+
+  // This flag in the SESSION_ATTRIBUTE object in the Path Message indicates to the PLRs
+  // along a protected LSP path that it is desired to have a backup path that bypasses
+  // at least the next node of the protected LSP.
+  // default = False
+  optional bool node_protection_desired = 9;
+
+  // This is an optional object. If included the extended SESSION_ATTRIBUTE object is
+  // sent in the Path message containing
+  // the additional fields included in this object. This contains a set of three bitmaps
+  // using which further constraints can be
+  // set on the path calculated for the LSP based on the Admin Group settings in the IGP
+  // (e.g ISIS or OSPF interface).
+  optional RsvpResourceAffinities resource_affinities = 10;
+}
+
+// This is an optional object. If included, the extended SESSION_ATTRIBUTE object is
+// sent in the Path message containing
+// the additional fields included in this object. This contains a set of three bitmaps
+// using which further constraints can be
+// set on the path calculated for the LSP based on the Admin Group settings in the IGP
+// (e.g ISIS or OSPF interface).
+message RsvpResourceAffinities {
+
+  // A 32-bit vector representing a set of attribute filters associated with a tunnel
+  // any of which renders a link unacceptable.  A null set (all bits set to zero) doesn't
+  // render the link unacceptable.  The most significant byte in the hex-string is the
+  // farthest  to the left in the byte sequence.  Leading zero bytes in the configured
+  // value may be omitted for brevity.
+  // default = 0
+  optional string exclude_any = 1;
+
+  // A 32-bit vector representing a set of attribute filters associated with a tunnel
+  // any of which renders a link acceptable. A null set (all bits set to zero) automatically
+  // passes. The most significant byte in the hex-string is the farthest  to the left
+  // in the byte sequence.  Leading zero bytes in the configured value may be omitted
+  // for brevity.
+  // default = 0
+  optional string include_any = 2;
+
+  // A 32-bit vector representing a set of attribute filters associated with a tunnel
+  // all of which must be present for a link to be acceptable. A null set (all bits set
+  // to zero) automatically passes. The most significant byte in the hex-string is the
+  // farthest  to the left in the byte sequence.  Leading zero bytes in the configured
+  // value may be omitted for brevity.
+  // default = 0
+  optional string include_all = 3;
+}
+
+// Configuration for RSVP-TE TSPEC object included in Path Messages. The usage of these
+// parameters is defined in RFC2215.
+message RsvpTspec {
+
+  // The rate of the traffic to be carried in this LSP in bytes per second. This is part
+  // of the Token Bucket specification defined for a traffic flow defined in RFC2215.
+  // default = 0
+  optional float token_bucket_rate = 1;
+
+  // The depth of the token bucket in bytes used to specify the Token Bucket characteristics
+  // of the traffic to be carried in the LSP. This is part of the Token Bucket specification
+  // defined for a traffic flow defined in RFC2215.
+  // default = 0
+  optional float token_bucket_size = 2;
+
+  // The peak data rate of the traffic in bytes per second used to specify the Token Bucket
+  // characteristics of the traffic  to be carried in the LSP. This is part of the Token
+  // Bucket specification defined for a traffic flow defined in RFC2215.
+  // default = 0
+  optional float peak_data_rate = 3;
+
+  // Specifies the minium length of packet frames that will be policed.
+  // default = 0
+  optional int32 minimum_policed_unit = 4;
+
+  // Specifies the maximum length of packet frames that will be policed.
+  // default = 0
+  optional int32 maximum_policed_unit = 5;
+}
+
+// Configuration for the optional RSVP-TE FAST_REROUTE object included in Path Messages
+// as defined in RFC4090.
+message RsvpFastReroute {
+
+  // Specifies the value of the Setup Priority field. This controls whether the backup
+  // LSP should pre-empt existing LSP that is setup with certain Holding Priority. While
+  // setting up a backup LSP, preemption of existing LSP can happen  if resource limitation
+  // is encountered (e.g bandwidth availability).
+  // default = 7
+  optional int32 setup_priority = 1;
+
+  // Specifies the value of the Holding Priority field. This controls whether a new LSP
+  // being created with certain Setup Priority should pre-empt this LSP set up with this
+  // Holding Priority. While setting up a new LSP, preemption of existing LSP can happen
+  // if resource limitation is encountered (e.g bandwidth availability).
+  // default = 7
+  optional int32 holding_priority = 2;
+
+  // Specifies the value of the Hop Limit field. This controls the maximum number of hops
+  // the LSP should traverse to reach the  LSP end-point.
+  // default = 3
+  optional int32 hop_limit = 3;
+
+  // Specifies the value of the Bandwidth field as a 32-bit IEEE floating point integer,
+  // in bytes per second, as desired for the LSP.
+  // default = 0
+  optional float bandwidth = 4;
+
+  // A 32-bit vector representing a set of attribute filters associated with a tunnel
+  // any of which renders a link unacceptable. A null set (all bits set to zero) doesn't
+  // render the link unacceptable. The most significant byte in the hex-string is the
+  // farthest  to the left in the byte sequence.  Leading zero bytes in the configured
+  // value may be omitted for brevity.
+  // default = 0
+  optional string exclude_any = 5;
+
+  // A 32-bit vector representing a set of attribute filters associated with a tunnel
+  // any of which renders a link acceptable. A null set (all bits set to zero) automatically
+  // passes. The most significant byte in the hex-string is the farthest  to the left
+  // in the byte sequence.  Leading zero bytes in the configured value may be omitted
+  // for brevity.
+  // default = 0
+  optional string include_any = 6;
+
+  // A 32-bit vector representing a set of attribute filters associated with a tunnel
+  // all of which must be present for a link to be acceptable. A null set (all bits set
+  // to zero) automatically passes. The most significant byte in the hex-string is the
+  // farthest  to the left in the byte sequence.  Leading zero bytes in the configured
+  // value may be omitted for brevity.
+  // default = 0
+  optional string include_all = 7;
+
+  // Requests protection via the one-to-one backup method.
+  // default = False
+  optional bool one_to_one_backup_desired = 8;
+
+  // Requests protection via the facility backup method.
+  // default = False
+  optional bool facility_backup_desired = 9;
+}
+
+// Configuration for the optional RSVP-TE explicit route object(ERO) object included
+// in Path Messages.
+message RsvpEro {
+
+  message PrependNeighborIp {
+    enum Enum {
+      unspecified = 0;
+      dont_prepend = 1;
+      prepend_loose = 2;
+      prepend_strict = 3;
+    }
+  }
+  // Determines whether the IP address of the RSVP neighbor should be added as an ERO
+  // sub-object. If it is to be included, it can be included as a Loose hop or as a Strict
+  // hop.
+  // default = PrependNeighborIp.Enum.prepend_loose
+  optional PrependNeighborIp.Enum prepend_neighbor_ip = 1;
+
+  // If prepend_egress_ip is set to one of 'prepend_loose' or 'prepend_strict', then set
+  // this value as the prefix length of the ERO sub-object containing egress IP address.
+  // 
+  // default = 32
+  optional int32 prefix_length = 2;
+
+  // Array of sub-objects to be included in the ERO. These sub-objects contain the intermediate
+  // hops to be traversed by the LSP while being forwarded towards the egress endpoint.
+  // These sub-objects are included after the optional sub-object containing IP address
+  // of egress endpoint of the LSP (when present).
+  repeated RsvpEroSubobject subobjects = 3;
+}
+
+// Configuration for the ERO sub-object.
+message RsvpEroSubobject {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      as_number = 2;
+    }
+  }
+  // The type of the ERO sub-object, one of IPv4 Address or AS Number.
+  // default = Type.Enum.ipv4
+  optional Type.Enum type = 1;
+
+  // IPv4 address that this LSP should traverse through. This field is applicable only
+  // if the value of 'type' is set to 'ipv4'.
+  // default = 0.0.0.0
+  optional string ipv4_address = 2;
+
+  // Prefix length for the IPv4 address in the ERO sub-object. This field is applicable
+  // only if the value of 'type' is set to 'ipv4'.
+  // default = 32
+  optional int32 prefix_length = 3;
+
+  // Autonomous System number to be set in the ERO sub-object that this LSP should traverse
+  // through. This field is applicable only if the value of 'type' is set to 'as_number'.
+  // Note that as per RFC3209, 4-byte AS encoding is not supported.
+  // default = 0
+  optional int32 as_number = 4;
+
+  message HopType {
+    enum Enum {
+      unspecified = 0;
+      strict = 1;
+      loose = 2;
+    }
+  }
+  // The hop type of the ERO sub-object, one of Strict or Loose.
+  // default = HopType.Enum.loose
+  optional HopType.Enum hop_type = 5;
+}
+
 // A high level data plane traffic flow.
 message Flow {
 
@@ -3760,6 +4533,9 @@ message FlowRouter {
   // - /components/schemas/Bgp.V4RouteRange/properties/name
   // - /components/schemas/Bgp.V6RouteRange/properties/name
   // - /components/schemas/Bgp.CMacIpRange/properties/name
+  // - /components/schemas/Rsvp.LspIpv4Interface.P2PIngressIpv4Lsp/properties/name
+  // - /components/schemas/Isis.V4RouteRange/properties/name
+  // - /components/schemas/Isis.V6RouteRange/properties/name
   // 
   repeated string tx_names = 2;
 
@@ -3772,6 +4548,9 @@ message FlowRouter {
   // - /components/schemas/Bgp.V4RouteRange/properties/name
   // - /components/schemas/Bgp.V6RouteRange/properties/name
   // - /components/schemas/Bgp.CMacIpRange/properties/name
+  // - /components/schemas/Rsvp.LspIpv4Interface.P2PEgressIpv4Lsp/properties/name
+  // - /components/schemas/Isis.V4RouteRange/properties/name
+  // - /components/schemas/Isis.V6RouteRange/properties/name
   // 
   repeated string rx_names = 3;
 }
@@ -5037,7 +5816,188 @@ message EventSubscription {
   // the events property.
   // If this property is empty or null then no event notifications will
   // be forwarded.
-  optional string callbackurl = 2;
+  optional string callback_url = 2;
+}
+
+// Configuration of LLDP protocol IEEE Ref: https://www.ieee802.org/1/files/public/docs2002/lldp-protocol-00.pdf
+message Lldp {
+
+  // The unique name of the object on which LLDP is running.
+  // required = true
+  LldpConnection connection = 1;
+
+  // The Chassis ID is a mandatory TLV which identifies the chassis component of the endpoint
+  // identifier associated  with the transmitting LLDP agent. If mac address is specified
+  // it should be in colon seperated mac address format.
+  optional LldpChassisId chassis_id = 2;
+
+  // The Port ID is a mandatory TLV which identifies the port component of the endpoint
+  // identifier associated with  the transmitting LLDP agent. If the specified port is
+  // an IEEE 802.3 Repeater port, then this TLV is optional.
+  optional LldpPortId port_id = 3;
+
+  // The system name field shall contain an alpha-numeric string that indicates the system's
+  // administratively assigned  name. The system name should be the system's fully qualified
+  // domain name. If implementations support IETF RFC  3418, the sysName object should
+  // be used for this field.
+  optional LldpSystemName system_name = 4;
+
+  // Specifies the amount of time in seconds a receiving device should maintain LLDP information
+  // sent  by the device before discarding it.
+  // default = 120
+  optional int32 hold_time = 5;
+
+  // Set the transmission frequency of LLDP updates in seconds.
+  // default = 30
+  optional int32 advertisement_interval = 6;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  string name = 7;
+}
+
+// LLDP connection to a test port. In future if more connection options arise  LLDP
+// connection object will be enhanced.
+message LldpConnection {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      port_name = 1;
+    }
+  }
+  // The name of the test port or other connection objects on which LLDP is configured.
+  optional Choice.Enum choice = 1;
+
+  // Name of the test port on which LLDP is configured on.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  optional string port_name = 2;
+}
+
+// The Chassis ID is a mandatory TLV which identifies the chassis component of the endpoint
+// identifier associated  with the transmitting LLDP agent. This field identifies the
+// format and source of the chassis identifier string.  It is based on the enumerator
+// defined by the LldpChassisIdSubtype object from IEEE 802.1AB MIB.
+message LldpChassisId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      mac_address_subtype = 1;
+      interface_name_subtype = 2;
+      local_subtype = 3;
+    }
+  }
+  // Chassis ID subtype to be used in Chassis ID TLV.
+  // default = Choice.Enum.mac_address_subtype
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional LldpChassisMacSubType mac_address_subtype = 2;
+
+  // Name of an interface of the chassis that uniquely identifies the chassis.
+  optional string interface_name_subtype = 3;
+
+  // Locally assigned name of the chassis.
+  optional string local_subtype = 4;
+}
+
+// The Port ID is a mandatory TLV which identifies the port component of the endpoint
+// identifier associated with  the transmitting LLDP agent.This field identifies the
+// format and source of the port identifier string. It is  based on the enumerator defined
+// by the PtopoPortIdType object from RFC2922.
+message LldpPortId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      mac_address_subtype = 1;
+      interface_name_subtype = 2;
+      local_subtype = 3;
+    }
+  }
+  // Port ID subtype to be used in Port ID TLV.
+  // default = Choice.Enum.interface_name_subtype
+  optional Choice.Enum choice = 1;
+
+  // The MAC Address configured in the Port ID TLV.
+  optional string mac_address_subtype = 2;
+
+  // Description missing in models
+  optional LldpPortInterfaceNameSubType interface_name_subtype = 3;
+
+  // The Locally assigned name configured in the Port ID TLV.
+  optional string local_subtype = 4;
+}
+
+// The MAC address configured in the Chassis ID TLV.
+message LldpChassisMacSubType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // In auto mode the system generated value is set for this property, while if the choice
+  // is selected as value,  a user configured value will be used for this property.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation must provide a system generated value for this property.
+  optional string auto = 2;
+
+  // User must specify a value if mode is not auto.
+  optional string value = 3;
+}
+
+// The interface name configured in the Port ID TLV.
+message LldpPortInterfaceNameSubType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // In auto mode the system generated value is set for this property, while if the choice
+  // is selected as value,  a user configured value will be used for this property.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation must provide a system generated value for this property.
+  optional string auto = 2;
+
+  // User must specify a value if mode is not auto.
+  optional string value = 3;
+}
+
+// The system Name configured in the System Name TLV.
+message LldpSystemName {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // In auto mode the system generated value is set for this property, while if the choice
+  // is selected as value,  a user configured value will be used for this property.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation must provide a system generated value for this property.
+  optional string auto = 2;
+
+  // User must specify a value if mode is not auto.
+  optional string value = 3;
 }
 
 // A list of errors that may have occurred while executing the request.
@@ -5192,7 +6152,9 @@ message PingRequest {
   repeated Ping endpoints = 1;
 }
 
-// Sets all configured protocols to `start` or `stop` state.
+// Sets all configured protocols to `start` or `stop` state. Setting protocol state
+// to `start`  shall be a no-op if preceding `set_config` API call was made with  `config.options.protocol_options.auto_start_all`
+// set to `true` or if all the configured protocols are already started.
 message ProtocolState {
 
   message State {
@@ -5323,14 +6285,14 @@ message LacpMemberState {
       down = 2;
     }
   }
-  // The LACP Member admin state. 'up' will start transmission of LACPDUs on selected
-  // member ports. 'down' will send a LACPDU with 'sync' flag unset and then stop transmission
-  // of LACPDUs on selected member ports.
+  // The LACP Member admin state. 'up' will send LACPDUs with 'sync' flag set on selected
+  // member ports. 'down' will send LACPDUs with 'sync' flag unset on selected member
+  // ports.
   // required = true
   State.Enum state = 2;
 }
 
-// Request to traffic generator for metrics of choice
+// Request to traffic generator for metrics of choice.
 message MetricsRequest {
 
   message Choice {
@@ -5342,7 +6304,9 @@ message MetricsRequest {
       bgpv6 = 4;
       isis = 5;
       lag = 6;
-      lacp_lag_member = 7;
+      lacp = 7;
+      lldp = 8;
+      rsvp = 9;
     }
   }
   // Description missing in models
@@ -5368,10 +6332,16 @@ message MetricsRequest {
   optional LagMetricsRequest lag = 7;
 
   // Description missing in models
-  optional LacpLagMemberMetricsRequest lacp_lag_member = 8;
+  optional LacpMetricsRequest lacp = 8;
+
+  // Description missing in models
+  optional LldpMetricsRequest lldp = 9;
+
+  // Description missing in models
+  optional RsvpMetricsRequest rsvp = 10;
 }
 
-// Response containing chosen traffic generator metrics
+// Response containing chosen traffic generator metrics.
 message MetricsResponse {
 
   message Choice {
@@ -5383,7 +6353,9 @@ message MetricsResponse {
       bgpv6_metrics = 4;
       isis_metrics = 5;
       lag_metrics = 6;
-      lacp_lag_member_metrics = 7;
+      lacp_metrics = 7;
+      lldp_metrics = 8;
+      rsvp_metrics = 9;
     }
   }
   // Description missing in models
@@ -5409,7 +6381,13 @@ message MetricsResponse {
   repeated LagMetric lag_metrics = 7;
 
   // Description missing in models
-  repeated LacpLagMemberMetric lacp_lag_member_metrics = 8;
+  repeated LacpMetric lacp_metrics = 8;
+
+  // Description missing in models
+  repeated LldpMetric lldp_metrics = 9;
+
+  // Description missing in models
+  repeated RsvpMetric rsvp_metrics = 10;
 }
 
 // The port result request to the traffic generator
@@ -5503,6 +6481,16 @@ message PortMetric {
 
   // The current rate of bytes received
   optional float bytes_rx_rate = 12;
+
+  message Transmit {
+    enum Enum {
+      unspecified = 0;
+      started = 1;
+      stopped = 2;
+    }
+  }
+  // The transmit state of the flow.
+  optional Transmit.Enum transmit = 13;
 }
 
 // The container for a flow metric request.
@@ -5518,7 +6506,7 @@ message FlowMetricsRequest {
 
   // A list of metric groups used to disaggregate flows. A metric group that does not
   // exist for a flow group MUST return an error.
-  optional FlowMetricGroupRequest metric_groups = 2;
+  optional FlowMetricGroupFilter metric_groups = 2;
 
   message MetricNames {
     enum Enum {
@@ -5537,37 +6525,16 @@ message FlowMetricsRequest {
   repeated MetricNames.Enum metric_names = 3;
 }
 
-// Description missing in models
-message FlowMetricGroupRequest {
+// A container for filtering ingress and/or egress metric groups
+message FlowMetricGroupFilter {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      ingress = 1;
-      egress = 2;
-    }
-  }
-  // The type of disaggregation to be applied to the flow metrics.
-  // default = Choice.Enum.ingress
-  optional Choice.Enum choice = 1;
+  // A metric group name that MUST exist in a flow packet or
+  // flow egress_packet configuration
+  optional string name = 1;
 
-  // Disaggregate the flow metrics by ingress packet header field names.
-  // If the items is empty then no disaggregation will be done.
-  // 
-  // x-constraint:
-  // - /components/schemas/Flow/properties/packet/../metric_group
-  // 
-  // default = []
-  repeated string ingress = 2;
-
-  // Disaggregate the flow metrics by egress packet header field names
-  // If the items is empty then no disaggregation will be done.
-  // 
-  // x-constraint:
-  // - /components/schemas/Flow/properties/egress/../metric_group
-  // 
-  // default = []
-  repeated string egress = 3;
+  // A list of filters that can be applied to the metric group name.
+  // By default all values will be included in the flow metric results.
+  repeated string filters = 2;
 }
 
 // A container for flow metrics.
@@ -5693,6 +6660,7 @@ message Bgpv4MetricsRequest {
       keepalives_received = 12;
       notifications_sent = 13;
       notifications_received = 14;
+      fsm_state = 15;
     }
   }
   // The list of column names that the returned result set will contain. If the list is
@@ -5756,6 +6724,30 @@ message Bgpv4Metric {
 
   // Number of Notification messages received.
   optional int32 notifications_received = 15;
+
+  message FsmState {
+    enum Enum {
+      unspecified = 0;
+      idle = 1;
+      connect = 2;
+      active = 3;
+      opensent = 4;
+      openconfirm = 5;
+      established = 6;
+    }
+  }
+  // BGP peer FSM (Finite State Machine) state as Idle, Connect, Active, OpenSent, OpenConfirm
+  // and Established. In all the states except Established the BGP session is down. Idle
+  // refers to the Idle state of the FSM. Connect refers to the state where the session
+  // is waiting for the underlying transport session to be established. Active refers
+  // to the state where the session is awaiting for a connection from the remote peer.
+  // OpenSent refers to the state where the session is in the process of being established.
+  // The local system has sent an OPEN message. OpenConfirm refers to the state where
+  // the session is in the process of being established. The local system has sent and
+  // received an OPEN message and is awaiting a NOTIFICATION or KEEPALIVE message from
+  // remote peer. Established refers to the state where the BGP session with the peer
+  // is established.
+  optional FsmState.Enum fsm_state = 16;
 }
 
 // The request to retrieve BGPv6 per peer metrics/statistics.
@@ -5786,6 +6778,7 @@ message Bgpv6MetricsRequest {
       keepalives_received = 12;
       notifications_sent = 13;
       notifications_received = 14;
+      fsm_state = 15;
     }
   }
   // The list of column names that the returned result set will contain. If the list is
@@ -5849,6 +6842,30 @@ message Bgpv6Metric {
 
   // Number of Notification messages received.
   optional int32 notifications_received = 15;
+
+  message FsmState {
+    enum Enum {
+      unspecified = 0;
+      idle = 1;
+      connect = 2;
+      active = 3;
+      opensent = 4;
+      openconfirm = 5;
+      established = 6;
+    }
+  }
+  // BGP peer FSM (Finite State Machine) state as Idle, Connect, Active, OpenSent, OpenConfirm
+  // and Established. In all the states except Established the BGP session is down. Idle
+  // refers to the Idle state of the FSM. Connect refers to the state where the session
+  // is waiting for the underlying transport session to be established. Active refers
+  // to the state where the session is awaiting for a connection from the remote peer.
+  // OpenSent refers to the state where the session is in the process of being established.
+  // The local system has sent an OPEN message. OpenConfirm refers to the state where
+  // the session is in the process of being established. The local system has sent and
+  // received an OPEN message and is awaiting a NOTIFICATION or KEEPALIVE message from
+  // remote peer. Established refers to the state where the BGP session with the peer
+  // is established.
+  optional FsmState.Enum fsm_state = 16;
 }
 
 // The request to retrieve ISIS per Router metrics/statistics.
@@ -5998,7 +7015,7 @@ message LagMetricsRequest {
   message ColumnNames {
     enum Enum {
       unspecified = 0;
-      oper_states = 1;
+      oper_status = 1;
       member_ports_up = 2;
       frames_tx = 3;
       frames_rx = 4;
@@ -6065,7 +7082,7 @@ message LagMetric {
 }
 
 // The request to retrieve LACP per LAG member metrics/statistics.
-message LacpLagMemberMetricsRequest {
+message LacpMetricsRequest {
 
   // The names of LAG (ports group) for which LACP metrics to be returned. An empty list
   // will return metrics for all LAGs.
@@ -6086,8 +7103,8 @@ message LacpLagMemberMetricsRequest {
   message ColumnNames {
     enum Enum {
       unspecified = 0;
-      lacp_in_pkts = 1;
-      lacp_out_pkts = 2;
+      lacp_packets_rx = 1;
+      lacp_packets_tx = 2;
       lacp_rx_errors = 3;
       activity = 4;
       timeout = 5;
@@ -6110,7 +7127,7 @@ message LacpLagMemberMetricsRequest {
 }
 
 // LACP metrics (statistics) per LAG member.
-message LacpLagMemberMetric {
+message LacpMetric {
 
   // The name of a LAG (ports group) configured with LACP.
   optional string lag_name = 1;
@@ -6119,10 +7136,10 @@ message LacpLagMemberMetric {
   optional string lag_member_port_name = 2;
 
   // Number of LACPDUs received.
-  optional int64 lacp_in_pkts = 3;
+  optional int64 lacp_packets_rx = 3;
 
   // Number of LACPDUs transmitted.
-  optional int64 lacp_out_pkts = 4;
+  optional int64 lacp_packets_tx = 4;
 
   // Number of LACPDUs receive packet errors.
   optional int64 lacp_rx_errors = 5;
@@ -6188,6 +7205,224 @@ message LacpLagMemberMetric {
   optional int32 partner_port_num = 17;
 }
 
+// The request to retrieve LLDP per instance metrics/statistics.
+message LldpMetricsRequest {
+
+  // The names of LLDP instances to return results for. An empty list will return results
+  // for all LLDP instances.
+  // 
+  // x-constraint:
+  // - /components/schemas/Lldp/properties/name
+  // 
+  repeated string lldp_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      frames_rx = 1;
+      frames_tx = 2;
+      frames_error_rx = 3;
+      frames_discard = 4;
+      tlvs_discard = 5;
+      tlvs_unknown = 6;
+    }
+  }
+  // The requested list of column names for the result set. If the list is empty then
+  // metrics for all columns will be returned. The name of LLDP instance can not be excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// LLDP per instance statistics information.
+message LldpMetric {
+
+  // The name of the configured LLDP instance.
+  optional string name = 1;
+
+  // Number of LLDP frames received.
+  optional int64 frames_rx = 2;
+
+  // Number of LLDP frames transmitted.
+  optional int64 frames_tx = 3;
+
+  // Number of LLDP frames received with packet errors. This stat should be incremented
+  // based on statsFramesInErrorsTotal increment rule in section 10.3.2 of IEEE Std 802.1
+  // AB-2005.
+  optional int64 frames_error_rx = 4;
+
+  // Number of LLDP frames received that are discarded. This stat should be incremented
+  // when one or more of the three mandatory  TLVs at the beginning of the LLDPDU is missing,
+  // out of order or  contains an out of range information string length. This stat should
+  // follow the validation rules in section 10.3.2 of IEEE  Std 802.1 AB-2005.
+  optional int64 frames_discard = 5;
+
+  // Number of LLDP tlvs received that are discarded. If any TLV contains  an error condition
+  // specific for that particular TLV or if any TLV  extends past the physical end of
+  // the frame then these TLVs will be discarded.
+  optional int64 tlvs_discard = 6;
+
+  // Number of LLDP unknown tlvs received. If the OUI of the organizationlly specific
+  // TLV and/or organizationally defined subtype are not recognized,or if TLV type  value
+  // is in the range of reserved TLV types then these TLVs will be considered as  unknown
+  // TLVs.
+  optional int64 tlvs_unknown = 7;
+}
+
+// The request to retrieve RSVP-TE per Router metrics/statistics.
+message RsvpMetricsRequest {
+
+  // The names of RSVP-TE Routers to return results for. An empty list as input will return
+  // results for all RSVP-TE routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Rsvp/properties/name
+  // 
+  repeated string router_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      ingress_p2p_lsps_configured = 1;
+      ingress_p2p_lsps_up = 2;
+      egress_p2p_lsps_up = 3;
+      lsp_flap_count = 4;
+      paths_tx = 5;
+      paths_rx = 6;
+      resvs_tx = 7;
+      resvs_rx = 8;
+      path_tears_tx = 9;
+      path_tears_rx = 10;
+      resv_tears_tx = 11;
+      resv_tears_rx = 12;
+      path_errors_tx = 13;
+      path_errors_rx = 14;
+      resv_errors_tx = 15;
+      resv_errors_rx = 16;
+      resv_conf_tx = 17;
+      resv_conf_rx = 18;
+      hellos_tx = 19;
+      hellos_rx = 20;
+      acks_tx = 21;
+      acks_rx = 22;
+      nacks_tx = 23;
+      nacks_rx = 24;
+      srefresh_tx = 25;
+      srefresh_rx = 26;
+      bundle_tx = 27;
+      bundle_rx = 28;
+      path_reevaluation_request_tx = 29;
+      path_reoptimizations = 30;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the input
+  // list is empty then all columns will be returned except for any result_groups.
+  // 
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// RSVP-TE per router statistics information.
+message RsvpMetric {
+
+  // The name of a configured RSVP router.
+  optional string name = 1;
+
+  // The number of ingress point-to-point LSPs configured or transiting through the RSVP
+  // router which have been initated from the test port.
+  optional int32 ingress_p2p_lsps_configured = 2;
+
+  // The number of ingress point-to-point LSPs for which Resv has been received and is
+  // currently up.
+  optional int32 ingress_p2p_lsps_up = 3;
+
+  // The number of egress point-to-point LSPs for which Path requests were successfully
+  // processed and is currently up.
+  optional int32 egress_p2p_lsps_up = 4;
+
+  // The number of times an LSP went from up to down state either because it timed out
+  // while waiting for Refreshes or  a PathTear or ResvTear message was received which
+  // caused the LSP to flap.
+  optional int32 lsp_flap_count = 5;
+
+  // The number of Path messages sent by this RSVP router.
+  optional int32 paths_tx = 6;
+
+  // The number of Path messages received by this RSVP router.
+  optional int32 paths_rx = 7;
+
+  // The number of Resv messages sent by this RSVP router.
+  optional int32 resvs_tx = 8;
+
+  // The number of Resv messages received by this RSVP router.
+  optional int32 resvs_rx = 9;
+
+  // The number of  Path Tear messages sent by this RSVP router.
+  optional int32 path_tears_tx = 10;
+
+  // The number of Path Tear messages received by this RSVP router.
+  optional int32 path_tears_rx = 11;
+
+  // The number of  Resv Tear messages sent by this RSVP router.
+  optional int32 resv_tears_tx = 12;
+
+  // The number of Resv Tear messages received by this RSVP router.
+  optional int32 resv_tears_rx = 13;
+
+  // The number of Path Error messages sent by this RSVP router.
+  optional int32 path_errors_tx = 14;
+
+  // The number of Path Error messages received by this RSVP router.
+  optional int32 path_errors_rx = 15;
+
+  // The number of Resv Error messages sent by this RSVP router.
+  optional int32 resv_errors_tx = 16;
+
+  // The number of Resv Error messages received by this RSVP router.
+  optional int32 resv_errors_rx = 17;
+
+  // The number of ResvConf messages sent by this RSVP router.
+  optional int32 resv_conf_tx = 18;
+
+  // The number of ResvConf messages received by this RSVP router.
+  optional int32 resv_conf_rx = 19;
+
+  // The number of Hello messages sent by this RSVP router.
+  optional int32 hellos_tx = 20;
+
+  // The number of Hello messages received by this RSVP router.
+  optional int32 hellos_rx = 21;
+
+  // The number of Ack messages sent by this RSVP router.
+  optional int32 acks_tx = 22;
+
+  // The number of Ack messages received by this RSVP router.
+  optional int32 acks_rx = 23;
+
+  // The number of Nack messages sent by this RSVP router.
+  optional int32 nacks_tx = 24;
+
+  // The number of Nack messages received by this RSVP router.
+  optional int32 nacks_rx = 25;
+
+  // The number of SRefresh messages sent by this RSVP router.
+  optional int32 srefresh_tx = 26;
+
+  // The number of SRefresh messages received by this RSVP router.
+  optional int32 srefresh_rx = 27;
+
+  // The number of Bundle messages sent by this RSVP router.
+  optional int32 bundle_tx = 28;
+
+  // The number of Bundle messages received by this RSVP router.
+  optional int32 bundle_rx = 29;
+
+  // The number of Path messages with Path Re-evaluation Request enabled sent by this
+  // RSVP router.
+  optional int32 path_reevaluation_request_tx = 30;
+
+  // The number of successfully completed Make-Before-Break operations on LSPs on this
+  // RSVP router.
+  optional int32 path_reoptimizations = 31;
+}
+
 // Request to traffic generator for states of choice
 message StatesRequest {
 
@@ -6198,6 +7433,8 @@ message StatesRequest {
       ipv6_neighbors = 2;
       bgp_prefixes = 3;
       isis_lsps = 4;
+      lldp_neighbors = 5;
+      rsvp_lsps = 6;
     }
   }
   // Description missing in models
@@ -6215,6 +7452,12 @@ message StatesRequest {
 
   // Description missing in models
   optional IsisLspsStateRequest isis_lsps = 5;
+
+  // Description missing in models
+  optional LldpNeighborsStateRequest lldp_neighbors = 6;
+
+  // Description missing in models
+  optional RsvpLspsStateRequest rsvp_lsps = 7;
 }
 
 // Response containing chosen traffic generator states
@@ -6227,6 +7470,8 @@ message StatesResponse {
       ipv6_neighbors = 2;
       bgp_prefixes = 3;
       isis_lsps = 4;
+      lldp_neighbors = 5;
+      rsvp_lsps = 6;
     }
   }
   // Description missing in models
@@ -6244,6 +7489,12 @@ message StatesResponse {
 
   // Description missing in models
   repeated IsisLspsState isis_lsps = 5;
+
+  // Description missing in models
+  repeated LldpNeighborsState lldp_neighbors = 6;
+
+  // Description missing in models
+  repeated RsvpLspsState rsvp_lsps = 7;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -6355,6 +7606,7 @@ message BgpPrefixIpv4UnicastFilter {
       unspecified = 0;
       igp = 1;
       egp = 2;
+      incomplete = 3;
     }
   }
   // The origin to match. If the origin is missing then all origins will match.
@@ -6380,6 +7632,7 @@ message BgpPrefixIpv6UnicastFilter {
       unspecified = 0;
       igp = 1;
       egp = 2;
+      incomplete = 3;
     }
   }
   // The origin to match. If the origin is missing then all origins will match.
@@ -6416,6 +7669,7 @@ message BgpPrefixIpv4UnicastState {
       unspecified = 0;
       igp = 1;
       egp = 2;
+      incomplete = 3;
     }
   }
   // The origin of the prefix.
@@ -6451,6 +7705,7 @@ message BgpPrefixIpv6UnicastState {
       unspecified = 0;
       igp = 1;
       egp = 2;
+      incomplete = 3;
     }
   }
   // The origin of the prefix.
@@ -6843,6 +8098,299 @@ message IsisLspPrefixAttributes {
 
   // Node Flag (Bit 2)
   optional bool n_flag = 3;
+}
+
+// The request to retrieve LLDP neighbor information for a given instance.
+message LldpNeighborsStateRequest {
+
+  // The names of LLDP instances for which neighbor information will be retrieved. If
+  // no names are specified then the results will contain neighbor information for all
+  // configured LLDP instances.
+  // 
+  // x-constraint:
+  // - /components/schemas/Lldp/properties/name
+  // 
+  repeated string lldp_names = 1;
+
+  // Specify the neighbors for which information will be returned. If empty  or missing
+  // then information for all neighbors will be returned.
+  repeated string neighbor_id_filters = 2;
+}
+
+// LLDP neighbor information.
+message LldpNeighborsState {
+
+  // The name of the LLDP instance.
+  optional string lldp_name = 1;
+
+  // The system name field shall contain an alpha-numeric string that  indicates the system's
+  // administratively assigned name. The system name  should be the system's fully qualified
+  // domain name. If implementations  support IETF RFC 3418, the sysName object should
+  // be used for this field.
+  optional string system_name = 2;
+
+  // The system description field shall contain an alpha-numeric string that  is the textual
+  // description of the network entity. The system description  should include the full
+  // name and version identification of the system's  hardware type, software operating
+  // system, and networking software. If  implementations support IETF RFC 3418, the sysDescr
+  // object should be used  for this field.
+  optional string system_description = 3;
+
+  // The Chassis ID is a mandatory TLV which identifies the chassis component of  the
+  // endpoint identifier associated with the transmitting LLDP agent.
+  optional string chassis_id = 4;
+
+  message ChassisIdType {
+    enum Enum {
+      unspecified = 0;
+      port_component = 1;
+      network_address = 2;
+      chassis_component = 3;
+      mac_address = 4;
+      interface_name = 5;
+      local = 6;
+      interface_alias = 7;
+    }
+  }
+  // This field identifies the format and source of the chassis identifier string.  It
+  // is an enumerator defined by the LldpChassisIdSubtype object from IEEE 802.1AB  MIB.
+  optional ChassisIdType.Enum chassis_id_type = 5;
+
+  // System generated identifier for the neighbor on the LLDP instance.
+  optional string neighbor_id = 6;
+
+  // Age since discovery in seconds.
+  optional int64 age = 7;
+
+  // Seconds since last update received.
+  optional int64 last_update = 8;
+
+  // The time-to-live (TTL) in seconds is a mandatory TLV which indicates how long information
+  // from the neighbor  should be considered valid.
+  optional int32 ttl = 9;
+
+  // The Port ID is a mandatory TLV which identifies the port component of the endpoint
+  // identifier associated with  the transmitting LLDP agent. If the specified port is
+  // an IEEE 802.3 Repeater port, then this TLV is optional.
+  optional string port_id = 10;
+
+  message PortIdType {
+    enum Enum {
+      unspecified = 0;
+      port_component = 1;
+      network_address = 2;
+      agent_circuit_id = 3;
+      mac_address = 4;
+      interface_name = 5;
+      local = 6;
+      interface_alias = 7;
+    }
+  }
+  // This field identifies the format and source of the port identifier string. It is
+  // an enumerator defined by the PtopoPortIdType object from RFC2922.
+  optional PortIdType.Enum port_id_type = 11;
+
+  // The binary string containing the actual port identifier for the port which this LLDP
+  // PDU was transmitted. The source  and format of this field is defined by PtopoPortId
+  // from RFC2922.
+  optional string port_description = 12;
+
+  // The Management Address is a mandatory TLV which identifies a network address associated
+  // with the local LLDP agent, which  can be used to reach the agent on the port identified
+  // in the Port ID TLV.
+  optional string management_address = 13;
+
+  // The enumerated value for the network address type identified in this TLV. This enumeration
+  // is defined in the 'Assigned Numbers'  RFC [RFC3232] and the ianaAddressFamilyNumbers
+  // object.
+  optional string management_address_type = 14;
+
+  // Description missing in models
+  repeated LldpCustomTLVState custom_tlvs = 15;
+
+  // Description missing in models
+  repeated LldpCapabilityState capabilities = 16;
+}
+
+// Custom TLV received from a neighbor.Custom TLVs are organization specific TLVs advertised
+// with TLV type 127.
+message LldpCustomTLVState {
+
+  // The integer value identifying the type of information contained in the value field.
+  optional int32 custom_type = 1;
+
+  // The organizationally unique identifier field shall contain the organization's OUI
+  // as defined in Clause 9 of IEEE Std 802. The high-order octet is 0 and the low-order
+  // 3 octets are the SMI Network Management Private Enterprise Code of the Vendor in
+  // network byte order,  as defined in the 'Assigned Numbers' RFC [RFC3232].
+  optional string oui = 2;
+
+  // The organizationally defined subtype field shall contain a unique subtype value assigned
+  // by the defining organization.
+  optional string oui_subtype = 3;
+}
+
+// LLDP system capability advertised by the neighbor
+message LldpCapabilityState {
+
+  message CapabilityName {
+    enum Enum {
+      unspecified = 0;
+      mac_bridge = 1;
+      two_port_mac_relay = 2;
+      repeater = 3;
+      docsis_cable_device = 4;
+      s_vlan = 5;
+      telephone = 6;
+      other = 7;
+      router = 8;
+      c_vlan = 9;
+      station_only = 10;
+      wlan_access_point = 11;
+    }
+  }
+  // Name of the system capability advertised by the neighbor. Capabilities are represented
+  // in a bitmap that defines the primary functions of the system.  The capabilities are
+  // defined in IEEE 802.1AB.
+  optional CapabilityName.Enum capability_name = 1;
+
+  // Indicates whether the corresponding system capability is enabled on the neighbor.
+  optional bool capability_enabled = 2;
+}
+
+// The request to retrieve RSVP Label Switched Path (LSP) information learned by the
+// router.
+message RsvpLspsStateRequest {
+
+  // The names of RSVP-TE routers for which learned information is requested. An empty
+  // list will return results for all RSVP=TE routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Rsvp/properties/name
+  // 
+  repeated string rsvp_router_names = 1;
+}
+
+// Discovered IPv4 Point-to-Point LSPs of a RSVP-TE router.
+message RsvpLspsState {
+
+  // The name of the RSVP-TE Router.
+  optional string rsvp_router_name = 1;
+
+  // IPv4 Point-to-Point RSVP-TE Discovered LSPs.
+  repeated RsvpIPv4LspState ipv4_lsps = 2;
+}
+
+// IPv4 RSVP-TE Discovered LSPs.
+message RsvpIPv4LspState {
+
+  // The origin IPv4 address of RSVP session.
+  optional string source_address = 1;
+
+  // The IPv4 destination address of RSVP session.
+  optional string destination_address = 2;
+
+  // It refers to the RSVP LSP properties.
+  optional RsvpLspState lsp = 3;
+
+  // It refers to RSVP RRO objects container.
+  repeated RsvpLspIpv4Rro rros = 4;
+
+  // It refers to RSVP ERO objects container.
+  repeated RsvpLspIpv4Ero eros = 5;
+}
+
+// IPv4 RSVP-TE Discovered LSPs.
+message RsvpLspState {
+
+  // The tunnel id of RSVP session which acts as an identifier that remains constant over
+  // the life of the tunnel.
+  optional int32 tunnel_id = 1;
+
+  // The lsp-id of RSVP session which acts as a differentiator for two lsps originating
+  // from the same headend, commonly used to distinguish RSVP sessions during make before
+  // break operations.
+  optional int32 lsp_id = 2;
+
+  // The value of RSVP-TE Session Name field of the Session Attribute object.
+  optional string session_name = 3;
+
+  // The label received by RSVP-TE ingress.
+  optional int32 label_in = 4;
+
+  // The label assigned by RSVP-TE egress.
+  optional int32 label_out = 5;
+
+  message SessionStatus {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Operational state of the RSVP LSP.
+  optional SessionStatus.Enum session_status = 6;
+
+  message LastFlapReason {
+    enum Enum {
+      unspecified = 0;
+      resv_tear = 1;
+      path_tear = 2;
+      path_timeout = 3;
+    }
+  }
+  // The reason for the last flap of this RSVP session.
+  optional LastFlapReason.Enum last_flap_reason = 7;
+
+  // The tunnel UP time in milli seconds. If the tunnel is DOWN the UP time will be zero.
+  optional int64 up_time = 8;
+}
+
+// This contains the list of Record Route Object(RRO) objects associated with the traffic
+// engineering tunnel. The  Record Route Object(RRO) is used in RSVP-TE to record the
+// route traversed by the LSP. The RRO might be present in both   Path message and Resv
+// message, the RRO stores the IP addresses of the routers that the traffic engineering
+// tunnel  traversed and also the label generated and distributed by the routers. The
+// RROs in the Resv message mirrors that of  the Path message, the only difference is
+// that the RRO in a Resv message records the path information in the reverse  direction.
+// 
+message RsvpLspIpv4Rro {
+
+  // The IPv4 addresses of the routers that the traffic engineering tunnel traversed.
+  optional string address = 1;
+
+  // Label reported for RRO hop. When the Label_Recording flag is set in the Session Attribute
+  // object, nodes doing route recording should include the Label Record subobject containing
+  // the reported label.
+  optional int32 reported_label = 2;
+}
+
+// This contains the list of sub-objects included in the Explicit Route Object(ERO)
+// object send in the PATH message from the ingress. These sub-objects contain the intermediate
+// hops to be traversed by the LSP while being forwarded  towards the egress endpoint.
+message RsvpLspIpv4Ero {
+
+  // The IPv4 prefix indicated by the ERO. Specified only when the ERO hop is an IPv4
+  // prefix.
+  optional string prefix = 1;
+
+  // The autonomous system number indicated by the ERO. Specified only when the ERO hop
+  // is an  2 or 4-byte AS number.
+  optional int32 asn = 2;
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+      asn = 3;
+      asn4 = 4;
+      label = 5;
+      unnumbered_interface = 6;
+    }
+  }
+  // The type indicated by the ERO.
+  optional Type.Enum type = 3;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the

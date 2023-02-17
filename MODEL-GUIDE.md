@@ -133,13 +133,13 @@ The build script will enforce the following keyword conventions:
             properties:
               status:
                 description: |-
-                  - current means that the definition is current and valid.
-                  - deprecated indicates an obsolete definition, but it permits new /
+                  - `current` means that the definition is current and valid.
+                  - `deprecated` indicates an obsolete definition, but it permits new /
                   continued implementation  in order to foster interoperability
                   with older/existing implementations.
                   - `obsolete` means the definition is obsolete and SHOULD NOT be
                   implemented and/or can be removed from implementations.
-                  - `under-review` indicates that the object or property is subject
+                  - `under_review` indicates that the object or property is subject
                   to change at any time.
                 type: string
                 x-enum: 
@@ -152,7 +152,7 @@ The build script will enforce the following keyword conventions:
                   under_review:
                     x-field-uid: 4
                 default: current
-              additional_information:
+              information:
                 type: string
                 description: Use this property to provide additional information about the status property
   ```
@@ -342,7 +342,7 @@ The build script will enforce the following keyword conventions:
     * VALID: one_hundred_gbps
     * INVALID: 100_gpbs
   * `x-field-uid` must be added with different value
-  * It must be configured in key-value format. (e.g.`description: message`, `x-status: deprecated`)
+  * It must be configured in key-value format. (e.g.`description: message`, `x-field-uid: 1`)
   * The bundler will populate `enum` at the time of bundling. So, it will follow OpenAPI standard.
   * sample property of `x-enum`
 
@@ -356,7 +356,9 @@ The build script will enforce the following keyword conventions:
         x-enum:
           md5:
             description: md5 authentication
-            x-status: deprecated
+            x-status:
+              status: deprecated
+              information: Deprecated in favor of password
             x-field-uid: 1
           password:
             description: plain text authentication    

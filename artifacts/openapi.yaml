@@ -6294,40 +6294,6 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
-        egress_packet:
-          description: Egress packet configuration
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/Flow.Header'
-          x-field-uid: 8
-    Flow.Tracking:
-      description: Tracking information for packet header fields
-      type: object
-      properties:
-        name:
-          x-field-uid: 1
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
-          x-unique: global
-        offset:
-          description: >-
-            Bit offset relative to start of packet header field being tracked.
-          type: integer
-          default: 0
-          minimum: 0
-          maximum: 128
-          x-field-uid: 2
-        length:
-          description: >-
-            Bit length of packet header field being tracked, from specified offset.
-          type: integer
-          default: 8
-          minimum: 1
-          maximum: 128
-          x-field-uid: 3
     Flow.TxRx:
       description: "A container for different types of transmit and receive \nendpoint\
         \ containers."
@@ -8726,12 +8692,10 @@ components:
           x-constraint:
           - /components/schemas/Flow/properties/name
           x-field-uid: 1
-        tracking:
+        metric_groups:
           description: |-
-            A list of tracking information used to disaggregate flows. A tracking that does not exist for a flow group MUST return an error.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Tracking.Filter'
+            A list of metric groups used to disaggregate flows. A metric group that does not exist for a flow group MUST return an error.
+          $ref: '#/components/schemas/Flow.MetricGroup.Request'
           x-field-uid: 2
         metric_names:
           description: |-
@@ -8763,26 +8727,45 @@ components:
             - frames_tx_rate
             - frames_rx_rate
           x-field-uid: 3
-    Flow.Tracking.Filter:
-      description: |-
-        A container for filtering ingress and/or egress tracking
+    Flow.MetricGroup.Request:
       type: object
       properties:
-        name:
+        choice:
           description: |-
-            A metric group name that MUST exist in a flow packet or
-            flow egress_packet configuration
+            The type of disaggregation to be applied to the flow metrics.
           type: string
+          default: ingress
           x-field-uid: 1
-        filters:
-          description: |-
-            A list of filters that can be applied to the metric group name.
-            By default all values will be included in the flow metric results.
+          x-enum:
+            ingress:
+              x-field-uid: 1
+            egress:
+              x-field-uid: 2
+          enum:
+          - ingress
+          - egress
+        ingress:
+          description: "Disaggregate the flow metrics by ingress packet header field\
+            \ names.\nIf the items is empty then no disaggregation will be done. \n\
+            \nx-constraint:\n- /components/schemas/Flow/properties/packet/../metric_group\n"
           type: array
+          default: []
           items:
             type: string
-            format: hex
+          x-constraint:
+          - /components/schemas/Flow/properties/packet/../metric_group
           x-field-uid: 2
+        egress:
+          description: "Disaggregate the flow metrics by egress packet header field\
+            \ names \nIf the items is empty then no disaggregation will be done. \n\
+            \nx-constraint:\n- /components/schemas/Flow/properties/egress/../metric_group\n"
+          type: array
+          default: []
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Flow/properties/egress/../metric_group
+          x-field-uid: 3
     Flow.Metric:
       description: |-
         A container for flow metrics.
@@ -11741,12 +11724,11 @@ components:
           x-field-uid: 4
           default: 00:00:00:00:00:00
           format: mac
-        tracking:
-          description: A list of egress field tracking information
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Tracking'
-          x-field-uid: 4
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
+          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.Dst.Counter'
           x-field-uid: 6
@@ -12043,11 +12025,10 @@ components:
           - 0
           minimum: 0
           maximum: 7
-        tracking:
-          description: A list of egress field tracking information
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Tracking'
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
           x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Priority.Counter'
@@ -12184,11 +12165,10 @@ components:
           - 0
           minimum: 0
           maximum: 4095
-        tracking:
-          description: A list of egress field tracking information
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Tracking'
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
           x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Id.Counter'
@@ -13405,11 +13385,10 @@ components:
           default:
           - 0.0.0.0
           format: ipv4
-        tracking:
-          description: A list of egress field tracking information
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Tracking'
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
           x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.Counter'
@@ -13472,11 +13451,10 @@ components:
           default:
           - 0.0.0.0
           format: ipv4
-        tracking:
-          description: A list of egress field tracking information
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Tracking'
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
           x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.Counter'
@@ -13543,11 +13521,10 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        tracking:
-          description: A list of egress field tracking information
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Tracking'
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
           x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Priority.Raw.Counter'
@@ -16124,11 +16101,10 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        tracking:
-          description: A list of egress field tracking information
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Tracking'
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
           x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.SrcPort.Counter'
@@ -16195,11 +16171,10 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        tracking:
-          description: A list of egress field tracking information
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.Tracking'
+        metric_group:
+          description: |-
+            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
+          type: string
           x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.DstPort.Counter'

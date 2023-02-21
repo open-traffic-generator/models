@@ -28,8 +28,8 @@ elif USE_OPENAPIART_BRANCH is not None:
 import openapiart
 
 openapiart.OpenApiArt(
-    api_files=["./api/info.yaml", "./api/api.yaml"],
+    api_files=["artifacts/"],
     protobuf_name="otg",
-    artifact_dir="artifacts",
+    artifact_dir="artifacts/openapi.yaml",
     generate_version_api=True,
 ).GeneratePythonSdk(package_name="otg")

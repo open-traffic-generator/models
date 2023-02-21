@@ -1614,8 +1614,8 @@ message DeviceBgpMessageHeaderError {
     enum Enum {
       unspecified = 0;
       connection_not_synchronized = 1;
-      bad_message_length = 2;
-      bad_message_type = 3;
+      bad_message_length_subcode = 2;
+      bad_message_type_subcode = 3;
     }
   }
   // The Error Subcode, the specific type of error encountered during header processing.
@@ -1693,7 +1693,7 @@ message DeviceBgpFiniteStateMachineError {
 
 // In the absence of any fatal errors, a BGP peer can close its BGP connection by sending
 // the NOTIFICATION message with the  Error Code Cease.
-message DeviceBgpCease {
+message DeviceBgpCeaseError {
 
   message Subcode {
     enum Enum {
@@ -1709,8 +1709,18 @@ message DeviceBgpCease {
       bfd_session_down = 9;
     }
   }
-  // The Error Subcode, the specific type of notification send to peer during Cease.
+  // The Error Subcode, the specific type of NOTIFICATION send to peer during Cease.
   optional Subcode.Enum subcode = 1;
+}
+
+// A BGP peer can send NOTIFICATION message with user defined Error Code and Error Subcode.
+message DeviceBgpCustomError {
+
+  // The Error code, the specific code send in the NOTIFICATION message to peer.
+  optional int32 code = 1;
+
+  // The Error Subcode, the specific code send in the NOTIFICATION message to peer.
+  optional int32 subcode = 2;
 }
 
 // Configuration for emulated BGPv4 peers and routes.
@@ -6102,10 +6112,10 @@ message DeviceState {
   optional LacpMemberState lacp_member_state = 2;
 }
 
-// A Notification message is sent when an error is detected with the BGP session, such
+// A NOTIFICATION message is sent when an error is detected with the BGP session, such
 // as a hold timer expiring, neighbor capabilities change,  or a BGP session reset is
 // requested. This causes the BGP connection to close.
-message BGPPeerNotification {
+message BGPNotification {
 
   // The names of BGP Peers objects to send notification. If no name is specified then
   // notification will be send to all BGP peers that matches with the x-constraint.
@@ -6124,6 +6134,7 @@ message BGPPeerNotification {
       hold_timer_expired = 4;
       finite_state_machine_error = 5;
       cease = 6;
+      custom = 7;
     }
   }
   // BGP NOTIFICATION messages are used for error reporting between BGP peers. Each message
@@ -6131,6 +6142,7 @@ message BGPPeerNotification {
   // Error Codes, an Error Subcode field provides additional details about the specific
   // nature of the problem. The chouce name will provide the error code  used in Notification
   // message.
+  // default = Choice.Enum.cease
   optional Choice.Enum choice = 2;
 
   // Description missing in models
@@ -6149,7 +6161,10 @@ message BGPPeerNotification {
   optional DeviceBgpFiniteStateMachineError finite_state_machine_error = 7;
 
   // Description missing in models
-  optional DeviceBgpCease cease = 8;
+  optional DeviceBgpCeaseError cease = 8;
+
+  // Description missing in models
+  optional DeviceBgpCustomError custom = 9;
 }
 
 // Description missing in models
@@ -16062,10 +16077,10 @@ message SetDeviceStateResponse {
 }
 
 
-message SetBgppeerNotificationRequest {
-  BGPPeerNotification bgppeer_notification = 1;
+message SendBgpNotificationRequest {
+  BGPNotification bgpnotification = 1;
 }
-message SetBgppeerNotificationResponse {
+message SendBgpNotificationResponse {
   optional ResponseWarning status_code_200 = 1;
   optional ResponseError status_code_400 = 2;
   optional ResponseError status_code_500 = 3;
@@ -16136,8 +16151,11 @@ service Openapi {
   rpc SetProtocolState(SetProtocolStateRequest) returns (SetProtocolStateResponse);
   // Set specific state/actions on device configuration resources on the traffic generator.
   rpc SetDeviceState(SetDeviceStateRequest) returns (SetDeviceStateResponse);
-  // Set notification actions on BGP peers. generator.
-  rpc SetBgppeerNotification(SetBgppeerNotificationRequest) returns (SetBgppeerNotificationResponse);
+  // Set notification actions on BGP peers. A user can send IANA defined bgp NOTIFICATION
+  // according to https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml.
+  // If a user wants to send custom Error Code and Error Subcode the custom object should
+  // be used.
+  rpc SendBgpNotification(SendBgpNotificationRequest) returns (SendBgpNotificationResponse);
   // Description missing in models
   rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
   // Description missing in models

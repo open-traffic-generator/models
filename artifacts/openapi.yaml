@@ -254,19 +254,19 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
           x-field-uid: 3
-  /control/bgppeernotifications:
+  /control/bgpnotifications:
     post:
       tags:
       - Control
-      operationId: set_bgppeer_notification
+      operationId: send_bgp_notification
       description: |-
-        Set notification actions on BGP peers. generator.
+        Set notification actions on BGP peers. A user can send IANA defined bgp NOTIFICATION according to https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml.  If a user wants to send custom Error Code and Error Subcode the custom object should be used.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BGPPeer.Notification'
+              $ref: '#/components/schemas/BGP.Notification'
       responses:
         '200':
           $ref: '#/components/responses/Success'
@@ -2708,14 +2708,14 @@ components:
           x-enum:
             connection_not_synchronized:
               x-field-uid: 1
-            bad_message_length:
+            bad_message_length_subcode:
               x-field-uid: 2
-            bad_message_type:
+            bad_message_type_subcode:
               x-field-uid: 3
           enum:
           - connection_not_synchronized
-          - bad_message_length
-          - bad_message_type
+          - bad_message_length_subcode
+          - bad_message_type_subcode
     Device.Bgp.OpenMessageError:
       description: |-
         All errors detected while processing the processing the OPEN message are indicated by sending the NOTIFICATION message  with the Error Code-Open Message Error. The Error Subcode elaborates on the specific nature of the error.
@@ -2816,14 +2816,14 @@ components:
           type: integer
           default: 0
           x-field-uid: 1
-    Device.Bgp.Cease:
+    Device.Bgp.CeaseError:
       description: |-
         In the absence of any fatal errors, a BGP peer can close its BGP connection by sending the NOTIFICATION message with the  Error Code Cease.
       type: object
       properties:
         subcode:
           description: |-
-            The Error Subcode, the specific type of notification send to peer during Cease.
+            The Error Subcode, the specific type of NOTIFICATION send to peer during Cease.
           type: string
           x-field-uid: 1
           x-enum:
@@ -2855,6 +2855,21 @@ components:
           - connection_collision_resolution
           - out_of_resources
           - bfd_session_down
+    Device.Bgp.CustomError:
+      description: |-
+        A BGP peer can send NOTIFICATION message with user defined Error Code and Error Subcode.
+      type: object
+      properties:
+        code:
+          description: |-
+            The Error code, the specific code send in the NOTIFICATION message to peer.
+          type: integer
+          x-field-uid: 1
+        subcode:
+          description: |-
+            The Error Subcode, the specific code send in the NOTIFICATION message to peer.
+          type: integer
+          x-field-uid: 2
     Bgp.V4Peer:
       description: |-
         Configuration for emulated BGPv4 peers and routes.
@@ -8405,9 +8420,9 @@ components:
         lacp_member_state:
           $ref: '#/components/schemas/LacpMember.State'
           x-field-uid: 2
-    BGPPeer.Notification:
+    BGP.Notification:
       description: |-
-        A Notification message is sent when an error is detected with the BGP session, such as a hold timer expiring, neighbor capabilities change,  or a BGP session reset is requested. This causes the BGP connection to close.
+        A NOTIFICATION message is sent when an error is detected with the BGP session, such as a hold timer expiring, neighbor capabilities change,  or a BGP session reset is requested. This causes the BGP connection to close.
       type: object
       properties:
         names:
@@ -8427,6 +8442,7 @@ components:
             BGP NOTIFICATION messages are used for error reporting between BGP peers. Each message contains an Error Code field that indicates what type of problem occurred.  For certain Error Codes, an Error Subcode field provides additional details about the specific nature of the problem. The chouce name will provide the error code  used in Notification message.
           type: string
           x-field-uid: 2
+          default: cease
           x-enum:
             message_header_error:
               x-field-uid: 1
@@ -8440,6 +8456,8 @@ components:
               x-field-uid: 5
             cease:
               x-field-uid: 6
+            custom:
+              x-field-uid: 7
           enum:
           - message_header_error
           - open_message_error
@@ -8447,6 +8465,7 @@ components:
           - hold_timer_expired
           - finite_state_machine_error
           - cease
+          - custom
         message_header_error:
           $ref: '#/components/schemas/Device.Bgp.MessageHeaderError'
           x-field-uid: 3
@@ -8463,8 +8482,11 @@ components:
           $ref: '#/components/schemas/Device.Bgp.FiniteStateMachineError'
           x-field-uid: 7
         cease:
-          $ref: '#/components/schemas/Device.Bgp.Cease'
+          $ref: '#/components/schemas/Device.Bgp.CeaseError'
           x-field-uid: 8
+        custom:
+          $ref: '#/components/schemas/Device.Bgp.CustomError'
+          x-field-uid: 9
     Ping:
       type: object
       properties:

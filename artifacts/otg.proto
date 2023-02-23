@@ -3419,19 +3419,10 @@ message BgpGracefulRestart {
   // This time (in seconds) specifies how long stale information (for the AFI/SAFI)
   // may be retained (possibly in conjunction with the period specified by the Restart
   // Time
-  // in the Graceful Restart Capability, if present).
+  // in the Graceful Restart Capability, if present). This 3 Bytes field and
+  // this applicable of the LLGR Capability is enabled.
   // default = 10
   optional int32 stale_time = 4;
-
-  // This specifies the role of the router: If not selected, the router is acting as the
-  // 
-  // Receiving BGP Speaker.
-  // If selected, the router is acting as the Restarting BGP Speaker. After restarting
-  // the BGP session,
-  // the Restarting Speaker must send an OPEN message to the Receiving BGP Peer,
-  // with the Restart State bit set in the Graceful Restart Capability advertisement.
-  // default = False
-  optional bool act_as_restarted = 5;
 }
 
 // Configuration for BGPv6 peer settings and routes.
@@ -6040,23 +6031,9 @@ message DeviceState {
 
   // Description missing in models
   optional LacpMemberState lacp_member_state = 2;
-}
 
-// Initiates BGP Graceful Restart process.
-message BgpGraceFulRestart {
-
-  // The names of device BGP peer objects to control. If no names are specified then all
-  // BGP peer objects that match the x-constraint will be affected.
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.Bgp/properties/name
-  // 
-  repeated string peer_names = 1;
-
-  // This is the estimated time (in seconds) it will take for the BGP session to be re-established
-  // after a restart.
-  // required = true
-  int32 restart_time = 2;
+  // Description missing in models
+  optional BgpGraceFulRestart initiate_bgp_gracefulrestart = 3;
 }
 
 // Description missing in models
@@ -6164,6 +6141,23 @@ message LacpMemberState {
   // ports.
   // required = true
   State.Enum state = 2;
+}
+
+// Initiates BGP Graceful Restart process for the selected BGP peers.
+message BgpGraceFulRestart {
+
+  // The names of device BGP peer objects to control. If no names are specified then all
+  // BGP peer objects that match the x-constraint will be affected.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Bgp/properties/name
+  // 
+  repeated string peer_names = 1;
+
+  // This is the time (in seconds) after which the selected BGP peers will initiate the
+  // Graceful restart by sending the Open Message with Restart bit set.
+  // default = 30
+  optional int32 restart_time = 2;
 }
 
 // Request to traffic generator for metrics of choice.
@@ -6646,11 +6640,16 @@ message Bgpv4Metric {
   // is established.
   optional FsmState.Enum fsm_state = 16;
 
-  // Number of Graceful Restarts attempted by BGP Peer per session.
+  // Number of Graceful Restarts attempted by the neighbor of the BGP peer. This is incremented
+  // when a Open Message received indicating that neighbor has restarted.
   optional int32 gr_restart_attempted = 17;
 
-  // Number of Graceful Restarts that were attempted by BGP Peer, but failed.
+  // Number of Graceful Restarts that were attempted by BGP Peer, however the BGP session
+  // was not re-established within the Graceful Restart Time.
   optional int32 gr_restart_failed = 18;
+
+  // Number of routes received from the BGP peer during the Graceful Restart Time.
+  optional int32 gr_restart_routes_received = 19;
 }
 
 // The request to retrieve BGPv6 per peer metrics/statistics.
@@ -6772,11 +6771,17 @@ message Bgpv6Metric {
   // is established.
   optional FsmState.Enum fsm_state = 16;
 
-  // Number of Graceful Restarts attempted by BGP Peer per session.
+  // Number of Graceful Restarts attempted by the neighbor of the BGP peer. This is incremented
+  // when a Open Message received indicating that neighbor has restarted.
   optional int32 gr_restart_attempted = 17;
 
-  // Number of Graceful Restarts that were attempted by BGP Peer, but failed.
+  // Number of Graceful Restarts that were attempted by the BGP Peer, however the BGP
+  // session
+  // was not re-established within the Graceful Restart Time.
   optional int32 gr_restart_failed = 18;
+
+  // Number of routes received from the BGP Peer during the Graceful Restart Time.
+  optional int32 gr_restart_routes_received = 19;
 }
 
 // The request to retrieve ISIS per Router metrics/statistics.
@@ -16014,16 +16019,6 @@ message GetCaptureResponse {
   optional ResponseError status_code_500 = 3;
 }
 
-
-message SendBgpGracefulrestartRequest {
-  BgpGraceFulRestart bgp_grace_ful_restart = 1;
-}
-message SendBgpGracefulrestartResponse {
-  optional ResponseWarning status_code_200 = 1;
-  optional ResponseError status_code_400 = 2;
-  optional ResponseError status_code_500 = 3;
-}
-
 message GetVersionResponse {
   optional Version status_code_200 = 1;
   optional ResponseError status_code_400 = 2;
@@ -16065,8 +16060,6 @@ service Openapi {
   rpc GetStates(GetStatesRequest) returns (GetStatesResponse);
   // Description missing in models
   rpc GetCapture(GetCaptureRequest) returns (GetCaptureResponse);
-  // Send trigger to BGP peers to execute the BGP Graceful Restart event.
-  rpc SendBgpGracefulrestart(SendBgpGracefulrestartRequest) returns (SendBgpGracefulrestartResponse);
   // Description missing in models
   rpc GetVersion(google.protobuf.Empty) returns (GetVersionResponse);
 }

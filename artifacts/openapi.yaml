@@ -345,29 +345,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
           x-field-uid: 3
-  /control/bgpgracefulrestart:
-    post:
-      tags:
-      - Control
-      operationId: send_bgp_gracefulrestart
-      description: |-
-        Send trigger to BGP peers to execute the BGP Graceful Restart event.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Bgp.GraceFulRestart'
-      responses:
-        '200':
-          $ref: '#/components/responses/Success'
-          x-field-uid: 1
-        '400':
-          $ref: '#/components/responses/BadRequest'
-          x-field-uid: 2
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-          x-field-uid: 3
   /capabilities/version:
     get:
       tags:
@@ -4969,22 +4946,13 @@ components:
           description: "This time (in seconds) specifies how long stale information\
             \ (for the AFI/SAFI) \nmay be retained (possibly in conjunction with the\
             \ period specified by the \"Restart Time\" \nin the Graceful Restart Capability,\
-            \ if present)."
+            \ if present). This 3 Bytes field and \nthis applicable of the \"LLGR\
+            \ Capability\" is enabled."
           type: integer
           format: uint32
           maximum: 16777216
           default: 10
           x-field-uid: 4
-        act_as_restarted:
-          description: "This specifies the role of the router: If not selected, the\
-            \ router is acting as the \nReceiving BGP Speaker. \nIf selected, the\
-            \ router is acting as the Restarting BGP Speaker. After restarting the\
-            \ BGP session, \nthe Restarting Speaker must send an OPEN message to the\
-            \ Receiving BGP Peer, \nwith the Restart State bit set in the Graceful\
-            \ Restart Capability advertisement."
-          type: boolean
-          default: false
-          x-field-uid: 5
     Bgp.V6Peer:
       description: |-
         Configuration for BGPv6 peer settings and routes.
@@ -8279,32 +8247,9 @@ components:
         lacp_member_state:
           $ref: '#/components/schemas/LacpMember.State'
           x-field-uid: 2
-    Bgp.GraceFulRestart:
-      description: |-
-        Initiates BGP Graceful Restart process.
-      type: object
-      required:
-      - restart_time
-      properties:
-        peer_names:
-          description: |
-            The names of device BGP peer objects to control. If no names are specified then all BGP peer objects that match the x-constraint will be affected.
-
-            x-constraint:
-            - /components/schemas/Device.Bgp/properties/name
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Device.Bgp/properties/name
-          x-field-uid: 1
-        restart_time:
-          description: |-
-            This is the estimated time (in seconds) it will take for the BGP session to be re-established after a restart.
-          type: integer
-          format: uint16
-          maximum: 4096
-          x-field-uid: 2
+        initiate_bgp_gracefulrestart:
+          $ref: '#/components/schemas/Bgp.GraceFulRestart'
+          x-field-uid: 3
     Ping:
       type: object
       properties:
@@ -8442,6 +8387,31 @@ components:
           enum:
           - up
           - down
+    Bgp.GraceFulRestart:
+      description: |-
+        Initiates BGP Graceful Restart process for the selected BGP peers.
+      type: object
+      properties:
+        peer_names:
+          description: |
+            The names of device BGP peer objects to control. If no names are specified then all BGP peer objects that match the x-constraint will be affected.
+
+            x-constraint:
+            - /components/schemas/Device.Bgp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Bgp/properties/name
+          x-field-uid: 1
+        restart_time:
+          description: |-
+            This is the time (in seconds) after which the selected BGP peers will initiate the  Graceful restart by sending the Open Message with Restart bit set.
+          type: integer
+          format: uint32
+          maximum: 3600
+          default: 30
+          x-field-uid: 2
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice.
@@ -9193,16 +9163,24 @@ components:
           - established
         gr_restart_attempted:
           description: |-
-            Number of Graceful Restarts attempted by BGP Peer per session.
+            Number of Graceful Restarts attempted by the neighbor of the BGP peer. This is incremented
+            when a Open Message received indicating that neighbor has restarted.
           type: integer
           format: uint32
           x-field-uid: 17
         gr_restart_failed:
           description: |-
-            Number of Graceful Restarts that were attempted by BGP Peer, but failed.
+            Number of Graceful Restarts that were attempted by BGP Peer, however the BGP session
+            was not re-established within the Graceful Restart Time.
           type: integer
           format: uint32
           x-field-uid: 18
+        gr_restart_routes_received:
+          description: |-
+            Number of routes received from the BGP peer during the Graceful Restart Time.
+          type: integer
+          format: uint32
+          x-field-uid: 19
     Bgpv6.Metrics.Request:
       description: |-
         The request to retrieve BGPv6 per peer metrics/statistics.
@@ -9394,17 +9372,25 @@ components:
           - openconfirm
           - established
         gr_restart_attempted:
-          description: |-
-            Number of Graceful Restarts attempted by BGP Peer per session.
+          description: "Number of Graceful Restarts attempted by the neighbor of the\
+            \ BGP peer. This is incremented\nwhen a Open Message received indicating\
+            \ that neighbor has restarted.  "
           type: integer
           format: uint32
           x-field-uid: 17
         gr_restart_failed:
           description: |-
-            Number of Graceful Restarts that were attempted by BGP Peer, but failed.
+            Number of Graceful Restarts that were attempted by the BGP Peer, however the BGP session
+            was not re-established within the Graceful Restart Time.
           type: integer
           format: uint32
           x-field-uid: 18
+        gr_restart_routes_received:
+          description: |-
+            Number of routes received from the BGP Peer during the Graceful Restart Time.
+          type: integer
+          format: uint32
+          x-field-uid: 19
     Isis.Metrics.Request:
       description: |-
         The request to retrieve ISIS per Router metrics/statistics.

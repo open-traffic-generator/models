@@ -254,29 +254,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
           x-field-uid: 3
-  /control/bgpnotifications:
-    post:
-      tags:
-      - Control
-      operationId: send_bgp_notification
-      description: |-
-        Send user defined NOTIFICATIONs for list of specified BGP peers. A user can send IANA defined BGP NOTIFICATIONs according to https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml.  If a user wants to send custom Error Code and Error Subcode the custom object should be used.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BGP.Notification'
-      responses:
-        '200':
-          $ref: '#/components/responses/Success'
-          x-field-uid: 1
-        '400':
-          $ref: '#/components/responses/BadRequest'
-          x-field-uid: 2
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-          x-field-uid: 3
   /results/metrics:
     description: |-
       Metrics API
@@ -8393,90 +8370,17 @@ components:
           x-enum:
             lacp_member_state:
               x-field-uid: 1
+            send_bgp_notification:
+              x-field-uid: 2
           enum:
           - lacp_member_state
+          - send_bgp_notification
         lacp_member_state:
           $ref: '#/components/schemas/LacpMember.State'
           x-field-uid: 2
-    BGP.Notification:
-      description: |-
-        A NOTIFICATION message is sent when an error is detected with the BGP session, such as hold timer expiring, misconfigured AS number  or a BGP session reset is requested. This causes the BGP connection to close.
-      type: object
-      properties:
-        names:
-          description: |
-            The names of BGP Peers to send NOTIFICATION to. If no name is specified then NOTIFICATION will be send to all BGP peers that matches with the x-constraint.
-
-            x-constraint:
-            - /components/schemas/Device.Bgp/properties/name
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Device.Bgp/properties/name
-          x-field-uid: 1
-        choice:
-          description: |-
-            BGP NOTIFICATION messages are used for error reporting between BGP peers. Each message contains an Error Code field that indicates what type of problem occurred.  For certain Error Codes, an Error Subcode field provides additional details about the specific nature of the problem. The choice name will provide the Error Code  used in NOTIFICATION message. The Subcode can be set from each of the corresponding errors except for Hold Timer Expired error and BGP Finite State Machine error.  In both these cases Subcode 0 will be send. If a user wants to use non zero Sub Code then CustomError can be used. If a system does not receive successive KEEPALIVE,  UPDATE, and/or NOTIFICATION messages within the period specified in the Hold Time field of the OPEN message, then the NOTIFICATION message with the Hold Timer Expired  Error Code(Error Code 4) is sent and the BGP connection is closed. Similarly  any error detected by the BGP Finite State Machine (e.g., receipt of  an unexpected event) is indicated by sending the NOTIFICATION message with the Error Code-Finite State Machine Error(Error Code 5).
-          type: string
-          x-field-uid: 2
-          default: cease
-          x-enum:
-            message_header_error:
-              x-field-uid: 1
-            open_message_error:
-              x-field-uid: 2
-            update_message_error:
-              x-field-uid: 3
-            hold_timer_expired:
-              x-field-uid: 4
-            finite_state_machine_error:
-              x-field-uid: 5
-            cease:
-              x-field-uid: 6
-            custom:
-              x-field-uid: 7
-          enum:
-          - message_header_error
-          - open_message_error
-          - update_message_error
-          - hold_timer_expired
-          - finite_state_machine_error
-          - cease
-          - custom
-        message_header_error:
-          $ref: '#/components/schemas/Device.Bgp.MessageHeaderError'
+        send_bgp_notification:
+          $ref: '#/components/schemas/BGP.Notification'
           x-field-uid: 3
-        open_message_error:
-          $ref: '#/components/schemas/Device.Bgp.OpenMessageError'
-          x-field-uid: 4
-        update_message_error:
-          $ref: '#/components/schemas/Device.Bgp.UpdateMessageError'
-          x-field-uid: 5
-        hold_timer_expired:
-          type: string
-          default: hold_timer_expired
-          x-field-uid: 6
-          x-enum:
-            hold_timer_expired:
-              x-field-uid: 1
-          enum:
-          - hold_timer_expired
-        finite_state_machine_error:
-          type: string
-          default: finite_state_machine_error
-          x-field-uid: 7
-          x-enum:
-            finite_state_machine_error:
-              x-field-uid: 1
-          enum:
-          - finite_state_machine_error
-        cease:
-          $ref: '#/components/schemas/Device.Bgp.CeaseError'
-          x-field-uid: 8
-        custom:
-          $ref: '#/components/schemas/Device.Bgp.CustomError'
-          x-field-uid: 9
     Ping:
       type: object
       properties:
@@ -8614,6 +8518,85 @@ components:
           enum:
           - up
           - down
+    BGP.Notification:
+      description: |-
+        A NOTIFICATION message is sent when an error is detected with the BGP session, such as hold timer expiring, misconfigured AS number  or a BGP session reset is requested. This causes the BGP connection to close. Send user defined NOTIFICATIONs for list of specified  BGP peers. A user can send IANA defined BGP NOTIFICATIONs according to https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml.  If a user wants to send custom Error Code and Error Subcode the custom object should be used.
+      type: object
+      properties:
+        names:
+          description: |
+            The names of BGP Peers to send NOTIFICATION to. If no name is specified then NOTIFICATION will be send to all BGP peers that matches with the x-constraint.
+
+            x-constraint:
+            - /components/schemas/Device.Bgp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Bgp/properties/name
+          x-field-uid: 1
+        choice:
+          description: |-
+            BGP NOTIFICATION messages are used for error reporting between BGP peers. Each message contains an Error Code field that indicates what type of problem occurred.  For certain Error Codes, an Error Subcode field provides additional details about the specific nature of the problem. The choice name will provide the Error Code  used in NOTIFICATION message. The Subcode can be set from each of the corresponding errors except for Hold Timer Expired error and BGP Finite State Machine error.  In both these cases Subcode 0 will be send. If a user wants to use non zero Sub Code then CustomError can be used. If a system does not receive successive KEEPALIVE,  UPDATE, and/or NOTIFICATION messages within the period specified in the Hold Time field of the OPEN message, then the NOTIFICATION message with the Hold Timer Expired  Error Code(Error Code 4) is sent and the BGP connection is closed. Similarly  any error detected by the BGP Finite State Machine (e.g., receipt of  an unexpected event) is indicated by sending the NOTIFICATION message with the Error Code-Finite State Machine Error(Error Code 5).
+          type: string
+          x-field-uid: 2
+          default: cease
+          x-enum:
+            message_header_error:
+              x-field-uid: 1
+            open_message_error:
+              x-field-uid: 2
+            update_message_error:
+              x-field-uid: 3
+            hold_timer_expired:
+              x-field-uid: 4
+            finite_state_machine_error:
+              x-field-uid: 5
+            cease:
+              x-field-uid: 6
+            custom:
+              x-field-uid: 7
+          enum:
+          - message_header_error
+          - open_message_error
+          - update_message_error
+          - hold_timer_expired
+          - finite_state_machine_error
+          - cease
+          - custom
+        message_header_error:
+          $ref: '#/components/schemas/Device.Bgp.MessageHeaderError'
+          x-field-uid: 3
+        open_message_error:
+          $ref: '#/components/schemas/Device.Bgp.OpenMessageError'
+          x-field-uid: 4
+        update_message_error:
+          $ref: '#/components/schemas/Device.Bgp.UpdateMessageError'
+          x-field-uid: 5
+        hold_timer_expired:
+          type: string
+          default: hold_timer_expired
+          x-field-uid: 6
+          x-enum:
+            hold_timer_expired:
+              x-field-uid: 1
+          enum:
+          - hold_timer_expired
+        finite_state_machine_error:
+          type: string
+          default: finite_state_machine_error
+          x-field-uid: 7
+          x-enum:
+            finite_state_machine_error:
+              x-field-uid: 1
+          enum:
+          - finite_state_machine_error
+        cease:
+          $ref: '#/components/schemas/Device.Bgp.CeaseError'
+          x-field-uid: 8
+        custom:
+          $ref: '#/components/schemas/Device.Bgp.CustomError'
+          x-field-uid: 9
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice.

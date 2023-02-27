@@ -5825,6 +5825,75 @@ message ResponseWarning {
   repeated string warnings = 1;
 }
 
+// Request for updating specific attributes of resources in traffic generator
+message ConfigUpdate {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      flows = 1;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional FlowsUpdate flows = 2;
+}
+
+// A container of flows with associated properties to be updated without affecting the
+// flows current transmit state.
+message FlowsUpdate {
+
+  message PropertyNames {
+    enum Enum {
+      unspecified = 0;
+      rate = 1;
+      size = 2;
+    }
+  }
+  // Flow properties to be updated without affecting the transmit state.
+  repeated PropertyNames.Enum property_names = 1;
+
+  // The list of configured flows for which given property will be updated.
+  repeated Flow flows = 2;
+}
+
+// Request for setting state of resources in traffic generator
+message ControlState {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      flow_transmit = 1;
+      protocol = 2;
+      route = 3;
+      port_link = 4;
+      port_capture = 5;
+      lacp = 6;
+    }
+  }
+  // Description missing in models
+  // required = true
+  Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional FlowTransmitState flow_transmit = 2;
+
+  // Description missing in models
+  optional ProtocolState protocol = 3;
+
+  // Description missing in models
+  optional RouteState route = 4;
+
+  // Description missing in models
+  optional PortLinkState port_link = 5;
+
+  // Description missing in models
+  optional PortCaptureState port_capture = 6;
+}
+
+// Status: {'status': 'deprecated', 'information': 'Please use PortLinkStatus instead'}
 // Port link state.
 message LinkState {
 
@@ -5847,6 +5916,29 @@ message LinkState {
   State.Enum state = 2;
 }
 
+// Port link state.
+message PortLinkState {
+
+  // The names of port objects to. An empty or null list will control all port objects.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string port_names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // The link state.
+  // required = true
+  State.Enum state = 2;
+}
+
+// Status: {'status': 'deprecated', 'information': 'Please use FlowTransmitState instead'}
 // Flow transmit state.
 message TransmitState {
 
@@ -5885,6 +5977,45 @@ message TransmitState {
   State.Enum state = 2;
 }
 
+// Flow transmit state.
+message FlowTransmitState {
+
+  // The names of flows to which the transmit state will be applied to. If the list of
+  // flow_names is empty or null the state will be applied to all configured flows.
+  // If the list is not empty any flow that is not included in the list of flow_names
+  // MUST be ignored and not included in the state change.
+  // 
+  // x-constraint:
+  // - /components/schemas/Flow/properties/name
+  // 
+  repeated string flow_names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      start = 1;
+      stop = 2;
+      pause = 3;
+      resume = 4;
+    }
+  }
+  // The transmit state.
+  // If the value of the state property is 'start' then all flows defined by the 'flow_names'
+  // property will be started and the metric counters MUST be cleared prior to starting
+  // the flow(s).
+  // If the value of the state property is 'stop' then all flows defined by the 'flow_names'
+  // property will be stopped and the metric counters MUST NOT be cleared.
+  // If the value of the state property is 'pause' then all flows defined by the 'flow_names'
+  // property will be paused and the metric counters MUST NOT be cleared.
+  // If the value of the state property is 'resume' then any paused flows defined by the
+  // 'flow_names' property will start transmit at the point at which they were paused.
+  // Any flow that is stopped will start transmit at the beginning of the flow. The flow(s)
+  // MUST NOT have their metric counters cleared.
+  // required = true
+  State.Enum state = 2;
+}
+
+// Status: {'status': 'deprecated', 'information': 'Please use PortCaptureState instead'}
 // Control port capture state
 message CaptureState {
 
@@ -5910,22 +6041,29 @@ message CaptureState {
   State.Enum state = 2;
 }
 
-// A container of flows with associated properties to be updated without affecting the
-// flows current transmit state.
-message FlowsUpdate {
+// Control port capture state
+message PortCaptureState {
 
-  message PropertyNames {
+  // The names of ports to which the capture state will be applied to. If the list of
+  // port_names is empty or null the state will be applied to all configured ports.
+  // If the list is not empty any port that is not included in the list of port_names
+  // MUST be ignored and not included in the state change.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string port_names = 1;
+
+  message State {
     enum Enum {
       unspecified = 0;
-      rate = 1;
-      size = 2;
+      start = 1;
+      stop = 2;
     }
   }
-  // Flow properties to be updated without affecting the transmit state.
-  repeated PropertyNames.Enum property_names = 1;
-
-  // The list of configured flows for which given property will be updated.
-  repeated Flow flows = 2;
+  // The capture state.
+  // required = true
+  State.Enum state = 2;
 }
 
 // Sets the device route state
@@ -5952,13 +6090,6 @@ message RouteState {
   // Route specific states
   // required = true
   State.Enum state = 2;
-}
-
-// Ping request details
-message PingRequest {
-
-  // Array of ping requests
-  repeated Ping endpoints = 1;
 }
 
 // Sets all configured protocols to `start` or `stop` state. Setting protocol state
@@ -5992,6 +6123,63 @@ message DeviceState {
 
   // Description missing in models
   optional LacpMemberState lacp_member_state = 2;
+}
+
+// Set LACP state for specified LAG Member Port(s).
+message LacpMemberState {
+
+  // The names of LAG members (ports) for which the state has to be applied. An empty
+  // or null list will control all LAG members.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string lag_member_port_names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // The LACP Member admin state. 'up' will send LACPDUs with 'sync' flag set on selected
+  // member ports. 'down' will send LACPDUs with 'sync' flag unset on selected member
+  // ports.
+  // required = true
+  State.Enum state = 2;
+}
+
+// Request for triggering action on resources in traffic generator
+message ControlActionRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ping = 1;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional PingRequest ping = 2;
+}
+
+// Response upon triggering action on resources in traffic generator
+message ControlActionResponse {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ping = 1;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional PingResponse ping = 2;
 }
 
 // Description missing in models
@@ -6043,6 +6231,13 @@ message PingIpv6 {
   optional string dst_ip = 2;
 }
 
+// Ping request details
+message PingRequest {
+
+  // Array of ping requests
+  repeated Ping endpoints = 1;
+}
+
 // A container for ping responses.
 message PingResponse {
 
@@ -6074,31 +6269,6 @@ message Response {
   // Result of the ping request.
   // default = Result.Enum.failure
   optional Result.Enum result = 3;
-}
-
-// Set LACP state for specified LAG Member Port(s).
-message LacpMemberState {
-
-  // The names of LAG members (ports) for which the state has to be applied. An empty
-  // or null list will control all LAG members.
-  // 
-  // x-constraint:
-  // - /components/schemas/Port/properties/name
-  // 
-  repeated string lag_member_port_names = 1;
-
-  message State {
-    enum Enum {
-      unspecified = 0;
-      up = 1;
-      down = 2;
-    }
-  }
-  // The LACP Member admin state. 'up' will send LACPDUs with 'sync' flag set on selected
-  // member ports. 'down' will send LACPDUs with 'sync' flag unset on selected member
-  // ports.
-  // required = true
-  State.Enum state = 2;
 }
 
 // Request to traffic generator for metrics of choice.
@@ -15811,6 +15981,10 @@ message InternalServerError {
 message SetConfigRequest {
   Config config = 1;
 }
+
+message UpdateConfigRequest {
+  ConfigUpdate config_update = 1;
+}
 message SetConfigResponse {
   optional ResponseWarning status_code_200 = 1;
   optional ResponseError status_code_400 = 2;
@@ -15819,6 +15993,32 @@ message SetConfigResponse {
 
 message GetConfigResponse {
   optional Config status_code_200 = 1;
+  optional ResponseError status_code_400 = 2;
+  optional ResponseError status_code_500 = 3;
+}
+
+message UpdateConfigResponse {
+  optional ResponseWarning status_code_200 = 1;
+  optional ResponseError status_code_400 = 2;
+  optional ResponseError status_code_500 = 3;
+}
+
+
+message SetControlSetRequest {
+  ControlState control_state = 1;
+}
+message SetControlSetResponse {
+  optional ResponseWarning status_code_200 = 1;
+  optional ResponseError status_code_400 = 2;
+  optional ResponseError status_code_500 = 3;
+}
+
+
+message SetControlActionRequest {
+  ControlActionRequest control_action_request = 1;
+}
+message SetControlActionResponse {
+  optional ControlActionResponse status_code_200 = 1;
   optional ResponseError status_code_400 = 2;
   optional ResponseError status_code_500 = 3;
 }
@@ -15947,25 +16147,53 @@ service Openapi {
   rpc SetConfig(SetConfigRequest) returns (SetConfigResponse);
   // Description missing in models
   rpc GetConfig(google.protobuf.Empty) returns (GetConfigResponse);
+  // Updates specific attributes of resources configured on the traffic generator. The
+  // fetched configuration shall reflect the updates applied successfully.
+  // The Response.Warnings in the Success response is available for implementers to disclose
+  // additional information about a state change including any implicit changes that are
+  // outside the scope of the state change.
+  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+  // Sets the state of resources configured on the traffic generator.
+  // The Response.Warnings in the Success response is available for implementers to disclose
+  // additional information about a state change including any implicit changes that are
+  // outside the scope of the state change.
+  rpc SetControlSet(SetControlSetRequest) returns (SetControlSetResponse);
+  // Triggers action on the resources configured on the traffic generator.
+  rpc SetControlAction(SetControlActionRequest) returns (SetControlActionResponse);
+  // Status: {'status': 'deprecated', 'information': 'Please use set_control_state with
+  // flow_transmit choice instead'}
   // Updates the state of configuration resources on the traffic generator.
   // The Response.Warnings in the Success response is available for implementers to disclose
   // additional information about a state change including any implicit changes that are
   // outside the scope of the state change.
   rpc SetTransmitState(SetTransmitStateRequest) returns (SetTransmitStateResponse);
+  // Status: {'status': 'deprecated', 'information': 'Please use set_control_state with
+  // port_link choice instead'}
   // Updates the state of configuration resources on the traffic generator.
   rpc SetLinkState(SetLinkStateRequest) returns (SetLinkStateResponse);
+  // Status: {'status': 'deprecated', 'information': 'Please use set_control_state with
+  // port_capture choice instead'}
   // Updates the state of configuration resources on the traffic generator.
   rpc SetCaptureState(SetCaptureStateRequest) returns (SetCaptureStateResponse);
+  // Status: {'status': 'deprecated', 'information': 'Please use update_config instead'}
   // Updates flow properties without disruption of transmit state.
   rpc UpdateFlows(UpdateFlowsRequest) returns (UpdateFlowsResponse);
+  // Status: {'status': 'deprecated', 'information': 'Please use set_control_state with
+  // route choice instead'}
   // Updates the state of configuration resources on the traffic generator.
   rpc SetRouteState(SetRouteStateRequest) returns (SetRouteStateResponse);
+  // Status: {'status': 'deprecated', 'information': 'Please use set_control_action with
+  // ping choice instead'}
   // API to send an IPv4 and/or IPv6 ICMP Echo Request(s) between endpoints. For each
   // endpoint 1 ping packet will be sent and API shall wait for ping response to either
   // be successful or timeout. The API wait timeout for each request is 300ms.
   rpc SendPing(SendPingRequest) returns (SendPingResponse);
+  // Status: {'status': 'deprecated', 'information': 'Please use set_control_state with
+  // protocol choice instead'}
   // Sets all configured protocols to `start` or `stop` state.
   rpc SetProtocolState(SetProtocolStateRequest) returns (SetProtocolStateResponse);
+  // Status: {'status': 'deprecated', 'information': 'Please use set_control_state with
+  // intended choice instead'}
   // Set specific state/actions on device configuration resources on the traffic generator.
   rpc SetDeviceState(SetDeviceStateRequest) returns (SetDeviceStateResponse);
   // Description missing in models

@@ -358,7 +358,7 @@ The build script will enforce the following keyword conventions:
             description: md5 authentication
             x-status:
               status: deprecated
-              information: Deprecated in favor of password
+              information: Please use `password` instead
             x-field-uid: 1
           password:
             description: plain text authentication    
@@ -380,8 +380,8 @@ The build script will enforce the following keyword conventions:
             description: md5 authentication
             x-field-uid: 1
             x-status:
-              statue: deprecated
-              information: Please use password instead
+              status: deprecated
+              information: Please use `password` instead
           password:
             description: plain text authentication    
             x-field-uid: 2

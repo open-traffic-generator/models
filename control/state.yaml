@@ -1,12 +1,82 @@
 openapi: 3.0.3
 info:
-  title: Control models
+  title: Control state models
   description: >-
-    All control schemas
+    All control state schemas
   version: ^0.0.0
 components:
   schemas:
+    Control.State:
+      description: >-
+        Request for setting state of resources in traffic generator
+      type: object
+      required:
+        - choice
+      properties:
+        choice:
+          type: string
+          x-enum:
+            flow_transmit:
+              x-field-uid: 1
+            protocol:
+              x-field-uid: 2
+            route:
+              x-field-uid: 3
+            port_link:
+              x-field-uid: 4
+            port_capture:
+              x-field-uid: 5
+            lacp:
+              x-field-uid: 6
+          x-field-uid: 1
+        flow_transmit:
+          $ref: '#/components/schemas/Flow.Transmit.State'
+          x-field-uid: 2
+        protocol:
+          $ref: '#/components/schemas/Protocol.State'
+          x-field-uid: 3
+        route:
+          $ref: '#/components/schemas/Route.State'
+          x-field-uid: 4
+        port_link:
+          $ref: '#/components/schemas/Port.Link.State'
+          x-field-uid: 5
+        port_capture:
+          $ref: '#/components/schemas/Port.Capture.State'
+          x-field-uid: 6
+        # lacp:
+        #   $ref: './lacp.yaml#/components/schemas/Lacp.State'
+        #   x-field-uid: 7
     Link.State:
+      description: >-
+        Port link state.
+      type: object
+      required: [state]
+      x-status:
+        status: deprecated
+        information: Please use PortLinkStatus instead
+      properties:
+        port_names:
+          description: >-
+            The names of port objects to.
+            An empty or null list will control all port objects.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - '/components/schemas/Port/properties/name'
+          x-field-uid: 1
+        state:
+          description: >-
+            The link state.
+          type: string
+          x-field-uid: 2
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+    Port.Link.State:
       description: >-
         Port link state.
       type: object
@@ -33,6 +103,61 @@ components:
             down:
               x-field-uid: 2
     Transmit.State:
+      description: >-
+        Flow transmit state.
+      type: object
+      required: [state]
+      x-status:
+        status: deprecated
+        information: Please use FlowTransmitState instead
+      properties:
+        flow_names:
+          description: >-
+            The names of flows to which the transmit state will be applied to.
+            If the list of flow_names is empty or null the state will be applied
+            to all configured flows.
+
+            If the list is not empty any flow that is not included in the list
+            of flow_names MUST be ignored and not included in the state change.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - '/components/schemas/Flow/properties/name'
+          x-field-uid: 1
+        state:
+          description: >-
+            The transmit state.
+
+            If the value of the state property is 'start' then all flows
+            defined by the 'flow_names' property will be started and the metric
+            counters MUST be cleared prior to starting the flow(s).
+
+            If the value of the state property is 'stop' then all flows
+            defined by the 'flow_names' property will be stopped and the metric
+            counters MUST NOT be cleared.
+
+            If the value of the state property is 'pause' then all flows
+            defined by the 'flow_names' property will be paused and the metric
+            counters MUST NOT be cleared.
+
+            If the value of the state property is 'resume' then any paused flows
+            defined by the 'flow_names' property will start transmit at the
+            point at which they were paused. Any flow that is stopped will
+            start transmit at the beginning of the flow.
+            The flow(s) MUST NOT have their metric counters cleared.
+          type: string
+          x-field-uid: 2
+          x-enum:
+            start:
+              x-field-uid: 1
+            stop:
+              x-field-uid: 2
+            pause:
+              x-field-uid: 3
+            resume:
+              x-field-uid: 4
+    Flow.Transmit.State:
       description: >-
         Flow transmit state.
       type: object
@@ -89,6 +214,9 @@ components:
         Control port capture state
       type: object
       required: [state]
+      x-status:
+        status: deprecated
+        information: Please use PortCaptureState instead
       properties:
         port_names:
           description: >-
@@ -114,32 +242,36 @@ components:
               x-field-uid: 1
             stop:
               x-field-uid: 2
-    Flows.Update:
+    Port.Capture.State:
       description: >-
-        A container of flows with associated properties to be updated without
-        affecting the flows current transmit state.
+        Control port capture state
       type: object
-      required: [property_names, flows]
+      required: [state]
       properties:
-        property_names:
+        port_names:
           description: >-
-            Flow properties to be updated without affecting the transmit state.
+            The names of ports to which the capture state will be applied to.
+            If the list of port_names is empty or null the state will be applied
+            to all configured ports.
+
+            If the list is not empty any port that is not included in the list
+            of port_names MUST be ignored and not included in the state change.
           type: array
           items:
             type: string
-            x-enum:
-              rate:
-                x-field-uid: 1
-              size:
-                x-field-uid: 2
+          x-constraint:
+          - '/components/schemas/Port/properties/name'
           x-field-uid: 1
-        flows:
+        state:
           description: >-
-            The list of configured flows for which given property will be updated.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow'
+            The capture state.
+          type: string
           x-field-uid: 2
+          x-enum:
+            start:
+              x-field-uid: 1
+            stop:
+              x-field-uid: 2
     Route.State:
       description: >-
         Sets the device route state
@@ -170,17 +302,6 @@ components:
               x-field-uid: 1
             advertise:
               x-field-uid: 2
-    Ping.Request:
-      description: >-
-        Ping request details
-      type: object
-      properties:
-        endpoints:
-          description: Array of ping requests
-          type: array
-          items:
-            $ref: './ping.yaml#/components/schemas/Ping'
-          x-field-uid: 1
     Protocol.State:
       description: >-
         Sets all configured protocols to `start` or `stop` state. Setting protocol state to `start` 

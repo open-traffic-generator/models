@@ -5865,12 +5865,9 @@ message ControlState {
   message Choice {
     enum Enum {
       unspecified = 0;
-      flow_transmit = 1;
+      port = 1;
       protocol = 2;
-      route = 3;
-      port_link = 4;
-      port_capture = 5;
-      lacp = 6;
+      traffic = 3;
     }
   }
   // Description missing in models
@@ -5878,22 +5875,79 @@ message ControlState {
   Choice.Enum choice = 1;
 
   // Description missing in models
-  optional ControlFlowTransmit flow_transmit = 2;
+  optional StatePort port = 2;
 
   // Description missing in models
-  optional ControlProtocol protocol = 3;
+  optional StateProtocol protocol = 3;
 
   // Description missing in models
-  optional ControlRoute route = 4;
-
-  // Description missing in models
-  optional ControlPortLink port_link = 5;
-
-  // Description missing in models
-  optional ControlPortCapture port_capture = 6;
+  optional StateTraffic traffic = 4;
 }
 
-// Status: {'status': 'deprecated', 'information': 'Please use `ControlPortLink` instead'}
+// States associated with configured ports in traffic generator
+message StatePort {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      link = 1;
+      capture = 2;
+    }
+  }
+  // Description missing in models
+  // required = true
+  Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional StatePortLink link = 2;
+
+  // Description missing in models
+  optional StatePortCapture capture = 3;
+}
+
+// States associated with flow configuration in traffic generator
+message StateTraffic {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      flow_transmit = 1;
+    }
+  }
+  // Description missing in models
+  // required = true
+  Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional StateTrafficFlowTransmit flow_transmit = 2;
+}
+
+// States associated with protocols configured on resources in traffic generator
+message StateProtocol {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      all = 1;
+      route = 2;
+      lacp = 3;
+    }
+  }
+  // Description missing in models
+  // required = true
+  Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional StateProtocolAll all = 2;
+
+  // Description missing in models
+  optional StateProtocolRoute route = 3;
+
+  // Description missing in models
+  optional StateProtocolLacp lacp = 4;
+}
+
+// Status: {'status': 'deprecated', 'information': 'Please use `StatePortLink` instead'}
 // Sets the link state of configured ports.
 message LinkState {
 
@@ -5916,29 +5970,7 @@ message LinkState {
   State.Enum state = 2;
 }
 
-// Port link state.
-message ControlPortLink {
-
-  // The names of port objects to. An empty or null list will control all port objects.
-  // 
-  // x-constraint:
-  // - /components/schemas/Port/properties/name
-  // 
-  repeated string port_names = 1;
-
-  message State {
-    enum Enum {
-      unspecified = 0;
-      up = 1;
-      down = 2;
-    }
-  }
-  // The link state.
-  // required = true
-  State.Enum state = 2;
-}
-
-// Status: {'status': 'deprecated', 'information': 'Please use `ControlFlowTransmit`
+// Status: {'status': 'deprecated', 'information': 'Please use `StateTrafficFlowTransmit`
 // instead'}
 // Flow transmit state.
 message TransmitState {
@@ -5978,8 +6010,144 @@ message TransmitState {
   State.Enum state = 2;
 }
 
-// Sets the transmit state of configured flows.
-message ControlFlowTransmit {
+// Status: {'status': 'deprecated', 'information': 'Please use `StatePortCapture` instead'}
+// Control port capture state
+message CaptureState {
+
+  // The names of ports to which the capture state will be applied to. If the list of
+  // port_names is empty or null the state will be applied to all configured ports.
+  // If the list is not empty any port that is not included in the list of port_names
+  // MUST be ignored and not included in the state change.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string port_names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      start = 1;
+      stop = 2;
+    }
+  }
+  // The capture state.
+  // required = true
+  State.Enum state = 2;
+}
+
+// Status: {'status': 'deprecated', 'information': 'Please use `StateProtocolRoute`
+// instead'}
+// Sets the device route state
+message RouteState {
+
+  // The names of device route objects to control. If no names are specified then all
+  // route objects that match the x-constraint will be affected.
+  // 
+  // x-constraint:
+  // - /components/schemas/Bgp.V4RouteRange/properties/name
+  // - /components/schemas/Bgp.V6RouteRange/properties/name
+  // - /components/schemas/Isis.V4RouteRange/properties/name
+  // - /components/schemas/Isis.V6RouteRange/properties/name
+  // 
+  repeated string names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      withdraw = 1;
+      advertise = 2;
+    }
+  }
+  // Route specific states
+  // required = true
+  State.Enum state = 2;
+}
+
+// Status: {'status': 'deprecated', 'information': 'Please use `StateProtocolAll` instead'}
+// Sets all configured protocols to `start` or `stop` state. Setting protocol state
+// to `start`  shall be a no-op if preceding `set_config` API call was made with  `config.options.protocol_options.auto_start_all`
+// set to `true` or if all the configured protocols are already started.
+message ProtocolState {
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      start = 1;
+      stop = 2;
+    }
+  }
+  // Protocol specific states
+  // required = true
+  State.Enum state = 1;
+}
+
+// Status: {'status': 'deprecated', 'information': 'Please use `State.Protocol` instead'}
+// Sets attributes for the requested state/actions to be performed on device(s)
+message DeviceState {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      lacp_member_state = 1;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional LacpMemberState lacp_member_state = 2;
+}
+
+// Sets the link of configured ports.
+message StatePortLink {
+
+  // The names of target ports. An empty or null list will target all ports.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string port_names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // The link state.
+  // required = true
+  State.Enum state = 2;
+}
+
+// Sets the capture state of configured ports
+message StatePortCapture {
+
+  // The names of ports to which the capture state will be applied to. If the list of
+  // port_names is empty or null the state will be applied to all configured ports.
+  // If the list is not empty any port that is not included in the list of port_names
+  // MUST be ignored and not included in the state change.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string port_names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      start = 1;
+      stop = 2;
+    }
+  }
+  // The capture state.
+  // required = true
+  State.Enum state = 2;
+}
+
+// Provides state control of flow transmission.
+message StateTrafficFlowTransmit {
 
   // The names of flows to which the transmit state will be applied to. If the list of
   // flow_names is empty or null the state will be applied to all configured flows.
@@ -6012,24 +6180,14 @@ message ControlFlowTransmit {
   // 'flow_names' property will start transmit at the point at which they were paused.
   // Any flow that is stopped will start transmit at the beginning of the flow. The flow(s)
   // MUST NOT have their metric counters cleared.
-  // required = true
-  State.Enum state = 2;
+  optional State.Enum state = 2;
 }
 
-// Status: {'status': 'deprecated', 'information': 'Please use `ControlPortCapture`
-// instead'}
-// Control port capture state
-message CaptureState {
-
-  // The names of ports to which the capture state will be applied to. If the list of
-  // port_names is empty or null the state will be applied to all configured ports.
-  // If the list is not empty any port that is not included in the list of port_names
-  // MUST be ignored and not included in the state change.
-  // 
-  // x-constraint:
-  // - /components/schemas/Port/properties/name
-  // 
-  repeated string port_names = 1;
+// Sets all configured protocols to `start` or `stop` state.
+// Setting protocol state to `start` shall be a no-op if preceding `set_config` API
+// call was made with `config.options.protocol_options.auto_start_all` set to `true`
+// or if all the configured protocols are already started.
+message StateProtocolAll {
 
   message State {
     enum Enum {
@@ -6038,65 +6196,13 @@ message CaptureState {
       stop = 2;
     }
   }
-  // The capture state.
+  // Protocol states
   // required = true
-  State.Enum state = 2;
-}
-
-// Sets the capture state of configured ports
-message ControlPortCapture {
-
-  // The names of ports to which the capture state will be applied to. If the list of
-  // port_names is empty or null the state will be applied to all configured ports.
-  // If the list is not empty any port that is not included in the list of port_names
-  // MUST be ignored and not included in the state change.
-  // 
-  // x-constraint:
-  // - /components/schemas/Port/properties/name
-  // 
-  repeated string port_names = 1;
-
-  message State {
-    enum Enum {
-      unspecified = 0;
-      start = 1;
-      stop = 2;
-    }
-  }
-  // The capture state.
-  // required = true
-  State.Enum state = 2;
-}
-
-// Status: {'status': 'deprecated', 'information': 'Please use `ControlRoute` instead'}
-// Sets the device route state
-message RouteState {
-
-  // The names of device route objects to control. If no names are specified then all
-  // route objects that match the x-constraint will be affected.
-  // 
-  // x-constraint:
-  // - /components/schemas/Bgp.V4RouteRange/properties/name
-  // - /components/schemas/Bgp.V6RouteRange/properties/name
-  // - /components/schemas/Isis.V4RouteRange/properties/name
-  // - /components/schemas/Isis.V6RouteRange/properties/name
-  // 
-  repeated string names = 1;
-
-  message State {
-    enum Enum {
-      unspecified = 0;
-      withdraw = 1;
-      advertise = 2;
-    }
-  }
-  // Route specific states
-  // required = true
-  State.Enum state = 2;
+  State.Enum state = 1;
 }
 
 // Sets the state of configured routes
-message ControlRoute {
+message StateProtocolRoute {
 
   // The names of device route objects to control. If no names are specified then all
   // route objects that match the x-constraint will be affected.
@@ -6116,62 +6222,54 @@ message ControlRoute {
       advertise = 2;
     }
   }
-  // Route specific states
+  // Route states
   // required = true
   State.Enum state = 2;
 }
 
-// Status: {'status': 'deprecated', 'information': 'Please use `ControlProtocol` instead'}
-// Sets all configured protocols to `start` or `stop` state. Setting protocol state
-// to `start`  shall be a no-op if preceding `set_config` API call was made with  `config.options.protocol_options.auto_start_all`
-// set to `true` or if all the configured protocols are already started.
-message ProtocolState {
-
-  message State {
-    enum Enum {
-      unspecified = 0;
-      start = 1;
-      stop = 2;
-    }
-  }
-  // Protocol specific states
-  // required = true
-  State.Enum state = 1;
-}
-
-// Sets all configured protocols to `start` or `stop` state. Setting protocol state
-// to `start`  shall be a no-op if preceding `set_config` API call was made with  `config.options.protocol_options.auto_start_all`
-// set to `true` or if all the configured protocols are already started.
-message ControlProtocol {
-
-  message State {
-    enum Enum {
-      unspecified = 0;
-      start = 1;
-      stop = 2;
-    }
-  }
-  // Protocol specific states
-  // required = true
-  State.Enum state = 1;
-}
-
-// Sets attributes for the requested state/actions to be performed on device(s)
-message DeviceState {
+// Sets state of configured LACP
+message StateProtocolLacp {
 
   message Choice {
     enum Enum {
       unspecified = 0;
-      lacp_member_state = 1;
+      admin = 1;
     }
   }
   // Description missing in models
-  optional Choice.Enum choice = 1;
+  // required = true
+  Choice.Enum choice = 1;
 
   // Description missing in models
-  optional LacpMemberState lacp_member_state = 2;
+  optional StateProtocolLacpAdmin admin = 2;
 }
 
+// Sets admin state of LACP configured on LAG members
+message StateProtocolLacpAdmin {
+
+  // The names of LAG members (ports) for which the state has to be applied. An empty
+  // or null list will control all LAG members.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string lag_member_names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // The LACP Member admin state. 'up' will send LACPDUs with 'sync' flag set on selected
+  // member ports. 'down' will send LACPDUs with 'sync' flag unset on selected member
+  // ports.
+  optional State.Enum state = 2;
+}
+
+// Status: {'status': 'deprecated', 'information': 'Please use `StateProtocolLacpAdmin`
+// instead'}
 // Set LACP state for specified LAG Member Port(s).
 message LacpMemberState {
 
@@ -6195,39 +6293,6 @@ message LacpMemberState {
   // ports.
   // required = true
   State.Enum state = 2;
-}
-
-// Request for triggering action on resources in traffic generator
-message ControlActionRequest {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      ping = 1;
-    }
-  }
-  // Description missing in models
-  // required = true
-  Choice.Enum choice = 1;
-
-  // Description missing in models
-  optional PingRequest ping = 2;
-}
-
-// Response upon triggering action on resources in traffic generator
-message ControlActionResponse {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      ping = 1;
-    }
-  }
-  // Description missing in models
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  optional PingResponse ping = 2;
 }
 
 // Description missing in models
@@ -16062,16 +16127,6 @@ message SetControlStateResponse {
 }
 
 
-message SetControlActionRequest {
-  ControlActionRequest control_action_request = 1;
-}
-message SetControlActionResponse {
-  optional ControlActionResponse status_code_200 = 1;
-  optional ResponseError status_code_400 = 2;
-  optional ResponseError status_code_500 = 3;
-}
-
-
 message SetTransmitStateRequest {
   TransmitState transmit_state = 1;
 }
@@ -16206,8 +16261,6 @@ service Openapi {
   // additional information about a state change including any implicit changes that are
   // outside the scope of the state change.
   rpc SetControlState(SetControlStateRequest) returns (SetControlStateResponse);
-  // Triggers action on the resources configured on the traffic generator.
-  rpc SetControlAction(SetControlActionRequest) returns (SetControlActionResponse);
   // Status: {'status': 'deprecated', 'information': 'Please use `set_control_state` with
   // `flow_transmit` choice instead'}
   // Updates the state of configuration resources on the traffic generator.

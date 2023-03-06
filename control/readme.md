@@ -33,5 +33,3 @@ Can be further categorized as follows:
     - bgp
         - Send BGP notifications
         - graceful restart
-    - Clear learned info
-    - Inject learnt info (neighbor entries, routes) 

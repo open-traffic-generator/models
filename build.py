@@ -12,7 +12,7 @@ import subprocess
 USE_OPENAPIART_DIR = None
 
 # supported values - branch name or None
-USE_OPENAPIART_BRANCH = None
+USE_OPENAPIART_BRANCH = "error-ux"
 
 OPENAPIART_REPO = "https://github.com/open-traffic-generator/openapiart.git"
 
@@ -32,4 +32,4 @@ openapiart.OpenApiArt(
     protobuf_name="otg",
     artifact_dir="artifacts",
     generate_version_api=True,
-).GeneratePythonSdk(package_name="otg")
+).GenerateProtoDef(package_name="otg")

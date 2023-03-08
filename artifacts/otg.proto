@@ -5232,6 +5232,8 @@ message FlowSize {
       fixed = 1;
       increment = 2;
       random = 3;
+      imix = 4;
+      quad_gaussian = 5;
     }
   }
   // Description missing in models
@@ -5247,6 +5249,20 @@ message FlowSize {
 
   // Description missing in models
   optional FlowSizeRandom random = 4;
+
+  // Description missing in models
+  optional FlowSizeImix imix = 5;
+
+  // Quad Gaussian option allows to set frames to use a calculated distribution of Frame
+  // sizes.
+  // Quad Gaussian is the superposition of four Gaussian distributions. The user can specify
+  // 
+  // the center (or mean), width of half maximum, and weight of each Gaussian distribution.
+  // 
+  // The distribution is then normalized to a single distribution and generates the random
+  // numbers
+  // (used here as Frame size in bytes) according to the normalized distribution.
+  repeated FlowSizeGaussian quad_gaussian = 6;
 }
 
 // Frame size that increments from a starting size to
@@ -5276,6 +5292,87 @@ message FlowSizeRandom {
   // Description missing in models
   // default = 1518
   optional int32 max = 2;
+}
+
+// This option allows to set frame size from available choices of IMIX distribution.
+message FlowSizeImix {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      predefined = 1;
+      custom = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.custom
+  optional Choice.Enum choice = 1;
+
+  message Predefined {
+    enum Enum {
+      unspecified = 0;
+      imix = 1;
+      ipsec_imix = 2;
+      ipv6_imix = 3;
+      standard_imix = 4;
+      tcp_imix = 5;
+      cisco = 6;
+      tolly = 7;
+      rpr_trimodal = 8;
+      rpr_quadmodal = 9;
+    }
+  }
+  // This option allows to set frame pairs to have a predefined size distribution based
+  // on size and weight.
+  // You can set the number of packets that you want to send with the predefined size
+  // distribution.
+  // The available predefined IMIX distribution pairs are:
+  // - IMIX (64:7, 570:4, 1518:1)
+  // - IPSec IMIX (90:58.67, 92:2, 594:23.66, and 1418:15.67)
+  // - IPv6 IMIX (60:58.67, 496:2, 594:23.66, and 1518:15.67)
+  // - Standard IMIX (58:58.67, 594:23.66, and 1518:15.67)
+  // - TCP IMIX (90:58.67, 92:2, 594:23.66, and 1518:15.67)
+  // - Cisco (64:7, 594:4, and 1518:1)
+  // - Tolly (64:55, 78:5, 576:17, and 1518:23)
+  // - RPR Trimodal (64:60, 512:20, and 1518:20)
+  // - RPR Quadmodal (64:50, 512:15, 1518:15, and 9216:20)
+  // default = Predefined.Enum.cisco
+  optional Predefined.Enum predefined = 2;
+
+  // Description missing in models
+  repeated FlowSizeCustomImix custom = 3;
+}
+
+// This option allows to set a custom distribution frame size pair(s) based on size
+// and weight.
+message FlowSizeCustomImix {
+
+  // The size of the frame (in bytes) for this IMIX pair.
+  // default = 64
+  optional int32 size = 1;
+
+  // A user-defined, 32-bit integer (weight) assigned to the corresponding frame size
+  // in this IMIX pair.
+  // default = 1518
+  optional int32 weight = 2;
+}
+
+// Gaussian distribution.
+message FlowSizeGaussian {
+
+  // The frame size for the center of the distribution curve.
+  // default = 200
+  optional int32 center = 1;
+
+  // The width of the distribution curve at half of the curve weight, expressed as
+  // the difference between the minimum and maximum frame size in bytes.
+  // default = 100
+  optional int32 width_at_half = 2;
+
+  // The priority to give the distribution curve. The four weights are normalized into
+  // a ratio.
+  // default = 1
+  optional int32 weight = 3;
 }
 
 // The rate of packet transmission

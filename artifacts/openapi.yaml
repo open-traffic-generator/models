@@ -6494,39 +6494,60 @@ components:
           $ref: '#/components/schemas/Flow.TxRx'
           x-field-uid: 1
         packet:
-          description: "The header is a list of traffic protocol headers.\n\nThe order\
-            \ of traffic protocol headers assigned to the list is the\norder they\
-            \ will appear on the wire.\n\nIn the case of an empty list the keyword/value\
-            \ of minItems: 1 \nindicates that an implementation MUST provide at least\
-            \ one \nFlow.Header object.\n\nThe default value for the Flow.Header choice\
-            \ property is ethernet \nwhich will result in an implementation by default\
-            \ providing at least \none ethernet packet header."
+          description: "Deprecated: Use flow.packet.ingress instead.\n\nThe header\
+            \ is a list of traffic protocol headers.\n\nThe order of traffic protocol\
+            \ headers assigned to the list is the\norder they will appear on the wire.\n\
+            \nIn the case of an empty list the keyword/value of minItems: 1 \nindicates\
+            \ that an implementation MUST provide at least one \nFlow.Header object.\n\
+            \nThe default value for the Flow.Header choice property is ethernet \n\
+            which will result in an implementation by default providing at least \n\
+            one ethernet packet header."
           type: array
           minItems: 1
           items:
             $ref: '#/components/schemas/Flow.Header'
+          x-status:
+            status: deprecated
+            information: Use flow.packet.ingress instead.
           x-field-uid: 2
+          properties:
+            ingress:
+              description: |-
+                Ingress packet
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/Flow.Header'
+              x-field-uid: 3
+            egress:
+              description: |-
+                Egress packets
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/Flow.Header'
+              x-field-uid: 4
         size:
           description: |-
             The size of the packets.
           $ref: '#/components/schemas/Flow.Size'
-          x-field-uid: 3
+          x-field-uid: 5
         rate:
           description: |-
             The transmit rate of the packets.
           $ref: '#/components/schemas/Flow.Rate'
-          x-field-uid: 4
+          x-field-uid: 6
         duration:
           description: |-
             The transmit duration of the packets.
           $ref: '#/components/schemas/Flow.Duration'
-          x-field-uid: 5
+          x-field-uid: 7
         metrics:
           description: "Flow metrics. "
           $ref: '#/components/schemas/Flow.Metrics'
-          x-field-uid: 6
+          x-field-uid: 8
         name:
-          x-field-uid: 7
+          x-field-uid: 9
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
@@ -6861,6 +6882,34 @@ components:
           type: string
           pattern: '^[A-Fa-f0-9: ]+$'
           x-field-uid: 1
+    Flow.Custom.MetricTags:
+      description: |-
+        Metric Info
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          description: |-
+            A unique name is used to indicate to the system that the field  may extend the metric row key and create an aggregate metric  row for every unique value. To have metric tag columns appear  in the flow metric rows the flow metric request allows for the  metric_tag value to be specified as part of the request.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-field-uid: 1
+          x-unique: global
+        offset:
+          description: |-
+            This is in bits and relative to start of the field
+          type: integer
+          default: 0
+          minimum: 0
+          x-field-uid: 2
+        length:
+          description: |-
+            This is in bits
+          type: integer
+          default: 1
+          minimum: 1
+          x-field-uid: 3
     Flow.Ethernet:
       description: |-
         Ethernet packet header
@@ -9765,10 +9814,10 @@ components:
           x-constraint:
           - /components/schemas/Flow/properties/name
           x-field-uid: 1
-        metric_groups:
+        metric_tags:
           description: |-
             A list of metric groups used to disaggregate flows. A metric group that does not exist for a flow group MUST return an error.
-          $ref: '#/components/schemas/Flow.MetricGroup.Request'
+          $ref: '#/components/schemas/Flow.MetricTag.Filter'
           x-field-uid: 2
         metric_names:
           description: |-
@@ -9800,45 +9849,26 @@ components:
             - frames_tx_rate
             - frames_rx_rate
           x-field-uid: 3
-    Flow.MetricGroup.Request:
+    Flow.MetricTag.Filter:
+      description: |-
+        A container for filtering ingress and/or egress metric groups
       type: object
       properties:
-        choice:
+        name:
           description: |-
-            The type of disaggregation to be applied to the flow metrics.
+            A metric tag name that MUST exist in a flow packet or
+            flow egress_packet configuration
           type: string
-          default: ingress
           x-field-uid: 1
-          x-enum:
-            ingress:
-              x-field-uid: 1
-            egress:
-              x-field-uid: 2
-          enum:
-          - ingress
-          - egress
-        ingress:
-          description: "Disaggregate the flow metrics by ingress packet header field\
-            \ names.\nIf the items is empty then no disaggregation will be done. \n\
-            \nx-constraint:\n- /components/schemas/Flow/properties/packet/../metric_group\n"
+        filters:
+          description: |-
+            A list of filters that can be applied to the metric group name.
+            By default all values will be included in the flow metric results.
           type: array
-          default: []
           items:
             type: string
-          x-constraint:
-          - /components/schemas/Flow/properties/packet/../metric_group
+            format: hex
           x-field-uid: 2
-        egress:
-          description: "Disaggregate the flow metrics by egress packet header field\
-            \ names \nIf the items is empty then no disaggregation will be done. \n\
-            \nx-constraint:\n- /components/schemas/Flow/properties/egress/../metric_group\n"
-          type: array
-          default: []
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Flow/properties/egress/../metric_group
-          x-field-uid: 3
     Flow.Metric:
       description: |-
         A container for flow metrics.
@@ -12797,17 +12827,12 @@ components:
           x-field-uid: 4
           default: 00:00:00:00:00:00
           format: mac
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.Dst.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.Dst.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
     Pattern.Flow.Ethernet.Src.Counter:
       description: |-
         mac counter pattern
@@ -12863,17 +12888,12 @@ components:
           default:
           - 00:00:00:00:00:00
           format: mac
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.Src.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.Src.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ethernet.EtherType.Counter:
       description: |-
         integer counter pattern
@@ -12952,17 +12972,12 @@ components:
           default: 65535
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.EtherType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.EtherType.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
       x-constants:
         ipv4: 2048
         ipv6: 34525
@@ -13028,17 +13043,12 @@ components:
           - 0
           minimum: 0
           maximum: 7
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.PfcQueue.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.PfcQueue.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Vlan.Priority.Counter:
       description: |-
         integer counter pattern
@@ -13098,17 +13108,12 @@ components:
           - 0
           minimum: 0
           maximum: 7
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Priority.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Priority.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Vlan.Cfi.Counter:
       description: |-
         integer counter pattern
@@ -13168,17 +13173,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Cfi.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Cfi.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Vlan.Id.Counter:
       description: |-
         integer counter pattern
@@ -13238,17 +13238,12 @@ components:
           - 0
           minimum: 0
           maximum: 4095
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Id.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Id.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Vlan.Tpid.Counter:
       description: |-
         integer counter pattern
@@ -13314,17 +13309,12 @@ components:
           - 33024
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Tpid.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Tpid.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         x8100: 33024
         x88A8: 34984
@@ -13390,17 +13380,12 @@ components:
           - 8
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Flags.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Flags.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Vxlan.Reserved0.Counter:
       description: |-
         integer counter pattern
@@ -13460,17 +13445,12 @@ components:
           - 0
           minimum: 0
           maximum: 16777215
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved0.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved0.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Vxlan.Vni.Counter:
       description: |-
         integer counter pattern
@@ -13543,17 +13523,12 @@ components:
           default: 0
           minimum: 0
           maximum: 16777215
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Vni.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Vni.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
     Pattern.Flow.Vxlan.Reserved1.Counter:
       description: |-
         integer counter pattern
@@ -13613,17 +13588,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved1.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved1.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.Version.Counter:
       description: |-
         integer counter pattern
@@ -13683,17 +13653,12 @@ components:
           - 4
           minimum: 0
           maximum: 15
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Version.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Version.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.HeaderLength.Counter:
       description: |-
         integer counter pattern
@@ -13766,17 +13731,12 @@ components:
           default: 5
           minimum: 0
           maximum: 15
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.HeaderLength.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.HeaderLength.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
     Pattern.Flow.Ipv4.TotalLength.Counter:
       description: |-
         integer counter pattern
@@ -13849,17 +13809,12 @@ components:
           default: 46
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.TotalLength.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.TotalLength.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
     Pattern.Flow.Ipv4.Identification.Counter:
       description: |-
         integer counter pattern
@@ -13919,17 +13874,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Identification.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Identification.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.Reserved.Counter:
       description: |-
         integer counter pattern
@@ -13989,17 +13939,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Reserved.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Reserved.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.DontFragment.Counter:
       description: |-
         integer counter pattern
@@ -14059,17 +14004,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.DontFragment.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.DontFragment.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.MoreFragments.Counter:
       description: |-
         integer counter pattern
@@ -14129,17 +14069,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.MoreFragments.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.MoreFragments.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.FragmentOffset.Counter:
       description: |-
         integer counter pattern
@@ -14199,17 +14134,12 @@ components:
           - 0
           minimum: 0
           maximum: 31
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.FragmentOffset.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.FragmentOffset.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.TimeToLive.Counter:
       description: |-
         integer counter pattern
@@ -14269,17 +14199,12 @@ components:
           - 64
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.TimeToLive.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.TimeToLive.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.Protocol.Counter:
       description: |-
         integer counter pattern
@@ -14352,17 +14277,12 @@ components:
           default: 61
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Protocol.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Protocol.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
     Pattern.Flow.Ipv4.HeaderChecksum:
       description: |-
         Header checksum
@@ -14458,17 +14378,12 @@ components:
           default:
           - 0.0.0.0
           format: ipv4
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.Dst.Counter:
       description: |-
         ipv4 counter pattern
@@ -14524,17 +14439,12 @@ components:
           default:
           - 0.0.0.0
           format: ipv4
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.Priority.Raw.Counter:
       description: |-
         integer counter pattern
@@ -14594,17 +14504,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Priority.Raw.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Priority.Raw.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv4.Dscp.Phb.Counter:
       description: |-
         integer counter pattern
@@ -14686,17 +14591,12 @@ components:
           - 0
           minimum: 0
           maximum: 63
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Phb.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Phb.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         default: 0
         cs1: 8
@@ -14783,17 +14683,12 @@ components:
           - 0
           minimum: 0
           maximum: 3
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Ecn.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Ecn.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         non_capable: 0
         capable_transport_0: 1
@@ -14867,17 +14762,12 @@ components:
           - 0
           minimum: 0
           maximum: 7
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Precedence.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Precedence.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         routine: 0
         priority: 1
@@ -14949,17 +14839,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Delay.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Delay.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         normal: 0
         low: 1
@@ -15025,17 +14910,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Throughput.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Throughput.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         normal: 0
         low: 1
@@ -15101,17 +14981,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Reliability.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Reliability.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         normal: 0
         low: 1
@@ -15177,17 +15052,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Monetary.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Monetary.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         normal: 0
         low: 1
@@ -15250,17 +15120,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Unused.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Unused.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv6.Version.Counter:
       description: |-
         integer counter pattern
@@ -15320,17 +15185,12 @@ components:
           - 6
           minimum: 0
           maximum: 15
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Version.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Version.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv6.TrafficClass.Counter:
       description: |-
         integer counter pattern
@@ -15390,17 +15250,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.TrafficClass.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.TrafficClass.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv6.FlowLabel.Counter:
       description: |-
         integer counter pattern
@@ -15460,17 +15315,12 @@ components:
           - 0
           minimum: 0
           maximum: 1048575
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.FlowLabel.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.FlowLabel.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv6.PayloadLength.Counter:
       description: |-
         integer counter pattern
@@ -15543,17 +15393,12 @@ components:
           default: 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.PayloadLength.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.PayloadLength.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
     Pattern.Flow.Ipv6.NextHeader.Counter:
       description: |-
         integer counter pattern
@@ -15638,17 +15483,12 @@ components:
           default: 59
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.NextHeader.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.NextHeader.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
       x-constants:
         hopopt: 0
         icmp: 1
@@ -15720,17 +15560,12 @@ components:
           - 64
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.HopLimit.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.HopLimit.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv6.Src.Counter:
       description: |-
         ipv6 counter pattern
@@ -15786,17 +15621,12 @@ components:
           default:
           - ::0
           format: ipv6
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Src.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Src.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Ipv6.Dst.Counter:
       description: |-
         ipv6 counter pattern
@@ -15852,17 +15682,12 @@ components:
           default:
           - ::0
           format: ipv6
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Dst.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Dst.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.Dst.Counter:
       description: |-
         mac counter pattern
@@ -15918,17 +15743,12 @@ components:
           default:
           - 01:80:c2:00:00:01
           format: mac
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.Dst.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.Dst.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.Src.Counter:
       description: |-
         mac counter pattern
@@ -15984,17 +15804,12 @@ components:
           default:
           - 00:00:00:00:00:00
           format: mac
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.Src.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.Src.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.EtherType.Counter:
       description: |-
         integer counter pattern
@@ -16056,17 +15871,12 @@ components:
           - 34824
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.EtherType.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.EtherType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         x8808: 34824
     Pattern.Flow.PfcPause.ControlOpCode.Counter:
@@ -16128,17 +15938,12 @@ components:
           - 257
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.ControlOpCode.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.ControlOpCode.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.ClassEnableVector.Counter:
       description: |-
         integer counter pattern
@@ -16198,17 +16003,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.ClassEnableVector.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.ClassEnableVector.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.PauseClass0.Counter:
       description: |-
         integer counter pattern
@@ -16268,17 +16068,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass0.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass0.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.PauseClass1.Counter:
       description: |-
         integer counter pattern
@@ -16338,17 +16133,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass1.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass1.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.PauseClass2.Counter:
       description: |-
         integer counter pattern
@@ -16408,17 +16198,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass2.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass2.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.PauseClass3.Counter:
       description: |-
         integer counter pattern
@@ -16478,17 +16263,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass3.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass3.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.PauseClass4.Counter:
       description: |-
         integer counter pattern
@@ -16548,17 +16328,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass4.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass4.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.PauseClass5.Counter:
       description: |-
         integer counter pattern
@@ -16618,17 +16393,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass5.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass5.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.PauseClass6.Counter:
       description: |-
         integer counter pattern
@@ -16688,17 +16458,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass6.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass6.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.PfcPause.PauseClass7.Counter:
       description: |-
         integer counter pattern
@@ -16758,17 +16523,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass7.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass7.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.EthernetPause.Dst.Counter:
       description: |-
         mac counter pattern
@@ -16824,17 +16584,12 @@ components:
           default:
           - 01:80:c2:00:00:01
           format: mac
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Dst.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Dst.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.EthernetPause.Src.Counter:
       description: |-
         mac counter pattern
@@ -16890,17 +16645,12 @@ components:
           default:
           - 00:00:00:00:00:00
           format: mac
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Src.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Src.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.EthernetPause.EtherType.Counter:
       description: |-
         integer counter pattern
@@ -16962,17 +16712,12 @@ components:
           - 34824
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.EtherType.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.EtherType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         flow_control: 34824
     Pattern.Flow.EthernetPause.ControlOpCode.Counter:
@@ -17034,17 +16779,12 @@ components:
           - 1
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.ControlOpCode.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.ControlOpCode.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.EthernetPause.Time.Counter:
       description: |-
         integer counter pattern
@@ -17104,17 +16844,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Time.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Time.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.SrcPort.Counter:
       description: |-
         integer counter pattern
@@ -17174,17 +16909,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.SrcPort.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.SrcPort.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.DstPort.Counter:
       description: |-
         integer counter pattern
@@ -17244,17 +16974,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.DstPort.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.DstPort.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.SeqNum.Counter:
       description: |-
         integer counter pattern
@@ -17314,17 +17039,12 @@ components:
           - 0
           minimum: 0
           maximum: 4294967295
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.SeqNum.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.SeqNum.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.AckNum.Counter:
       description: |-
         integer counter pattern
@@ -17384,17 +17104,12 @@ components:
           - 0
           minimum: 0
           maximum: 4294967295
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.AckNum.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.AckNum.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.DataOffset.Counter:
       description: |-
         integer counter pattern
@@ -17454,17 +17169,12 @@ components:
           - 0
           minimum: 0
           maximum: 15
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.DataOffset.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.DataOffset.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.EcnNs.Counter:
       description: |-
         integer counter pattern
@@ -17524,17 +17234,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnNs.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnNs.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.EcnCwr.Counter:
       description: |-
         integer counter pattern
@@ -17594,17 +17299,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnCwr.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnCwr.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.EcnEcho.Counter:
       description: |-
         integer counter pattern
@@ -17664,17 +17364,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnEcho.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnEcho.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.CtlUrg.Counter:
       description: |-
         integer counter pattern
@@ -17734,17 +17429,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlUrg.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlUrg.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.CtlAck.Counter:
       description: |-
         integer counter pattern
@@ -17804,17 +17494,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlAck.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlAck.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.CtlPsh.Counter:
       description: |-
         integer counter pattern
@@ -17873,17 +17558,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlPsh.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlPsh.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.CtlRst.Counter:
       description: |-
         integer counter pattern
@@ -17942,17 +17622,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlRst.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlRst.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.CtlSyn.Counter:
       description: |-
         integer counter pattern
@@ -18011,17 +17686,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlSyn.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlSyn.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.CtlFin.Counter:
       description: |-
         integer counter pattern
@@ -18080,17 +17750,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlFin.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlFin.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Tcp.Window.Counter:
       description: |-
         integer counter pattern
@@ -18150,17 +17815,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.Window.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.Window.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Udp.SrcPort.Counter:
       description: |-
         integer counter pattern
@@ -18220,17 +17880,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Udp.SrcPort.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Udp.SrcPort.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Udp.DstPort.Counter:
       description: |-
         integer counter pattern
@@ -18290,17 +17945,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Udp.DstPort.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Udp.DstPort.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Udp.Length.Counter:
       description: |-
         integer counter pattern
@@ -18360,17 +18010,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Udp.Length.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Udp.Length.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Udp.Checksum:
       description: |-
         UDP checksum
@@ -18470,17 +18115,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.ChecksumPresent.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gre.ChecksumPresent.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gre.Reserved0.Counter:
       description: |-
         integer counter pattern
@@ -18540,17 +18180,12 @@ components:
           - 0
           minimum: 0
           maximum: 4095
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved0.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved0.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gre.Version.Counter:
       description: |-
         integer counter pattern
@@ -18610,17 +18245,12 @@ components:
           - 0
           minimum: 0
           maximum: 7
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Version.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Version.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gre.Protocol.Counter:
       description: |-
         integer counter pattern
@@ -18683,17 +18313,12 @@ components:
           - 2048
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Protocol.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Protocol.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         ipv4: 2048
         ipv6: 34525
@@ -18796,17 +18421,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved1.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved1.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.Version.Counter:
       description: |-
         integer counter pattern
@@ -18866,17 +18486,12 @@ components:
           - 1
           minimum: 0
           maximum: 7
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Version.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Version.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.ProtocolType.Counter:
       description: |-
         integer counter pattern
@@ -18936,17 +18551,12 @@ components:
           - 1
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.ProtocolType.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.ProtocolType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.Reserved.Counter:
       description: |-
         integer counter pattern
@@ -19006,17 +18616,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Reserved.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Reserved.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.EFlag.Counter:
       description: |-
         integer counter pattern
@@ -19076,17 +18681,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.EFlag.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.EFlag.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.SFlag.Counter:
       description: |-
         integer counter pattern
@@ -19146,17 +18746,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SFlag.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SFlag.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.PnFlag.Counter:
       description: |-
         integer counter pattern
@@ -19216,17 +18811,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.PnFlag.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.PnFlag.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.MessageType.Counter:
       description: |-
         integer counter pattern
@@ -19286,17 +18876,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageType.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.MessageLength.Counter:
       description: |-
         integer counter pattern
@@ -19356,17 +18941,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageLength.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageLength.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.Teid.Counter:
       description: |-
         integer counter pattern
@@ -19426,17 +19006,12 @@ components:
           - 0
           minimum: 0
           maximum: 4294967295
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Teid.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Teid.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.SquenceNumber.Counter:
       description: |-
         integer counter pattern
@@ -19496,17 +19071,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SquenceNumber.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SquenceNumber.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.NPduNumber.Counter:
       description: |-
         integer counter pattern
@@ -19566,17 +19136,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NPduNumber.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NPduNumber.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv1.NextExtensionHeaderType.Counter:
       description: |-
         integer counter pattern
@@ -19636,17 +19201,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NextExtensionHeaderType.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NextExtensionHeaderType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.GtpExtension.ExtensionLength.Counter:
       description: |-
         integer counter pattern
@@ -19706,17 +19266,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.ExtensionLength.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.ExtensionLength.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.GtpExtension.Contents.Counter:
       description: |-
         integer counter pattern
@@ -19776,17 +19331,12 @@ components:
           - 0
           minimum: 0
           maximum: 281474976710655
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.Contents.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.Contents.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.GtpExtension.NextExtensionHeader.Counter:
       description: |-
         integer counter pattern
@@ -19846,17 +19396,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.NextExtensionHeader.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.NextExtensionHeader.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv2.Version.Counter:
       description: |-
         integer counter pattern
@@ -19916,17 +19461,12 @@ components:
           - 2
           minimum: 0
           maximum: 7
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Version.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Version.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv2.PiggybackingFlag.Counter:
       description: |-
         integer counter pattern
@@ -19986,17 +19526,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.PiggybackingFlag.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.PiggybackingFlag.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv2.TeidFlag.Counter:
       description: |-
         integer counter pattern
@@ -20056,17 +19591,12 @@ components:
           - 0
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.TeidFlag.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.TeidFlag.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv2.Spare1.Counter:
       description: |-
         integer counter pattern
@@ -20126,17 +19656,12 @@ components:
           - 0
           minimum: 0
           maximum: 7
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare1.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare1.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv2.MessageType.Counter:
       description: |-
         integer counter pattern
@@ -20196,17 +19721,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageType.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv2.MessageLength.Counter:
       description: |-
         integer counter pattern
@@ -20266,17 +19786,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageLength.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageLength.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv2.Teid.Counter:
       description: |-
         integer counter pattern
@@ -20336,17 +19851,12 @@ components:
           - 0
           minimum: 0
           maximum: 4294967295
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Teid.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Teid.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv2.SequenceNumber.Counter:
       description: |-
         integer counter pattern
@@ -20406,17 +19916,12 @@ components:
           - 0
           minimum: 0
           maximum: 16777215
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.SequenceNumber.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.SequenceNumber.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Gtpv2.Spare2.Counter:
       description: |-
         integer counter pattern
@@ -20476,17 +19981,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare2.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare2.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Arp.HardwareType.Counter:
       description: |-
         integer counter pattern
@@ -20548,17 +20048,12 @@ components:
           - 1
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareType.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         ethernet: 1
     Pattern.Flow.Arp.ProtocolType.Counter:
@@ -20623,17 +20118,12 @@ components:
           - 2048
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolType.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         ipv4: 2048
         ipv6: 34525
@@ -20696,17 +20186,12 @@ components:
           - 6
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareLength.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareLength.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Arp.ProtocolLength.Counter:
       description: |-
         integer counter pattern
@@ -20766,17 +20251,12 @@ components:
           - 4
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolLength.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolLength.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Arp.Operation.Counter:
       description: |-
         integer counter pattern
@@ -20839,17 +20319,12 @@ components:
           - 1
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.Operation.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.Operation.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         request: 1
         reply: 2
@@ -20908,17 +20383,12 @@ components:
           default:
           - 00:00:00:00:00:00
           format: mac
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.SenderHardwareAddr.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.SenderHardwareAddr.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Arp.SenderProtocolAddr.Counter:
       description: |-
         ipv4 counter pattern
@@ -20974,17 +20444,12 @@ components:
           default:
           - 0.0.0.0
           format: ipv4
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.SenderProtocolAddr.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.SenderProtocolAddr.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Arp.TargetHardwareAddr.Counter:
       description: |-
         mac counter pattern
@@ -21040,17 +20505,12 @@ components:
           default:
           - 00:00:00:00:00:00
           format: mac
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetHardwareAddr.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetHardwareAddr.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Arp.TargetProtocolAddr.Counter:
       description: |-
         ipv4 counter pattern
@@ -21106,17 +20566,12 @@ components:
           default:
           - 0.0.0.0
           format: ipv4
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetProtocolAddr.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetProtocolAddr.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Icmp.Echo.Type.Counter:
       description: |-
         integer counter pattern
@@ -21179,17 +20634,12 @@ components:
           - 8
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Type.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Type.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         reply: 0
         request: 8
@@ -21252,17 +20702,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Code.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Code.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Icmp.Echo.Checksum:
       description: |-
         ICMP checksum
@@ -21362,17 +20807,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Identifier.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Identifier.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Icmp.Echo.SequenceNumber.Counter:
       description: |-
         integer counter pattern
@@ -21432,17 +20872,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.SequenceNumber.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.SequenceNumber.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Icmp.Common.Checksum:
       description: |-
         ICMP checksum
@@ -21542,17 +20977,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.Identifier.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.Identifier.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Icmp.NextFields.SequenceNumber.Counter:
       description: |-
         integer counter pattern
@@ -21612,17 +21042,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.SequenceNumber.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.SequenceNumber.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Icmpv6.Echo.Type.Counter:
       description: |-
         integer counter pattern
@@ -21685,17 +21110,12 @@ components:
           - 128
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Type.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Type.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         request: 128
         reply: 129
@@ -21758,17 +21178,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Code.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Code.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Icmpv6.Echo.Identifier.Counter:
       description: |-
         integer counter pattern
@@ -21828,17 +21243,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Identifier.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Identifier.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Icmpv6.Echo.SequenceNumber.Counter:
       description: |-
         integer counter pattern
@@ -21898,17 +21308,12 @@ components:
           - 0
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.SequenceNumber.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.SequenceNumber.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Icmpv6.Echo.Checksum:
       description: |-
         ICMPv6 checksum
@@ -22050,17 +21455,12 @@ components:
           - 255
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.Address.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.Address.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         standard_address: 255
     Pattern.Flow.Ppp.Control.Counter:
@@ -22124,17 +21524,12 @@ components:
           - 3
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.Control.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.Control.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         unnumbered_data: 3
     Pattern.Flow.Ppp.ProtocolType.Counter:
@@ -22209,17 +21604,12 @@ components:
           default: 33
           minimum: 0
           maximum: 65535
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.ProtocolType.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.ProtocolType.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
     Pattern.Flow.Igmpv1.Version.Counter:
       description: |-
         integer counter pattern
@@ -22279,17 +21669,12 @@ components:
           - 1
           minimum: 0
           maximum: 15
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Version.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Version.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Igmpv1.Type.Counter:
       description: |-
         integer counter pattern
@@ -22352,17 +21737,12 @@ components:
           - 1
           minimum: 0
           maximum: 15
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Type.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Type.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
       x-constants:
         query: 1
         report: 2
@@ -22425,17 +21805,12 @@ components:
           - 0
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Unused.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Unused.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Igmpv1.Checksum:
       description: |-
         Checksum
@@ -22531,17 +21906,12 @@ components:
           default:
           - 0.0.0.0
           format: ipv4
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.GroupAddress.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.GroupAddress.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Mpls.Label.Counter:
       description: |-
         integer counter pattern
@@ -22614,17 +21984,12 @@ components:
           default: 16
           minimum: 0
           maximum: 1048575
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.Label.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.Label.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
     Pattern.Flow.Mpls.TrafficClass.Counter:
       description: |-
         integer counter pattern
@@ -22684,17 +22049,12 @@ components:
           - 0
           minimum: 0
           maximum: 7
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.TrafficClass.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.TrafficClass.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Pattern.Flow.Mpls.BottomOfStack.Counter:
       description: |-
         integer counter pattern
@@ -22767,17 +22127,12 @@ components:
           default: 1
           minimum: 0
           maximum: 1
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.BottomOfStack.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.BottomOfStack.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
     Pattern.Flow.Mpls.TimeToLive.Counter:
       description: |-
         integer counter pattern
@@ -22837,17 +22192,12 @@ components:
           - 64
           minimum: 0
           maximum: 255
-        metric_group:
-          description: |-
-            A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric group columns appear in the flow metric rows the flow metric request allows for the metric_group value to be specified as part of the request.
-          type: string
-          x-field-uid: 4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.TimeToLive.Counter'
-          x-field-uid: 5
+          x-field-uid: 4
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.TimeToLive.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
     Version:
       description: |-
         Version details

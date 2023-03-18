@@ -32,4 +32,4 @@ openapiart.OpenApiArt(
     protobuf_name="otg",
     artifact_dir="artifacts",
     generate_version_api=True,
-).GenerateProtoDef(package_name="otg")
+).GeneratePythonSdk(package_name="otg")

@@ -1,0 +1,119 @@
+openapi: 3.0.3
+info:
+  title: BGP Control models
+  description: >-
+    All BGP control schemas
+  version: ^0.0.0
+components:
+  schemas:
+    Action.Protocol.Bgp:
+      description: >-
+        Actions associated with BGP on configured resources.
+      type: object
+      required:
+        - choice
+      properties:
+        choice:
+          type: string
+          x-enum:
+            notification:
+              x-field-uid: 1
+            initiate_graceful_restart:
+              x-field-uid: 2
+          x-field-uid: 1
+        notification:
+          $ref: "#/components/schemas/Action.Protocol.Bgp.Notification"
+          x-field-uid: 2
+        initiate_graceful_restart:
+          $ref: "#/components/schemas/Action.Protocol.Bgp.InitiateGracefulRestart"
+          x-field-uid: 3
+      
+    Action.Protocol.Bgp.Notification:
+      description: >-
+        A NOTIFICATION message is sent when an error is detected with the BGP session, such as hold timer expiring, misconfigured AS number 
+        or a BGP session reset is requested. This causes the BGP connection to close. Send explicit NOTIFICATIONs for list of specified 
+        BGP peers. If a user wants to send custom Error Code and Error Subcode the custom object should be configured.
+        A user can send IANA defined BGP NOTIFICATIONs according to https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml. 
+      type: object
+      properties:
+        names:
+          description: >-
+            The names of BGP Peers to send NOTIFICATION to. If no name is specified then NOTIFICATION will be sent to all configured BGP peers.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - '/components/schemas/Device.Bgp/properties/name'
+          x-field-uid: 1
+        choice:
+          description: >-
+            Each BGP NOTIFICATION message includes an Error Code field indicating what type of problem occurred. For certain Error Codes, an Error 
+            Subcode field provides additional details about the specific nature of the problem. 
+            The choice value will provide the Error Code used in NOTIFICATION message. 
+            The Subcode can be set for each of the corresponding errors except for Hold Timer Expired error and BGP Finite State Machine error. 
+            In both of these cases Subcode 0 will be sent. If a user wants to use non zero Sub Code then custom choice can be used.
+          type: string
+          x-field-uid: 2
+          default: cease
+          x-enum:
+            cease:
+              x-field-uid: 1
+            message_header_error:
+              x-field-uid: 2
+            open_message_error:
+              x-field-uid: 3
+            update_message_error:
+              x-field-uid: 4
+            hold_timer_expired:
+              x-field-uid: 5
+            finite_state_machine_error:
+              x-field-uid: 6
+            custom:
+              x-field-uid: 7
+
+        cease:
+          $ref: '#/components/schemas/Device.Bgp.CeaseError'
+          x-field-uid: 3 
+        message_header_error:
+          $ref: '#/components/schemas/Device.Bgp.MessageHeaderError'
+          x-field-uid: 4 
+        open_message_error:
+          $ref: '#/components/schemas/Device.Bgp.OpenMessageError'
+          x-field-uid: 5 
+        update_message_error:
+          $ref: '#/components/schemas/Device.Bgp.UpdateMessageError'
+          x-field-uid: 6 
+        hold_timer_expired:
+          $ref: '#/components/schemas/Device.Bgp.HoldTimerExpired'
+          x-field-uid: 7
+        finite_state_machine_error:
+          $ref: '#/components/schemas/Device.Bgp.FiniteStateMachineError'
+          x-field-uid: 8
+        custom:
+          $ref: '#/components/schemas/Device.Bgp.CustomError'
+          x-field-uid: 9
+
+    Action.Protocol.Bgp.InitiateGracefulRestart:
+      description: >-
+        Initiates BGP Graceful Restart process for the selected BGP peers.
+        If no name is specified then Graceful Restart will be sent to all configured BGP peers.
+      type: object
+      properties:
+        peer_names:
+          description: >-
+            The names of device BGP peers objects to control.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - '/components/schemas/Device.Bgp/properties/name'
+          x-field-uid: 1
+        restart_delay:
+          description: |-
+            Duration (in seconds) after which selected BGP peers will initiate 
+            Graceful restart by sending the Open Message with Restart State bit set in the Graceful Restart capability.
+          type: integer
+          format: uint32
+          maximum: 3600
+          default: 30
+          x-field-uid: 2

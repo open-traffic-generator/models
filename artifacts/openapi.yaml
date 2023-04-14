@@ -9857,13 +9857,6 @@ components:
           x-constraint:
           - /components/schemas/Flow/properties/name
           x-field-uid: 1
-        metric_tags:
-          description: |-
-            A list of metric tags used to disaggregate flows. A metric tag that does not exist for a flow group MUST return an error.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.MetricTag.Filter'
-          x-field-uid: 4
         metric_names:
           description: |-
             The list of metric names that the returned result set will contain. If the list is empty then all metrics will be returned.
@@ -9894,6 +9887,62 @@ components:
             - frames_tx_rate
             - frames_rx_rate
           x-field-uid: 3
+        tagged_metrics:
+          description: |-
+            Filter for tagged metrics.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.TaggedMetrics.Filter'
+          x-field-uid: 4
+    Flow.TaggedMetrics.Filter:
+      type: object
+      properties:
+        include:
+          description: |-
+            Controls inclusion/exclusion of tagged metrics when fetching flow metrics.
+          type: boolean
+          default: true
+          x-field-uid: 1
+        include_empty_metrics:
+          description: |-
+            Controls inclusion/exclusion of tagged metrics where each underlying attributes has zero value or absent value.
+          type: boolean
+          default: false
+          x-field-uid: 2
+        metric_names:
+          description: |-
+            The list of metric names that the returned result set will contain. If the list is empty then all metrics will be returned.
+          type: array
+          items:
+            type: string
+            x-enum:
+              frames_tx:
+                x-field-uid: 1
+              frames_rx:
+                x-field-uid: 2
+              bytes_tx:
+                x-field-uid: 3
+              bytes_rx:
+                x-field-uid: 4
+              frames_tx_rate:
+                x-field-uid: 5
+              frames_rx_rate:
+                x-field-uid: 6
+            enum:
+            - frames_tx
+            - frames_rx
+            - bytes_tx
+            - bytes_rx
+            - frames_tx_rate
+            - frames_rx_rate
+          x-field-uid: 3
+        filters:
+          description: |-
+            List of filters to selectively fetch tagged metrics with certain tag and corresponding value.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.MetricTag.Filter'
+          x-field-uid: 4
     Flow.MetricTag.Filter:
       description: |-
         A container for filtering ingress and/or egress metric tags.
@@ -9906,7 +9955,7 @@ components:
             flow egress_packet configuration
           type: string
           x-field-uid: 1
-        filters:
+        values:
           description: |-
             A list of filters that can be applied to the metric tag name.
             By default all values will be included in the flow metric results.
@@ -9917,8 +9966,7 @@ components:
     Flow.Metric:
       description: |-
         A container for flow metrics.
-        The container is keyed by the name, port_tx, port_rx and metric_tags
-        values.
+        The container is keyed by the name, port_tx and port_rx.
       type: object
       properties:
         name:
@@ -9937,13 +9985,6 @@ components:
             The name of the receive port
           type: string
           x-field-uid: 3
-        metric_tags:
-          description: |-
-            Flow disaggregation groups.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.MetricTag'
-          x-field-uid: 15
         transmit:
           description: |-
             The transmit state of the flow.
@@ -10009,6 +10050,70 @@ components:
         latency:
           $ref: '#/components/schemas/Metric.Latency'
           x-field-uid: 14
+        tagged_metrics:
+          description: |-
+            List of tagged metrics
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.TaggedMetric'
+          x-field-uid: 15
+    Flow.TaggedMetric:
+      description: |-
+        A container for tagged flow metrics. The container is keyed by list of tags.
+      type: object
+      properties:
+        tags:
+          description: |-
+            List of tag and value pairs
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.MetricTag'
+          x-field-uid: 1
+        frames_tx:
+          description: |-
+            The current total number of frames transmitted
+          type: integer
+          format: uint64
+          x-field-uid: 2
+        frames_rx:
+          description: |-
+            The current total number of valid frames received
+          type: integer
+          format: uint64
+          x-field-uid: 3
+        bytes_tx:
+          description: |-
+            The current total number of bytes transmitted
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        bytes_rx:
+          description: |-
+            The current total number of bytes received
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        frames_tx_rate:
+          description: |-
+            The current rate of frames transmitted
+          type: number
+          x-field-uid: 6
+        frames_rx_rate:
+          description: |-
+            The current rate of valid frames received
+          type: number
+          x-field-uid: 7
+        loss:
+          description: |-
+            The percentage of lost frames
+          type: number
+          x-field-uid: 8
+        timestamps:
+          $ref: '#/components/schemas/Metric.Timestamp'
+          x-field-uid: 9
+        latency:
+          $ref: '#/components/schemas/Metric.Latency'
+          x-field-uid: 10
     Flow.MetricTag:
       type: object
       properties:
@@ -12805,7 +12910,7 @@ components:
           x-constraint:
           - /components/schemas/Port/properties/name
           x-field-uid: 1
-    Pattern.Flow.Ethernet.Dst.MetricTags:
+    Pattern.Flow.Ethernet.Dst.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -12904,7 +13009,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ethernet.Dst.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ethernet.Dst.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.Dst.Counter'
@@ -12912,7 +13017,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.Dst.Counter'
           x-field-uid: 8
-    Pattern.Flow.Ethernet.Src.MetricTags:
+    Pattern.Flow.Ethernet.Src.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -12999,7 +13104,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ethernet.Src.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ethernet.Src.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.Src.Counter'
@@ -13007,7 +13112,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.Src.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ethernet.EtherType.MetricTags:
+    Pattern.Flow.Ethernet.EtherType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -13117,7 +13222,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ethernet.EtherType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ethernet.EtherType.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.EtherType.Counter'
@@ -13131,7 +13236,7 @@ components:
         arp: 2054
         vlan_802_1_q: 33024
         reserved: 65535
-    Pattern.Flow.Ethernet.PfcQueue.MetricTags:
+    Pattern.Flow.Ethernet.PfcQueue.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -13222,7 +13327,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ethernet.PfcQueue.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ethernet.PfcQueue.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.PfcQueue.Counter'
@@ -13230,7 +13335,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ethernet.PfcQueue.Counter'
           x-field-uid: 7
-    Pattern.Flow.Vlan.Priority.MetricTags:
+    Pattern.Flow.Vlan.Priority.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -13321,7 +13426,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Vlan.Priority.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Vlan.Priority.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Priority.Counter'
@@ -13329,7 +13434,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Priority.Counter'
           x-field-uid: 7
-    Pattern.Flow.Vlan.Cfi.MetricTags:
+    Pattern.Flow.Vlan.Cfi.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -13420,7 +13525,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Vlan.Cfi.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Vlan.Cfi.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Cfi.Counter'
@@ -13428,7 +13533,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Cfi.Counter'
           x-field-uid: 7
-    Pattern.Flow.Vlan.Id.MetricTags:
+    Pattern.Flow.Vlan.Id.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -13519,7 +13624,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Vlan.Id.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Vlan.Id.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Id.Counter'
@@ -13527,7 +13632,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Id.Counter'
           x-field-uid: 7
-    Pattern.Flow.Vlan.Tpid.MetricTags:
+    Pattern.Flow.Vlan.Tpid.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -13624,7 +13729,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Vlan.Tpid.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Vlan.Tpid.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vlan.Tpid.Counter'
@@ -13638,7 +13743,7 @@ components:
         x9100: 37120
         x9200: 37376
         x9300: 37632
-    Pattern.Flow.Vxlan.Flags.MetricTags:
+    Pattern.Flow.Vxlan.Flags.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -13729,7 +13834,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Vxlan.Flags.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Vxlan.Flags.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Flags.Counter'
@@ -13737,7 +13842,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Flags.Counter'
           x-field-uid: 7
-    Pattern.Flow.Vxlan.Reserved0.MetricTags:
+    Pattern.Flow.Vxlan.Reserved0.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -13828,7 +13933,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved0.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved0.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved0.Counter'
@@ -13836,7 +13941,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved0.Counter'
           x-field-uid: 7
-    Pattern.Flow.Vxlan.Vni.MetricTags:
+    Pattern.Flow.Vxlan.Vni.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -13940,7 +14045,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Vxlan.Vni.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Vxlan.Vni.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Vni.Counter'
@@ -13948,7 +14053,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Vni.Counter'
           x-field-uid: 8
-    Pattern.Flow.Vxlan.Reserved1.MetricTags:
+    Pattern.Flow.Vxlan.Reserved1.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14039,7 +14144,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved1.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved1.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved1.Counter'
@@ -14047,7 +14152,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Vxlan.Reserved1.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.Version.MetricTags:
+    Pattern.Flow.Ipv4.Version.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14138,7 +14243,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Version.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Version.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Version.Counter'
@@ -14146,7 +14251,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Version.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.HeaderLength.MetricTags:
+    Pattern.Flow.Ipv4.HeaderLength.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14250,7 +14355,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.HeaderLength.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.HeaderLength.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.HeaderLength.Counter'
@@ -14258,7 +14363,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.HeaderLength.Counter'
           x-field-uid: 8
-    Pattern.Flow.Ipv4.TotalLength.MetricTags:
+    Pattern.Flow.Ipv4.TotalLength.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14362,7 +14467,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.TotalLength.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.TotalLength.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.TotalLength.Counter'
@@ -14370,7 +14475,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.TotalLength.Counter'
           x-field-uid: 8
-    Pattern.Flow.Ipv4.Identification.MetricTags:
+    Pattern.Flow.Ipv4.Identification.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14461,7 +14566,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Identification.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Identification.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Identification.Counter'
@@ -14469,7 +14574,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Identification.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.Reserved.MetricTags:
+    Pattern.Flow.Ipv4.Reserved.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14560,7 +14665,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Reserved.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Reserved.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Reserved.Counter'
@@ -14568,7 +14673,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Reserved.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.DontFragment.MetricTags:
+    Pattern.Flow.Ipv4.DontFragment.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14659,7 +14764,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.DontFragment.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.DontFragment.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.DontFragment.Counter'
@@ -14667,7 +14772,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.DontFragment.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.MoreFragments.MetricTags:
+    Pattern.Flow.Ipv4.MoreFragments.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14758,7 +14863,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.MoreFragments.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.MoreFragments.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.MoreFragments.Counter'
@@ -14766,7 +14871,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.MoreFragments.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.FragmentOffset.MetricTags:
+    Pattern.Flow.Ipv4.FragmentOffset.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14857,7 +14962,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.FragmentOffset.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.FragmentOffset.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.FragmentOffset.Counter'
@@ -14865,7 +14970,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.FragmentOffset.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.TimeToLive.MetricTags:
+    Pattern.Flow.Ipv4.TimeToLive.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -14956,7 +15061,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.TimeToLive.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.TimeToLive.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.TimeToLive.Counter'
@@ -14964,7 +15069,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.TimeToLive.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.Protocol.MetricTags:
+    Pattern.Flow.Ipv4.Protocol.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -15068,7 +15173,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Protocol.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Protocol.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Protocol.Counter'
@@ -15116,7 +15221,7 @@ components:
           minimum: 0
           maximum: 65535
           x-field-uid: 3
-    Pattern.Flow.Ipv4.Src.MetricTags:
+    Pattern.Flow.Ipv4.Src.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -15203,7 +15308,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.Counter'
@@ -15211,7 +15316,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.Dst.MetricTags:
+    Pattern.Flow.Ipv4.Dst.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -15298,7 +15403,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.Counter'
@@ -15306,7 +15411,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.Priority.Raw.MetricTags:
+    Pattern.Flow.Ipv4.Priority.Raw.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -15397,7 +15502,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Priority.Raw.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Priority.Raw.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Priority.Raw.Counter'
@@ -15405,7 +15510,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Priority.Raw.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv4.Dscp.Phb.MetricTags:
+    Pattern.Flow.Ipv4.Dscp.Phb.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -15518,7 +15623,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Phb.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Phb.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Phb.Counter'
@@ -15548,7 +15653,7 @@ components:
         af42: 36
         af43: 38
         ef46: 46
-    Pattern.Flow.Ipv4.Dscp.Ecn.MetricTags:
+    Pattern.Flow.Ipv4.Dscp.Ecn.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -15644,7 +15749,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Ecn.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Ecn.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dscp.Ecn.Counter'
@@ -15657,7 +15762,7 @@ components:
         capable_transport_0: 1
         capable_transport_1: 2
         congestion_encountered: 3
-    Pattern.Flow.Ipv4.Tos.Precedence.MetricTags:
+    Pattern.Flow.Ipv4.Tos.Precedence.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -15757,7 +15862,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Precedence.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Precedence.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Precedence.Counter'
@@ -15774,7 +15879,7 @@ components:
         critic_ecp: 5
         internetwork_control: 6
         network_control: 7
-    Pattern.Flow.Ipv4.Tos.Delay.MetricTags:
+    Pattern.Flow.Ipv4.Tos.Delay.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -15868,7 +15973,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Delay.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Delay.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Delay.Counter'
@@ -15879,7 +15984,7 @@ components:
       x-constants:
         normal: 0
         low: 1
-    Pattern.Flow.Ipv4.Tos.Throughput.MetricTags:
+    Pattern.Flow.Ipv4.Tos.Throughput.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -15973,7 +16078,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Throughput.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Throughput.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Throughput.Counter'
@@ -15984,7 +16089,7 @@ components:
       x-constants:
         normal: 0
         low: 1
-    Pattern.Flow.Ipv4.Tos.Reliability.MetricTags:
+    Pattern.Flow.Ipv4.Tos.Reliability.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -16078,7 +16183,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Reliability.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Reliability.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Reliability.Counter'
@@ -16089,7 +16194,7 @@ components:
       x-constants:
         normal: 0
         low: 1
-    Pattern.Flow.Ipv4.Tos.Monetary.MetricTags:
+    Pattern.Flow.Ipv4.Tos.Monetary.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -16183,7 +16288,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Monetary.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Monetary.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Monetary.Counter'
@@ -16194,7 +16299,7 @@ components:
       x-constants:
         normal: 0
         low: 1
-    Pattern.Flow.Ipv4.Tos.Unused.MetricTags:
+    Pattern.Flow.Ipv4.Tos.Unused.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -16285,7 +16390,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Unused.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Unused.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Unused.Counter'
@@ -16293,7 +16398,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Tos.Unused.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv6.Version.MetricTags:
+    Pattern.Flow.Ipv6.Version.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -16384,7 +16489,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv6.Version.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv6.Version.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Version.Counter'
@@ -16392,7 +16497,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Version.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv6.TrafficClass.MetricTags:
+    Pattern.Flow.Ipv6.TrafficClass.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -16483,7 +16588,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv6.TrafficClass.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv6.TrafficClass.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.TrafficClass.Counter'
@@ -16491,7 +16596,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.TrafficClass.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv6.FlowLabel.MetricTags:
+    Pattern.Flow.Ipv6.FlowLabel.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -16582,7 +16687,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv6.FlowLabel.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv6.FlowLabel.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.FlowLabel.Counter'
@@ -16590,7 +16695,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.FlowLabel.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv6.PayloadLength.MetricTags:
+    Pattern.Flow.Ipv6.PayloadLength.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -16694,7 +16799,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv6.PayloadLength.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv6.PayloadLength.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.PayloadLength.Counter'
@@ -16702,7 +16807,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.PayloadLength.Counter'
           x-field-uid: 8
-    Pattern.Flow.Ipv6.NextHeader.MetricTags:
+    Pattern.Flow.Ipv6.NextHeader.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -16818,7 +16923,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv6.NextHeader.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv6.NextHeader.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.NextHeader.Counter'
@@ -16838,7 +16943,7 @@ components:
         egp: 8
         igp: 9
         no_next_header: 59
-    Pattern.Flow.Ipv6.HopLimit.MetricTags:
+    Pattern.Flow.Ipv6.HopLimit.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -16929,7 +17034,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv6.HopLimit.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv6.HopLimit.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.HopLimit.Counter'
@@ -16937,7 +17042,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.HopLimit.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv6.Src.MetricTags:
+    Pattern.Flow.Ipv6.Src.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17024,7 +17129,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv6.Src.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv6.Src.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Src.Counter'
@@ -17032,7 +17137,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Src.Counter'
           x-field-uid: 7
-    Pattern.Flow.Ipv6.Dst.MetricTags:
+    Pattern.Flow.Ipv6.Dst.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17119,7 +17224,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ipv6.Dst.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ipv6.Dst.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Dst.Counter'
@@ -17127,7 +17232,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Dst.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.Dst.MetricTags:
+    Pattern.Flow.PfcPause.Dst.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17214,7 +17319,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.Dst.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.Dst.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.Dst.Counter'
@@ -17222,7 +17327,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.Dst.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.Src.MetricTags:
+    Pattern.Flow.PfcPause.Src.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17309,7 +17414,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.Src.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.Src.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.Src.Counter'
@@ -17317,7 +17422,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.Src.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.EtherType.MetricTags:
+    Pattern.Flow.PfcPause.EtherType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17410,7 +17515,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.EtherType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.EtherType.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.EtherType.Counter'
@@ -17420,7 +17525,7 @@ components:
           x-field-uid: 7
       x-constants:
         x8808: 34824
-    Pattern.Flow.PfcPause.ControlOpCode.MetricTags:
+    Pattern.Flow.PfcPause.ControlOpCode.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17511,7 +17616,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.ControlOpCode.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.ControlOpCode.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.ControlOpCode.Counter'
@@ -17519,7 +17624,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.ControlOpCode.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.ClassEnableVector.MetricTags:
+    Pattern.Flow.PfcPause.ClassEnableVector.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17610,7 +17715,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.ClassEnableVector.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.ClassEnableVector.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.ClassEnableVector.Counter'
@@ -17618,7 +17723,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.ClassEnableVector.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.PauseClass0.MetricTags:
+    Pattern.Flow.PfcPause.PauseClass0.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17709,7 +17814,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass0.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass0.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass0.Counter'
@@ -17717,7 +17822,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass0.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.PauseClass1.MetricTags:
+    Pattern.Flow.PfcPause.PauseClass1.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17808,7 +17913,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass1.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass1.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass1.Counter'
@@ -17816,7 +17921,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass1.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.PauseClass2.MetricTags:
+    Pattern.Flow.PfcPause.PauseClass2.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -17907,7 +18012,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass2.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass2.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass2.Counter'
@@ -17915,7 +18020,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass2.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.PauseClass3.MetricTags:
+    Pattern.Flow.PfcPause.PauseClass3.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18006,7 +18111,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass3.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass3.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass3.Counter'
@@ -18014,7 +18119,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass3.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.PauseClass4.MetricTags:
+    Pattern.Flow.PfcPause.PauseClass4.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18105,7 +18210,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass4.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass4.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass4.Counter'
@@ -18113,7 +18218,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass4.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.PauseClass5.MetricTags:
+    Pattern.Flow.PfcPause.PauseClass5.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18204,7 +18309,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass5.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass5.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass5.Counter'
@@ -18212,7 +18317,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass5.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.PauseClass6.MetricTags:
+    Pattern.Flow.PfcPause.PauseClass6.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18303,7 +18408,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass6.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass6.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass6.Counter'
@@ -18311,7 +18416,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass6.Counter'
           x-field-uid: 7
-    Pattern.Flow.PfcPause.PauseClass7.MetricTags:
+    Pattern.Flow.PfcPause.PauseClass7.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18402,7 +18507,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass7.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass7.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass7.Counter'
@@ -18410,7 +18515,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.PfcPause.PauseClass7.Counter'
           x-field-uid: 7
-    Pattern.Flow.EthernetPause.Dst.MetricTags:
+    Pattern.Flow.EthernetPause.Dst.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18497,7 +18602,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Dst.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Dst.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Dst.Counter'
@@ -18505,7 +18610,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Dst.Counter'
           x-field-uid: 7
-    Pattern.Flow.EthernetPause.Src.MetricTags:
+    Pattern.Flow.EthernetPause.Src.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18592,7 +18697,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Src.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Src.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Src.Counter'
@@ -18600,7 +18705,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Src.Counter'
           x-field-uid: 7
-    Pattern.Flow.EthernetPause.EtherType.MetricTags:
+    Pattern.Flow.EthernetPause.EtherType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18693,7 +18798,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.EtherType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.EtherType.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.EtherType.Counter'
@@ -18703,7 +18808,7 @@ components:
           x-field-uid: 7
       x-constants:
         flow_control: 34824
-    Pattern.Flow.EthernetPause.ControlOpCode.MetricTags:
+    Pattern.Flow.EthernetPause.ControlOpCode.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18794,7 +18899,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.ControlOpCode.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.ControlOpCode.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.ControlOpCode.Counter'
@@ -18802,7 +18907,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.ControlOpCode.Counter'
           x-field-uid: 7
-    Pattern.Flow.EthernetPause.Time.MetricTags:
+    Pattern.Flow.EthernetPause.Time.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18893,7 +18998,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Time.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Time.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Time.Counter'
@@ -18901,7 +19006,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.EthernetPause.Time.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.SrcPort.MetricTags:
+    Pattern.Flow.Tcp.SrcPort.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -18992,7 +19097,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.SrcPort.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.SrcPort.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.SrcPort.Counter'
@@ -19000,7 +19105,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.SrcPort.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.DstPort.MetricTags:
+    Pattern.Flow.Tcp.DstPort.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19091,7 +19196,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.DstPort.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.DstPort.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.DstPort.Counter'
@@ -19099,7 +19204,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.DstPort.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.SeqNum.MetricTags:
+    Pattern.Flow.Tcp.SeqNum.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19190,7 +19295,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.SeqNum.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.SeqNum.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.SeqNum.Counter'
@@ -19198,7 +19303,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.SeqNum.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.AckNum.MetricTags:
+    Pattern.Flow.Tcp.AckNum.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19289,7 +19394,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.AckNum.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.AckNum.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.AckNum.Counter'
@@ -19297,7 +19402,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.AckNum.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.DataOffset.MetricTags:
+    Pattern.Flow.Tcp.DataOffset.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19388,7 +19493,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.DataOffset.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.DataOffset.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.DataOffset.Counter'
@@ -19396,7 +19501,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.DataOffset.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.EcnNs.MetricTags:
+    Pattern.Flow.Tcp.EcnNs.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19487,7 +19592,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnNs.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnNs.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnNs.Counter'
@@ -19495,7 +19600,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnNs.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.EcnCwr.MetricTags:
+    Pattern.Flow.Tcp.EcnCwr.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19586,7 +19691,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnCwr.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnCwr.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnCwr.Counter'
@@ -19594,7 +19699,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnCwr.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.EcnEcho.MetricTags:
+    Pattern.Flow.Tcp.EcnEcho.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19685,7 +19790,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnEcho.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnEcho.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnEcho.Counter'
@@ -19693,7 +19798,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.EcnEcho.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.CtlUrg.MetricTags:
+    Pattern.Flow.Tcp.CtlUrg.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19784,7 +19889,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlUrg.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlUrg.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlUrg.Counter'
@@ -19792,7 +19897,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlUrg.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.CtlAck.MetricTags:
+    Pattern.Flow.Tcp.CtlAck.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19883,7 +19988,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlAck.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlAck.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlAck.Counter'
@@ -19891,7 +19996,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlAck.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.CtlPsh.MetricTags:
+    Pattern.Flow.Tcp.CtlPsh.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -19981,7 +20086,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlPsh.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlPsh.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlPsh.Counter'
@@ -19989,7 +20094,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlPsh.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.CtlRst.MetricTags:
+    Pattern.Flow.Tcp.CtlRst.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -20079,7 +20184,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlRst.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlRst.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlRst.Counter'
@@ -20087,7 +20192,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlRst.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.CtlSyn.MetricTags:
+    Pattern.Flow.Tcp.CtlSyn.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -20177,7 +20282,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlSyn.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlSyn.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlSyn.Counter'
@@ -20185,7 +20290,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlSyn.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.CtlFin.MetricTags:
+    Pattern.Flow.Tcp.CtlFin.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -20275,7 +20380,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlFin.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlFin.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlFin.Counter'
@@ -20283,7 +20388,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.CtlFin.Counter'
           x-field-uid: 7
-    Pattern.Flow.Tcp.Window.MetricTags:
+    Pattern.Flow.Tcp.Window.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -20374,7 +20479,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Tcp.Window.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Tcp.Window.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.Window.Counter'
@@ -20382,7 +20487,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Tcp.Window.Counter'
           x-field-uid: 7
-    Pattern.Flow.Udp.SrcPort.MetricTags:
+    Pattern.Flow.Udp.SrcPort.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -20473,7 +20578,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Udp.SrcPort.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Udp.SrcPort.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Udp.SrcPort.Counter'
@@ -20481,7 +20586,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Udp.SrcPort.Counter'
           x-field-uid: 7
-    Pattern.Flow.Udp.DstPort.MetricTags:
+    Pattern.Flow.Udp.DstPort.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -20572,7 +20677,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Udp.DstPort.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Udp.DstPort.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Udp.DstPort.Counter'
@@ -20580,7 +20685,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Udp.DstPort.Counter'
           x-field-uid: 7
-    Pattern.Flow.Udp.Length.MetricTags:
+    Pattern.Flow.Udp.Length.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -20671,7 +20776,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Udp.Length.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Udp.Length.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Udp.Length.Counter'
@@ -20719,7 +20824,7 @@ components:
           minimum: 0
           maximum: 65535
           x-field-uid: 3
-    Pattern.Flow.Gre.ChecksumPresent.MetricTags:
+    Pattern.Flow.Gre.ChecksumPresent.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -20810,7 +20915,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gre.ChecksumPresent.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gre.ChecksumPresent.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.ChecksumPresent.Counter'
@@ -20818,7 +20923,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gre.ChecksumPresent.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gre.Reserved0.MetricTags:
+    Pattern.Flow.Gre.Reserved0.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -20909,7 +21014,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved0.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved0.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved0.Counter'
@@ -20917,7 +21022,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved0.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gre.Version.MetricTags:
+    Pattern.Flow.Gre.Version.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21008,7 +21113,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gre.Version.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gre.Version.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Version.Counter'
@@ -21016,7 +21121,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Version.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gre.Protocol.MetricTags:
+    Pattern.Flow.Gre.Protocol.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21110,7 +21215,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gre.Protocol.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gre.Protocol.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Protocol.Counter'
@@ -21161,7 +21266,7 @@ components:
           minimum: 0
           maximum: 65535
           x-field-uid: 3
-    Pattern.Flow.Gre.Reserved1.MetricTags:
+    Pattern.Flow.Gre.Reserved1.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21252,7 +21357,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved1.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved1.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved1.Counter'
@@ -21260,7 +21365,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gre.Reserved1.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.Version.MetricTags:
+    Pattern.Flow.Gtpv1.Version.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21351,7 +21456,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Version.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Version.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Version.Counter'
@@ -21359,7 +21464,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Version.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.ProtocolType.MetricTags:
+    Pattern.Flow.Gtpv1.ProtocolType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21450,7 +21555,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.ProtocolType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.ProtocolType.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.ProtocolType.Counter'
@@ -21458,7 +21563,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.ProtocolType.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.Reserved.MetricTags:
+    Pattern.Flow.Gtpv1.Reserved.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21549,7 +21654,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Reserved.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Reserved.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Reserved.Counter'
@@ -21557,7 +21662,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Reserved.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.EFlag.MetricTags:
+    Pattern.Flow.Gtpv1.EFlag.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21648,7 +21753,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.EFlag.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.EFlag.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.EFlag.Counter'
@@ -21656,7 +21761,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.EFlag.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.SFlag.MetricTags:
+    Pattern.Flow.Gtpv1.SFlag.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21747,7 +21852,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SFlag.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SFlag.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SFlag.Counter'
@@ -21755,7 +21860,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SFlag.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.PnFlag.MetricTags:
+    Pattern.Flow.Gtpv1.PnFlag.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21846,7 +21951,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.PnFlag.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.PnFlag.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.PnFlag.Counter'
@@ -21854,7 +21959,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.PnFlag.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.MessageType.MetricTags:
+    Pattern.Flow.Gtpv1.MessageType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -21945,7 +22050,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageType.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageType.Counter'
@@ -21953,7 +22058,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageType.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.MessageLength.MetricTags:
+    Pattern.Flow.Gtpv1.MessageLength.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22044,7 +22149,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageLength.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageLength.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageLength.Counter'
@@ -22052,7 +22157,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.MessageLength.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.Teid.MetricTags:
+    Pattern.Flow.Gtpv1.Teid.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22143,7 +22248,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Teid.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Teid.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Teid.Counter'
@@ -22151,7 +22256,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.Teid.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.SquenceNumber.MetricTags:
+    Pattern.Flow.Gtpv1.SquenceNumber.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22242,7 +22347,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SquenceNumber.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SquenceNumber.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SquenceNumber.Counter'
@@ -22250,7 +22355,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.SquenceNumber.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.NPduNumber.MetricTags:
+    Pattern.Flow.Gtpv1.NPduNumber.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22341,7 +22446,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NPduNumber.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NPduNumber.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NPduNumber.Counter'
@@ -22349,7 +22454,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NPduNumber.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv1.NextExtensionHeaderType.MetricTags:
+    Pattern.Flow.Gtpv1.NextExtensionHeaderType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22440,7 +22545,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NextExtensionHeaderType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NextExtensionHeaderType.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NextExtensionHeaderType.Counter'
@@ -22448,7 +22553,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv1.NextExtensionHeaderType.Counter'
           x-field-uid: 7
-    Pattern.Flow.GtpExtension.ExtensionLength.MetricTags:
+    Pattern.Flow.GtpExtension.ExtensionLength.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22539,7 +22644,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.GtpExtension.ExtensionLength.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.GtpExtension.ExtensionLength.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.ExtensionLength.Counter'
@@ -22547,7 +22652,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.ExtensionLength.Counter'
           x-field-uid: 7
-    Pattern.Flow.GtpExtension.Contents.MetricTags:
+    Pattern.Flow.GtpExtension.Contents.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22638,7 +22743,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.GtpExtension.Contents.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.GtpExtension.Contents.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.Contents.Counter'
@@ -22646,7 +22751,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.Contents.Counter'
           x-field-uid: 7
-    Pattern.Flow.GtpExtension.NextExtensionHeader.MetricTags:
+    Pattern.Flow.GtpExtension.NextExtensionHeader.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22737,7 +22842,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.GtpExtension.NextExtensionHeader.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.GtpExtension.NextExtensionHeader.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.NextExtensionHeader.Counter'
@@ -22745,7 +22850,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.GtpExtension.NextExtensionHeader.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv2.Version.MetricTags:
+    Pattern.Flow.Gtpv2.Version.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22836,7 +22941,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Version.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Version.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Version.Counter'
@@ -22844,7 +22949,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Version.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv2.PiggybackingFlag.MetricTags:
+    Pattern.Flow.Gtpv2.PiggybackingFlag.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -22935,7 +23040,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.PiggybackingFlag.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.PiggybackingFlag.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.PiggybackingFlag.Counter'
@@ -22943,7 +23048,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.PiggybackingFlag.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv2.TeidFlag.MetricTags:
+    Pattern.Flow.Gtpv2.TeidFlag.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23034,7 +23139,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.TeidFlag.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.TeidFlag.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.TeidFlag.Counter'
@@ -23042,7 +23147,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.TeidFlag.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv2.Spare1.MetricTags:
+    Pattern.Flow.Gtpv2.Spare1.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23133,7 +23238,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare1.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare1.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare1.Counter'
@@ -23141,7 +23246,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare1.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv2.MessageType.MetricTags:
+    Pattern.Flow.Gtpv2.MessageType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23232,7 +23337,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageType.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageType.Counter'
@@ -23240,7 +23345,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageType.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv2.MessageLength.MetricTags:
+    Pattern.Flow.Gtpv2.MessageLength.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23331,7 +23436,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageLength.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageLength.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageLength.Counter'
@@ -23339,7 +23444,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.MessageLength.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv2.Teid.MetricTags:
+    Pattern.Flow.Gtpv2.Teid.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23430,7 +23535,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Teid.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Teid.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Teid.Counter'
@@ -23438,7 +23543,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Teid.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv2.SequenceNumber.MetricTags:
+    Pattern.Flow.Gtpv2.SequenceNumber.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23529,7 +23634,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.SequenceNumber.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.SequenceNumber.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.SequenceNumber.Counter'
@@ -23537,7 +23642,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.SequenceNumber.Counter'
           x-field-uid: 7
-    Pattern.Flow.Gtpv2.Spare2.MetricTags:
+    Pattern.Flow.Gtpv2.Spare2.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23628,7 +23733,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare2.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare2.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare2.Counter'
@@ -23636,7 +23741,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Gtpv2.Spare2.Counter'
           x-field-uid: 7
-    Pattern.Flow.Arp.HardwareType.MetricTags:
+    Pattern.Flow.Arp.HardwareType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23729,7 +23834,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareType.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareType.Counter'
@@ -23739,7 +23844,7 @@ components:
           x-field-uid: 7
       x-constants:
         ethernet: 1
-    Pattern.Flow.Arp.ProtocolType.MetricTags:
+    Pattern.Flow.Arp.ProtocolType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23833,7 +23938,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolType.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolType.Counter'
@@ -23844,7 +23949,7 @@ components:
       x-constants:
         ipv4: 2048
         ipv6: 34525
-    Pattern.Flow.Arp.HardwareLength.MetricTags:
+    Pattern.Flow.Arp.HardwareLength.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -23935,7 +24040,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareLength.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareLength.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareLength.Counter'
@@ -23943,7 +24048,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.HardwareLength.Counter'
           x-field-uid: 7
-    Pattern.Flow.Arp.ProtocolLength.MetricTags:
+    Pattern.Flow.Arp.ProtocolLength.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24034,7 +24139,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolLength.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolLength.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolLength.Counter'
@@ -24042,7 +24147,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.ProtocolLength.Counter'
           x-field-uid: 7
-    Pattern.Flow.Arp.Operation.MetricTags:
+    Pattern.Flow.Arp.Operation.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24136,7 +24241,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Arp.Operation.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Arp.Operation.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.Operation.Counter'
@@ -24147,7 +24252,7 @@ components:
       x-constants:
         request: 1
         reply: 2
-    Pattern.Flow.Arp.SenderHardwareAddr.MetricTags:
+    Pattern.Flow.Arp.SenderHardwareAddr.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24234,7 +24339,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Arp.SenderHardwareAddr.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Arp.SenderHardwareAddr.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.SenderHardwareAddr.Counter'
@@ -24242,7 +24347,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.SenderHardwareAddr.Counter'
           x-field-uid: 7
-    Pattern.Flow.Arp.SenderProtocolAddr.MetricTags:
+    Pattern.Flow.Arp.SenderProtocolAddr.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24329,7 +24434,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Arp.SenderProtocolAddr.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Arp.SenderProtocolAddr.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.SenderProtocolAddr.Counter'
@@ -24337,7 +24442,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.SenderProtocolAddr.Counter'
           x-field-uid: 7
-    Pattern.Flow.Arp.TargetHardwareAddr.MetricTags:
+    Pattern.Flow.Arp.TargetHardwareAddr.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24424,7 +24529,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Arp.TargetHardwareAddr.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Arp.TargetHardwareAddr.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetHardwareAddr.Counter'
@@ -24432,7 +24537,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetHardwareAddr.Counter'
           x-field-uid: 7
-    Pattern.Flow.Arp.TargetProtocolAddr.MetricTags:
+    Pattern.Flow.Arp.TargetProtocolAddr.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24519,7 +24624,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Arp.TargetProtocolAddr.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Arp.TargetProtocolAddr.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetProtocolAddr.Counter'
@@ -24527,7 +24632,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Arp.TargetProtocolAddr.Counter'
           x-field-uid: 7
-    Pattern.Flow.Icmp.Echo.Type.MetricTags:
+    Pattern.Flow.Icmp.Echo.Type.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24621,7 +24726,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Type.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Type.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Type.Counter'
@@ -24632,7 +24737,7 @@ components:
       x-constants:
         reply: 0
         request: 8
-    Pattern.Flow.Icmp.Echo.Code.MetricTags:
+    Pattern.Flow.Icmp.Echo.Code.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24723,7 +24828,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Code.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Code.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Code.Counter'
@@ -24771,7 +24876,7 @@ components:
           minimum: 0
           maximum: 65535
           x-field-uid: 3
-    Pattern.Flow.Icmp.Echo.Identifier.MetricTags:
+    Pattern.Flow.Icmp.Echo.Identifier.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24862,7 +24967,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Identifier.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Identifier.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Identifier.Counter'
@@ -24870,7 +24975,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.Identifier.Counter'
           x-field-uid: 7
-    Pattern.Flow.Icmp.Echo.SequenceNumber.MetricTags:
+    Pattern.Flow.Icmp.Echo.SequenceNumber.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -24961,7 +25066,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.SequenceNumber.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.SequenceNumber.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.Echo.SequenceNumber.Counter'
@@ -25009,7 +25114,7 @@ components:
           minimum: 0
           maximum: 65535
           x-field-uid: 3
-    Pattern.Flow.Icmp.NextFields.Identifier.MetricTags:
+    Pattern.Flow.Icmp.NextFields.Identifier.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -25100,7 +25205,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.Identifier.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.Identifier.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.Identifier.Counter'
@@ -25108,7 +25213,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.Identifier.Counter'
           x-field-uid: 7
-    Pattern.Flow.Icmp.NextFields.SequenceNumber.MetricTags:
+    Pattern.Flow.Icmp.NextFields.SequenceNumber.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -25199,7 +25304,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.SequenceNumber.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.SequenceNumber.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.SequenceNumber.Counter'
@@ -25207,7 +25312,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmp.NextFields.SequenceNumber.Counter'
           x-field-uid: 7
-    Pattern.Flow.Icmpv6.Echo.Type.MetricTags:
+    Pattern.Flow.Icmpv6.Echo.Type.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -25301,7 +25406,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Type.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Type.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Type.Counter'
@@ -25312,7 +25417,7 @@ components:
       x-constants:
         request: 128
         reply: 129
-    Pattern.Flow.Icmpv6.Echo.Code.MetricTags:
+    Pattern.Flow.Icmpv6.Echo.Code.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -25403,7 +25508,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Code.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Code.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Code.Counter'
@@ -25411,7 +25516,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Code.Counter'
           x-field-uid: 7
-    Pattern.Flow.Icmpv6.Echo.Identifier.MetricTags:
+    Pattern.Flow.Icmpv6.Echo.Identifier.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -25502,7 +25607,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Identifier.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Identifier.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Identifier.Counter'
@@ -25510,7 +25615,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Identifier.Counter'
           x-field-uid: 7
-    Pattern.Flow.Icmpv6.Echo.SequenceNumber.MetricTags:
+    Pattern.Flow.Icmpv6.Echo.SequenceNumber.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -25601,7 +25706,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.SequenceNumber.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.SequenceNumber.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.SequenceNumber.Counter'
@@ -25689,7 +25794,7 @@ components:
           minimum: 0
           maximum: 65535
           x-field-uid: 3
-    Pattern.Flow.Ppp.Address.MetricTags:
+    Pattern.Flow.Ppp.Address.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -25782,7 +25887,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ppp.Address.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ppp.Address.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.Address.Counter'
@@ -25792,7 +25897,7 @@ components:
           x-field-uid: 7
       x-constants:
         standard_address: 255
-    Pattern.Flow.Ppp.Control.MetricTags:
+    Pattern.Flow.Ppp.Control.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -25885,7 +25990,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ppp.Control.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ppp.Control.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.Control.Counter'
@@ -25895,7 +26000,7 @@ components:
           x-field-uid: 7
       x-constants:
         unnumbered_data: 3
-    Pattern.Flow.Ppp.ProtocolType.MetricTags:
+    Pattern.Flow.Ppp.ProtocolType.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -25999,7 +26104,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Ppp.ProtocolType.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Ppp.ProtocolType.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.ProtocolType.Counter'
@@ -26007,7 +26112,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ppp.ProtocolType.Counter'
           x-field-uid: 8
-    Pattern.Flow.Igmpv1.Version.MetricTags:
+    Pattern.Flow.Igmpv1.Version.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -26098,7 +26203,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Version.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Version.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Version.Counter'
@@ -26106,7 +26211,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Version.Counter'
           x-field-uid: 7
-    Pattern.Flow.Igmpv1.Type.MetricTags:
+    Pattern.Flow.Igmpv1.Type.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -26200,7 +26305,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Type.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Type.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Type.Counter'
@@ -26211,7 +26316,7 @@ components:
       x-constants:
         query: 1
         report: 2
-    Pattern.Flow.Igmpv1.Unused.MetricTags:
+    Pattern.Flow.Igmpv1.Unused.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -26302,7 +26407,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Unused.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Unused.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.Unused.Counter'
@@ -26350,7 +26455,7 @@ components:
           minimum: 0
           maximum: 65535
           x-field-uid: 3
-    Pattern.Flow.Igmpv1.GroupAddress.MetricTags:
+    Pattern.Flow.Igmpv1.GroupAddress.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -26437,7 +26542,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Igmpv1.GroupAddress.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Igmpv1.GroupAddress.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.GroupAddress.Counter'
@@ -26445,7 +26550,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Igmpv1.GroupAddress.Counter'
           x-field-uid: 7
-    Pattern.Flow.Mpls.Label.MetricTags:
+    Pattern.Flow.Mpls.Label.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -26549,7 +26654,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Mpls.Label.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Mpls.Label.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.Label.Counter'
@@ -26557,7 +26662,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.Label.Counter'
           x-field-uid: 8
-    Pattern.Flow.Mpls.TrafficClass.MetricTags:
+    Pattern.Flow.Mpls.TrafficClass.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -26648,7 +26753,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Mpls.TrafficClass.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Mpls.TrafficClass.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.TrafficClass.Counter'
@@ -26656,7 +26761,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.TrafficClass.Counter'
           x-field-uid: 7
-    Pattern.Flow.Mpls.BottomOfStack.MetricTags:
+    Pattern.Flow.Mpls.BottomOfStack.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -26760,7 +26865,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Mpls.BottomOfStack.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Mpls.BottomOfStack.MetricTag'
           x-field-uid: 6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.BottomOfStack.Counter'
@@ -26768,7 +26873,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.BottomOfStack.Counter'
           x-field-uid: 8
-    Pattern.Flow.Mpls.TimeToLive.MetricTags:
+    Pattern.Flow.Mpls.TimeToLive.MetricTag:
       description: |-
         A unique name is used to indicate to the system that the field may extend the metric row key and create an aggregate metric row for every unique value. To have metric tag columns appear in the flow metric rows the flow metric request allows for the metric_tag value to be specified as part of the request.
       type: object
@@ -26859,7 +26964,7 @@ components:
         metric_tags:
           type: array
           items:
-            $ref: '#/components/schemas/Pattern.Flow.Mpls.TimeToLive.MetricTags'
+            $ref: '#/components/schemas/Pattern.Flow.Mpls.TimeToLive.MetricTag'
           x-field-uid: 5
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Mpls.TimeToLive.Counter'

@@ -15,15 +15,6 @@ components:
           x-constraint:
           - "/components/schemas/Flow/properties/name"
           x-field-uid: 1
-        metric_tags:
-          description: >-
-            A list of metric tags used to disaggregate flows.
-            A metric tag that does not exist for a flow group MUST return
-            an error.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.MetricTag.Filter'
-          x-field-uid: 4
         metric_names:
           description: >-
             The list of metric names that the returned result set will contain.
@@ -47,6 +38,53 @@ components:
               frames_rx_rate:
                 x-field-uid: 7
           x-field-uid: 3
+        tagged_metrics:
+          description: >-
+            Filter for tagged metrics.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.TaggedMetrics.Filter'
+          x-field-uid: 4
+    Flow.TaggedMetrics.Filter:
+      type: object
+      properties:
+        include:
+          description: Controls inclusion/exclusion of tagged metrics when fetching flow metrics.
+          type: boolean
+          default: true
+          x-field-uid: 1
+        include_empty_metrics:
+          description: Controls inclusion/exclusion of tagged metrics where each underlying attributes has zero value or absent value.
+          type: boolean
+          default: false
+          x-field-uid: 2
+        metric_names:
+          description: >-
+            The list of metric names that the returned result set will contain.
+            If the list is empty then all metrics will be returned.
+          type: array
+          items:
+            type: string
+            x-enum:
+              frames_tx:
+                x-field-uid: 1
+              frames_rx:
+                x-field-uid: 2
+              bytes_tx:
+                x-field-uid: 3
+              bytes_rx:
+                x-field-uid: 4
+              frames_tx_rate:
+                x-field-uid: 5
+              frames_rx_rate:
+                x-field-uid: 6
+          x-field-uid: 3
+        filters:
+          description: List of filters to selectively fetch tagged metrics with certain tag and corresponding value.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.MetricTag.Filter'
+          x-field-uid: 4
     Flow.MetricTag.Filter:
       description: |-
         A container for filtering ingress and/or egress metric tags.
@@ -59,7 +97,7 @@ components:
             flow egress_packet configuration
           type: string
           x-field-uid: 1
-        filters:
+        values:
           description: |-
             A list of filters that can be applied to the metric tag name.
             By default all values will be included in the flow metric results.
@@ -70,8 +108,7 @@ components:
     Flow.Metric:
       description: |-
         A container for flow metrics.
-        The container is keyed by the name, port_tx, port_rx and metric_tags
-        values.
+        The container is keyed by the name, port_tx and port_rx.
       type: object
       properties:
         name:
@@ -90,13 +127,6 @@ components:
             The name of the receive port
           type: string
           x-field-uid: 3
-        metric_tags:
-          description: |-
-            Flow disaggregation groups.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.MetricTag'
-          x-field-uid: 15
         transmit:
           description: >-
             The transmit state of the flow.
@@ -158,6 +188,70 @@ components:
         latency:
           $ref: '#/components/schemas/Metric.Latency'
           x-field-uid: 14
+        tagged_metrics:
+          description: |-
+            List of tagged metrics
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.TaggedMetric'
+          x-field-uid: 15
+    Flow.TaggedMetric:
+      description: |-
+        A container for tagged flow metrics. The container is keyed by list of tags.
+      type: object
+      properties:
+        tags:
+          description: |-
+            List of tag and value pairs
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.MetricTag'
+          x-field-uid: 1
+        frames_tx:
+          description: >-
+            The current total number of frames transmitted
+          type: integer
+          format: uint64
+          x-field-uid: 2
+        frames_rx:
+          description: >-
+            The current total number of valid frames received
+          type: integer
+          format: uint64
+          x-field-uid: 3
+        bytes_tx:
+          description: >-
+            The current total number of bytes transmitted
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        bytes_rx:
+          description: >-
+            The current total number of bytes received
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        frames_tx_rate:
+          description: >-
+            The current rate of frames transmitted
+          type: number
+          x-field-uid: 6
+        frames_rx_rate:
+          description: >-
+            The current rate of valid frames received
+          type: number
+          x-field-uid: 7
+        loss:
+          description: >-
+            The percentage of lost frames
+          type: number
+          x-field-uid: 8
+        timestamps:
+          $ref: '#/components/schemas/Metric.Timestamp'
+          x-field-uid: 9
+        latency:
+          $ref: '#/components/schemas/Metric.Latency'
+          x-field-uid: 10
     Flow.MetricTag:
       type: object
       properties:

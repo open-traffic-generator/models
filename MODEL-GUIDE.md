@@ -256,7 +256,7 @@ The build script will enforce the following keyword conventions:
           x-field-uid: 1
         auto:
           x-field-uid: 2
-        metric_group:
+        metric_tag:
           x-field-uid: 3
       description: >-
         count:
@@ -269,7 +269,7 @@ The build script will enforce the following keyword conventions:
         The choice property auto indicates that the system should auto generate a
         value for the field.
 
-        metric_group:
+        metric_tag:
         Used to indicate that a flow packet header field can be expanded in
         metrics under the name given to this property.
   ```

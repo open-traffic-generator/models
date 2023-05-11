@@ -15,13 +15,6 @@ components:
           x-constraint:
           - "/components/schemas/Flow/properties/name"
           x-field-uid: 1
-        metric_groups:
-          description: >-
-            A list of metric groups used to disaggregate flows.
-            A metric group that does not exist for a flow group MUST return
-            an error.
-          $ref: '#/components/schemas/Flow.MetricGroup.Request'
-          x-field-uid: 2
         metric_names:
           description: >-
             The list of metric names that the returned result set will contain.
@@ -45,48 +38,74 @@ components:
               frames_rx_rate:
                 x-field-uid: 7
           x-field-uid: 3
-    Flow.MetricGroup.Request:
+        tagged_metrics:
+          $ref: '#/components/schemas/Flow.TaggedMetrics.Filter'
+          x-field-uid: 4
+    Flow.TaggedMetrics.Filter:
+      description: Filter for tagged metrics
       type: object
       properties:
-        choice:
-          description: |-
-            The type of disaggregation to be applied to the flow metrics.
-          type: string
-          default: ingress
+        include:
+          description: Controls inclusion/exclusion of tagged metrics when fetching flow metrics.
+          type: boolean
+          default: true
           x-field-uid: 1
-          x-enum:
-            ingress:
-              x-field-uid: 1
-            egress:
-              x-field-uid: 2
-        ingress:
-          description: |-
-            Disaggregate the flow metrics by ingress packet header field names.
-            If the items is empty then no disaggregation will be done. 
-          type: array
-          default: []
-          items:
-            type: string
-          x-constraint:
-          - "/components/schemas/Flow/properties/packet/../metric_group"
+        include_empty_metrics:
+          description: Controls inclusion/exclusion of tagged metrics where each underlying attributes has zero value or absent value.
+          type: boolean
+          default: false
           x-field-uid: 2
-        egress:
-          description: |-
-            Disaggregate the flow metrics by egress packet header field names 
-            If the items is empty then no disaggregation will be done. 
+        metric_names:
+          description: >-
+            The list of metric names that the returned result set will contain.
+            If the list is empty then all metrics will be returned.
           type: array
-          default: []
           items:
             type: string
-          x-constraint:
-          - "/components/schemas/Flow/properties/egress/../metric_group"
-
+            x-enum:
+              frames_tx:
+                x-field-uid: 1
+              frames_rx:
+                x-field-uid: 2
+              bytes_tx:
+                x-field-uid: 3
+              bytes_rx:
+                x-field-uid: 4
+              frames_tx_rate:
+                x-field-uid: 5
+              frames_rx_rate:
+                x-field-uid: 6
           x-field-uid: 3
+        filters:
+          description: List of filters to selectively fetch tagged metrics with certain tag and corresponding value.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.MetricTag.Filter'
+          x-field-uid: 4
+    Flow.MetricTag.Filter:
+      description: |-
+        A container for filtering ingress and/or egress metric tags.
+        The Tx stats may not be applicable in both the request and response filter.
+      type: object
+      properties:
+        name:
+          description: |-
+            A metric tag name that MUST exist in a flow packet or
+            flow egress_packet configuration
+          type: string
+          x-field-uid: 1
+        values:
+          description: |-
+            A list of filters that can be applied to the metric tag name.
+            By default all values will be included in the flow metric results.
+          type: array
+          items:
+            type: string
+          x-field-uid: 2
     Flow.Metric:
       description: |-
         A container for flow metrics.
-        The container is keyed by the name, port_tx, port_rx and metric_groups
-        values.
+        The container is keyed by the name, port_tx and port_rx.
       type: object
       properties:
         name:
@@ -105,13 +124,6 @@ components:
             The name of the receive port
           type: string
           x-field-uid: 3
-        metric_groups:
-          description: |-
-            Flow disaggregation groups.
-          type: array
-          items:
-            $ref: '#/components/schemas/Flow.MetricGroup'
-          x-field-uid: 4
         transmit:
           description: >-
             The transmit state of the flow.
@@ -173,18 +185,102 @@ components:
         latency:
           $ref: '#/components/schemas/Metric.Latency'
           x-field-uid: 14
-    Flow.MetricGroup:
+        tagged_metrics:
+          description: |-
+            List of metrics corresponding to a set of values applicable
+            for configured metric tags in ingress or egress packet header fields of corresponding flow.
+            The container is keyed by list of tag-value pairs.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.TaggedMetric'
+          x-field-uid: 15
+    Flow.TaggedMetric:
+      description: |-
+        Metrics for each set of values applicable for configured
+        metric tags in ingress or egress packet header fields of corresponding flow.
+        The container is keyed by list of tag-value pairs.
+      type: object
+      properties:
+        tags:
+          description: |-
+            List of tag and value pairs
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.MetricTag'
+          x-field-uid: 1
+        frames_tx:
+          description: >-
+            The current total number of frames transmitted
+          type: integer
+          format: uint64
+          x-field-uid: 2
+        frames_rx:
+          description: >-
+            The current total number of valid frames received
+          type: integer
+          format: uint64
+          x-field-uid: 3
+        bytes_tx:
+          description: >-
+            The current total number of bytes transmitted
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        bytes_rx:
+          description: >-
+            The current total number of bytes received
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        frames_tx_rate:
+          description: >-
+            The current rate of frames transmitted
+          type: number
+          x-field-uid: 6
+        frames_rx_rate:
+          description: >-
+            The current rate of valid frames received
+          type: number
+          x-field-uid: 7
+        loss:
+          description: >-
+            The percentage of lost frames
+          type: number
+          x-field-uid: 8
+        timestamps:
+          $ref: '#/components/schemas/Metric.Timestamp'
+          x-field-uid: 9
+        latency:
+          $ref: '#/components/schemas/Metric.Latency'
+          x-field-uid: 10
+    Flow.MetricTag:
       type: object
       properties:
         name:
           description: |-
-            Name of packet field metric group
+            Name of packet field metric tag
           type: string
           x-field-uid: 1
         value:
-          description: |-
-            Value of named packet field metric group
+          $ref: '#/components/schemas/Flow.MetricTag.Value'
+          x-field-uid: 2
+    Flow.MetricTag.Value:
+      description: |-
+        A container for metric tag value
+      type: object
+      properties:
+        choice:
+          description: Available formats for metric tag value
           type: string
+          default: hex
+          x-enum:
+            hex:
+              x-field-uid: 1
+          x-field-uid: 1
+        hex:
+          description: Value represented in hexadecimal format
+          type: string
+          format: hex
           x-field-uid: 2
     Metric.Timestamp:
       description: |-

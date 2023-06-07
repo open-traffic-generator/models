@@ -19,12 +19,10 @@ components:
           type: boolean
           default: false
           x-field-uid: 2
-        rx_tx_ratio:
+        tx_rx_replication_factor:
           description: |-
-            Tx Rx multiplication factor, required for loss measurement. Should be a positive, non-zero value.
-          type: number
-          format: float
-          default: 1
+            Tx Rx replication factor.
+          $ref: '#/components/schemas/Flow.TxRxReplication'
           x-field-uid: 6
         timestamps:
           description: |-
@@ -40,6 +38,7 @@ components:
         rx_per_port:
           description: |-
             Enables Rx port level disaggregation with metrics tag name set as "rx_port_name".
+            The Rx port names can be found under tagged_metrics tag names in flow metrics response.
           type: boolean
           default: false
           x-field-uid: 5
@@ -82,3 +81,44 @@ components:
               x-field-uid: 1
             cut_through:
               x-field-uid: 2
+    Flow.TxRxReplication:
+      description: |-
+        Tx Rx replication factor is required to determine the ratio of expected number of Rx packets across all Rx ports
+        to the Tx packets for the configured flow.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: one
+          x-field-uid: 1
+          x-enum:
+            one:
+              x-field-uid: 1
+            rx_ports_count:
+              x-field-uid: 2
+            custom:
+              x-field-uid: 3
+        one:
+          $ref: '#/components/schemas/Flow.TxRxReplication.Ecmp'
+          x-field-uid: 2
+        rx_ports_count:
+          $ref: '#/components/schemas/Flow.TxRxReplication.RxCount'
+          x-field-uid: 3
+        custom:
+          description: |-
+            Should be a positive, non-zero value. We may need to specify a custom integer value for
+            loss calculation for cases when there are multiple destination addresses configured within one flow,
+            but DUT is configured to replicate only to a subset of Rx ports. For cases when Tx side generates two
+            packets from each source in 1:1 protection mode but only one of the two packets are received by the
+            Rx port, we may need to specify a fractional value instead.
+          type: number
+          format: float
+          default: 1.0
+          x-field-uid: 4
+    Flow.TxRxReplication.Ecmp:
+      description: |-
+        This is typically for cases where Rx packet count across all ports is expected to match the Tx packet count.
+    Flow.TxRxReplication.RxCount:
+      description: |-
+        This is for cases where one copy each Tx packet is received on all Rx ports and so the sum total of Rx packets
+        received across all Rx ports is a multiple of Rx port count and Tx packets.

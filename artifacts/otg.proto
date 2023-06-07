@@ -5761,10 +5761,8 @@ message FlowMetrics {
   // default = False
   optional bool loss = 2;
 
-  // Tx Rx multiplication factor, required for loss measurement. Should be a positive,
-  // non-zero value.
-  // default = 1
-  optional float rx_tx_ratio = 6;
+  // Tx Rx replication factor.
+  optional FlowTxRxReplication tx_rx_replication_factor = 6;
 
   // Enables additional flow metric first and last timestamps.
   // default = False
@@ -5774,6 +5772,7 @@ message FlowMetrics {
   optional FlowLatencyMetrics latency = 4;
 
   // Enables Rx port level disaggregation with metrics tag name set as rx_port_name.
+  // The Rx port names can be found under tagged_metrics tag names in flow metrics response.
   // default = False
   optional bool rx_per_port = 5;
 }
@@ -5812,6 +5811,53 @@ message FlowLatencyMetrics {
   // standard.
   // default = Mode.Enum.store_forward
   optional Mode.Enum mode = 2;
+}
+
+// Tx Rx replication factor is required to determine the ratio of expected number of
+// Rx packets across all Rx ports
+// to the Tx packets for the configured flow.
+message FlowTxRxReplication {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      one = 1;
+      rx_ports_count = 2;
+      custom = 3;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.one
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional FlowTxRxReplicationEcmp one = 2;
+
+  // Description missing in models
+  optional FlowTxRxReplicationRxCount rx_ports_count = 3;
+
+  // Should be a positive, non-zero value. We may need to specify a custom integer value
+  // for
+  // loss calculation for cases when there are multiple destination addresses configured
+  // within one flow,
+  // but DUT is configured to replicate only to a subset of Rx ports. For cases when Tx
+  // side generates two
+  // packets from each source in 1:1 protection mode but only one of the two packets are
+  // received by the
+  // Rx port, we may need to specify a fractional value instead.
+  // default = 1.0
+  optional float custom = 4;
+}
+
+// This is typically for cases where Rx packet count across all ports is expected to
+// match the Tx packet count.
+message FlowTxRxReplicationEcmp {
+}
+
+// This is for cases where one copy each Tx packet is received on all Rx ports and so
+// the sum total of Rx packets
+// received across all Rx ports is a multiple of Rx port count and Tx packets.
+message FlowTxRxReplicationRxCount {
 }
 
 // The optional container for event configuration.

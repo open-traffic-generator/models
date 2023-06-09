@@ -6580,16 +6580,37 @@ components:
           x-field-uid: 1
         rx_name:
           description: |
+            Deprecated: This property is deprecated in favor of property rx_names
+
             The unique name of a port that is the intended receive port.
 
             x-constraint:
             - /components/schemas/Port/properties/name
             - /components/schemas/Lag/properties/name
+          x-status:
+            status: deprecated
+            information: This property is deprecated in favor of property rx_names
           type: string
           x-constraint:
           - /components/schemas/Port/properties/name
           - /components/schemas/Lag/properties/name
           x-field-uid: 2
+        rx_names:
+          description: |
+            Unique names of ports that are intended receive ports.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+            - /components/schemas/Lag/properties/name
+          type: array
+          items:
+            description: |-
+              The unique name of a port that is the intended receive port.
+            type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          - /components/schemas/Lag/properties/name
+          x-field-uid: 3
     Flow.Router:
       description: |-
         A container for declaring a map of 1..n transmit devices to 1..n receive devices. This allows for a single flow to have  different tx to rx device flows such as a single one to one map or a  many to many map.
@@ -7959,10 +7980,10 @@ components:
           type: boolean
           default: false
           x-field-uid: 2
-        tx_rx_ratio:
+        rx_tx_ratio:
           description: |-
-            Tx Rx ratio.
-          $ref: '#/components/schemas/Flow.TxRxRatio'
+            Rx Tx ratio.
+          $ref: '#/components/schemas/Flow.RxTxRatio'
           x-field-uid: 6
         timestamps:
           description: |-
@@ -7975,12 +7996,10 @@ components:
             Latency metrics.
           $ref: '#/components/schemas/Flow.Latency.Metrics'
           x-field-uid: 4
-        rx_per_port:
+        predefined_metric_tags:
           description: |-
-            Enables Rx port level disaggregation with metrics tag name set as "rx_port_name".
-            The Rx port names can be found under tagged_metrics tag names in flow metrics response.
-          type: boolean
-          default: false
+            Predefined metric tags
+          $ref: '#/components/schemas/Flow.Predefined.Tags'
           x-field-uid: 5
     Flow.Latency.Metrics:
       description: |-
@@ -8014,9 +8033,21 @@ components:
           enum:
           - store_forward
           - cut_through
-    Flow.TxRxRatio:
+    Flow.Predefined.Tags:
       description: |-
-        Tx Rx ratio is the ratio of expected number of Rx packets across all Rx ports to the Tx packets
+        List of predefined flow tracking options, outside packet fields, that can be enabled.
+      type: object
+      properties:
+        rx_name:
+          description: |-
+            Enables Rx port or lag level disaggregation with predefined metrics tag name set as "rx_name".
+            The Rx port / lag names can be found under tagged_metrics tag names in flow metrics response.
+          type: boolean
+          default: false
+          x-field-uid: 1
+    Flow.RxTxRatio:
+      description: |-
+        Rx Tx ratio is the ratio of expected number of Rx packets across all Rx ports to the Tx packets
         for the configured flow. It is a factor by which the Tx packet count is multiplied to calculate
         the sum of expected Rx packet count, across all Rx ports. This will be used to calculate loss
         percentage of flow at aggregate level.
@@ -8024,26 +8055,20 @@ components:
       properties:
         choice:
           type: string
-          default: one
+          default: value
           x-field-uid: 1
           x-enum:
-            one:
-              x-field-uid: 1
             rx_count:
+              x-field-uid: 1
+            value:
               x-field-uid: 2
-            custom:
-              x-field-uid: 3
           enum:
-          - one
           - rx_count
-          - custom
-        one:
-          $ref: '#/components/schemas/Flow.TxRxRatio.Ecmp'
-          x-field-uid: 2
+          - value
         rx_count:
-          $ref: '#/components/schemas/Flow.TxRxRatio.RxCount'
-          x-field-uid: 3
-        custom:
+          $ref: '#/components/schemas/Flow.RxTxRatio.RxCount'
+          x-field-uid: 2
+        value:
           description: |-
             Should be a positive, non-zero value. A custom integer value (>1) can be specified for
             loss calculation for cases when there are multiple destination addresses configured within one flow,
@@ -8053,11 +8078,8 @@ components:
           type: number
           format: float
           default: 1.0
-          x-field-uid: 4
-    Flow.TxRxRatio.Ecmp:
-      description: |-
-        This is for cases where Rx packet count across all ports is expected to match the Tx packet count.
-    Flow.TxRxRatio.RxCount:
+          x-field-uid: 3
+    Flow.RxTxRatio.RxCount:
       description: |-
         This is for cases where one copy each Tx packet is received on all Rx ports and so the sum total of Rx packets
         received across all Rx ports is a multiple of Rx port count and Tx packets.

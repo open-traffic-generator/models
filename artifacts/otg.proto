@@ -4643,6 +4643,8 @@ message FlowPort {
   // required = true
   string tx_name = 1;
 
+  // Deprecated: This property is deprecated in favor of property rx_names
+  // 
   // The unique name of a port that is the intended receive port.
   // 
   // x-constraint:
@@ -4650,6 +4652,14 @@ message FlowPort {
   // - /components/schemas/Lag/properties/name
   // 
   optional string rx_name = 2;
+
+  // Unique names of ports that are intended receive ports.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // - /components/schemas/Lag/properties/name
+  // 
+  repeated string rx_names = 3;
 }
 
 // A container for declaring a map of 1..n transmit devices to 1..n receive devices.
@@ -5761,8 +5771,8 @@ message FlowMetrics {
   // default = False
   optional bool loss = 2;
 
-  // Tx Rx ratio.
-  optional FlowTxRxRatio tx_rx_ratio = 6;
+  // Rx Tx ratio.
+  optional FlowRxTxRatio rx_tx_ratio = 6;
 
   // Enables additional flow metric first and last timestamps.
   // default = False
@@ -5771,10 +5781,8 @@ message FlowMetrics {
   // Latency metrics.
   optional FlowLatencyMetrics latency = 4;
 
-  // Enables Rx port level disaggregation with metrics tag name set as rx_port_name.
-  // The Rx port names can be found under tagged_metrics tag names in flow metrics response.
-  // default = False
-  optional bool rx_per_port = 5;
+  // Predefined metric tags
+  optional FlowPredefinedTags predefined_metric_tags = 5;
 }
 
 // The optional container for per flow latency metric configuration.
@@ -5813,32 +5821,39 @@ message FlowLatencyMetrics {
   optional Mode.Enum mode = 2;
 }
 
-// Tx Rx ratio is the ratio of expected number of Rx packets across all Rx ports to
+// List of predefined flow tracking options, outside packet fields, that can be enabled.
+message FlowPredefinedTags {
+
+  // Enables Rx port or lag level disaggregation with predefined metrics tag name set
+  // as rx_name.
+  // The Rx port / lag names can be found under tagged_metrics tag names in flow metrics
+  // response.
+  // default = False
+  optional bool rx_name = 1;
+}
+
+// Rx Tx ratio is the ratio of expected number of Rx packets across all Rx ports to
 // the Tx packets
 // for the configured flow. It is a factor by which the Tx packet count is multiplied
 // to calculate
 // the sum of expected Rx packet count, across all Rx ports. This will be used to calculate
 // loss
 // percentage of flow at aggregate level.
-message FlowTxRxRatio {
+message FlowRxTxRatio {
 
   message Choice {
     enum Enum {
       unspecified = 0;
-      one = 1;
-      rx_count = 2;
-      custom = 3;
+      rx_count = 1;
+      value = 2;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.one
+  // default = Choice.Enum.value
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  optional FlowTxRxRatioEcmp one = 2;
-
-  // Description missing in models
-  optional FlowTxRxRatioRxCount rx_count = 3;
+  optional FlowRxTxRatioRxCount rx_count = 2;
 
   // Should be a positive, non-zero value. A custom integer value (>1) can be specified
   // for
@@ -5850,18 +5865,13 @@ message FlowTxRxRatio {
   // received by the
   // Rx port, we may need to specify a fractional value instead.
   // default = 1.0
-  optional float custom = 4;
-}
-
-// This is for cases where Rx packet count across all ports is expected to match the
-// Tx packet count.
-message FlowTxRxRatioEcmp {
+  optional float value = 3;
 }
 
 // This is for cases where one copy each Tx packet is received on all Rx ports and so
 // the sum total of Rx packets
 // received across all Rx ports is a multiple of Rx port count and Tx packets.
-message FlowTxRxRatioRxCount {
+message FlowRxTxRatioRxCount {
 }
 
 // The optional container for event configuration.

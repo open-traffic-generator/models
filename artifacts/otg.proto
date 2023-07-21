@@ -218,8 +218,7 @@ message LagPortLacp {
 message DeviceEthernetBase {
 
   // Media Access Control address.
-  // required = true
-  string mac = 1;
+  optional string mac = 1;
 
   // Maximum Transmission Unit.
   // default = 1500
@@ -260,8 +259,7 @@ message DeviceEthernet {
   repeated DeviceIpv6 ipv6_addresses = 4;
 
   // Media Access Control address.
-  // required = true
-  string mac = 5;
+  optional string mac = 5;
 
   // Maximum Transmission Unit.
   // default = 1500
@@ -274,9 +272,21 @@ message DeviceEthernet {
   // objects.
   // required = true
   string name = 8;
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      emulated_inf = 1;
+      simulated_inf = 2;
+    }
+  }
+  // An Ethernet interface can be emulated, simulated. If type is of type simulated
+  // then mac, mtu and vxlan will be ignored.
+  // default = Type.Enum.emulated_inf
+  optional Type.Enum type = 9;
 }
 
-// Ethernet interface connection to a port, LAG or VXLAN tunnel.
+// Ethernet interface connection to a port, LAG, VXLAN tunnel or its a simulated interface.
 message EthernetConnection {
 
   message Choice {
@@ -285,9 +295,10 @@ message EthernetConnection {
       port_name = 1;
       lag_name = 2;
       vxlan_name = 3;
+      st_other_end_inf_name = 4;
     }
   }
-  // port_name, lag_name or vxlan_name
+  // port_name, lag_name, vxlan_name or st_other_end_inf_name
   optional Choice.Enum choice = 1;
 
   // Name of the port that the Ethernet interface is configured on.
@@ -312,6 +323,14 @@ message EthernetConnection {
   // - #/components/schemas/Vxlan.V6Tunnel/properties/name
   // 
   optional string vxlan_name = 4;
+
+  // Name of the simulated interface to which this simulated interface forms simulated
+  // a Link
+  // 
+  // x-constraint:
+  // - x-include:
+  // 
+  optional string st_other_end_inf_name = 5;
 }
 
 // Emulated VLAN protocol.
@@ -910,10 +929,11 @@ message CaptureIpv6 {
   optional CaptureField dst = 8;
 }
 
-// A container for emulated interfaces, loopback interfaces and protocol configurations.
+// A container for emulated or simulated interfaces, loopback interfaces and protocol
+// configurations.
 message Device {
 
-  // Ethernet configuration for one or more emulated network interfaces.
+  // Ethernet configuration for one or more emulated or simulated network interfaces.
   repeated DeviceEthernet ethernets = 1;
 
   // IPv4 Loopback interface that can be attached to an Ethernet in the same device  or

@@ -741,7 +741,6 @@ components:
         Base Ethernet interface.
       type: object
       required:
-      - mac
       - name
       properties:
         mac:
@@ -842,17 +841,30 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
+        type:
+          description: "An Ethernet interface can be emulated, simulated. If type\
+            \ is of type simulated \nthen mac, mtu and vxlan will be ignored.  "
+          type: string
+          x-enum:
+            emulated_inf:
+              x-field-uid: 1
+            simulated_inf:
+              x-field-uid: 2
+          default: emulated_inf
+          x-field-uid: 9
+          enum:
+          - emulated_inf
+          - simulated_inf
       required:
-      - mac
       - name
     Ethernet.Connection:
       description: |-
-        Ethernet interface connection to a port, LAG or VXLAN tunnel.
+        Ethernet interface connection to a port, LAG, VXLAN tunnel or its a simulated interface.
       type: object
       properties:
         choice:
           description: |-
-            port_name, lag_name or vxlan_name
+            port_name, lag_name, vxlan_name or st_other_end_inf_name
           type: string
           x-field-uid: 1
           x-enum:
@@ -862,10 +874,13 @@ components:
               x-field-uid: 2
             vxlan_name:
               x-field-uid: 3
+            st_other_end_inf_name:
+              x-field-uid: 4
           enum:
           - port_name
           - lag_name
           - vxlan_name
+          - st_other_end_inf_name
         port_name:
           description: |
             Name of the port that the Ethernet interface is configured on.
@@ -898,6 +913,13 @@ components:
           - '#/components/schemas/Vxlan.V4Tunnel/properties/name'
           - '#/components/schemas/Vxlan.V6Tunnel/properties/name'
           x-field-uid: 4
+        st_other_end_inf_name:
+          description: "Name of the simulated interface to which this simulated interface\
+            \ forms simulated a Link\n\nx-constraint:\n- x-include: \n"
+          type: string
+          x-constraint:
+          - 'x-include: '
+          x-field-uid: 5
     Device.Vlan:
       description: |-
         Emulated VLAN protocol.
@@ -1690,12 +1712,12 @@ components:
           x-field-uid: 8
     Device:
       description: |-
-        A container for emulated interfaces, loopback interfaces and protocol configurations.
+        A container for emulated or simulated interfaces, loopback interfaces and protocol configurations.
       type: object
       properties:
         ethernets:
           description: |-
-            Ethernet configuration for one or more emulated network interfaces.
+            Ethernet configuration for one or more emulated or simulated network interfaces.
           type: array
           items:
             $ref: '#/components/schemas/Device.Ethernet'

@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 0.11.9
+/* Open Traffic Generator API 0.11.11
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -4693,6 +4693,8 @@ message FlowPort {
   // required = true
   string tx_name = 1;
 
+  // Deprecated: This property is deprecated in favor of property rx_names
+  // 
   // The unique name of a port that is the intended receive port.
   // 
   // x-constraint:
@@ -4700,6 +4702,14 @@ message FlowPort {
   // - /components/schemas/Lag/properties/name
   // 
   optional string rx_name = 2;
+
+  // Unique name of ports or lags that are intended receive endpoints.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // - /components/schemas/Lag/properties/name
+  // 
+  repeated string rx_names = 3;
 }
 
 // A container for declaring a map of 1..n transmit devices to 1..n receive devices.
@@ -5815,12 +5825,18 @@ message FlowMetrics {
   // default = False
   optional bool loss = 2;
 
+  // Rx Tx ratio.
+  optional FlowRxTxRatio rx_tx_ratio = 6;
+
   // Enables additional flow metric first and last timestamps.
   // default = False
   optional bool timestamps = 3;
 
   // Latency metrics.
   optional FlowLatencyMetrics latency = 4;
+
+  // Predefined metric tags
+  optional FlowPredefinedTags predefined_metric_tags = 5;
 }
 
 // The optional container for per flow latency metric configuration.
@@ -5857,6 +5873,61 @@ message FlowLatencyMetrics {
   // standard.
   // default = Mode.Enum.store_forward
   optional Mode.Enum mode = 2;
+}
+
+// List of predefined flow tracking options, outside packet fields, that can be enabled.
+message FlowPredefinedTags {
+
+  // Enables Rx port or lag level disaggregation with predefined metrics tag name set
+  // as rx_name.
+  // The Rx port / lag names can be found under tagged_metrics tag names in flow metrics
+  // response.
+  // default = False
+  optional bool rx_name = 1;
+}
+
+// Rx Tx ratio is the ratio of expected number of Rx packets across all Rx ports to
+// the Tx packets
+// for the configured flow. It is a factor by which the Tx packet count is multiplied
+// to calculate
+// the sum of expected Rx packet count, across all Rx ports. This will be used to calculate
+// loss
+// percentage of flow at aggregate level.
+message FlowRxTxRatio {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      rx_count = 1;
+      value = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional FlowRxTxRatioRxCount rx_count = 2;
+
+  // Should be a positive, non-zero value. The default value of 1, is when the Rx packet
+  // count across
+  // all ports is expected to match the Tx packet count. A custom integer value (>1) can
+  // be specified for
+  // loss calculation for cases when there are multiple destination addresses configured
+  // within one flow,
+  // but DUT is configured to replicate only to a subset of Rx ports. For cases when Tx
+  // side generates two
+  // packets from each source in 1:1 protection mode but only one of the two packets are
+  // received by the
+  // Rx port, we may need to specify a fractional value instead.
+  // default = 1.0
+  optional float value = 3;
+}
+
+// This is for cases where one copy of Tx packet is received on all Rx ports and so
+// the sum total of Rx packets
+// received across all Rx ports is a multiple of Rx port count and Tx packets.
+message FlowRxTxRatioRxCount {
 }
 
 // The optional container for event configuration.
@@ -7657,6 +7728,7 @@ message FlowMetricTagValue {
     enum Enum {
       unspecified = 0;
       hex = 1;
+      str = 2;
     }
   }
   // Available formats for metric tag value
@@ -7665,6 +7737,9 @@ message FlowMetricTagValue {
 
   // Value represented in hexadecimal format
   optional string hex = 2;
+
+  // Value represented in string format
+  optional string str = 3;
 }
 
 // The container for timestamp metrics.
@@ -7725,6 +7800,7 @@ message Bgpv4MetricsRequest {
       notifications_sent = 13;
       notifications_received = 14;
       fsm_state = 15;
+      end_of_rib_received = 16;
     }
   }
   // The list of column names that the returned result set will contain. If the list is
@@ -7812,6 +7888,13 @@ message Bgpv4Metric {
   // remote peer. Established refers to the state where the BGP session with the peer
   // is established.
   optional FsmState.Enum fsm_state = 16;
+
+  // Number of End-of-RIB markers received indicating the completion of the initial routing
+  // update for a  particular <AFI, SAFI> address family after the session is established.
+  // For the IPv4 unicast address family, the End-of-RIB marker is an UPDATE message with
+  // the minimum length. For any other address family, it is an UPDATE message that contains
+  // only the MP_UNREACH_NLRI attribute with  no withdrawn routes for that <AFI, SAFI>.
+  optional uint64 end_of_rib_received = 17;
 }
 
 // The request to retrieve BGPv6 per peer metrics/statistics.
@@ -7843,6 +7926,7 @@ message Bgpv6MetricsRequest {
       notifications_sent = 13;
       notifications_received = 14;
       fsm_state = 15;
+      end_of_rib_received = 16;
     }
   }
   // The list of column names that the returned result set will contain. If the list is
@@ -7930,6 +8014,13 @@ message Bgpv6Metric {
   // remote peer. Established refers to the state where the BGP session with the peer
   // is established.
   optional FsmState.Enum fsm_state = 16;
+
+  // Number of End-of-RIB markers received indicating the completion of the initial routing
+  // update for a  particular <AFI, SAFI> address family after the session is established.
+  // For the IPv4 unicast address family, the End-of-RIB marker is an UPDATE message with
+  // the minimum length. For any other address family, it is an UPDATE message that contains
+  // only the MP_UNREACH_NLRI attribute with  no withdrawn routes for that <AFI, SAFI>.
+  optional uint64 end_of_rib_received = 17;
 }
 
 // The request to retrieve ISIS per Router metrics/statistics.
@@ -8753,6 +8844,14 @@ message BgpPrefixIpv4UnicastState {
 
   // Description missing in models
   optional ResultBgpAsPath as_path = 8;
+
+  // The local preference is a well-known attribute and the value is used for route selection.
+  // The route with the highest local preference value is preferred.
+  optional uint32 local_preference = 9;
+
+  // The multi exit discriminator (MED) is an optional non-transitive attribute and the
+  // value is used for route selection. The route with the lowest MED value is preferred.
+  optional uint32 multi_exit_discriminator = 10;
 }
 
 // IPv6 unicast prefix.
@@ -8789,6 +8888,14 @@ message BgpPrefixIpv6UnicastState {
 
   // Description missing in models
   optional ResultBgpAsPath as_path = 8;
+
+  // The local preference is a well-known attribute and the value is used for route selection.
+  // The route with the highest local preference value is preferred.
+  optional uint32 local_preference = 9;
+
+  // The multi exit discriminator (MED) is an optional non-transitive attribute and the
+  // value is used for route selection. The route with the lowest MED value is preferred.
+  optional uint32 multi_exit_discriminator = 10;
 }
 
 // BGP communities provide additional capability for tagging routes and  for modifying

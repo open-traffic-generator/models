@@ -277,16 +277,25 @@ message DeviceEthernet {
     enum Enum {
       unspecified = 0;
       emulated_inf = 1;
-      simulated_inf = 2;
+      simulated_internal_inf = 2;
+      simulated_external_inf = 3;
     }
   }
-  // An Ethernet interface can be emulated, simulated. If type is of type simulated
-  // then mac, mtu and vxlan will be ignored.
+  // An Ethernet interface can be type of emulated, simulated internal or simulated external
+  // link.
+  // If the link type is of simulated internal or simulated external then mac, mtu and
+  // vxlan will be ignored.
+  // A simulated external link is used to create a simulated external link between a router
+  // 
+  // from a group of routers including an emulated router that are connected in some way
+  // to a router of another
+  // group of routers including another emulated router connected in someway.
   // default = Type.Enum.emulated_inf
   optional Type.Enum type = 9;
 }
 
-// Ethernet interface connection to a port, LAG, VXLAN tunnel or its a simulated interface.
+// Ethernet interface connection to a port, LAG, VXLAN tunnel or its a simulated internal
+// link.
 message EthernetConnection {
 
   message Choice {
@@ -324,8 +333,8 @@ message EthernetConnection {
   // 
   optional string vxlan_name = 4;
 
-  // Name of the simulated interface to which this simulated interface forms simulated
-  // a Link
+  // Name of the simulated interface to which this simulated interface forms a simulated
+  // internal Link.
   // 
   // x-constraint:
   // - x-include:
@@ -1027,7 +1036,9 @@ message DeviceIsisMultiInstance {
 message IsisInterface {
 
   // The unique name of the Ethernet interface on which ISIS is running. Two ISIS interfaces
-  // cannot share the same Ethernet.
+  // cannot share the same Ethernet. The underlying Ethernet Interface can an emulated
+  // or simulated interface. A simulated ethernet interface can be assumed to be connected
+  // to by an internal link or an external link.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ethernet/properties/name
@@ -1092,6 +1103,11 @@ message IsisInterface {
   // objects.
   // required = true
   string name = 13;
+
+  // If 'eth_name' is refer to a simulated interface and thats connected to an external
+  // interface.
+  // Then some properties of the connected neighbor should be defined here.
+  optional IsisInterfaceExternalNeighbor simulated_external_neighbor = 14;
 }
 
 // Configuration for the properties of Level 1 Hello.
@@ -1108,6 +1124,22 @@ message IsisInterfaceLevel {
   // The Dead (Holding Time) interval for Level 1 Hello messages, in seconds.
   // default = 30
   optional int32 dead_interval = 3;
+}
+
+// For a simulated interface thats connected to an external interface. The system id,
+// and IP address of the other end are required to populated here.
+message IsisInterfaceExternalNeighbor {
+
+  // The System ID for this emulated ISIS router, e.g. 660100010001.
+  optional string system_id = 1;
+
+  // Assign an IPv4 address if the link is off IPv4 type.
+  // The IPv4 address
+  optional string ipv4_address = 2;
+
+  // Assign an IPv4 address if the link is off IPv4 type.
+  // The IPv6 address.
+  optional string ipv6_address = 3;
 }
 
 // Configuration of properties per interface per topology when multiple topologies are

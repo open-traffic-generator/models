@@ -842,24 +842,32 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
         type:
-          description: "An Ethernet interface can be emulated, simulated. If type\
-            \ is of type simulated \nthen mac, mtu and vxlan will be ignored.  "
+          description: "An Ethernet interface can be type of emulated, simulated internal\
+            \ or simulated external link. \nIf the link type is of simulated internal\
+            \ or simulated external then mac, mtu and vxlan will be ignored.\nA simulated\
+            \ external link is used to create a simulated external link between a\
+            \ router \nfrom a group of routers including an emulated router that are\
+            \ connected in some way to a router of another \ngroup of routers including\
+            \ another emulated router connected in someway.   "
           type: string
           x-enum:
             emulated_inf:
               x-field-uid: 1
-            simulated_inf:
+            simulated_internal_inf:
               x-field-uid: 2
+            simulated_external_inf:
+              x-field-uid: 3
           default: emulated_inf
           x-field-uid: 9
           enum:
           - emulated_inf
-          - simulated_inf
+          - simulated_internal_inf
+          - simulated_external_inf
       required:
       - name
     Ethernet.Connection:
       description: |-
-        Ethernet interface connection to a port, LAG, VXLAN tunnel or its a simulated interface.
+        Ethernet interface connection to a port, LAG, VXLAN tunnel or its a simulated internal link.
       type: object
       properties:
         choice:
@@ -915,7 +923,7 @@ components:
           x-field-uid: 4
         st_other_end_inf_name:
           description: "Name of the simulated interface to which this simulated interface\
-            \ forms simulated a Link\n\nx-constraint:\n- x-include: \n"
+            \ forms a simulated internal Link.\n\nx-constraint:\n- x-include: \n"
           type: string
           x-constraint:
           - 'x-include: '
@@ -1869,9 +1877,11 @@ components:
       - name
       properties:
         eth_name:
-          description: "The unique name of the Ethernet interface on which ISIS is\
-            \ running. Two ISIS interfaces cannot share the same Ethernet.       \
-            \  \n\nx-constraint:\n- /components/schemas/Device.Ethernet/properties/name\n"
+          description: |
+            The unique name of the Ethernet interface on which ISIS is running. Two ISIS interfaces cannot share the same Ethernet. The underlying Ethernet Interface can an emulated or simulated interface. A simulated ethernet interface can be assumed to be connected to by an internal link or an external link.
+
+            x-constraint:
+            - /components/schemas/Device.Ethernet/properties/name
           type: string
           x-constraint:
           - /components/schemas/Device.Ethernet/properties/name
@@ -1966,6 +1976,12 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
+        simulated_external_neighbor:
+          description: |-
+            If 'eth_name' is refer to a simulated interface and thats connected to an external interface.
+            Then some properties of the connected neighbor should be defined here.
+          $ref: '#/components/schemas/IsisInterface.ExternalNeighbor'
+          x-field-uid: 14
     IsisInterface.Level:
       description: |-
         Configuration for the properties of Level 1 Hello.
@@ -1989,6 +2005,31 @@ components:
           type: integer
           default: 30
           x-field-uid: 3
+    IsisInterface.ExternalNeighbor:
+      description: |-
+        For a simulated interface thats connected to an external interface. The system id, and IP address of the other end are required to populated here.
+      type: object
+      properties:
+        system_id:
+          description: |-
+            The System ID for this emulated ISIS router, e.g. "660100010001".
+          type: string
+          format: hex
+          x-field-uid: 1
+        ipv4_address:
+          description: |-
+            Assign an IPv4 address if the link is off IPv4 type.
+            The IPv4 address
+          x-field-uid: 2
+          type: string
+          format: ipv4
+        ipv6_address:
+          description: |-
+            Assign an IPv4 address if the link is off IPv4 type.
+            The IPv6 address.
+          x-field-uid: 3
+          type: string
+          format: ipv6
     Isis.MT:
       description: |-
         Configuration of properties per interface per topology when multiple topologies are configured in an ISIS router.

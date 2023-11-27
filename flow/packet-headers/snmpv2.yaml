@@ -1,7 +1,7 @@
 components:
   schemas:
     Flow.Snmpv2:
-      description: SNMPv2 packet header
+      description: SNMPv2 packet header as defined in RFC3416.
       type: object
       properties:
         choice:
@@ -49,18 +49,20 @@ components:
           $ref: '#/components/schemas/Flow.Snmpv2.PDU'
           x-field-uid: 9
     Flow.Snmpv2.PDU:
-      description: PDU contains the body of the SNMPv2 message for all PDU types except get-bulk-request
+      description: This contains the body of the SNMPv2 message.
       type: object
       properties:
         request_id:
-          description: >-
-              Identifies a particular SNMP request. 
-              This index is echoed back in the response from the SNMP agent, 
-              allowing the SNMP manager to match an incoming response to the appropriate request.
-          type: integer
-          format: int64
-          minimum: -2147483647
-          maximum: 2147483647
+          x-field-pattern:
+            description: >-
+                Identifies a particular SNMP request. 
+                This index is echoed back in the response from the SNMP agent, 
+                allowing the SNMP manager to match an incoming response to the appropriate request. 
+                TBD: negative values should be allowed.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
           x-field-uid: 1
         error_status:
           description: >-
@@ -107,14 +109,15 @@ components:
               x-field-uid: 19
           x-field-uid: 2
         error_index:
-          description: >-
-            When Error Status is non-zero, 
-            this field contains a pointer that specifies which object generated the error. 
-            Always zero in a request.
-          type: integer
-          format: int64
-          minimum: 0
-          maximum: 2147483647
+          x-field-pattern:
+            description: >-
+              When Error Status is non-zero, 
+              this field contains a pointer that specifies which object generated the error. 
+              Always zero in a request.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
           x-field-uid: 3
         variable_bindings: 
           description: >-
@@ -130,30 +133,31 @@ components:
       type: object
       properties:
         request_id:
-          description: >-
-              Identifies a particular SNMP request. 
-              This index is echoed back in the response from the SNMP agent, 
-              allowing the SNMP manager to match an incoming response to the appropriate request.
-          type: integer
-          format: int64
-          minimum: -2147483647
-          maximum: 2147483647
+          x-field-pattern:
+            description: >-
+                Identifies a particular SNMP request. 
+                This index is echoed back in the response from the SNMP agent, 
+                allowing the SNMP manager to match an incoming response to the appropriate request.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
           x-field-uid: 1
         non_repeaters:
-          description: >-
-              Determines the number of variables in the variable list for which a simple get_next_request operation has to be done.
-          type: integer
-          format: int64
-          minimum: 0
-          maximum: 2147483647
+          x-field-pattern:
+            description: >-
+                Determines the number of variables in the variable list for which a simple get_next_request operation has to be done.
+            format: integer
+            length: 32
           x-field-uid: 2
         max_repetitions:
-          description: >-
-              Indicates how many rows of the table are to be retrieved in a single GetBulk operation.
-          type: integer
-          format: int64
-          minimum: 0
-          maximum: 2147483647
+          x-field-pattern:
+            description: >-
+                Indicates how many rows of the table are to be retrieved in a single GetBulk operation.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
           x-field-uid: 3
         variable_bindings: 
           description: >-
@@ -168,18 +172,30 @@ components:
       properties:
         object_identifier:
           description: >-
-              object_identifier that points to a particular parameter in the SNMP agent.
+              This points to a particular parameter in the SNMP agent. 
+              The first rule applies when encoding the first two numbers in the OID. 
+              According to BER, the first two numbers of any OID (x.y) are encoded as one value using the formula (40*x)+y. 
+              Example, the first two numbers of an SNMP OID 1.3... are encoded as 43 or 0x2B, because (40*1)+3 = 43. 
+              After the first two numbers are encoded, the subsequent numbers in the OID are each encoded as a byte. 
+              However, a special rule is required for large numbers because one byte can only represent a number from 0-255. 
+              For example, the number 2680 in the OID '1.3.6.1.4.1.2680.1.2.7.3.2.0' cannot be encoded using a single byte. 
+              The rule for large numbers states that only the lower 7 bits in the byte are used for holding the value (0-127). 
+              The highest order bit is used as a flag to let the recipient know that this number spans more than one byte. 
+              Therefore, any number over 127 must be encoded using more than one byte. 
+              According to this rule, the number 2680 must be encoded 0x94 0x78. 
+              Since the most significant bit is set in the first byte (0x94), the recipient knows to use the lower 7 bits from each byte (0x14 and 0x78) and decode the two bytes as (0x14 *128) + 0x78 = 2680.
+              For these large numbers the most significant bit is not set in the last byte indicating the end of the number.
           type: array
           items:
             type: integer
-            format: int64
+            format: uint64
           x-field-uid: 1
         value: 
           $ref: '#/components/schemas/Flow.Snmpv2.VariableBindingValue'
           x-field-uid: 2
     Flow.Snmpv2.VariableBindingValue: 
       description: >-
-          value for/from that object_identifier.
+          The value for the object_identifier as per RFC2578.
       type: object
       properties:
         choice:
@@ -199,39 +215,68 @@ components:
             unsigned_integer:
               x-field-uid: 6
         ip_address:
-          description: >-
-            octet string
-          type: string
+          $ref: '#/components/schemas/Flow.Snmpv2.VariableBindingIPValue'
           x-field-uid: 2
         counter:
-          type: integer
-          format: int64
-          minimum: 0
-          maximum: 4294967295
+          x-field-pattern:
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
           x-field-uid: 3
         timeticks:
-          type: integer
-          format: int64
-          minimum: 0
-          maximum: 4294967295
+          x-field-pattern:
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
           x-field-uid: 4
         arbitrary:
           description: >-
-            octet string
+            It contains the hex bytes of the value to be sent. 
+            As of now it is restricted to 5000 bytes.
           type: string
+          format: hex
+          length: 10000
+          default: "00"
           x-field-uid: 5
         big_counter:
-          type: integer
-          format: int64
-          minimum: 0
-          maximum: 9223372036854775807
+          x-field-pattern:
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
           x-field-uid: 6
         unsigned_integer:
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 4294967295
+          x-field-pattern:
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
           x-field-uid: 7
+    Flow.Snmpv2.VariableBindingIPValue:
+      type: object
+      properties:
+        choice:
+          type: string
+          x-field-uid: 1
+          x-enum:
+            ipv4:
+              x-field-uid: 1
+            ipv6:
+              x-field-uid: 2
+        ipv4:
+          x-field-pattern:
+            format: ipv4
+            default: 0.0.0.0
+            features: [count]
+          x-field-uid: 2
+        ipv6:
+          x-field-pattern:
+            format: ipv6
+            default: ::0
+            features: [count]
+          x-field-uid: 3
           
 
 

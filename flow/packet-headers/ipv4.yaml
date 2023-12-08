@@ -133,9 +133,11 @@ components:
         IPv4 options are optional extensions for the IPv4 header that can be utilised to provide additional information about the IPv4 datagram. 
         It is encoded as a series of type, length and value attributes. 
         The IP header length MUST be increased to accommodate the extra bytes needed to encode the IP options.
+        The length of the all options included to a IPv4 header should not exceed 40 bytes since IPv4 Header length (4 bits) can at max specify 15 4-word octets for a total of 60 bytes which includes 20 bytes needed for mandatory attributes of the IPv4 header.
+        If the user adds multiples IPv4 options that exceeds 40 bytes and specify header length as "auto", implementation should throw error.
         Currently IP options supported are:
         1. router_alert option allows devices to intercept packets not addressed to them directly as defined in RFC2113.
-        2. custom option is provided to configure user defined IP options as needed. The sum of all added custom options length SHOULD not exceed 40 bytes.
+        2. custom option is provided to configure user defined IP options as needed. 
       type: object
       properties:
         choice:
@@ -162,13 +164,15 @@ components:
           $ref: '#/components/schemas/Flow.Ipv4Options.Custom.Length'
           x-field-uid: 2
         value:
-          x-field-pattern:
-            description: >-
-              Value of the option field
-            format: integer
-            length: 16
-            default: 0
-            features: [count]
+          description: >-
+            Value of the option field should not excced 38 bytes since maximum 40 bytes can be added as options in IPv4 header.
+            For type and length requires 2 bytes, so max of 38 bytes are expected.
+            Maximum length of this attribute is 76 (38 * 2 hex character per byte).
+          type: string
+          format: hex
+          minLength: 0
+          maxLength: 76
+          default: '00000000'
           x-field-uid: 3
     Flow.Ipv4Options.Custom.Type:
       description: >-
@@ -212,7 +216,7 @@ components:
           x-field-uid: 3
     Flow.Ipv4Options.Custom.Length:
       description: >-
-        Length for custom options. The length of all IP options should not exceed 40 bytes. 
+        Length for custom options.
       type: object
       properties:
         choice:
@@ -229,14 +233,14 @@ components:
           description: >-
             The OTG implementation can provide a system generated value for this property.
             If the OTG is unable to generate a value the default value must be used.
-          type: string
-          format: hex
-          default: '00000000'
+          type: integer
+          format: uint32
+          default: 0
           x-field-uid: 2
         value:
-          type: string
-          format: hex
-          default: '00000000'
+          type: integer
+          format: uint32
+          default: 0
           x-field-uid: 3
     Flow.Ipv4.Priority:
       description: >-

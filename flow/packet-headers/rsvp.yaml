@@ -89,23 +89,16 @@ components:
             If the OTG is unable to generate a value the default value must be used.
           type: integer
           format: uint32
+          maximum: 65535
           default: 0
           x-field-uid: 2
         value:
           type: integer
           format: uint32
+          maximum: 65535
           default: 0
           x-field-uid: 3     
     Flow.RSVP.Message:
-      description: >-
-          RSVP Message type.
-          Currently only "path" message type is supported.
-      type: object 
-      properties:
-        message_type: 
-          $ref: '#/components/schemas/Flow.RSVP.MessageType'
-          x-field-uid: 1 
-    Flow.RSVP.MessageType:
       type: object
       properties:
         choice:
@@ -124,7 +117,7 @@ components:
         1. SESSION
         2. RSVP_HOP
         3. TIME_VALUES
-        4. EXPLICIT ROUTE [optional]
+        4. EXPLICIT_ROUTE [optional]
         5. LABEL_REQUEST
         6. SESSION_ATTRIBUTE [optional]
         7. SENDER_TEMPLATE
@@ -134,9 +127,9 @@ components:
       properties:
         objects:
           description: >-
-            "path" message required atleast SESSION, RSVP_HOP and TIME_VALUES objects.
+            "path" message required atleast SESSION, RSVP_HOP, TIME_VALUES, LABEL_REQUEST, SENDER_TEMPLATE and SENDER_TSPEC objects in order.
           type: array
-          minItems: 3
+          minItems: 6
           items:
             $ref: '#/components/schemas/Flow.RSVP.PathObjects'
           x-field-uid: 1
@@ -146,18 +139,44 @@ components:
       type: object
       properties:
         length:
-          x-field-pattern:
-            description: >-
-              Contains the total length of the object including the object's header, measured in bytes. 
-              Objects must be aligned to 32-bit words. 
-            format: integer
-            length: 16
-            default: 4
-            features: [count]
+          description: >-
+            A 16-bit field containing the total object length in bytes. 
+            Must always be a multiple of 4, and at least 4.
+          $ref: '#/components/schemas/Flow.RSVPPathObject.Length'
           x-field-uid: 1
         class_num:
           $ref: '#/components/schemas/Flow.RSVP.PathObjectsClass'
           x-field-uid: 2
+    Flow.RSVPPathObject.Length:
+      type: object
+      properties:
+        choice:
+          description: auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+        auto:
+          description: >-
+            The OTG implementation can provide a system generated value for this property.
+            If the OTG is unable to generate a value the default value must be used.
+          type: integer
+          format: uint32
+          minimum: 4
+          maximum: 65535
+          default: 4
+          x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          minimum: 4
+          maximum: 65535
+          default: 4
+          x-field-uid: 3 
     Flow.RSVP.PathObjectsClass:
       description: >-
             The class number is used to identify the class of an object. Defined in https://www.iana.org/assignments/rsvp-parameters/rsvp-parameters.xhtml#rsvp-parameters-4 .
@@ -244,9 +263,9 @@ components:
             lsp_tunnel_ipv4:
               x-field-uid: 1
         lsp_tunnel_ipv4:
-          $ref: '#/components/schemas/Flow.RSVP.PathObjectsSessionLspTunnelIpv4'
+          $ref: '#/components/schemas/Flow.RSVP.PathSessionLspTunnelIpv4'
           x-field-uid: 2
-    Flow.RSVP.PathObjectsSessionLspTunnelIpv4:
+    Flow.RSVP.PathSessionLspTunnelIpv4:
       description: >-
         Class = SESSION, LSP_TUNNEL_IPv4 C-Type = 7.
       type: object
@@ -309,9 +328,9 @@ components:
             ipv4:
               x-field-uid: 1
         ipv4:
-          $ref: '#/components/schemas/Flow.RSVP.PathObjectsClassRsvpHopIpv4'
+          $ref: '#/components/schemas/Flow.RSVP.PathRsvpHopIpv4'
           x-field-uid: 2
-    Flow.RSVP.PathObjectsClassRsvpHopIpv4:
+    Flow.RSVP.PathRsvpHopIpv4:
       description: >-
         IPv4 RSVP_HOP object: Class = 3, C-Type = 1
       type: object
@@ -357,9 +376,9 @@ components:
             type_1_time_value:
               x-field-uid: 1
         type_1_time_value:
-          $ref: '#/components/schemas/Flow.RSVP.PathObjectsClassTimeValuesType1'
+          $ref: '#/components/schemas/Flow.RSVP.PathTimeValuesType1'
           x-field-uid: 2
-    Flow.RSVP.PathObjectsClassTimeValuesType1:
+    Flow.RSVP.PathTimeValuesType1:
       description: >-
         TIME_VALUES Object: Class = 5, C-Type = 1
       type: object
@@ -383,8 +402,7 @@ components:
           x-field-uid: 1 
     Flow.RSVP.PathObjectsClassExplicitRouteCType:
       description: >-
-        Object for EXPLICIT_ROUTE class.
-        Currently supported c-type is Type 1 Explicit Route (1).
+        Object for EXPLICIT_ROUTE class and c-type is Type 1 Explicit Route (1).
       type: object
       properties:
         choice:
@@ -454,15 +472,11 @@ components:
             features: [count]
           x-field-uid: 1
         length:
-          x-field-pattern:
-            description: >-
-              The Length contains the total length of the subobject in bytes,including the Type and Length fields.  
-              The Length is always 8.
-            format: integer
-            default: 8
-            length: 7
-            features: [count]
-          x-field-uid: 3
+          description: >-
+            The Length contains the total length of the subobject in bytes,including L ,Type and Length fields.  
+            The Length MUST be atleast 4, and MUST be a multiple of 4.
+          $ref: '#/components/schemas/Flow.RSVPExplicitRoute.Length'
+          x-field-uid: 2
         ipv4_address:
           x-field-pattern:
             description: >-
@@ -471,7 +485,7 @@ components:
             format: ipv4
             default: 0.0.0.0
             features: [count]
-          x-field-uid: 4
+          x-field-uid: 3
         prefix:
           description: >-
             The prefix of the IPv4 address.
@@ -480,7 +494,7 @@ components:
           minimum: 1
           maximum: 32
           default: 32
-          x-field-uid: 5
+          x-field-uid: 4
     Flow.RSVP.PathExplicitRouteType1FourByteASNumber:
       description: >-
         Class = EXPLICIT_ROUTE, Type1 ROUTE_RECORD C-Type = 1
@@ -498,15 +512,11 @@ components:
             features: [count]
           x-field-uid: 1
         length:
-          x-field-pattern:
-            description: >-
-              The Length contains the total length of the subobject in bytes,including the Type and Length fields.  
-              The Length is always 8.
-            format: integer
-            default: 8
-            length: 8
-            features: [count]
-          x-field-uid: 3
+          description: >-
+            The Length contains the total length of the subobject in bytes,including L ,Type and Length fields.  
+            The Length MUST be atleast 4, and MUST be a multiple of 4.
+          $ref: '#/components/schemas/Flow.RSVPExplicitRoute.Length'
+          x-field-uid: 2
         reserved:
           x-field-pattern:
             description: >-
@@ -515,7 +525,7 @@ components:
             default: 0
             length: 8
             features: [count]
-          x-field-uid: 4
+          x-field-uid: 3
         as_number:
           description: >-
             Autonomous System number to be set in the ERO sub-object that this LSP should traverse through.
@@ -525,7 +535,35 @@ components:
           format: uint32
           default: 0
           maximum: 65535
-          x-field-uid: 5
+          x-field-uid: 4
+    Flow.RSVPExplicitRoute.Length:
+      type: object
+      properties:
+        choice:
+          description: auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+        auto:
+          description: >-
+            The OTG implementation can provide a system generated value for this property.
+            If the OTG is unable to generate a value the default value must be used.
+          type: integer
+          format: uint32
+          maximum: 256
+          default: 8
+          x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          maximum: 256
+          default: 8
+          x-field-uid: 3 
     Flow.RSVP.PathObjectsClassLabelRequest:
       description: >-
           C-Type is specific to a class num.
@@ -628,16 +666,9 @@ components:
           maximum: 7
           x-field-uid: 2
         flags:
-          x-field-pattern:
-            x-constants:
-              local_protection_desired: 1
-              label_recording_desired: 2
-              se_style_desired: 3
-            description: >-
+          description: >-
               0x01  Local protection desired, 0x02  Label recording desired, 0x04  SE Style desired
-            format: integer
-            length: 8
-            default: 1
+          $ref: '#/components/schemas/Flow.RSVPLspTunnel.Flag'
           x-field-uid: 3
         name_length:
           description: >-
@@ -714,16 +745,9 @@ components:
           maximum: 7
           x-field-uid: 5
         flags:
-          x-field-pattern:
-            x-constants:
-              local_protection_desired: 1
-              label_recording_desired: 2
-              se_style_desired: 4
-            description: >-
+          description: >-
               0x01  Local protection desired, 0x02  Label recording desired, 0x04  SE Style desired
-            format: integer
-            length: 8
-            default: 1
+          $ref: '#/components/schemas/Flow.RSVPLspTunnel.Flag'
           x-field-uid: 6
         name_length:
           description: >-
@@ -740,6 +764,20 @@ components:
           minLength: 0
           maxLength: 254
           x-field-uid: 8
+    Flow.RSVPLspTunnel.Flag:
+      type: object
+      properties:
+        choice:
+            type: string
+            default: local_protection_desired
+            x-enum:
+              local_protection_desired:
+                x-field-uid: 1
+              label_recording_desired:
+                x-field-uid: 2
+              se_style_desired:
+                x-field-uid: 3
+            x-field-uid: 1
     Flow.RSVP.PathObjectsClassSenderTemplate:
       description: >-
           C-Type is specific to a class num.
@@ -1025,14 +1063,11 @@ components:
       type: object
       properties:
         length:
-          x-field-pattern:
-            description: >-
-              The Length contains the total length of the subobject in bytes, including the Type and Length fields.  The Length is always 8.
-            format: integer
-            length: 8
-            default: 8
-            features: [count]
-          x-field-uid: 2
+          description: >-
+              The Length contains the total length of the subobject in bytes, including the Type and Length fields.  
+              The Length MUST be atleast 4, and MUST be a multiple of 4.
+          $ref: '#/components/schemas/Flow.RSVPRouteRecord.Length'
+          x-field-uid: 1
         ipv4_address:
           x-field-pattern:
             description: >-
@@ -1041,7 +1076,7 @@ components:
             format: ipv4
             default: 0.0.0.0
             features: [count]
-          x-field-uid: 3
+          x-field-uid: 2
         prefix_length:
           x-field-pattern:
             description: >-
@@ -1050,18 +1085,24 @@ components:
             length: 8
             default: 32
             features: [count]
-          x-field-uid: 4
+          x-field-uid: 3
         flags:
-          x-field-pattern:
-            x-constants:
-              local_protection_available: 1
-              local_protection_in_use: 2
-            description: >-
+          description: >-
               0x01  local_protection_available, 0x02  local_protection_in_use
-            format: integer
-            length: 8
-            default: 1
-          x-field-uid: 5
+          $ref: '#/components/schemas/Flow.RSVPRecordRouteIPv4.Flag'
+          x-field-uid: 4
+    Flow.RSVPRecordRouteIPv4.Flag:
+      type: object
+      properties:
+        choice:
+            type: string
+            default: local_protection_available
+            x-enum:
+              local_protection_available:
+                x-field-uid: 1
+              local_protection_in_use:
+                x-field-uid: 2
+            x-field-uid: 1   
     Flow.RSVP.PathRecordRouteType1Label:
       description: >-
         Class = RECORD_ROUTE, Type1 ROUTE_RECORD C-Type = 1
@@ -1069,25 +1110,19 @@ components:
       type: object
       properties:
         length:
-          x-field-pattern:
-            description: >-
+          description: >-
               The Length contains the total length of the subobject in bytes, including the Type and Length fields.  
-            format: integer
-            length: 8
-            default: 8
-            features: [count]
-          x-field-uid: 2
+              The Length MUST be atleast 4, and MUST be a multiple of 4.
+          $ref: '#/components/schemas/Flow.RSVPRouteRecord.Length'
+          x-field-uid: 1
         flags:
           x-field-pattern:
-            x-constants:
-              local_protection_available: 1
-              local_protection_in_use: 2
             description: >-
               0x01 = Global label. This flag indicates that the label will be understood if received on any interface.
             format: integer
             length: 8
             default: 1
-          x-field-uid: 3 
+          x-field-uid: 2 
         c_type:
           x-field-pattern:
             description: >-
@@ -1095,14 +1130,42 @@ components:
             format: integer
             length: 8
             default: 0
-          x-field-uid: 4
+          x-field-uid: 3
         contents_of_label_obejct:
           description: >-
             The contents of the Label Object. Copied from the Label Object.
           type: string
           format: hex
           default: "00"
-          x-field-uid: 5
+          x-field-uid: 4
+    Flow.RSVPRouteRecord.Length:
+      type: object
+      properties:
+        choice:
+          description: auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+        auto:
+          description: >-
+            The OTG implementation can provide a system generated value for this property.
+            If the OTG is unable to generate a value the default value must be used.
+          type: integer
+          format: uint32
+          maximum: 256
+          default: 8
+          x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          maximum: 256
+          default: 8
+          x-field-uid: 3 
     Flow.RSVP.PathObjectsCustom:
       type: object
       description: Custom packet header

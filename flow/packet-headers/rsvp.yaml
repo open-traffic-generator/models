@@ -133,7 +133,7 @@ components:
             The class number is used to identify the class of an object. Defined in https://www.iana.org/assignments/rsvp-parameters/rsvp-parameters.xhtml#rsvp-parameters-4 .
             Curently supported class numbers are for "path" message type.
             "path" message:
-            Supported Class numbers and it's value: SESSION: 1, RSVP_HOP: 3, TIME_VALUES: 5, EXPLICIT_ROUTE: 20, LABEL_REQUEST: 19, SESSION_ATTRIBUTE: 207, SENDER_TEMPLATE: 11, SENDER_TSPEC: 12, RECORD_ROUTE: 21.
+            Supported Class numbers and it's value: SESSION: 1, RSVP_HOP: 3, TIME_VALUES: 5, EXPLICIT_ROUTE: 20, LABEL_REQUEST: 19, SESSION_ATTRIBUTE: 207, SENDER_TEMPLATE: 11, SENDER_TSPEC: 12, RECORD_ROUTE: 21, Custom: User defined bytes based on class and c-types not suppored in above options.
       type: object
       required:
         - choice
@@ -160,6 +160,8 @@ components:
               x-field-uid: 8
             record_route: 
               x-field-uid: 9
+            custom:
+              x-field-uid: 10
         session:
           $ref: '#/components/schemas/Flow.RSVP.PathObjectsClassSession'
           x-field-uid: 2
@@ -187,6 +189,9 @@ components:
         record_route: 
           $ref: '#/components/schemas/Flow.RSVP.PathObjectsClassRecordRoute'
           x-field-uid: 10
+        custom:
+          $ref: '#/components/schemas/Flow.RSVP.PathObjectsCustom'
+          x-field-uid: 11
     Flow.RSVP.PathObjectsClassSession:
       description: >-
           C-Type is specific to a class num.
@@ -418,15 +423,6 @@ components:
             default: 0
             features: [count]
           x-field-uid: 1
-        type:
-          x-field-pattern:
-            description: >-
-              Subobject type; 0x01  IPv4 address.
-            format: integer
-            length: 8
-            default: 1
-            features: [count]
-          x-field-uid: 2
         length:
           x-field-pattern:
             description: >-
@@ -471,15 +467,6 @@ components:
             default: 0
             features: [count]
           x-field-uid: 1
-        type:
-          x-field-pattern:
-            description: >-
-              Subobject type; 0x05  AS Number.
-            format: integer
-            length: 7
-            default: 1
-            features: [count]
-          x-field-uid: 2
         length:
           x-field-pattern:
             description: >-
@@ -1007,17 +994,6 @@ components:
         Subobject: IPv4 Address, C-Type: 1
       type: object
       properties:
-        type:
-          x-field-pattern:
-            x-constants:
-              ipv4_address: 1
-            description: >-
-              0x01  IPv4 address
-            format: integer
-            length: 8
-            default: 1
-            features: [count]
-          x-field-uid: 1
         length:
           x-field-pattern:
             description: >-
@@ -1062,17 +1038,6 @@ components:
         Subobject: Label, C-Type: 3
       type: object
       properties:
-        type:
-          x-field-pattern:
-            x-constants:
-              label: 3
-            description: >-
-              0x03  Label
-            format: integer
-            length: 8
-            default: 3
-            features: [count]
-          x-field-uid: 1
         length:
           x-field-pattern:
             description: >-
@@ -1108,3 +1073,57 @@ components:
           format: hex
           default: "00"
           x-field-uid: 5
+    Flow.RSVP.PathObjectsCustom:
+      type: object
+      description: Custom packet header
+      required: [bytes]
+      properties:
+        type:
+          x-field-pattern:
+            description: >-
+              User defined object type.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        length:
+          $ref: '#/components/schemas/Flow.RSVP.ObjectOptionsCustom.Length'
+          x-field-uid: 2
+        bytes:
+          description: >-
+            A custom packet header defined as a string of hex bytes.
+            The string MUST contain sequence of valid hex bytes.
+            Spaces or colons can be part of the bytes but will be discarded.
+            This packet header can be used in multiple places in the packet.
+          type: string
+          pattern: '^[A-Fa-f0-9: ]+$'
+          x-field-uid: 3
+    Flow.RSVP.ObjectOptionsCustom.Length:
+      description: >-
+        Length for custom options.
+      type: object
+      properties:
+        choice:
+          description: auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+        auto:
+          description: >-
+            The OTG implementation can provide a system generated value for this property.
+            If the OTG is unable to generate a value the default value must be used.
+          type: integer
+          format: uint32
+          default: 4
+          x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          default: 4
+          x-field-uid: 3

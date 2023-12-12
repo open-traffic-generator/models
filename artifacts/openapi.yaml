@@ -7871,22 +7871,16 @@ components:
             The OTG implementation can provide a system generated value for this property. If the OTG is unable to generate a value the default value must be used.
           type: integer
           format: uint32
+          maximum: 65535
           default: 0
           x-field-uid: 2
         value:
           type: integer
           format: uint32
+          maximum: 65535
           default: 0
           x-field-uid: 3
     Flow.RSVP.Message:
-      description: |-
-        RSVP Message type. Currently only "path" message type is supported.
-      type: object
-      properties:
-        message_type:
-          $ref: '#/components/schemas/Flow.RSVP.MessageType'
-          x-field-uid: 1
-    Flow.RSVP.MessageType:
       type: object
       properties:
         choice:
@@ -7903,14 +7897,14 @@ components:
           x-field-uid: 2
     Flow.RSVP.PathMessage:
       description: |-
-        "path" message required the follwoing list of objects in order as defined in https://www.rfc-editor.org/rfc/rfc3209.html#page-15: 1. SESSION 2. RSVP_HOP 3. TIME_VALUES 4. EXPLICIT ROUTE [optional] 5. LABEL_REQUEST 6. SESSION_ATTRIBUTE [optional] 7. SENDER_TEMPLATE 8. SENDER_TSPEC 9. RECORD_ROUTE [optional]
+        "path" message required the follwoing list of objects in order as defined in https://www.rfc-editor.org/rfc/rfc3209.html#page-15: 1. SESSION 2. RSVP_HOP 3. TIME_VALUES 4. EXPLICIT_ROUTE [optional] 5. LABEL_REQUEST 6. SESSION_ATTRIBUTE [optional] 7. SENDER_TEMPLATE 8. SENDER_TSPEC 9. RECORD_ROUTE [optional]
       type: object
       properties:
         objects:
           description: |-
-            "path" message required atleast SESSION, RSVP_HOP and TIME_VALUES objects.
+            "path" message required atleast SESSION, RSVP_HOP, TIME_VALUES, LABEL_REQUEST, SENDER_TEMPLATE and SENDER_TSPEC objects in order.
           type: array
-          minItems: 3
+          minItems: 6
           items:
             $ref: '#/components/schemas/Flow.RSVP.PathObjects'
           x-field-uid: 1
@@ -7920,11 +7914,46 @@ components:
       type: object
       properties:
         length:
+          description: |-
+            A 16-bit field containing the total object length in bytes.  Must always be a multiple of 4, and at least 4.
+          $ref: '#/components/schemas/Flow.RSVPPathObject.Length'
           x-field-uid: 1
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjects.Length'
         class_num:
           $ref: '#/components/schemas/Flow.RSVP.PathObjectsClass'
           x-field-uid: 2
+    Flow.RSVPPathObject.Length:
+      type: object
+      properties:
+        choice:
+          description: |-
+            auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+          enum:
+          - auto
+          - value
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated value for this property. If the OTG is unable to generate a value the default value must be used.
+          type: integer
+          format: uint32
+          minimum: 4
+          maximum: 65535
+          default: 4
+          x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          minimum: 4
+          maximum: 65535
+          default: 4
+          x-field-uid: 3
     Flow.RSVP.PathObjectsClass:
       description: |-
         The class number is used to identify the class of an object. Defined in https://www.iana.org/assignments/rsvp-parameters/rsvp-parameters.xhtml#rsvp-parameters-4 . Curently supported class numbers are for "path" message type. "path" message: Supported Class numbers and it's value: SESSION: 1, RSVP_HOP: 3, TIME_VALUES: 5, EXPLICIT_ROUTE: 20, LABEL_REQUEST: 19, SESSION_ATTRIBUTE: 207, SENDER_TEMPLATE: 11, SENDER_TSPEC: 12, RECORD_ROUTE: 21, Custom: User defined bytes based on class and c-types not suppored in above options.
@@ -8020,25 +8049,25 @@ components:
           enum:
           - lsp_tunnel_ipv4
         lsp_tunnel_ipv4:
-          $ref: '#/components/schemas/Flow.RSVP.PathObjectsSessionLspTunnelIpv4'
+          $ref: '#/components/schemas/Flow.RSVP.PathSessionLspTunnelIpv4'
           x-field-uid: 2
-    Flow.RSVP.PathObjectsSessionLspTunnelIpv4:
+    Flow.RSVP.PathSessionLspTunnelIpv4:
       description: |-
         Class = SESSION, LSP_TUNNEL_IPv4 C-Type = 7.
       type: object
       properties:
         ipv4_tunnel_end_point_address:
           x-field-uid: 1
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress'
         reserved:
           x-field-uid: 2
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Reserved'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Reserved'
         tunnel_id:
           x-field-uid: 3
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.TunnelId'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.TunnelId'
         extended_tunnel_id:
           x-field-uid: 4
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.ExtendedTunnelId'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.ExtendedTunnelId'
     Flow.RSVP.PathObjectsClassRsvpHop:
       description: |-
         C-Type is specific to a class num.
@@ -8062,19 +8091,19 @@ components:
           enum:
           - ipv4
         ipv4:
-          $ref: '#/components/schemas/Flow.RSVP.PathObjectsClassRsvpHopIpv4'
+          $ref: '#/components/schemas/Flow.RSVP.PathRsvpHopIpv4'
           x-field-uid: 2
-    Flow.RSVP.PathObjectsClassRsvpHopIpv4:
+    Flow.RSVP.PathRsvpHopIpv4:
       description: |-
         IPv4 RSVP_HOP object: Class = 3, C-Type = 1
       type: object
       properties:
         ipv4_next_previous_hop_address:
           x-field-uid: 1
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.Ipv4NextPreviousHopAddress'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRsvpHopIpv4.Ipv4NextPreviousHopAddress'
         logical_interface_handle:
           x-field-uid: 2
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.LogicalInterfaceHandle'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRsvpHopIpv4.LogicalInterfaceHandle'
     Flow.RSVP.PathObjectsClassTimeValues:
       description: |-
         C-Type is specific to a class num.
@@ -8098,16 +8127,16 @@ components:
           enum:
           - type_1_time_value
         type_1_time_value:
-          $ref: '#/components/schemas/Flow.RSVP.PathObjectsClassTimeValuesType1'
+          $ref: '#/components/schemas/Flow.RSVP.PathTimeValuesType1'
           x-field-uid: 2
-    Flow.RSVP.PathObjectsClassTimeValuesType1:
+    Flow.RSVP.PathTimeValuesType1:
       description: |-
         TIME_VALUES Object: Class = 5, C-Type = 1
       type: object
       properties:
         refresh_period_r:
           x-field-uid: 1
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsClassTimeValuesType1.RefreshPeriodR'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathTimeValuesType1.RefreshPeriodR'
     Flow.RSVP.PathObjectsClassExplicitRoute:
       description: |-
         C-Type is specific to a class num.
@@ -8118,7 +8147,7 @@ components:
           x-field-uid: 1
     Flow.RSVP.PathObjectsClassExplicitRouteCType:
       description: |-
-        Object for EXPLICIT_ROUTE class. Currently supported c-type is Type 1 Explicit Route (1).
+        Object for EXPLICIT_ROUTE class and c-type is Type 1 Explicit Route (1).
       type: object
       properties:
         choice:
@@ -8184,10 +8213,12 @@ components:
           x-field-uid: 1
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.LBit'
         length:
-          x-field-uid: 3
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.Length'
+          description: |-
+            The Length contains the total length of the subobject in bytes,including L ,Type and Length fields.   The Length MUST be atleast 4, and MUST be a multiple of 4.
+          $ref: '#/components/schemas/Flow.RSVPExplicitRoute.Length'
+          x-field-uid: 2
         ipv4_address:
-          x-field-uid: 4
+          x-field-uid: 3
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.Ipv4Address'
         prefix:
           description: |-
@@ -8197,7 +8228,7 @@ components:
           minimum: 1
           maximum: 32
           default: 32
-          x-field-uid: 5
+          x-field-uid: 4
     Flow.RSVP.PathExplicitRouteType1FourByteASNumber:
       description: |-
         Class = EXPLICIT_ROUTE, Type1 ROUTE_RECORD C-Type = 1 Subobject: 4-byte AS number, C-Type: 32
@@ -8207,10 +8238,12 @@ components:
           x-field-uid: 1
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1FourByteASNumber.LBit'
         length:
-          x-field-uid: 3
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1FourByteASNumber.Length'
+          description: |-
+            The Length contains the total length of the subobject in bytes,including L ,Type and Length fields.   The Length MUST be atleast 4, and MUST be a multiple of 4.
+          $ref: '#/components/schemas/Flow.RSVPExplicitRoute.Length'
+          x-field-uid: 2
         reserved:
-          x-field-uid: 4
+          x-field-uid: 3
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1FourByteASNumber.Reserved'
         as_number:
           description: |-
@@ -8219,7 +8252,38 @@ components:
           format: uint32
           default: 0
           maximum: 65535
-          x-field-uid: 5
+          x-field-uid: 4
+    Flow.RSVPExplicitRoute.Length:
+      type: object
+      properties:
+        choice:
+          description: |-
+            auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+          enum:
+          - auto
+          - value
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated value for this property. If the OTG is unable to generate a value the default value must be used.
+          type: integer
+          format: uint32
+          maximum: 256
+          default: 8
+          x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          maximum: 256
+          default: 8
+          x-field-uid: 3
     Flow.RSVP.PathObjectsClassLabelRequest:
       description: |-
         C-Type is specific to a class num.
@@ -8309,8 +8373,10 @@ components:
           maximum: 7
           x-field-uid: 2
         flags:
+          description: |-
+            0x01  Local protection desired, 0x02  Label recording desired, 0x04  SE Style desired
+          $ref: '#/components/schemas/Flow.RSVPLspTunnel.Flag'
           x-field-uid: 3
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionAttributeLspTunnel.Flags'
         name_length:
           description: "The length of the display string before padding, in bytes.\
             \          "
@@ -8385,8 +8451,10 @@ components:
           maximum: 7
           x-field-uid: 5
         flags:
+          description: |-
+            0x01  Local protection desired, 0x02  Label recording desired, 0x04  SE Style desired
+          $ref: '#/components/schemas/Flow.RSVPLspTunnel.Flag'
           x-field-uid: 6
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionAttributeLspTunnelRa.Flags'
         name_length:
           description: "The length of the display string before padding, in bytes.\
             \          "
@@ -8401,6 +8469,24 @@ components:
           minLength: 0
           maxLength: 254
           x-field-uid: 8
+    Flow.RSVPLspTunnel.Flag:
+      type: object
+      properties:
+        choice:
+          type: string
+          default: local_protection_desired
+          x-enum:
+            local_protection_desired:
+              x-field-uid: 1
+            label_recording_desired:
+              x-field-uid: 2
+            se_style_desired:
+              x-field-uid: 3
+          x-field-uid: 1
+          enum:
+          - local_protection_desired
+          - label_recording_desired
+          - se_style_desired
     Flow.RSVP.PathObjectsClassSenderTemplate:
       description: |-
         C-Type is specific to a class num.
@@ -8600,30 +8686,51 @@ components:
       type: object
       properties:
         length:
-          x-field-uid: 2
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.Length'
+          description: |-
+            The Length contains the total length of the subobject in bytes, including the Type and Length fields.   The Length MUST be atleast 4, and MUST be a multiple of 4.
+          $ref: '#/components/schemas/Flow.RSVPRouteRecord.Length'
+          x-field-uid: 1
         ipv4_address:
-          x-field-uid: 3
+          x-field-uid: 2
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.Ipv4Address'
         prefix_length:
-          x-field-uid: 4
+          x-field-uid: 3
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.PrefixLength'
         flags:
-          x-field-uid: 5
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.Flags'
+          description: |-
+            0x01  local_protection_available, 0x02  local_protection_in_use
+          $ref: '#/components/schemas/Flow.RSVPRecordRouteIPv4.Flag'
+          x-field-uid: 4
+    Flow.RSVPRecordRouteIPv4.Flag:
+      type: object
+      properties:
+        choice:
+          type: string
+          default: local_protection_available
+          x-enum:
+            local_protection_available:
+              x-field-uid: 1
+            local_protection_in_use:
+              x-field-uid: 2
+          x-field-uid: 1
+          enum:
+          - local_protection_available
+          - local_protection_in_use
     Flow.RSVP.PathRecordRouteType1Label:
       description: |-
         Class = RECORD_ROUTE, Type1 ROUTE_RECORD C-Type = 1 Subobject: Label, C-Type: 3
       type: object
       properties:
         length:
-          x-field-uid: 2
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Label.Length'
+          description: |-
+            The Length contains the total length of the subobject in bytes, including the Type and Length fields.   The Length MUST be atleast 4, and MUST be a multiple of 4.
+          $ref: '#/components/schemas/Flow.RSVPRouteRecord.Length'
+          x-field-uid: 1
         flags:
-          x-field-uid: 3
+          x-field-uid: 2
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Label.Flags'
         c_type:
-          x-field-uid: 4
+          x-field-uid: 3
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Label.CType'
         contents_of_label_obejct:
           description: |-
@@ -8631,7 +8738,38 @@ components:
           type: string
           format: hex
           default: '00'
-          x-field-uid: 5
+          x-field-uid: 4
+    Flow.RSVPRouteRecord.Length:
+      type: object
+      properties:
+        choice:
+          description: |-
+            auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+          enum:
+          - auto
+          - value
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated value for this property. If the OTG is unable to generate a value the default value must be used.
+          type: integer
+          format: uint32
+          maximum: 256
+          default: 8
+          x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          maximum: 256
+          default: 8
+          x-field-uid: 3
     Flow.RSVP.PathObjectsCustom:
       type: object
       description: |-
@@ -29168,74 +29306,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Rsvp.Reserved.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathObjects.Length.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 4
-          format: uint32
-          maximum: 65535
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 65535
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 65535
-    Pattern.Flow.RSVP.PathObjects.Length:
-      description: "Contains the total length of the object including the object's\
-        \ header, measured in bytes.  Objects must be aligned to 32-bit words. "
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 4
-          format: uint32
-          maximum: 65535
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 65535
-          x-field-uid: 3
-          default:
-          - 4
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjects.Length.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjects.Length.Counter'
-          x-field-uid: 6
-    Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress.Counter:
+    Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress.Counter:
       description: |-
         ipv4 counter pattern
       type: object
@@ -29255,7 +29326,7 @@ components:
           x-field-uid: 3
           default: 1
           format: uint32
-    Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress:
+    Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress:
       description: |-
         IPv4 address of the egress node for the tunnel.
       type: object
@@ -29292,12 +29363,12 @@ components:
           default:
           - 0.0.0.0
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Ipv4TunnelEndPointAddress.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Reserved.Counter:
+    Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Reserved.Counter:
       description: |-
         integer counter pattern
       type: object
@@ -29320,7 +29391,7 @@ components:
           default: 1
           format: uint32
           maximum: 65535
-    Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Reserved:
+    Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Reserved:
       description: |-
         Reserved field, MUST be zero.
       type: object
@@ -29359,12 +29430,12 @@ components:
           default:
           - 0
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Reserved.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Reserved.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.Reserved.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.Reserved.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.TunnelId.Counter:
+    Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.TunnelId.Counter:
       description: |-
         integer counter pattern
       type: object
@@ -29387,7 +29458,7 @@ components:
           default: 1
           format: uint32
           maximum: 65535
-    Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.TunnelId:
+    Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.TunnelId:
       description: |-
         A 16-bit identifier used in the SESSION that remains constant over the life of the tunnel.
       type: object
@@ -29426,12 +29497,12 @@ components:
           default:
           - 0
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.TunnelId.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.TunnelId.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.TunnelId.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.TunnelId.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.ExtendedTunnelId.Counter:
+    Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.ExtendedTunnelId.Counter:
       description: |-
         integer counter pattern
       type: object
@@ -29451,7 +29522,7 @@ components:
           x-field-uid: 3
           default: 1
           format: uint32
-    Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.ExtendedTunnelId:
+    Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.ExtendedTunnelId:
       description: |-
         A 32-bit identifier used in the SESSION that remains constant over the life of the tunnel. Normally set to all zeros. Ingress nodes that wish to narrow the scope of a SESSION to the ingress-egress pair may place their IPv4 address here as a globally unique identifier.
       type: object
@@ -29488,12 +29559,12 @@ components:
           default:
           - 0
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.ExtendedTunnelId.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.ExtendedTunnelId.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsSessionLspTunnelIpv4.ExtendedTunnelId.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSessionLspTunnelIpv4.ExtendedTunnelId.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.Ipv4NextPreviousHopAddress.Counter:
+    Pattern.Flow.RSVP.PathRsvpHopIpv4.Ipv4NextPreviousHopAddress.Counter:
       description: |-
         ipv4 counter pattern
       type: object
@@ -29513,7 +29584,7 @@ components:
           x-field-uid: 3
           default: 1
           format: uint32
-    Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.Ipv4NextPreviousHopAddress:
+    Pattern.Flow.RSVP.PathRsvpHopIpv4.Ipv4NextPreviousHopAddress:
       description: |-
         The IPv4 address of the interface through which the last RSVP-knowledgeable hop forwarded this message.
       type: object
@@ -29550,12 +29621,12 @@ components:
           default:
           - 0.0.0.0
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.Ipv4NextPreviousHopAddress.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRsvpHopIpv4.Ipv4NextPreviousHopAddress.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.Ipv4NextPreviousHopAddress.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRsvpHopIpv4.Ipv4NextPreviousHopAddress.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.LogicalInterfaceHandle.Counter:
+    Pattern.Flow.RSVP.PathRsvpHopIpv4.LogicalInterfaceHandle.Counter:
       description: |-
         integer counter pattern
       type: object
@@ -29575,7 +29646,7 @@ components:
           x-field-uid: 3
           default: 1
           format: uint32
-    Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.LogicalInterfaceHandle:
+    Pattern.Flow.RSVP.PathRsvpHopIpv4.LogicalInterfaceHandle:
       description: |-
         Logical Interface Handle (LIH) is used to distinguish logical outgoing interfaces. A node receiving an LIH in a Path message saves its value and returns it in the HOP objects of subsequent Resv messages sent to the node that originated the LIH. The LIH should be identically zero if there is no logical interface handle.
       type: object
@@ -29612,12 +29683,12 @@ components:
           default:
           - 0
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.LogicalInterfaceHandle.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRsvpHopIpv4.LogicalInterfaceHandle.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsClassRsvpHopIpv4.LogicalInterfaceHandle.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRsvpHopIpv4.LogicalInterfaceHandle.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathObjectsClassTimeValuesType1.RefreshPeriodR.Counter:
+    Pattern.Flow.RSVP.PathTimeValuesType1.RefreshPeriodR.Counter:
       description: |-
         integer counter pattern
       type: object
@@ -29637,7 +29708,7 @@ components:
           x-field-uid: 3
           default: 1
           format: uint32
-    Pattern.Flow.RSVP.PathObjectsClassTimeValuesType1.RefreshPeriodR:
+    Pattern.Flow.RSVP.PathTimeValuesType1.RefreshPeriodR:
       description: |-
         The refresh timeout period R used to generate this message;in milliseconds.
       type: object
@@ -29674,10 +29745,10 @@ components:
           default:
           - 0
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsClassTimeValuesType1.RefreshPeriodR.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathTimeValuesType1.RefreshPeriodR.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsClassTimeValuesType1.RefreshPeriodR.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathTimeValuesType1.RefreshPeriodR.Counter'
           x-field-uid: 6
     Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.LBit.Counter:
       description: |-
@@ -29745,73 +29816,6 @@ components:
           x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.LBit.Counter'
-          x-field-uid: 6
-    Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.Length.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 8
-          format: uint32
-          maximum: 127
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 127
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 127
-    Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.Length:
-      description: |-
-        The Length contains the total length of the subobject in bytes,including the Type and Length fields.   The Length is always 8.
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 8
-          format: uint32
-          maximum: 127
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 127
-          x-field-uid: 3
-          default:
-          - 8
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.Length.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.Length.Counter'
           x-field-uid: 6
     Pattern.Flow.RSVP.PathExplicitRouteType1Ipv4Prefix.Ipv4Address.Counter:
       description: |-
@@ -29941,73 +29945,6 @@ components:
           x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1FourByteASNumber.LBit.Counter'
-          x-field-uid: 6
-    Pattern.Flow.RSVP.PathExplicitRouteType1FourByteASNumber.Length.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 8
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 255
-    Pattern.Flow.RSVP.PathExplicitRouteType1FourByteASNumber.Length:
-      description: |-
-        The Length contains the total length of the subobject in bytes,including the Type and Length fields.   The Length is always 8.
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 8
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 8
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1FourByteASNumber.Length.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathExplicitRouteType1FourByteASNumber.Length.Counter'
           x-field-uid: 6
     Pattern.Flow.RSVP.PathExplicitRouteType1FourByteASNumber.Reserved.Counter:
       description: |-
@@ -30210,78 +30147,6 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathLabelRequestWithoutLabelRange.L3pid.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathSessionAttributeLspTunnel.Flags:
-      description: |-
-        0x01  Local protection desired, 0x02  Label recording desired, 0x04  SE Style desired
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-      x-constants:
-        local_protection_desired: 1
-        label_recording_desired: 2
-        se_style_desired: 3
-    Pattern.Flow.RSVP.PathSessionAttributeLspTunnelRa.Flags:
-      description: |-
-        0x01  Local protection desired, 0x02  Label recording desired, 0x04  SE Style desired
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-      x-constants:
-        local_protection_desired: 1
-        label_recording_desired: 2
-        se_style_desired: 4
     Pattern.Flow.RSVP.PathSenderTemplateLspTunnelIpv4.Ipv4TunnelSenderAddress.Counter:
       description: |-
         ipv4 counter pattern
@@ -31272,73 +31137,6 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathSenderTspecIntServ.MaximumPacketSize.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.Length.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 8
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 255
-    Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.Length:
-      description: |-
-        The Length contains the total length of the subobject in bytes, including the Type and Length fields.  The Length is always 8.
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 8
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 8
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.Length.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.Length.Counter'
-          x-field-uid: 6
     Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.Ipv4Address.Counter:
       description: |-
         ipv4 counter pattern
@@ -31468,108 +31266,6 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.PrefixLength.Counter'
           x-field-uid: 6
-    Pattern.Flow.RSVP.PathRecordRouteType1Ipv4Address.Flags:
-      description: |-
-        0x01  local_protection_available, 0x02  local_protection_in_use
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-      x-constants:
-        local_protection_available: 1
-        local_protection_in_use: 2
-    Pattern.Flow.RSVP.PathRecordRouteType1Label.Length.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 8
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 255
-    Pattern.Flow.RSVP.PathRecordRouteType1Label.Length:
-      description: "The Length contains the total length of the subobject in bytes,\
-        \ including the Type and Length fields.  "
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 8
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 8
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Label.Length.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.RSVP.PathRecordRouteType1Label.Length.Counter'
-          x-field-uid: 6
     Pattern.Flow.RSVP.PathRecordRouteType1Label.Flags:
       description: |-
         0x01 = Global label. This flag indicates that the label will be understood if received on any interface.
@@ -31602,9 +31298,6 @@ components:
           x-field-uid: 3
           default:
           - 1
-      x-constants:
-        local_protection_available: 1
-        local_protection_in_use: 2
     Pattern.Flow.RSVP.PathRecordRouteType1Label.CType:
       description: |-
         The C-Type of the included Label Object. Copied from the Label object.

@@ -12,7 +12,7 @@ import subprocess
 USE_OPENAPIART_DIR = None
 
 # supported values - branch name or None
-USE_OPENAPIART_BRANCH = "signed_property_for_x_field_pattern"
+USE_OPENAPIART_BRANCH = None
 
 OPENAPIART_REPO = "https://github.com/open-traffic-generator/openapiart.git"
 

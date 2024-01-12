@@ -12,7 +12,7 @@ import subprocess
 USE_OPENAPIART_DIR = None
 
 # supported values - branch name or None
-USE_OPENAPIART_BRANCH = None
+USE_OPENAPIART_BRANCH = "support_for_oid_format"
 
 OPENAPIART_REPO = "https://github.com/open-traffic-generator/openapiart.git"
 

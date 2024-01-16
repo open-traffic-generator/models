@@ -5162,8 +5162,8 @@ message FlowHeader {
       ppp = 17;
       igmpv1 = 18;
       mpls = 19;
-      rsvp = 20;
       snmpv2c = 20;
+      rsvp = 21;
     }
   }
   // The available types of flow headers. If one is not provided the
@@ -5229,8 +5229,10 @@ message FlowHeader {
   FlowMpls mpls = 20;
 
   // Description missing in models
-  FlowRsvp rsvp = 21;
   FlowSnmpv2c snmpv2c = 21;
+
+  // Description missing in models
+  FlowRsvp rsvp = 22;
 }
 
 // Custom packet header
@@ -5920,7 +5922,247 @@ message FlowMpls {
   PatternFlowMplsTimeToLive time_to_live = 4;
 }
 
-<<<<<<< HEAD
+// SNMPv2C packet header as defined in RFC1901 and RFC3416.
+message FlowSnmpv2c {
+
+  // Description missing in models
+  PatternFlowSnmpv2cVersion version = 1;
+
+  // It is an ASCII based octet string which identifies the SNMP community in which the
+  // sender and recipient of this message are located. It should match the read-only or
+  // read-write community string configured on the recipient for the PDU to be accepted.
+  // default = community
+  optional string community = 2;
+
+  // Description missing in models
+  // required = true
+  FlowSnmpv2cData data = 3;
+}
+
+// This contains the body of the SNMPv2C message.
+// 
+// - Encoding of subsequent fields follow ASN.1 specification.
+// Refer: http://www.itu.int/ITU-T/asn1/
+message FlowSnmpv2cData {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      get_request = 1;
+      get_next_request = 2;
+      response = 3;
+      set_request = 4;
+      get_bulk_request = 5;
+      inform_request = 6;
+      snmpv2_trap = 7;
+      report = 8;
+    }
+  }
+  // Description missing in models
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowSnmpv2cPDU get_request = 2;
+
+  // Description missing in models
+  FlowSnmpv2cPDU get_next_request = 3;
+
+  // Description missing in models
+  FlowSnmpv2cPDU response = 4;
+
+  // Description missing in models
+  FlowSnmpv2cPDU set_request = 5;
+
+  // Description missing in models
+  FlowSnmpv2cBulkPDU get_bulk_request = 6;
+
+  // Description missing in models
+  FlowSnmpv2cPDU inform_request = 7;
+
+  // Description missing in models
+  FlowSnmpv2cPDU snmpv2_trap = 8;
+
+  // Description missing in models
+  FlowSnmpv2cPDU report = 9;
+}
+
+// This contains the body of the SNMPv2C PDU.
+message FlowSnmpv2cPDU {
+
+  // Description missing in models
+  PatternFlowSnmpv2cPDURequestId request_id = 1;
+
+  message ErrorStatus {
+    enum Enum {
+      unspecified = 0;
+      no_error = 1;
+      too_big = 2;
+      no_such_name = 3;
+      bad_value = 4;
+      read_only = 5;
+      gen_err = 6;
+      no_access = 7;
+      wrong_type = 8;
+      wrong_length = 9;
+      wrong_encoding = 10;
+      wrong_value = 11;
+      no_creation = 12;
+      inconsistent_value = 13;
+      resource_unavailable = 14;
+      commit_failed = 15;
+      undo_failed = 16;
+      authorization_error = 17;
+      not_writable = 18;
+      inconsistent_name = 19;
+    }
+  }
+  // The SNMP agent places an error code in this field in the response message if an error
+  // occurred processing the request.
+  // default = ErrorStatus.Enum.no_error
+  optional ErrorStatus.Enum error_status = 2;
+
+  // Description missing in models
+  PatternFlowSnmpv2cPDUErrorIndex error_index = 3;
+
+  // A Sequence of variable_bindings.
+  repeated FlowSnmpv2cVariableBinding variable_bindings = 4;
+}
+
+// The purpose of the GetBulkRequest-PDU is to request the transfer of a potentially
+// large amount of data, including, but not limited to, the efficient and rapid retrieval
+// of large tables.
+message FlowSnmpv2cBulkPDU {
+
+  // Description missing in models
+  PatternFlowSnmpv2cBulkPDURequestId request_id = 1;
+
+  // Description missing in models
+  PatternFlowSnmpv2cBulkPDUNonRepeaters non_repeaters = 2;
+
+  // Description missing in models
+  PatternFlowSnmpv2cBulkPDUMaxRepetitions max_repetitions = 3;
+
+  // A Sequence of variable_bindings.
+  repeated FlowSnmpv2cVariableBinding variable_bindings = 4;
+}
+
+// A Sequence of two fields, an object_identifier and the value for/from that object_identifier.
+message FlowSnmpv2cVariableBinding {
+
+  // The Object Identifier points to a particular parameter in the SNMP agent.
+  // - Encoding of this field follows RFC2578(section 3.5) and ASN.1 X.690(section 8.1.3.6)
+  // specification.
+  // Refer: http://www.itu.int/ITU-T/asn1/
+  // - According to BER, the first two numbers of any OID (x.y) are encoded as one value
+  // using the formula (40*x)+y.
+  // Example, the first two numbers of an SNMP OID 1.3... are encoded as 43 or 0x2B,
+  // because (40*1)+3 = 43.
+  // - After the first two numbers are encoded, the subsequent numbers in the OID are
+  // each encoded as a byte.
+  // - However, a special rule is required for large numbers because one byte can only
+  // represent a number from 0-127.
+  // - The rule for large numbers states that only the lower 7 bits in the byte are used
+  // for holding the value (0-127).
+  // - The highest order bit(8th) is used as a flag to indicate that this number spans
+  // more than one byte. Therefore, any number over 127 must be encoded using more than
+  // one byte.
+  // - Example, the number 2680 in the OID '1.3.6.1.4.1.2680.1.2.7.3.2.0' cannot be
+  // encoded using a single byte.
+  // According to this rule, the number 2680 must be encoded as 0x94 0x78.
+  // Since the most significant bit is set in the first byte (0x94), it indicates
+  // that number spans to the next byte.
+  // Since the most significant bit is not set in the next byte (0x78), it indicates
+  // that the number ends at the second byte.
+  // The value is derived by appending 7 bits from each of the concatenated bytes
+  // i.e (0x14 *128^1) + (0x78 * 128^0) = 2680.
+  // default = 0.1
+  optional string object_identifier = 1;
+
+  // Description missing in models
+  FlowSnmpv2cVariableBindingValue value = 2;
+}
+
+// The value for the object_identifier as per RFC2578.
+message FlowSnmpv2cVariableBindingValue {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      no_value = 1;
+      integer_value = 2;
+      string_value = 3;
+      object_identifier_value = 4;
+      ip_address_value = 5;
+      counter_value = 6;
+      timeticks_value = 7;
+      arbitrary_value = 8;
+      big_counter_value = 9;
+      unsigned_integer_value = 10;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.no_value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueIntegerValue integer_value = 2;
+
+  // It contains the hex bytes of the value to be sent.  As of now it is restricted to
+  // 5000 bytes.
+  // default = string
+  optional string string_value = 3;
+
+  // The Object Identifier points to a particular parameter in the SNMP agent.
+  // - Encoding of this field follows RFC2578(section 3.5) and ASN.1 X.690(section 8.1.3.6)
+  // specification.
+  // Refer: http://www.itu.int/ITU-T/asn1/
+  // - According to BER, the first two numbers of any OID (x.y) are encoded as one value
+  // using the formula (40*x)+y.
+  // Example, the first two numbers of an SNMP OID 1.3... are encoded as 43 or 0x2B,
+  // because (40*1)+3 = 43.
+  // - After the first two numbers are encoded, the subsequent numbers in the OID are
+  // each encoded as a byte.
+  // - However, a special rule is required for large numbers because one byte can only
+  // represent a number from 0-127.
+  // - The rule for large numbers states that only the lower 7 bits in the byte are used
+  // for holding the value (0-127).
+  // - The highest order bit(8th) is used as a flag to indicate that this number spans
+  // more than one byte. Therefore, any number over 127 must be encoded using more than
+  // one byte.
+  // - Example, the number 2680 in the OID '1.3.6.1.4.1.2680.1.2.7.3.2.0' cannot be
+  // encoded using a single byte.
+  // According to this rule, the number 2680 must be encoded as 0x94 0x78.
+  // Since the most significant bit is set in the first byte (0x94), it indicates
+  // that number spans to the next byte.
+  // Since the most significant bit is not set in the next byte (0x78), it indicates
+  // that the number ends at the second byte.
+  // The value is derived by appending 7 bits from each of the concatenated bytes
+  // i.e (0x14 *128^1) + (0x78 * 128^0) = 2680.
+  // default = 0.1
+  optional string object_identifier_value = 4;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueIpAddressValue ip_address_value = 5;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueCounterValue counter_value = 6;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueTimeticksValue timeticks_value = 7;
+
+  // It contains the hex bytes of the value to be sent.  As of now it is restricted to
+  // 5000 bytes.
+  // default = 00
+  optional string arbitrary_value = 8;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueBigCounterValue big_counter_value = 9;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValue unsigned_integer_value = 10;
+}
+
 // RSVP packet header as defined in RFC2205 and RFC3209.
 message FlowRsvp {
 
@@ -6313,247 +6555,6 @@ message FlowRSVPObjectContentRouteRecordLabel {
   // The contents of the Label Object. Copied from the Label Object.
   // default = 00
   optional string contents_of_label_obejct = 5;
-=======
-// SNMPv2C packet header as defined in RFC1901 and RFC3416.
-message FlowSnmpv2c {
-
-  // Description missing in models
-  PatternFlowSnmpv2cVersion version = 1;
-
-  // It is an ASCII based octet string which identifies the SNMP community in which the
-  // sender and recipient of this message are located. It should match the read-only or
-  // read-write community string configured on the recipient for the PDU to be accepted.
-  // default = community
-  optional string community = 2;
-
-  // Description missing in models
-  // required = true
-  FlowSnmpv2cData data = 3;
-}
-
-// This contains the body of the SNMPv2C message.
-// 
-// - Encoding of subsequent fields follow ASN.1 specification.
-// Refer: http://www.itu.int/ITU-T/asn1/
-message FlowSnmpv2cData {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      get_request = 1;
-      get_next_request = 2;
-      response = 3;
-      set_request = 4;
-      get_bulk_request = 5;
-      inform_request = 6;
-      snmpv2_trap = 7;
-      report = 8;
-    }
-  }
-  // Description missing in models
-  // required = true
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  FlowSnmpv2cPDU get_request = 2;
-
-  // Description missing in models
-  FlowSnmpv2cPDU get_next_request = 3;
-
-  // Description missing in models
-  FlowSnmpv2cPDU response = 4;
-
-  // Description missing in models
-  FlowSnmpv2cPDU set_request = 5;
-
-  // Description missing in models
-  FlowSnmpv2cBulkPDU get_bulk_request = 6;
-
-  // Description missing in models
-  FlowSnmpv2cPDU inform_request = 7;
-
-  // Description missing in models
-  FlowSnmpv2cPDU snmpv2_trap = 8;
-
-  // Description missing in models
-  FlowSnmpv2cPDU report = 9;
-}
-
-// This contains the body of the SNMPv2C PDU.
-message FlowSnmpv2cPDU {
-
-  // Description missing in models
-  PatternFlowSnmpv2cPDURequestId request_id = 1;
-
-  message ErrorStatus {
-    enum Enum {
-      unspecified = 0;
-      no_error = 1;
-      too_big = 2;
-      no_such_name = 3;
-      bad_value = 4;
-      read_only = 5;
-      gen_err = 6;
-      no_access = 7;
-      wrong_type = 8;
-      wrong_length = 9;
-      wrong_encoding = 10;
-      wrong_value = 11;
-      no_creation = 12;
-      inconsistent_value = 13;
-      resource_unavailable = 14;
-      commit_failed = 15;
-      undo_failed = 16;
-      authorization_error = 17;
-      not_writable = 18;
-      inconsistent_name = 19;
-    }
-  }
-  // The SNMP agent places an error code in this field in the response message if an error
-  // occurred processing the request.
-  // default = ErrorStatus.Enum.no_error
-  optional ErrorStatus.Enum error_status = 2;
-
-  // Description missing in models
-  PatternFlowSnmpv2cPDUErrorIndex error_index = 3;
-
-  // A Sequence of variable_bindings.
-  repeated FlowSnmpv2cVariableBinding variable_bindings = 4;
-}
-
-// The purpose of the GetBulkRequest-PDU is to request the transfer of a potentially
-// large amount of data, including, but not limited to, the efficient and rapid retrieval
-// of large tables.
-message FlowSnmpv2cBulkPDU {
-
-  // Description missing in models
-  PatternFlowSnmpv2cBulkPDURequestId request_id = 1;
-
-  // Description missing in models
-  PatternFlowSnmpv2cBulkPDUNonRepeaters non_repeaters = 2;
-
-  // Description missing in models
-  PatternFlowSnmpv2cBulkPDUMaxRepetitions max_repetitions = 3;
-
-  // A Sequence of variable_bindings.
-  repeated FlowSnmpv2cVariableBinding variable_bindings = 4;
-}
-
-// A Sequence of two fields, an object_identifier and the value for/from that object_identifier.
-message FlowSnmpv2cVariableBinding {
-
-  // The Object Identifier points to a particular parameter in the SNMP agent.
-  // - Encoding of this field follows RFC2578(section 3.5) and ASN.1 X.690(section 8.1.3.6)
-  // specification.
-  // Refer: http://www.itu.int/ITU-T/asn1/
-  // - According to BER, the first two numbers of any OID (x.y) are encoded as one value
-  // using the formula (40*x)+y.
-  // Example, the first two numbers of an SNMP OID 1.3... are encoded as 43 or 0x2B,
-  // because (40*1)+3 = 43.
-  // - After the first two numbers are encoded, the subsequent numbers in the OID are
-  // each encoded as a byte.
-  // - However, a special rule is required for large numbers because one byte can only
-  // represent a number from 0-127.
-  // - The rule for large numbers states that only the lower 7 bits in the byte are used
-  // for holding the value (0-127).
-  // - The highest order bit(8th) is used as a flag to indicate that this number spans
-  // more than one byte. Therefore, any number over 127 must be encoded using more than
-  // one byte.
-  // - Example, the number 2680 in the OID '1.3.6.1.4.1.2680.1.2.7.3.2.0' cannot be
-  // encoded using a single byte.
-  // According to this rule, the number 2680 must be encoded as 0x94 0x78.
-  // Since the most significant bit is set in the first byte (0x94), it indicates
-  // that number spans to the next byte.
-  // Since the most significant bit is not set in the next byte (0x78), it indicates
-  // that the number ends at the second byte.
-  // The value is derived by appending 7 bits from each of the concatenated bytes
-  // i.e (0x14 *128^1) + (0x78 * 128^0) = 2680.
-  // default = 0.1
-  optional string object_identifier = 1;
-
-  // Description missing in models
-  FlowSnmpv2cVariableBindingValue value = 2;
-}
-
-// The value for the object_identifier as per RFC2578.
-message FlowSnmpv2cVariableBindingValue {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      no_value = 1;
-      integer_value = 2;
-      string_value = 3;
-      object_identifier_value = 4;
-      ip_address_value = 5;
-      counter_value = 6;
-      timeticks_value = 7;
-      arbitrary_value = 8;
-      big_counter_value = 9;
-      unsigned_integer_value = 10;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.no_value
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueIntegerValue integer_value = 2;
-
-  // It contains the hex bytes of the value to be sent.  As of now it is restricted to
-  // 5000 bytes.
-  // default = string
-  optional string string_value = 3;
-
-  // The Object Identifier points to a particular parameter in the SNMP agent.
-  // - Encoding of this field follows RFC2578(section 3.5) and ASN.1 X.690(section 8.1.3.6)
-  // specification.
-  // Refer: http://www.itu.int/ITU-T/asn1/
-  // - According to BER, the first two numbers of any OID (x.y) are encoded as one value
-  // using the formula (40*x)+y.
-  // Example, the first two numbers of an SNMP OID 1.3... are encoded as 43 or 0x2B,
-  // because (40*1)+3 = 43.
-  // - After the first two numbers are encoded, the subsequent numbers in the OID are
-  // each encoded as a byte.
-  // - However, a special rule is required for large numbers because one byte can only
-  // represent a number from 0-127.
-  // - The rule for large numbers states that only the lower 7 bits in the byte are used
-  // for holding the value (0-127).
-  // - The highest order bit(8th) is used as a flag to indicate that this number spans
-  // more than one byte. Therefore, any number over 127 must be encoded using more than
-  // one byte.
-  // - Example, the number 2680 in the OID '1.3.6.1.4.1.2680.1.2.7.3.2.0' cannot be
-  // encoded using a single byte.
-  // According to this rule, the number 2680 must be encoded as 0x94 0x78.
-  // Since the most significant bit is set in the first byte (0x94), it indicates
-  // that number spans to the next byte.
-  // Since the most significant bit is not set in the next byte (0x78), it indicates
-  // that the number ends at the second byte.
-  // The value is derived by appending 7 bits from each of the concatenated bytes
-  // i.e (0x14 *128^1) + (0x78 * 128^0) = 2680.
-  // default = 0.1
-  optional string object_identifier_value = 4;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueIpAddressValue ip_address_value = 5;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueCounterValue counter_value = 6;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueTimeticksValue timeticks_value = 7;
-
-  // It contains the hex bytes of the value to be sent.  As of now it is restricted to
-  // 5000 bytes.
-  // default = 00
-  optional string arbitrary_value = 8;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueBigCounterValue big_counter_value = 9;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValue unsigned_integer_value = 10;
->>>>>>> master
 }
 
 // The frame size which overrides the total length of the packet
@@ -20593,11 +20594,7 @@ message PatternFlowMplsTimeToLive {
 }
 
 // integer counter pattern
-<<<<<<< HEAD
-message PatternFlowRsvpVersionCounter {
-=======
 message PatternFlowSnmpv2cVersionCounter {
->>>>>>> master
 
   // Description missing in models
   // default = 1
@@ -20612,13 +20609,8 @@ message PatternFlowSnmpv2cVersionCounter {
   optional uint32 count = 3;
 }
 
-<<<<<<< HEAD
-// Protocol Version number.
-message PatternFlowRsvpVersion {
-=======
 // Version
 message PatternFlowSnmpv2cVersion {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -20642,16 +20634,6 @@ message PatternFlowSnmpv2cVersion {
   repeated uint32 values = 3;
 
   // Description missing in models
-<<<<<<< HEAD
-  PatternFlowRsvpVersionCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowRsvpVersionCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowRsvpFlagCounter {
-=======
   PatternFlowSnmpv2cVersionCounter increment = 5;
 
   // Description missing in models
@@ -20712,7 +20694,6 @@ message PatternFlowSnmpv2cPDURequestId {
 
 // integer counter pattern
 message PatternFlowSnmpv2cPDUErrorIndexCounter {
->>>>>>> master
 
   // Description missing in models
   // default = 0
@@ -20727,14 +20708,9 @@ message PatternFlowSnmpv2cPDUErrorIndexCounter {
   optional uint32 count = 3;
 }
 
-<<<<<<< HEAD
-// Flag, 0x01-0x08: Reserved.No flag bits are defined yet.
-message PatternFlowRsvpFlag {
-=======
 // When Error Status is non-zero,  this field contains a pointer that specifies which
 // object generated the error.  Always zero in a request.
 message PatternFlowSnmpv2cPDUErrorIndex {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -20758,32 +20734,6 @@ message PatternFlowSnmpv2cPDUErrorIndex {
   repeated uint32 values = 3;
 
   // Description missing in models
-<<<<<<< HEAD
-  PatternFlowRsvpFlagCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowRsvpFlagCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowRsvpMessageTypeCounter {
-
-  // Description missing in models
-  optional uint32 start = 1;
-
-  // Description missing in models
-  optional uint32 step = 2;
-
-  // Description missing in models
-  optional uint32 count = 3;
-}
-
-// An 8-bit number that identifies the function of the RSVP message. There are aound
-// 20 message types is defined https://www.iana.org/assignments/rsvp-parameters/rsvp-parameters.xhtml#rsvp-parameters-2
-// . Among Those we are presently supporting path(value: 1) and hello (value: 20) message
-// type.
-message PatternFlowRsvpMessageType {
-=======
   PatternFlowSnmpv2cPDUErrorIndexCounter increment = 5;
 
   // Description missing in models
@@ -20813,7 +20763,6 @@ message PatternFlowSnmpv2cBulkPDURequestIdCounter {
 // - Encoding of this field follows ASN.1 X.690(section 8.3) specification.
 // Refer: http://www.itu.int/ITU-T/asn1/
 message PatternFlowSnmpv2cBulkPDURequestId {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -20829,24 +20778,6 @@ message PatternFlowSnmpv2cBulkPDURequestId {
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-<<<<<<< HEAD
-  optional uint32 value = 2;
-
-  // Description missing in models
-  repeated uint32 values = 3;
-
-  // Description missing in models
-  PatternFlowRsvpMessageTypeCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowRsvpMessageTypeCounter decrement = 6;
-}
-
-// The one's complement of the one's complement sum of the message, with the checksum
-// field replaced by zero for the purpose of computing the checksum.   An all-zero value
-// means that no checksum was transmitted.
-message PatternFlowRsvpRsvpChecksum {
-=======
   // default = 0
   optional int32 value = 2;
 
@@ -20864,12 +20795,557 @@ message PatternFlowRsvpRsvpChecksum {
 // One variable binding in the Response-PDU is requested for the first non_repeaters
 // variable bindings in the GetBulkRequest.
 message PatternFlowSnmpv2cBulkPDUNonRepeaters {
->>>>>>> master
 
   message Choice {
     enum Enum {
       unspecified = 0;
-<<<<<<< HEAD
+      value = 2;
+      values = 3;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+}
+
+// integer counter pattern
+message PatternFlowSnmpv2cBulkPDUMaxRepetitionsCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// A maximum of max_repetitions variable bindings are requested in the Response-PDU
+// for each of the remaining variable bindings in the GetBulkRequest after the non_repeaters
+// variable bindings.
+message PatternFlowSnmpv2cBulkPDUMaxRepetitions {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowSnmpv2cBulkPDUMaxRepetitionsCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowSnmpv2cBulkPDUMaxRepetitionsCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowSnmpv2cVariableBindingValueIntegerValueCounter {
+
+  // Description missing in models
+  // default = 0
+  optional int32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional int32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional int32 count = 3;
+}
+
+// Integer value returned for the requested OID.
+message PatternFlowSnmpv2cVariableBindingValueIntegerValue {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional int32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated int32 values = 3;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueIntegerValueCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueIntegerValueCounter decrement = 6;
+}
+
+// ipv4 counter pattern
+message PatternFlowSnmpv2cVariableBindingValueIpAddressValueCounter {
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string start = 1;
+
+  // Description missing in models
+  // default = 0.0.0.1
+  optional string step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// IPv4 address returned for the requested OID.
+message PatternFlowSnmpv2cVariableBindingValueIpAddressValue {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['0.0.0.0']
+  repeated string values = 3;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueIpAddressValueCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueIpAddressValueCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowSnmpv2cVariableBindingValueCounterValueCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Counter returned for the requested OID.
+message PatternFlowSnmpv2cVariableBindingValueCounterValue {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueCounterValueCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueCounterValueCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowSnmpv2cVariableBindingValueTimeticksValueCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Timeticks returned for the requested OID.
+message PatternFlowSnmpv2cVariableBindingValueTimeticksValue {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueTimeticksValueCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueTimeticksValueCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowSnmpv2cVariableBindingValueBigCounterValueCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint64 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint64 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint64 count = 3;
+}
+
+// Big counter returned for the requested OID.
+message PatternFlowSnmpv2cVariableBindingValueBigCounterValue {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint64 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint64 values = 3;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueBigCounterValueCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueBigCounterValueCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValueCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Unsigned integer value returned for the requested OID.
+message PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValue {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValueCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValueCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowSnmpv2cCommonRequestIdCounter {
+
+  // Description missing in models
+  // default = 0
+  optional int32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional int32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional int32 count = 3;
+}
+
+// Identifies a particular SNMP request.
+// This index is echoed back in the response from the SNMP agent,
+// allowing the SNMP manager to match an incoming response to the appropriate request.
+// 
+// - Encoding of this field follows ASN.1 X.690(section 8.3) specification.
+// Refer: http://www.itu.int/ITU-T/asn1/
+message PatternFlowSnmpv2cCommonRequestId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional int32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated int32 values = 3;
+
+  // Description missing in models
+  PatternFlowSnmpv2cCommonRequestIdCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowSnmpv2cCommonRequestIdCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRsvpVersionCounter {
+
+  // Description missing in models
+  // default = 1
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Protocol Version number.
+message PatternFlowRsvpVersion {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [1]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRsvpVersionCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRsvpVersionCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRsvpFlagCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Flag, 0x01-0x08: Reserved.No flag bits are defined yet.
+message PatternFlowRsvpFlag {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRsvpFlagCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRsvpFlagCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRsvpMessageTypeCounter {
+
+  // Description missing in models
+  optional uint32 start = 1;
+
+  // Description missing in models
+  optional uint32 step = 2;
+
+  // Description missing in models
+  optional uint32 count = 3;
+}
+
+// An 8-bit number that identifies the function of the RSVP message. There are aound
+// 20 message types is defined https://www.iana.org/assignments/rsvp-parameters/rsvp-parameters.xhtml#rsvp-parameters-2
+// . Among Those we are presently supporting path(value: 1) and hello (value: 20) message
+// type.
+message PatternFlowRsvpMessageType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  optional uint32 value = 2;
+
+  // Description missing in models
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRsvpMessageTypeCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRsvpMessageTypeCounter decrement = 6;
+}
+
+// The one's complement of the one's complement sum of the message, with the checksum
+// field replaced by zero for the purpose of computing the checksum.   An all-zero value
+// means that no checksum was transmitted.
+message PatternFlowRsvpRsvpChecksum {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
       generated = 1;
       custom = 2;
     }
@@ -20895,27 +21371,6 @@ message PatternFlowSnmpv2cBulkPDUNonRepeaters {
 
 // integer counter pattern
 message PatternFlowRsvpTimeToLiveCounter {
-=======
-      value = 2;
-      values = 3;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.value
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 0
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [0]
-  repeated uint32 values = 3;
-}
-
-// integer counter pattern
-message PatternFlowSnmpv2cBulkPDUMaxRepetitionsCounter {
->>>>>>> master
 
   // Description missing in models
   // default = 0
@@ -20930,15 +21385,8 @@ message PatternFlowSnmpv2cBulkPDUMaxRepetitionsCounter {
   optional uint32 count = 3;
 }
 
-<<<<<<< HEAD
 // The IP time-to-live(TTL) value with which the message was sent.
 message PatternFlowRsvpTimeToLive {
-=======
-// A maximum of max_repetitions variable bindings are requested in the Response-PDU
-// for each of the remaining variable bindings in the GetBulkRequest after the non_repeaters
-// variable bindings.
-message PatternFlowSnmpv2cBulkPDUMaxRepetitions {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -20962,7 +21410,6 @@ message PatternFlowSnmpv2cBulkPDUMaxRepetitions {
   repeated uint32 values = 3;
 
   // Description missing in models
-<<<<<<< HEAD
   PatternFlowRsvpTimeToLiveCounter increment = 5;
 
   // Description missing in models
@@ -20987,32 +21434,6 @@ message PatternFlowRsvpReservedCounter {
 
 // Reserved
 message PatternFlowRsvpReserved {
-=======
-  PatternFlowSnmpv2cBulkPDUMaxRepetitionsCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowSnmpv2cBulkPDUMaxRepetitionsCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowSnmpv2cVariableBindingValueIntegerValueCounter {
-
-  // Description missing in models
-  // default = 0
-  optional int32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional int32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional int32 count = 3;
-}
-
-// Integer value returned for the requested OID.
-message PatternFlowSnmpv2cVariableBindingValueIntegerValue {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -21029,7 +21450,6 @@ message PatternFlowSnmpv2cVariableBindingValueIntegerValue {
 
   // Description missing in models
   // default = 0
-<<<<<<< HEAD
   optional uint32 value = 2;
 
   // Description missing in models
@@ -21246,23 +21666,6 @@ message PatternFlowRSVPObjectsCType {
 
 // ipv4 counter pattern
 message PatternFlowRSVPObjectContentSessionLspTunnelIpv4Ipv4TunnelEndPointAddressCounter {
-=======
-  optional int32 value = 2;
-
-  // Description missing in models
-  // default = [0]
-  repeated int32 values = 3;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueIntegerValueCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueIntegerValueCounter decrement = 6;
-}
-
-// ipv4 counter pattern
-message PatternFlowSnmpv2cVariableBindingValueIpAddressValueCounter {
->>>>>>> master
 
   // Description missing in models
   // default = 0.0.0.0
@@ -21277,13 +21680,8 @@ message PatternFlowSnmpv2cVariableBindingValueIpAddressValueCounter {
   optional uint32 count = 3;
 }
 
-<<<<<<< HEAD
 // IPv4 address of the egress node for the tunnel.
 message PatternFlowRSVPObjectContentSessionLspTunnelIpv4Ipv4TunnelEndPointAddress {
-=======
-// IPv4 address returned for the requested OID.
-message PatternFlowSnmpv2cVariableBindingValueIpAddressValue {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -21307,7 +21705,6 @@ message PatternFlowSnmpv2cVariableBindingValueIpAddressValue {
   repeated string values = 3;
 
   // Description missing in models
-<<<<<<< HEAD
   PatternFlowRSVPObjectContentSessionLspTunnelIpv4Ipv4TunnelEndPointAddressCounter increment = 5;
 
   // Description missing in models
@@ -21316,16 +21713,6 @@ message PatternFlowSnmpv2cVariableBindingValueIpAddressValue {
 
 // integer counter pattern
 message PatternFlowRSVPObjectContentSessionLspTunnelIpv4ReservedCounter {
-=======
-  PatternFlowSnmpv2cVariableBindingValueIpAddressValueCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueIpAddressValueCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowSnmpv2cVariableBindingValueCounterValueCounter {
->>>>>>> master
 
   // Description missing in models
   // default = 0
@@ -21340,13 +21727,8 @@ message PatternFlowSnmpv2cVariableBindingValueCounterValueCounter {
   optional uint32 count = 3;
 }
 
-<<<<<<< HEAD
 // Reserved field, MUST be zero.
 message PatternFlowRSVPObjectContentSessionLspTunnelIpv4Reserved {
-=======
-// Counter returned for the requested OID.
-message PatternFlowSnmpv2cVariableBindingValueCounterValue {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -21370,7 +21752,6 @@ message PatternFlowSnmpv2cVariableBindingValueCounterValue {
   repeated uint32 values = 3;
 
   // Description missing in models
-<<<<<<< HEAD
   PatternFlowRSVPObjectContentSessionLspTunnelIpv4ReservedCounter increment = 5;
 
   // Description missing in models
@@ -21379,16 +21760,6 @@ message PatternFlowSnmpv2cVariableBindingValueCounterValue {
 
 // integer counter pattern
 message PatternFlowRSVPObjectContentSessionLspTunnelIpv4TunnelIdCounter {
-=======
-  PatternFlowSnmpv2cVariableBindingValueCounterValueCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueCounterValueCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowSnmpv2cVariableBindingValueTimeticksValueCounter {
->>>>>>> master
 
   // Description missing in models
   // default = 0
@@ -21403,14 +21774,9 @@ message PatternFlowSnmpv2cVariableBindingValueTimeticksValueCounter {
   optional uint32 count = 3;
 }
 
-<<<<<<< HEAD
 // A 16-bit identifier used in the SESSION that remains constant over the life of the
 // tunnel.
 message PatternFlowRSVPObjectContentSessionLspTunnelIpv4TunnelId {
-=======
-// Timeticks returned for the requested OID.
-message PatternFlowSnmpv2cVariableBindingValueTimeticksValue {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -21434,7 +21800,6 @@ message PatternFlowSnmpv2cVariableBindingValueTimeticksValue {
   repeated uint32 values = 3;
 
   // Description missing in models
-<<<<<<< HEAD
   PatternFlowRSVPObjectContentSessionLspTunnelIpv4TunnelIdCounter increment = 5;
 
   // Description missing in models
@@ -21443,63 +21808,6 @@ message PatternFlowSnmpv2cVariableBindingValueTimeticksValue {
 
 // integer counter pattern
 message PatternFlowRSVPObjectContentSessionLspTunnelIpv4ExtendedTunnelIdCounter {
-=======
-  PatternFlowSnmpv2cVariableBindingValueTimeticksValueCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueTimeticksValueCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowSnmpv2cVariableBindingValueBigCounterValueCounter {
-
-  // Description missing in models
-  // default = 0
-  optional uint64 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint64 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint64 count = 3;
-}
-
-// Big counter returned for the requested OID.
-message PatternFlowSnmpv2cVariableBindingValueBigCounterValue {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.value
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 0
-  optional uint64 value = 2;
-
-  // Description missing in models
-  // default = [0]
-  repeated uint64 values = 3;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueBigCounterValueCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueBigCounterValueCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValueCounter {
->>>>>>> master
 
   // Description missing in models
   // default = 0
@@ -21514,16 +21822,11 @@ message PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValueCounter {
   optional uint32 count = 3;
 }
 
-<<<<<<< HEAD
 // A 32-bit identifier used in the SESSION that remains constant over the life of the
 // tunnel. Normally set to all zeros. Ingress nodes that wish to narrow the scope of
 // a SESSION to the ingress-egress pair may place their IPv4 address here as a globally
 // unique identifier.
 message PatternFlowRSVPObjectContentSessionLspTunnelIpv4ExtendedTunnelId {
-=======
-// Unsigned integer value returned for the requested OID.
-message PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValue {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -21547,7 +21850,6 @@ message PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValue {
   repeated uint32 values = 3;
 
   // Description missing in models
-<<<<<<< HEAD
   PatternFlowRSVPObjectContentSessionLspTunnelIpv4ExtendedTunnelIdCounter increment = 5;
 
   // Description missing in models
@@ -21623,37 +21925,6 @@ message PatternFlowRSVPObjectContentRsvpHopIpv4LogicalInterfaceHandleCounter {
 // objects of subsequent Resv messages sent to the node that originated the LIH. The
 // LIH should be identically zero if there is no logical interface handle.
 message PatternFlowRSVPObjectContentRsvpHopIpv4LogicalInterfaceHandle {
-=======
-  PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValueCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowSnmpv2cVariableBindingValueUnsignedIntegerValueCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowSnmpv2cCommonRequestIdCounter {
-
-  // Description missing in models
-  // default = 0
-  optional int32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional int32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional int32 count = 3;
-}
-
-// Identifies a particular SNMP request.
-// This index is echoed back in the response from the SNMP agent,
-// allowing the SNMP manager to match an incoming response to the appropriate request.
-// 
-// - Encoding of this field follows ASN.1 X.690(section 8.3) specification.
-// Refer: http://www.itu.int/ITU-T/asn1/
-message PatternFlowSnmpv2cCommonRequestId {
->>>>>>> master
 
   message Choice {
     enum Enum {
@@ -21670,7 +21941,6 @@ message PatternFlowSnmpv2cCommonRequestId {
 
   // Description missing in models
   // default = 0
-<<<<<<< HEAD
   optional uint32 value = 2;
 
   // Description missing in models
@@ -23034,19 +23304,6 @@ message PatternFlowRSVPObjectContentRouteRecordLabelCType {
   // Description missing in models
   // default = [0]
   repeated uint32 values = 3;
-=======
-  optional int32 value = 2;
-
-  // Description missing in models
-  // default = [0]
-  repeated int32 values = 3;
-
-  // Description missing in models
-  PatternFlowSnmpv2cCommonRequestIdCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowSnmpv2cCommonRequestIdCounter decrement = 6;
->>>>>>> master
 }
 
 // Version details

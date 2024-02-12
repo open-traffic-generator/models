@@ -4086,26 +4086,29 @@ message BgpOneStructuredUpdateReplay {
   // ]
   BgpAttributes path_attributes = 2;
 
-  // AFI of the NLRI being sent in the Update.
-  optional uint32 afi = 3;
+  // The IPv4 prefixes to be included in the traditional UNREACH_NLRI.
+  repeated BgpOneTraditionalNlriPrefix traditional_unreach_nlris = 3;
 
-  // SAFI of the NLRI being sent in the Update.
-  optional uint32 safi = 4;
+  // The IPv4 prefixes to be included in the traditional REACH_NLRI.
+  repeated BgpOneTraditionalNlriPrefix traditional_reach_nlris = 4;
+}
 
-  // If AFI/SAFI correspond to IPv4 Unicast , allow user to configure it to be sent as
-  // Traditional NLRI instead of as MPReach/Unreach NLRI. [ .proto : Currently missing
-  // in  .proto ( no way to specify if packet to be sent as MPREACH or Traditional NLRI
-  // )]
-  // default = False
-  optional bool traditional_nlri = 5;
+// TRADITIONAL_NLRI is an optional part of the the BGP Update which can carry only IPv4
+// prefix information as defined in https://www.rfc-editor.org/rfc/rfc4271.html#section-4.3
+// 
+// and extended by https://datatracker.ietf.org/doc/html/rfc7911#section-3 to carry
+// additional Path Id information per prefix.
+message BgpOneTraditionalNlriPrefix {
 
-  // The IPv4/v6 prefixes to be included in the MP_UNREACH_NLRI or the traditional UNREACH_NLRI
-  // (if AFI/SAFI is defined as IPv4 Unicast and traditional_nlri is set to true)
-  repeated BgpOneNLRIPrefix unreach_nlris = 6;
+  // The IPv4 address of the network.
+  optional string address = 1;
 
-  // The IPv4/v6 prefixes to be included in the MP_REACH_NLRI or the traditional REACH_NLRI
-  // (if AFI/SAFI is defined as IPv4 Unicast and traditional_nlri is set to true)
-  repeated BgpOneNLRIPrefix reach_nlris = 7;
+  // The IPv4 network prefix length to be applied to the address.
+  // default = 24
+  optional uint32 prefix = 2;
+
+  // Description missing in models
+  BgpNLRIPrefixPathId path_id = 3;
 }
 
 // One unreach IPv4/v6 NLRI Prefix.
@@ -4129,7 +4132,7 @@ message BgpOneNLRIPrefix {
   BgpOneIpv6NLRIPrefix ipv6_prefix_nlri = 3;
 }
 
-// One unreach IPv4 NLRI Prefix.
+// One IPv4 NLRI Prefix.
 message BgpOneIpv4NLRIPrefix {
 
   // The IPv4 address of the network.
@@ -4149,7 +4152,7 @@ message BgpOneIpv4NLRIPrefix {
   BgpNLRIPrefixSegmentRoutingColor segment_routing_color = 5;
 }
 
-// One unreach IPv6 NLRI Prefix.
+// One IPv6 NLRI Prefix.
 message BgpOneIpv6NLRIPrefix {
 
   // The IPv6 address of the network.
@@ -4333,6 +4336,12 @@ message BgpAttributes {
 
   // Description missing in models
   BgpAttributesTunnelEncapsulation tunnel_encapsulation = 15;
+
+  // Description missing in models
+  BgpAttributesMpReachNlri mp_reach = 16;
+
+  // Description missing in models
+  BgpAttributesMpUnreachNlri mp_unreach = 17;
 }
 
 // One unknown attribute stored as hex bytes.
@@ -4454,6 +4463,37 @@ message BgpAttributesNextHop {
   // single NEXT_HOP attribute.(RFC2545: Section 3 ) [.proto might have provision for
   // single next-hop today.]
   repeated string ipv6 = 3;
+}
+
+// The MP_REACH attribute is an optional attribute which can be included in the attributes
+// of a BGP Update message as defined in https://datatracker.ietf.org/doc/html/rfc4760#section-3.
+message BgpAttributesMpReachNlri {
+
+  // AFI of the NLRI being sent in the Update.
+  optional uint32 afi = 3;
+
+  // SAFI of the NLRI being sent in the Update.
+  optional uint32 safi = 4;
+
+  // Description missing in models
+  BgpAttributesNextHop next_hop = 5;
+
+  // The IPv4/v6 prefixes to be included in the MP_REACH_NLRI.
+  repeated BgpOneNLRIPrefix reach_nlris = 7;
+}
+
+// The MP_UNREACH attribute is an optional attribute which can be included in the attributes
+// of a BGP Update message as defined in https://datatracker.ietf.org/doc/html/rfc4760#section-3.
+message BgpAttributesMpUnreachNlri {
+
+  // AFI of the NLRI being sent in the MP_UNREACH attribute.
+  optional uint32 afi = 3;
+
+  // SAFI of the NLRI being sent in the MP_UNREACH attribute.
+  optional uint32 safi = 4;
+
+  // The IPv4/v6 prefixes to be included in the MP_UNREACH_NLRI.
+  repeated BgpOneNLRIPrefix unreach_nlris = 5;
 }
 
 // Optional MULTI_EXIT_DISCRIMINATOR attribute sent to the peer to help in the route

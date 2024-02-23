@@ -5280,29 +5280,109 @@ message DeviceHttp {
   // default = 1
   optional int32 http_version = 3;
 
-  // Enable cookie support for HTTP
-  // default = False
-  optional bool enable_cookie_support = 4;
+  // It specifies the priority class in priority flow control in HTTP client.
+  optional string pfc_class = 4;
 
-  // Max HTTP sessions
-  // default = 1
-  optional int32 max_sessions = 5;
+  // It specifies the setting of the IP Precedence bits(TOS bit 0-2) in the header of
+  // the HTTP packets
+  optional string precedence_tos = 5;
 
-  // Max HTTP streams
-  // default = 1
-  optional int32 max_streams = 6;
+  // Description missing in models
+  HttpClient client = 6;
 
-  // Command timeout timer in seconds
-  // default = 600
-  optional int32 command_timeout = 7;
+  // Description missing in models
+  HttpServer server = 7;
+}
 
-  // URL stats count
+// One or more HTTP Client configurations and its HTTP methods configs.
+message HttpClient {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  optional string name = 1;
+
+  message HttpVersion {
+    enum Enum {
+      unspecified = 0;
+      v10 = 1;
+      v11 = 2;
+      v20 = 3;
+    }
+  }
+  // HTTP Version
+  // default = HttpVersion.Enum.v10
+  optional HttpVersion.Enum http_version = 2;
+
+  // cookie_jar_size the number of cookies that will be saved for each client. The maximum
+  // value of this is 300. (only if enable_cookie_support is enabled)
   // default = 10
-  optional int32 url_stats_count = 8;
+  optional int32 cookie_jar_size = 3;
 
-  // Enable cookie support for per connection
+  // The HTTP methods such as GET, POST and its properties.
+  repeated HttpMethod methods = 4;
+}
+
+// Description missing in models
+message HttpMethod {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      get = 1;
+      post = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.get
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  MethodGet get = 2;
+
+  // Description missing in models
+  MethodPost post = 3;
+}
+
+// A GET operation of HTTP
+message MethodGet {
+
+  // Server name/IP address
+  // required = true
+  optional string destination = 1;
+
+  // The page name to perform get opertaion.
+  // required = true
+  optional string page = 2;
+}
+
+// A POST operation of HTTP
+message MethodPost {
+
+  // The Server name/IP address
+  // required = true
+  optional string destination = 1;
+
+  // The page name to perform post opertaion.
+  // required = true
+  optional string page = 2;
+}
+
+// One or more HTTP Server configurations.
+message HttpServer {
+
+  // It specifies the reset timeout in milliseconds and it is enabled only if tcp tear
+  // down of option - 'send RST after timeout' is selected.
+  // default = 100
+  optional float rst_timeout = 1;
+
+  // It enables to HTTP2  version for HTTP server.It accepts the boolean value of True
+  // or False
   // default = False
-  optional bool enable_per_conn_cookie_support = 9;
+  optional bool enable_http2 = 2;
+
+  // The port number to which the HTTP server will respond to non-SSL requests.
+  // default = 80
+  optional int32 http_port = 3;
 }
 
 // A high level data plane traffic flow.
@@ -7262,125 +7342,39 @@ message Trafficprofile {
   // application protocol config name on which traffic be applied.
   repeated string app = 1;
 
-  // objective configurations.
-  TrafficprofileObjective objectives = 2;
+  // Objective types such as simulated user, connection per seconds, concurrent connection
+  // etc, 1st item of a list is primary objective and remaining items are secondary objective.
+  repeated string objective_type = 2;
+
+  // Objective value such as for objective_type, 1st item of a list is primary objective
+  // value and remaining items are secondary objective values.
+  repeated int32 objective_value = 3;
+
+  // timeline configurations.
+  repeated TrafficprofileSegment segment = 4;
+
+  // Timeline is list of segments configured.
+  repeated string timeline = 5;
 }
 
-// objective config such simulated user, thoughput, conncurrent connections.
-message TrafficprofileObjective {
+// One or more HTTP Client configurations and its HTTP methods configs.
+message TrafficprofileSegment {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      simulated_user = 1;
-      throughput = 2;
-      concurrent_connections = 3;
-      connection_per_sec = 4;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.simulated_user
-  optional Choice.Enum choice = 1;
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  optional string name = 1;
 
-  // Description missing in models
-  ObjectiveSimulatedUser simulated_user = 2;
+  // Start duration in seconds
+  optional int32 start = 2;
 
-  // Description missing in models
-  ObjectiveThroughput throughput = 3;
+  // Duration in seconds
+  optional int32 duration = 3;
 
-  // Description missing in models
-  ObjectiveConnectionConncurrent concurrent_connections = 4;
+  // Rate
+  optional int32 rate = 4;
 
-  // Description missing in models
-  ObjectiveConnectionPerSeconds connection_per_sec = 5;
-}
-
-// simulated user traffic
-message ObjectiveSimulatedUser {
-
-  // Number of simulated user.
-  // required = true
-  optional int32 value = 1;
-
-  message RampUpType {
-    enum Enum {
-      unspecified = 0;
-      users_intervals = 1;
-      max_pending_user = 2;
-      immediate = 3;
-    }
-  }
-  // Ramp up type to defines the type of user execution profiles during the ramp_up_time,
-  // .
-  // default = RampUpType.Enum.users_intervals
-  optional RampUpType.Enum ramp_up_type = 2;
-
-  // Value applied to ramp_up_type to either bring up users at a certain rate.
-  optional int32 ramp_up_value = 3;
-
-  // Amount of time when all users are up and performing the central test objectives,
-  // such as retrieving or serving pages.
-  optional int32 sustain_time = 4;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional int32 ramp_down_time = 5;
-}
-
-// Throughput traffic
-message ObjectiveThroughput {
-
-  // Throughput value.
-  // required = true
-  optional int32 value = 1;
-
-  // Amount of seconds when all users are up and performing the central test objectives,
-  // such as retrieving or serving pages.
-  optional float sustain_time = 2;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_time = 3;
-}
-
-// Conncurrent connections objectives
-message ObjectiveConnectionConncurrent {
-
-  // Throughput value.
-  // required = true
-  optional int32 value = 1;
-
-  // Amount of seconds when all users are up and performing the central test objectives,
-  // such as retrieving or serving pages.
-  optional float sustain_time = 2;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_time = 3;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_value = 4;
-}
-
-// Connection per seconds objectives
-message ObjectiveConnectionPerSeconds {
-
-  // Throughput value.
-  // required = true
-  optional int32 value = 1;
-
-  // Amount of seconds when all users are up and performing the central test objectives,
-  // such as retrieving or serving pages.
-  optional float sustain_time = 2;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_time = 3;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_value = 4;
+  // Target
+  optional int32 target = 5;
 }
 
 // Error response generated while serving API request.

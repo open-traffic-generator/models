@@ -3974,6 +3974,7 @@ message BgpOneUpdateReplay {
   // string of 2 characters, for example 2 character string (0x)AB  represents value of
   // a single byte. So the maximum length of this attribute is 8154 (4077 * 2 hex characters
   // per byte).
+  // required = true
   optional string update_bytes = 2;
 }
 
@@ -4101,6 +4102,7 @@ message BgpOneStructuredUpdateReplay {
 message BgpOneTraditionalNlriPrefix {
 
   // The IPv4 address of the network.
+  // default = 0.0.0.0
   optional string address = 1;
 
   // The IPv4 network prefix length to be applied to the address.
@@ -4203,7 +4205,7 @@ message BgpAttributes {
 
   // Any attributes not present in the list of configurable attributes should be added
   // to the list of unknown attributes.
-  // [.proto :
+  // - [.proto :
   // // Based on IANA assignments, which are enumerated at:
   // // http://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml#bgp-parameters-2
   // // deprecated in comments below means deprecated by IETF.
@@ -4244,7 +4246,7 @@ message BgpAttributes {
   // the prefix originates from an interior routing protocol 'igp', it originates from
   // 'egp'
   // or the origin is 'incomplete',if the prefix is learned through other means.
-  // [ From .proto
+  // - [ From .proto
   // message PaOrigin {
   // enum OriginType {
   // PA_ORIGIN_IGP = 0;
@@ -4256,26 +4258,12 @@ message BgpAttributes {
   // default = Origin.Enum.incomplete
   optional Origin.Enum origin = 2;
 
-  // AS_PATH to be included in the Update.  [ Reusing existing AS Path which has all elements
-  // in .proto definition :
-  // message PaAsPath {
-  // repeated group Segment = 1 {
-  // enum PathSegmentType {
-  // AS_SET = 1;
-  // AS_SEQUENCE = 2;
-  // AS_CONFED_SET = 3;
-  // AS_CONFED_SEQUENCE = 4;
-  // }
-  // required PathSegmentType type = 2;
-  // repeated fixed32 as_list = 3;  // List of ASes.
-  // }
-  // }
-  // ]
-  BgpAsPath as_path = 3;
+  // AS_PATH attribute to be included in the Update.
+  BgpAttributesAsPath as_path = 3;
 
-  // AS4_PATH to be included in the Update.  [ .proto : Same as as_path above.]
+  // AS4_PATH attribute to be included in the Update.  [ .proto : Same as as_path above.]
   // 
-  BgpAsPath as4_path = 4;
+  BgpAttributesAs4Path as4_path = 4;
 
   // Description missing in models
   BgpAttributesNextHop next_hop = 5;
@@ -4291,7 +4279,7 @@ message BgpAttributes {
   // Presence of this attribute Indicates that this route might not be getting sent on
   // a fully optimized path
   // since some intermediate BGP speaker has aggregated the route.
-  // [.proto : optional bool atomic_aggregate = 7 [default = false];]
+  // - [.proto : optional bool atomic_aggregate = 7 [default = false];]
   // default = False
   optional bool include_atomic_aggregator = 8;
 
@@ -4299,7 +4287,7 @@ message BgpAttributes {
   BgpAttributesAggregator aggregator = 9;
 
   // Description missing in models
-  BgpAttributesAggregator as4_aggregator = 10;
+  BgpAttributesAs4Aggregator as4_aggregator = 10;
 
   // Description missing in models
   repeated BgpAttributesCommunity community = 11;
@@ -4308,17 +4296,20 @@ message BgpAttributes {
   BgpAttributesOriginatorId originator_id = 12;
 
   // When a Route Reflector reflects a route, it prepends the local CLUSTER_ID to the
-  // CLUSTER_LIST as defined in RFC4456. [.proto: repeated fixed32 cluster = 11; ]
+  // CLUSTER_LIST as defined in RFC4456. - [.proto: repeated fixed32 cluster = 11; ]
   repeated string cluster_ids = 13;
 
-  // Optional EXTENDED_COMMUNITY attribute settings. The EXTENDED_COMMUNITY Attribute
-  // is a transitive optional BGP attribute, with the Type Code 16. Community and Extended
-  // Communities  attributes are utilized to trigger routing decisions, such as acceptance,
-  // rejection,  preference, or redistribution. An extended community is an eight byte
-  // value. It is divided into two main parts. The first two bytes of the community encode
-  // a type and sub-type fields and the last six bytes carry a unique set of data in a
-  // format defined by the type and sub-type field. Extended communities provide a larger
-  // range for grouping or categorizing communities. [.proto :
+  // Optional EXTENDED_COMMUNITY attribute settings.
+  // The EXTENDED_COMMUNITY Attribute is a transitive optional BGP attribute, with the
+  // Type Code 16. Community and Extended Communities  attributes
+  // are utilized to trigger routing decisions, such as acceptance, rejection,  preference,
+  // or redistribution. An extended community is an eight byte value.
+  // It is divided into two main parts. The first two bytes of the community encode a
+  // type and sub-type fields and the last six bytes carry a unique set
+  // of data in a format defined by the type and sub-type field. Extended communities
+  // provide a larger range for grouping or categorizing communities.
+  // 
+  // - [.proto :
   // // Also see the Extended Communities protobufs in the Injector API at:
   // //net/routing/util/bgpinjector/proto/route_injector.proto
   // // This field is used when Raven cannot parse or does not care to parse a
@@ -4363,15 +4354,158 @@ message BgpAttributesOtherAttribute {
   // default = False
   optional bool flag_extended_length = 4;
 
-  // Contents of the value field of the attribute in hex bytes.
-  // default =
-  optional string raw_value = 5;
+  // The value of the Type field in the attribute.
+  // required = true
+  optional uint32 type = 5;
+
+  // Contents of the value field ( the contents after the initial two bytes containing
+  // the Flags and Type field ) of the attribute in hex bytes.
+  // It includes the contents of length or the extended length field.
+  // required = true
+  optional string raw_value = 6;
 }
 
-// Optional AGGREGATOR / AS4_AGGREGATOR attribute which maybe be added by a BGP speaker
-// which performs route aggregation.
+// The AS_PATH attribute identifies the autonomous systems through  which routing information
+// carried in this UPDATE message has passed.
+// This contains the configuration of how to include the Local AS in the AS path
+// attribute of the MP REACH NLRI. It also contains optional configuration of
+// additional AS Path Segments that can be included in the AS Path attribute.
+// The AS Path consists of a Set or Sequence of Autonomous Systems (AS) numbers  that
+// a routing information passes through to reach the destination.
+// There are two modes in which AS numbers can be encoded in the AS Path Segments
+// - When the AS Path is being exchanged between old and new BGP speakers or between
+// two old BGP speakers , the AS numbers are encoded as 2 byte values.
+// - When the AS Path is being exchanged between two new BGP speakers supporting 4 byte
+// AS , the AS numbers are encoded as 4 byte values.
+message BgpAttributesAsPath {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      four_byte_as_path = 1;
+      two_byte_as_path = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.four_byte_as_path
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  BgpAttributesAsPathFourByteAsPath four_byte_as_path = 2;
+
+  // Description missing in models
+  BgpAttributesAsPathTwoByteAsPath two_byte_as_path = 3;
+}
+
+// AS Paths with 4 byte AS numbers can be exchanged only if both BGP speakers support
+// 4 byte AS number extensions.
+message BgpAttributesAsPathFourByteAsPath {
+
+  // The AS path segments containing 4 byte AS numbers to be added in the AS Path attribute.
+  // By default, an empty AS path should always be included and for EBGP at minimum the
+  // local AS number should be present in the AS Path.
+  repeated BgpAttributesFourByteAsPathSegment segments = 1;
+}
+
+// Configuration for a single BGP AS path segment containing 4 byte AS numbers.
+message BgpAttributesFourByteAsPathSegment {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      as_seq = 1;
+      as_set = 2;
+      as_confed_seq = 3;
+      as_confed_set = 4;
+    }
+  }
+  // AS sequence is the most common type of AS_PATH, it contains the  list
+  // of ASNs starting with the most recent ASN being added read  from left
+  // to right.
+  // The other three AS_PATH types are used for Confederations
+  // - AS_SET is the type of AS_PATH attribute that summarizes routes using
+  // using the aggregate-address command, allowing AS_PATHs to be  summarized
+  // in the update as well.
+  // - AS_CONFED_SEQ gives the list of ASNs in the path starting with the  most
+  // recent ASN to be added reading left to right
+  // - AS_CONFED_SET will allow summarization of multiple AS PATHs to be  sent
+  // in BGP Updates.
+  // default = Type.Enum.as_seq
+  optional Type.Enum type = 1;
+
+  // The 4 byte AS numbers in this AS path segment.
+  repeated uint32 as_numbers = 2;
+}
+
+// AS Paths with 2 byte AS numbers is used when any of the two scenarios occur :
+// - An old BGP speaker and new BGP speaker are sending BGP Updates to one another.
+// - Two old BGP speakers are sending BGP Updates to one another.
+message BgpAttributesAsPathTwoByteAsPath {
+
+  // The AS path segments containing 2 byte AS numbers to be added in the AS Path attribute.
+  // By default, an empty AS path should always be included and for EBGP the sender's
+  // AS number should be prepended to the AS Path.
+  repeated BgpAttributesTwoByteAsPathSegment segments = 1;
+}
+
+// Configuration for a single BGP AS path segment containing 2 byte AS numbers.
+message BgpAttributesTwoByteAsPathSegment {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      as_seq = 1;
+      as_set = 2;
+      as_confed_seq = 3;
+      as_confed_set = 4;
+    }
+  }
+  // AS sequence is the most common type of AS_PATH, it contains the  list
+  // of ASNs starting with the most recent ASN being added read  from left
+  // to right.
+  // The other three AS_PATH types are used for Confederations
+  // - AS_SET is the type of AS_PATH attribute that summarizes routes using
+  // using the aggregate-address command, allowing AS_PATHs to be  summarized
+  // in the update as well.
+  // - AS_CONFED_SEQ gives the list of ASNs in the path starting with the  most
+  // recent ASN to be added reading left to right
+  // - AS_CONFED_SET will allow summarization of multiple AS PATHs to be  sent
+  // in BGP Updates.
+  // default = Type.Enum.as_seq
+  optional Type.Enum type = 1;
+
+  // The 2 byte AS numbers in this AS path segment.
+  repeated uint32 as_numbers = 2;
+}
+
+// The AS4_PATH attribute identifies the autonomous systems through  which routing information
+// carried in this UPDATE message has passed.
+// This contains the configuration of how to include the Local AS in the AS path
+// attribute of the MP REACH NLRI. It also contains optional configuration of
+// additional AS Path Segments that can be included in the AS Path attribute.
+// The AS Path consists of a Set or Sequence of Autonomous Systems (AS) numbers  that
+// a routing information passes through to reach the destination.
+// AS4_PATH is only exchanged in two scenarios:
+// - When an old BGP speaker has to forward a received AS4_PATH containing 4 byte AS
+// numbers to new BGP speaker.
+// - When a new BGP speaker is connected to an old BGP speaker and has to propagate
+// 4 byte AS numbers via the old BGP speaker.
+// Its usage is described in RFC4893.
+message BgpAttributesAs4Path {
+
+  // The AS path segments containing 4 byte AS numbers to be added in the AS4_PATH attribute.
+  repeated BgpAttributesFourByteAsPathSegment segments = 1;
+}
+
+// Optional AGGREGATOR attribute which maybe be added by a BGP speaker which performs
+// route aggregation.
+// When AGGREGATOR attribute is being sent to a new BGP speaker , the AS number is encoded
+// as a 4 byte value.
+// When AGGREGATOR attribute is being exchanged between a new and an old BGP speaker
+// or between two old BGP speakers,
+// the AS number is encoded as a 2 byte value.
 // It contain the AS number and IP address of the speaker performing the aggregation.
-// [ From .proto:
+// - [ From .proto:
 // message PaAggregator {
 // required fixed32 as_number = 1;  // 16-bit value.
 // required fixed32 ip_address = 2;
@@ -4379,10 +4513,50 @@ message BgpAttributesOtherAttribute {
 // ]
 message BgpAttributesAggregator {
 
-  // The value of the AS number of the BGP speaker which aggregated the route. When encoded
-  // as AGGREGATOR the peer is an old BGP speaker, the as field can have a maximum value
-  // of 65535. When encoded as AGGREGATOR and the peer is a new BGP speaker or being sent
-  // as AS4_AGGREGATOR, it can include 4 byte AS numbers.
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      four_byte_as = 1;
+      two_byte_as = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.four_byte_as
+  optional Choice.Enum choice = 1;
+
+  // The value of the 4 byte  AS number of the BGP speaker which aggregated the route.
+  // If the value of the AS number is less than 2 octets ( 65535 or less), the AS4_AGGREGATOR
+  // object should not be sent.
+  // default = 65536
+  optional uint32 four_byte_as = 2;
+
+  // The value of the 2 byte AS number of the BGP speaker which aggregated the route.
+  // 
+  // default = 1
+  optional uint32 two_byte_as = 3;
+
+  // The IPv4 address of the BGP speaker which aggregated the route.
+  // default = 0.0.0.0
+  optional string ipv4_address = 4;
+}
+
+// Optional AS4_AGGREGATOR attribute which maybe be added by a BGP speaker in one of
+// two cases:
+// - If it is a new BGP speaker speaking to an old BGP speaker and needs to send a 4
+// byte value for the AS number of the BGP route aggregator.
+// - If it is a old BGP speaker speaking to a new BGP speaker and has to transparently
+// forward a received AS4_AGGREGATOR from some other peer.
+// Its usage is described in RFC4893.
+// - [ From .proto:
+// message PaAggregator {
+// required fixed32 as_number = 1;  // 16-bit value.
+// required fixed32 ip_address = 2;
+// }
+// ]
+message BgpAttributesAs4Aggregator {
+
+  // The value of the 4 byte AS number of the BGP speaker which aggregated the route.
+  // 
   optional uint32 as_num = 1;
 
   // The IPv4 address of the BGP speaker which aggregated the route.
@@ -4391,10 +4565,11 @@ message BgpAttributesAggregator {
 }
 
 // The COMMUNITY attribute provide additional capability for tagging routes and for
-// modifying BGP routing policy on  upstream and downstream routers. BGP community is
-// a 32-bit number which is broken into 16-bit AS number and a  16-bit custom value
-// or it contains some pre-defined well known values.  [ From .proto: repeated fixed32
-// community = 9;]
+// modifying BGP routing policy on
+// upstream and downstream routers. BGP community is a 32-bit number which is broken
+// into 16-bit AS number and a
+// 16-bit custom value or it contains some pre-defined well known values.
+// - [ From .proto: repeated fixed32 community = 9;]
 message BgpAttributesCommunity {
 
   message Choice {
@@ -4409,6 +4584,7 @@ message BgpAttributesCommunity {
     }
   }
   // The type of community AS number.
+  // required = true
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -4423,16 +4599,16 @@ message BgpAttributesCustomCommunity {
   // default = 0
   optional uint32 as_number = 1;
 
-  // Last two octets of the community value in hex.  If user provides less than 8 bytes,
-  // it should be left-padded with 0s.
-  // default = 00000000
+  // Last two octets of the community value in hex.  If user provides less than 4 hex
+  // bytes, it should be left-padded with 0s.
+  // default = 0000
   optional string custom = 2;
 }
 
-// description: >-
 // Next hop to be sent inside MP_REACH NLRI or as the NEXT_HOP attribute if advertised
 // as traditional NLRI.
-// [ .proto :
+// 
+// - [.proto :
 // // Contains the IPv4 next hop carried in the NEXT_HOP attribute or
 // //the IPv6 next hop carried in the IPv6 unicast MP_REACH_NLRI attribute.
 // // NOTE: An UPDATE message is expected to contain at most one of
@@ -4452,16 +4628,18 @@ message BgpAttributesNextHop {
     }
   }
   // The type of the next HOP.
+  // required = true
   optional Choice.Enum choice = 1;
 
   // The IPv4 address of the next-hop from which the route was received.
   // default = 0.0.0.0
   optional string ipv4 = 2;
 
-  // The IPv6 address of the next-hop from which the route was received. There is a specific
-  // scenario in which it is possible to receive a Global  and Link Local address in a
-  // single NEXT_HOP attribute.(RFC2545: Section 3 ) [.proto might have provision for
-  // single next-hop today.]
+  // The IPv6 address of the next-hop from which the route was received.
+  // There is a specific scenario in which it is possible to receive a Global
+  // and Link Local address in a single NEXT_HOP attribute.(RFC2545: Section 3 )
+  // 
+  // - [.proto might have provision for single next-hop today.]
   repeated string ipv6 = 3;
 }
 
@@ -4470,9 +4648,11 @@ message BgpAttributesNextHop {
 message BgpAttributesMpReachNlri {
 
   // AFI of the NLRI being sent in the Update.
+  // default = 1
   optional uint32 afi = 3;
 
   // SAFI of the NLRI being sent in the Update.
+  // default = 1
   optional uint32 safi = 4;
 
   // Description missing in models
@@ -4487,9 +4667,11 @@ message BgpAttributesMpReachNlri {
 message BgpAttributesMpUnreachNlri {
 
   // AFI of the NLRI being sent in the MP_UNREACH attribute.
+  // default = 1
   optional uint32 afi = 3;
 
   // SAFI of the NLRI being sent in the MP_UNREACH attribute.
+  // default = 1
   optional uint32 safi = 4;
 
   // The IPv4/v6 prefixes to be included in the MP_UNREACH_NLRI.
@@ -4498,7 +4680,8 @@ message BgpAttributesMpUnreachNlri {
 
 // Optional MULTI_EXIT_DISCRIMINATOR attribute sent to the peer to help in the route
 // selection process.
-// [ From .proto: optional fixed32 med = 5; ]
+// 
+// - [ From .proto: optional fixed32 med = 5; ]
 message BgpAttributesMultiExitDiscriminator {
 
   // The multi exit discriminator (MED) value used for route selection sent to the peer.
@@ -4514,7 +4697,8 @@ message BgpAttributesMultiExitDiscriminator {
 // used for the selection of the path for the traffic leaving the AS.The route with
 // the
 // highest local preference value is preferred
-// [ From .proto : optional fixed32 local_pref = 6; ]
+// 
+// - [ From .proto : optional fixed32 local_pref = 6; ]
 message BgpAttributesLocalPreference {
 
   // Value to be set in the LOCAL_PREFERENCE attribute The multi exit discriminator (MED)
@@ -4525,7 +4709,8 @@ message BgpAttributesLocalPreference {
 
 // Optional ORIGINATOR_ID attribute (type code 9) carries the Router Id of the route's
 // originator in the local AS.
-// [.proto:   optional fixed32 originator_id = 10; ]
+// 
+// - [.proto: optional fixed32 originator_id = 10; ]
 message BgpAttributesOriginatorId {
 
   // The value of the originator's Router Id.
@@ -4556,7 +4741,7 @@ message BgpAttributesTunnelEncapsulation {
 // Optional Segment Routing Policy information as defined in draft-ietf-idr-segment-routing-te-policy.
 // This information is carried in TUNNEL_ENCAPSULATION attribute with type set to  SR
 // Policy (15).
-// [From .proto :
+// - [From .proto :
 // message PaPolicy {
 // optional PaBindingSegmentIdentifier bsid = 1;
 // optional PaPreference preference = 2;
@@ -4573,7 +4758,7 @@ message BgpAttributesSegmentRoutingPolicy {
   // is available.
   // The format of the sub-TLV is defined in draft-ietf-idr-segment-routing-te-policy
   // Section 2.4.2 .
-  // [.proto:
+  // - [.proto:
   // message PaBindingSegmentIdentifier {
   // optional bool specified_bsid_only = 1;  // S-flag.
   // optional bool drop_upon_invalid = 2;    // I-flag.
@@ -4601,12 +4786,12 @@ message BgpAttributesSegmentRoutingPolicy {
   BgpAttributesSrPolicySegmentList segment_list = 6;
 }
 
-// When the active candidate path has a specified Binding Segment Identifier,
-// the SR Policy uses that BSID if this value (label in MPLS, IPv6 address in SRv6)
-// is available.
-// The format of the sub-TLV is defined in draft-ietf-idr-segment-routing-te-policy
+// When the active candidate path has a specified Binding Segment Identifier, the SR
+// Policy uses that
+// BSID if this value (label in MPLS, IPv6 address in SRv6) is available.
+// - The format of the sub-TLV is defined in draft-ietf-idr-segment-routing-te-policy
 // Section 2.4.2 .
-// [.proto:
+// - [.proto:
 // message PaBindingSegmentIdentifier {
 // optional bool specified_bsid_only = 1;  // S-flag.
 // optional bool drop_upon_invalid = 2;    // I-flag.
@@ -4686,7 +4871,7 @@ message BgpAttributesBsidSrv6 {
 // This carries a 20 bit Multi Protocol Label Switching alongwith 3 bits traffic class,
 // 1 bit indicating presence
 // or absence of Bottom-Of-Stack and 8 bits carrying the Time to Live value.
-// [.proto :
+// - [.proto :
 // // Segment identified by MPLS label.
 // message MPLS {
 // optional uint32 label = 1;          // 20 bits.
@@ -4769,7 +4954,7 @@ message BgpAttributesSrPolicyExplicitNullPolicy {
 // The Segment List sub-TLV includes the elements of the paths (i.e., segments) as well
 // 
 // as an optional Weight sub-TLV.
-// [.proto :
+// - [.proto :
 // // Contains one segment (label) stack with its weight. The weight is used for
 // // weighted multipath.
 // message PaSegmentList {
@@ -4800,7 +4985,7 @@ message BgpAttributesSegmentRoutingPolicySegmentListWeight {
 
 // A Segment sub-TLV describes a single segment in a segment list  i.e., a single
 // element of the explicit path. The Segment sub-TLVs are optional.
-// [.proto :
+// - [.proto :
 // // This defines one segment. The distinction between a segment and a segment
 // // identifier (SID) is basically non-existent; these objects can be seen as
 // // either.
@@ -4937,19 +5122,19 @@ message BgpAttributesSegmentRoutingPolicySegmentListSegment {
     }
   }
   // Specify one of the segment types as defined in ietf-idr-segment-routing-te-policy
-  // Type  A: SID only, in the form of MPLS Label.
-  // Type  B: SID only, in the form of IPv6 Address.
-  // Type  C: IPv4 Node Address with optional SID.
-  // Type  D: IPv6 Node Address with optional SID for SR MPLS.
-  // Type  E: IPv4 Address and index with optional SID.
-  // Type  F: IPv4 Local and Remote addresses with optional SID.
-  // Type  G: IPv6 Address and index for local and remote pair with optional
-  // SID for SR MPLS.
-  // Type  H: IPv6 Local and Remote addresses with optional SID for SR MPLS.
-  // Type  I: IPv6 Node Address with optional SID for SRv6.
-  // Type  J: IPv6 Address and index for local and remote pair with optional
-  // SID for SRv6.
-  // Type  K: IPv6 Local and Remote addresses for SRv6.
+  // - Type  A: SID only, in the form of MPLS Label.
+  // - Type  B: SID only, in the form of IPv6 Address.
+  // - Type  C: IPv4 Node Address with optional SID.
+  // - Type  D: IPv6 Node Address with optional SID for SR MPLS.
+  // - Type  E: IPv4 Address and index with optional SID.
+  // - Type  F: IPv4 Local and Remote addresses with optional SID.
+  // - Type  G: IPv6 Address and index for local and remote pair with optional SID for
+  // SR MPLS.
+  // - Type  H: IPv6 Local and Remote addresses with optional SID for SR MPLS.
+  // - Type  I: IPv6 Node Address with optional SID for SRv6.
+  // - Type  J: IPv6 Address and index for local and remote pair with optional SID for
+  // SRv6.
+  // - Type  K: IPv6 Local and Remote addresses for SRv6.
   // required = true
   optional Choice.Enum choice = 1;
 
@@ -5006,6 +5191,7 @@ message BgpAttributesSegmentRoutingPolicyTypeB {
   BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
 
   // SRv6 SID.
+  // default = 0::0
   optional string srv6_sid = 2;
 
   // Description missing in models
@@ -5197,6 +5383,7 @@ message BgpAttributesSegmentRoutingPolicyTypeJ {
   optional string remote_ipv6_node_address = 6;
 
   // Optional SRv6 SID.
+  // default = 0::0
   optional string srv6_sid = 7;
 
   // Description missing in models
@@ -5227,10 +5414,12 @@ message BgpAttributesSegmentRoutingPolicyTypeK {
 }
 
 // Flags for each Segment in SEGMENT_LIST sub-tlv.
-// V-flag. Indicates verification is enabled. See section 5, of https://datatracker.ietf.org/doc/html/rfc9256
-// A-flag. Indicates presence of SR Algorithm field applicable to Segment Types 3, 4,
-// and 9.
-// [.proto:
+// - V-flag. Indicates verification is enabled. See section 5, of https://datatracker.ietf.org/doc/html/rfc9256
+// - A-flag. Indicates presence of SR Algorithm field applicable to Segment Types 3,
+// 4, and 9.
+// - B-Flag. Indicates presence of SRv6 Endpoint Behavior and SID Structure encoding.
+// 
+// - [.proto:
 // message Flags {  // 8 bits in total.
 // // V-flag. Indicates verification is enabled. See section 5,
 // // https://tools.ietf.org/html/draft-ietf-spring-segment-routing-policy-01
@@ -5259,8 +5448,8 @@ message BgpAttributesSegmentRoutingPolicyTypeFlags {
 
 // Configuration for optional SRv6 Endpoint Behavior and SID Structure. Summation of
 // lengths for Locator Block, Locator Node,  Function, and Argument MUST be less than
-// or equal to 128. This is specified in draft-ietf-idr-segment-routing-te-policy Section
-// 2.4.4.2.4
+// or equal to 128. - This is specified in draft-ietf-idr-segment-routing-te-policy
+// Section 2.4.4.2.4
 message BgpAttributesSegmentRoutingPolicySRv6SIDEndpointBehaviorAndStructure {
 
   // SRv6 SID Locator Block length in bits.

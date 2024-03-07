@@ -264,6 +264,9 @@ message DeviceEthernet {
   // objects.
   // required = true
   optional string name = 8;
+
+  // DHCPv4 & DHCPv6 Clients Configuration.
+  Dhcpclient dhcp_client = 9;
 }
 
 // Ethernet interface connection to a port, LAG or VXLAN tunnel.
@@ -275,9 +278,10 @@ message EthernetConnection {
       port_name = 1;
       lag_name = 2;
       vxlan_name = 3;
+      chained_ethernet_name = 4;
     }
   }
-  // port_name, lag_name or vxlan_name
+  // port_name, lag_name, vxlan_name, chained_ethernet
   optional Choice.Enum choice = 1;
 
   // Name of the port that the Ethernet interface is configured on.
@@ -302,6 +306,13 @@ message EthernetConnection {
   // - #/components/schemas/Vxlan.V6Tunnel/properties/name
   // 
   optional string vxlan_name = 4;
+
+  // The unique name of the Ethernet interface behind which this Ethernet is chained.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  optional string chained_ethernet_name = 5;
 }
 
 // Emulated VLAN protocol.
@@ -481,6 +492,151 @@ message DeviceIpv6GatewayMAC {
   // Description missing in models
   // default = 00:00:00:00:00:00
   optional string value = 3;
+}
+
+// Under Review: Information TBD
+// 
+// Configuration for emulated DHCPv4 or DHCPv6 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
+message Dhcpclient {
+
+  // DHCPv4 client's configuration.
+  DhcpClientV4 v4 = 1;
+
+  // DHCPv6 client's configuration.
+  DhcpClientV6 v6 = 2;
+}
+
+// Configuration for emulated DHCPv4 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
+message DhcpClientV4 {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      conn_eth = 1;
+      relay_agent = 2;
+    }
+  }
+  // To choose connected Ethernet or behind the Relay Agent how this DHCP client will
+  // run.
+  // default = Choice.Enum.conn_eth
+  optional Choice.Enum choice = 2;
+
+  // The unique name of the Ethernet interface on which this DHCP Client  will be configured.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  optional string conn_eth_name = 3;
+
+  // The unique name of the DHCP Relay Agent behind which this DHCP Client  will be configured.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  optional string relay_agent_name = 4;
+
+  // Description missing in models
+  DeviceDhcpv4ClientAdvanced advanced = 5;
+
+  // DHCPv4 Client parameters request list.
+  DeviceDhcpv4ClientParams parameters_request_list = 6;
+}
+
+// Configuration for DHCPv4 Client advanced settings.
+message DeviceDhcpv4ClientAdvanced {
+
+  message ClientId {
+    enum Enum {
+      unspecified = 0;
+      eth_address = 1;
+      fc_address = 2;
+      string_id = 3;
+    }
+  }
+  // The 'client identifier' is an opaque key; for example, the 'client identifier' may
+  // contain a client hardware address  or it may contain another type of identifier,
+  // such as a DNS name. The 'client identifier' chosen by a DHCP client  MUST be unique
+  // to that client within the subnet to which the client is attached.  If the client
+  // uses a 'client identifier' in one message, it MUST use that same identifier in all
+  // subsequent messages, to ensure that all servers correctly identify the client.
+  optional ClientId.Enum client_id = 1;
+
+  // Hardware ethernet type and MAC address will be use for client identifier generation.
+  // 
+  optional string eth_address = 2;
+
+  // Hardware type Fiber Channel and World Wide Name (WWN) address will be use for client
+  // identifier generation.
+  optional string fc_address = 3;
+
+  // Configured string value will be used as client identifier.
+  optional string string_id = 4;
+}
+
+// Configuration Parameter request list by emulated DHCPv4 Client.
+message DeviceDhcpv4ClientParams {
+
+  // Request for the subnet mask option specifies the client's subnet mask as per RFC950.
+  // 
+  // default = True
+  optional bool subnet_mask = 1;
+
+  // Request for the router option that specifies a list of IP addresses for routers on
+  // the client's subnet.
+  // default = True
+  optional bool router = 2;
+
+  // Request for the renewal timer, T1, when the timer expire, the client transitions
+  // from the BOUND state to the RENEWING state
+  // default = False
+  optional bool renewal_time = 3;
+
+  // Request for the rebinding timer (T2), when expires, the client transitions to the
+  // REBINDING state.
+  // default = False
+  optional bool rebinding_timer = 4;
+}
+
+// Under Review: Information TBD
+// 
+// Configuration for emulated DHCPv6 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
+message DhcpClientV6 {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      conn_eth = 1;
+      relay_agent = 2;
+    }
+  }
+  // To choose connected Ethernet or behind the Relay Agent how this DHCP client will
+  // run.
+  // default = Choice.Enum.conn_eth
+  optional Choice.Enum choice = 2;
+
+  // The unique name of the Ethernet interface on which this DHCP Client  will be configured.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  optional string conn_eth_name = 3;
+
+  // The unique name of the DHCP Relay Agent behind which this DHCP Client  will be configured.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  optional string relay_agent_name = 4;
 }
 
 // A container for layer1 settings.
@@ -943,6 +1099,12 @@ message Device {
 
   // The properties of an RSVP router and its children.
   DeviceRsvp rsvp = 8;
+
+  // The properties of DHCP Server and its children,  such as DHCPv4, DHCPv6 servers.
+  DeviceDhcpServer dhcp_server = 9;
+
+  // This module describes a model for configuration related to Relay Agents. https://datatracker.ietf.org/doc/html/rfc3046.
+  DeviceRelayAgent relay_agent = 10;
 }
 
 // Common options that apply to all configured protocols and interfaces.
@@ -1817,12 +1979,13 @@ message BgpV4Peer {
 // Configuration for emulated BGPv4 peers and routes on a single IPv4 interface.
 message BgpV4Interface {
 
-  // The unique name of the IPv4 or Loopback IPv4 interface used as the source IP for
-  // this list of BGP peers.
+  // The unique name of the IPv4,  Loopback IPv4 interface or DHCPv4 client used as the
+  // source IP for this list of BGP peers.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv4/properties/name
   // - /components/schemas/Device.Ipv4Loopback/properties/name
+  // - /components/schemas/DhcpClient.V4/properties/name
   // 
   // required = true
   optional string ipv4_name = 1;
@@ -4021,12 +4184,13 @@ message BgpV6Peer {
 // Configuration for emulated BGPv6 peers and routes on a single IPv6 interface.
 message BgpV6Interface {
 
-  // The unique name of IPv6 or Loopback IPv6 interface used as the source IP for this
-  // list of BGP peers.
+  // The unique name of IPv6,d Loopback IPv6 interface or DHCPv4 client used as the source
+  // IP for this list of BGP peers.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv6/properties/name
   // - /components/schemas/Device.Ipv6Loopback/properties/name
+  // - /components/schemas/DhcpClient.V6/properties/name
   // 
   // required = true
   optional string ipv6_name = 1;
@@ -4940,6 +5104,142 @@ message RsvpEroSubobject {
   optional HopType.Enum hop_type = 5;
 }
 
+// Under Review: Information TBD
+// 
+// Configuration for one or more IPv4 or IPv6 DHCP servers.
+message DeviceDhcpServer {
+
+  // This contains an array of references to IPv4 interfaces, each of which will have
+  // list of DHCPv4 servers to different destinations.
+  repeated DhcpServerV4 ipv4_interfaces = 2;
+
+  // This contains an array of references to IPv6 interfaces, each of which will have
+  // list of DHCPv6 servers to different destinations.
+  repeated DhcpServerV6 ipv6_interfaces = 3;
+}
+
+// Under Review: Information TBD
+// 
+// Configuration for emulated DHCPv4 Server.
+message DhcpServerV4 {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // The unique name of the IPv4 on which DHCPv4 server will run.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv4/properties/name
+  // 
+  // required = true
+  optional string ipv4_name = 2;
+
+  // The Life Time length in seconds that is assigned to a lease if the requesting DHCP
+  // client does not specify a specific expiration time.
+  // default = 86400
+  optional uint32 lease_time = 3;
+
+  // The IP address of the first lease pool.
+  // default = 100.1.1.1
+  optional string start_pool_address = 4;
+
+  // The IPv4 network prefix length to be applied to the address.
+  // default = 24
+  optional uint32 prefix = 5;
+
+  // The total number of addresses in the pool.
+  // default = 1
+  optional uint32 pool_size = 6;
+
+  // Increments the network address prefixes within a pool range  where multiple addresses
+  // are present. The value is incremented according to the Prefix Length and Step.
+  // default = 1
+  optional uint32 step = 7;
+
+  // The Router address advertised by the DHCPv4 server in Offer and Ack messages.
+  optional string router_address = 8;
+
+  // the primary DNS server address that is offered to DHCP clients that request this
+  // information through a TLV option.
+  optional string primary_dns_server = 9;
+
+  // the primary DNS server address that is offered to DHCP clients that request this
+  // information through a TLV option.
+  optional string secondary_dns_server = 10;
+
+  // the primary DNS server address that is offered to DHCP clients that request this
+  // information through a TLV option.
+  optional string echo_relay_with_tlv_82 = 11;
+}
+
+// Under Review: Information TBD
+// 
+// Configuration for emulated DHCPv6 Server.
+message DhcpServerV6 {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // The unique name of the IPv6 on which DHCPv6 server will run.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv6/properties/name
+  // 
+  optional string ipv6_name = 2;
+}
+
+// Under Review: Information TBD
+// 
+// Top level container for relay-agent configuration. Reference: https://datatracker.ietf.org/doc/html/rfc3046
+message DeviceRelayAgent {
+
+  // Description missing in models
+  DeviceDhcpv4RelayAgent dhcpv4 = 1;
+
+  // Description missing in models
+  DeviceDhcpv6RelayAgent dhcpv6 = 2;
+}
+
+// Under Review: Information TBD
+// 
+// Top level container for DHCPv4 relay-agent configuration. Reference: https://datatracker.ietf.org/doc/html/rfc3046
+message DeviceDhcpv4RelayAgent {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // The unique name of the IPv4 on which Relay Agent V4 server will run.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv4/properties/name
+  // 
+  optional string ipv4_name = 2;
+}
+
+// Under Review: Information TBD
+// 
+// Top level container for DHCPv6 relay-agent configuration. Reference: https://datatracker.ietf.org/doc/html/rfc3046
+message DeviceDhcpv6RelayAgent {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // The unique name of the IPv6 on which Relay Agent V4 server will run.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv6/properties/name
+  // 
+  optional string ipv6_name = 2;
+}
+
 // A high level data plane traffic flow.
 message Flow {
 
@@ -5118,6 +5418,10 @@ message FlowRouter {
   // - /components/schemas/Rsvp.LspIpv4Interface.P2PIngressIpv4Lsp/properties/name
   // - /components/schemas/Isis.V4RouteRange/properties/name
   // - /components/schemas/Isis.V6RouteRange/properties/name
+  // - /components/schemas/DhcpClient.V4/properties/name
+  // - /components/schemas/DhcpClient.V6/properties/name
+  // - /components/schemas/DhcpServer.V4/properties/ipv4_name
+  // - /components/schemas/DhcpServer.V6/properties/ipv6_name
   // 
   repeated string tx_names = 2;
 
@@ -5133,6 +5437,10 @@ message FlowRouter {
   // - /components/schemas/Rsvp.LspIpv4Interface.P2PEgressIpv4Lsp/properties/name
   // - /components/schemas/Isis.V4RouteRange/properties/name
   // - /components/schemas/Isis.V6RouteRange/properties/name
+  // - /components/schemas/DhcpClient.V4/properties/name
+  // - /components/schemas/DhcpClient.V6/properties/name
+  // - /components/schemas/DhcpServer.V4/properties/ipv4_name
+  // - /components/schemas/DhcpServer.V6/properties/ipv6_name
   // 
   repeated string rx_names = 3;
 }
@@ -8675,6 +8983,8 @@ message MetricsRequest {
       lacp = 7;
       lldp = 8;
       rsvp = 9;
+      dhcpv4_client = 10;
+      dhcpv6_client = 11;
     }
   }
   // Description missing in models
@@ -8707,6 +9017,12 @@ message MetricsRequest {
 
   // Description missing in models
   RsvpMetricsRequest rsvp = 10;
+
+  // Description missing in models
+  Dhcpv4ClientMetricsRequest dhcpv4_client = 11;
+
+  // Description missing in models
+  Dhcpv6ClientMetricsRequest dhcpv6_client = 12;
 }
 
 // Response containing chosen traffic generator metrics.
@@ -8724,6 +9040,8 @@ message MetricsResponse {
       lacp_metrics = 7;
       lldp_metrics = 8;
       rsvp_metrics = 9;
+      dhcpv4_client = 10;
+      dhcpv6_client = 11;
     }
   }
   // Description missing in models
@@ -8756,6 +9074,12 @@ message MetricsResponse {
 
   // Description missing in models
   repeated RsvpMetric rsvp_metrics = 10;
+
+  // Description missing in models
+  repeated Dhcpv4ClientMetric dhcpv4client_metrics = 11;
+
+  // Description missing in models
+  repeated Dhcpv6ClientMetric dhcpv6client_metrics = 12;
 }
 
 // The port result request to the traffic generator
@@ -9898,6 +10222,80 @@ message RsvpMetric {
   optional uint64 path_reoptimizations = 31;
 }
 
+// The request to retrieve DHCPv4 per client metrics/statistics.
+message Dhcpv4ClientMetricsRequest {
+
+  // The names of DHCPv4 clients to return results for. An empty list will return results
+  // for all DHCPv4 client.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv4client/properties/name
+  // 
+  repeated string client_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      dummy1 = 1;
+      dummy2 = 2;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned except for any result_groups. The name of
+  // the DHCPv4 client cannot be excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// DHCPv4 per peer statistics information.
+message Dhcpv4ClientMetric {
+
+  // The name of a configured DHCPv4 client.
+  optional string name = 1;
+
+  // TBD
+  optional string dummy1 = 2;
+
+  // TBD
+  optional string dummy2 = 3;
+}
+
+// The request to retrieve DHCPv6 per client metrics/statistics.
+message Dhcpv6ClientMetricsRequest {
+
+  // The names of DHCPv6 clients to return results for. An empty list will return results
+  // for all DHCPv6 client.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv6client/properties/name
+  // 
+  repeated string client_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      dummy1 = 1;
+      dummy2 = 2;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned except for any result_groups. The name of
+  // the DHCPv6 client cannot be excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// DHCPv6 per peer statistics information.
+message Dhcpv6ClientMetric {
+
+  // The name of a configured DHCPv6 client.
+  optional string name = 1;
+
+  // TBD
+  optional string dummy1 = 2;
+
+  // TBD
+  optional string dummy2 = 3;
+}
+
 // Request to traffic generator for states of choice
 message StatesRequest {
 
@@ -9910,6 +10308,7 @@ message StatesRequest {
       isis_lsps = 4;
       lldp_neighbors = 5;
       rsvp_lsps = 6;
+      dhcp_client_addresses = 7;
     }
   }
   // Description missing in models
@@ -9933,6 +10332,9 @@ message StatesRequest {
 
   // Description missing in models
   RsvpLspsStateRequest rsvp_lsps = 7;
+
+  // Description missing in models
+  DhcpClientAddressesStateRequest dhcp_client_addresses = 8;
 }
 
 // Response containing chosen traffic generator states
@@ -9947,6 +10349,7 @@ message StatesResponse {
       isis_lsps = 4;
       lldp_neighbors = 5;
       rsvp_lsps = 6;
+      dhcp_client_addresses = 7;
     }
   }
   // Description missing in models
@@ -9970,6 +10373,9 @@ message StatesResponse {
 
   // Description missing in models
   repeated RsvpLspsState rsvp_lsps = 7;
+
+  // Description missing in models
+  repeated DhcpClientAddressesState dhcp_client_addresses = 8;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -10882,6 +11288,112 @@ message RsvpLspIpv4Ero {
   }
   // The type indicated by the ERO.
   optional Type.Enum type = 3;
+}
+
+// The request to retrieve DHCP Client learned address information.
+message DhcpClientAddressesStateRequest {
+
+  // TBD
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv4client/properties/name
+  // - /components/schemas/Device.Dhcpv6client/properties/name
+  // 
+  repeated string dhcp_client_names = 1;
+}
+
+// Addresses learned by DHCP clients.
+message DhcpClientAddressesState {
+
+  // The name of a DHCP Client.
+  optional string dhcp_client_name = 1;
+
+  // Description missing in models
+  repeated BgpPrefixIpv4UnicastState ipv4_addresses = 2;
+
+  // Description missing in models
+  repeated BgpPrefixIpv6UnicastState ipv6_addresses = 3;
+}
+
+// IPv4 unicast prefix.
+message DhcpClientv4UnicastState {
+
+  // An IPv4 unicast address
+  optional string ipv4_address = 1;
+
+  // The length of the prefix.
+  optional uint32 prefix_length = 2;
+}
+
+// IPv6 unicast prefix.
+message DhcpClientv6UnicastState {
+
+  // An IPv6 unicast address
+  optional string ipv6_address = 1;
+
+  // The length of the prefix.
+  optional uint32 prefix_length = 2;
+
+  message Origin {
+    enum Enum {
+      unspecified = 0;
+      igp = 1;
+      egp = 2;
+      incomplete = 3;
+    }
+  }
+  // The origin of the prefix.
+  optional Origin.Enum origin = 3;
+
+  // The path id.
+  optional uint32 path_id = 4;
+
+  // The IPv4 address of the egress interface.
+  optional string ipv4_next_hop = 5;
+
+  // The IPv6 address of the egress interface.
+  optional string ipv6_next_hop = 6;
+
+  // Optional community attributes.
+  repeated ResultBgpCommunity communities = 7;
+
+  // Description missing in models
+  ResultBgpAsPath as_path = 8;
+
+  // The local preference is a well-known attribute and the value is used for route selection.
+  // The route with the highest local preference value is preferred.
+  optional uint32 local_preference = 9;
+
+  // The multi exit discriminator (MED) is an optional non-transitive attribute and the
+  // value is used for route selection. The route with the lowest MED value is preferred.
+  optional uint32 multi_exit_discriminator = 10;
+}
+
+// BGP peer prefix.
+message DhcpClientState {
+
+  // The length of the prefix.
+  optional uint32 prefix_length = 1;
+
+  message Origin {
+    enum Enum {
+      unspecified = 0;
+      igp = 1;
+      egp = 2;
+      incomplete = 3;
+    }
+  }
+  // The origin of the prefix.
+  optional Origin.Enum origin = 2;
+
+  // The path id.
+  optional uint32 path_id = 3;
+
+  // The IPv4 address of the egress interface.
+  optional string ipv4_next_hop = 4;
+
+  // The IPv6 address of the egress interface.
+  optional string ipv6_next_hop = 5;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the
@@ -12599,12 +13111,13 @@ message PatternFlowIpv4Src {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -12615,16 +13128,22 @@ message PatternFlowIpv4Src {
   // default = ['0.0.0.0']
   repeated string values = 3;
 
-  // Description missing in models
-  PatternFlowIpv4SrcCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 0.0.0.0
+  optional string auto = 4;
 
   // Description missing in models
-  PatternFlowIpv4SrcCounter decrement = 6;
+  PatternFlowIpv4SrcCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowIpv4SrcCounter decrement = 7;
 
   // One or more metric tags can be used to enable tracking portion of or all bits in
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
-  repeated PatternFlowIpv4SrcMetricTag metric_tags = 7;
+  repeated PatternFlowIpv4SrcMetricTag metric_tags = 8;
 }
 
 // ipv4 counter pattern
@@ -12671,12 +13190,13 @@ message PatternFlowIpv4Dst {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -12687,16 +13207,22 @@ message PatternFlowIpv4Dst {
   // default = ['0.0.0.0']
   repeated string values = 3;
 
-  // Description missing in models
-  PatternFlowIpv4DstCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 0.0.0.0
+  optional string auto = 4;
 
   // Description missing in models
-  PatternFlowIpv4DstCounter decrement = 6;
+  PatternFlowIpv4DstCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowIpv4DstCounter decrement = 7;
 
   // One or more metric tags can be used to enable tracking portion of or all bits in
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
-  repeated PatternFlowIpv4DstMetricTag metric_tags = 7;
+  repeated PatternFlowIpv4DstMetricTag metric_tags = 8;
 }
 
 // integer counter pattern
@@ -13978,12 +14504,13 @@ message PatternFlowIpv6Src {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -13994,16 +14521,22 @@ message PatternFlowIpv6Src {
   // default = ['::0']
   repeated string values = 3;
 
-  // Description missing in models
-  PatternFlowIpv6SrcCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = ::0
+  optional string auto = 4;
 
   // Description missing in models
-  PatternFlowIpv6SrcCounter decrement = 6;
+  PatternFlowIpv6SrcCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowIpv6SrcCounter decrement = 7;
 
   // One or more metric tags can be used to enable tracking portion of or all bits in
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
-  repeated PatternFlowIpv6SrcMetricTag metric_tags = 7;
+  repeated PatternFlowIpv6SrcMetricTag metric_tags = 8;
 }
 
 // ipv6 counter pattern
@@ -14050,12 +14583,13 @@ message PatternFlowIpv6Dst {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -14066,16 +14600,22 @@ message PatternFlowIpv6Dst {
   // default = ['::0']
   repeated string values = 3;
 
-  // Description missing in models
-  PatternFlowIpv6DstCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = ::0
+  optional string auto = 4;
 
   // Description missing in models
-  PatternFlowIpv6DstCounter decrement = 6;
+  PatternFlowIpv6DstCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowIpv6DstCounter decrement = 7;
 
   // One or more metric tags can be used to enable tracking portion of or all bits in
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
-  repeated PatternFlowIpv6DstMetricTag metric_tags = 7;
+  repeated PatternFlowIpv6DstMetricTag metric_tags = 8;
 }
 
 // mac counter pattern

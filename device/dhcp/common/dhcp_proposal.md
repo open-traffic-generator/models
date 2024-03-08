@@ -27,9 +27,8 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 		DhcpClient().
 		V4().
 		SetName("p1d1dhcpv4").
-    SetChoice(gosnappi.conn_eth_name.CONN_ETH=d1Eth1.Name())
+    SetEthName(d1Eth1.Name())
 		
-
 	// add protocol stacks for device d2
 	d2Eth1 := d2.Ethernets().
 		Add().
@@ -118,7 +117,7 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
   // Chained Ethernet where DHCPClient behind the Relay Agent will be configured.
   d1Eth2 := d1.Ethernets().
 		Add().
-		SetName("p1d1eth2").
+		SetName("p1d1eth2_chained").
 		SetMac("00:00:01:01:01:01").
 	d1Eth1.Connection().SetPortName(d1Eth1.Name())
 
@@ -136,11 +135,11 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 		SetName("d1p1RelayAgent1").
     SetIpv4Name(d1p1Ipv4.Name())
 
-	p1d1DhcpV4Client := d1Eth1.
+	p1d1DhcpV4Client := d1Eth2.
 		DhcpClient().
 		V4().
 		SetName("p1d1dhcpv4").
-    SetChoice(gosnappi.conn_eth_name.RELAY_AGENT_NAME=d1p1RelayAgent.Name())
+    SetEthName(d1Eth2.Name())
 		
 
 	// add protocol stacks for device d2
@@ -204,7 +203,7 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 	f2Ip.Src().SetValue("20.20.20.1")
 	f2Ip.Dst().SetValue("10.10.10.1")
 
-  //Case-3: BGP over DHCP Client on Port 1 & DHCP Server on Port2.
+//Case-3: BGP over DHCP Client on Port 1 & DHCP Server on Port2.
   config := gosnappi.NewConfig()
 
 	// add ports
@@ -213,7 +212,8 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 
 	// add devices
 	d1 := config.Devices().Add().SetName("p1d1")
-	d2 := config.Devices().Add().SetName("p2d1")s
+	d2 := config.Devices().Add().SetName("p2d1")
+	p2Chained1 := config.Devices().Add().SetName("p2_chained1")
 
 	// add protocol stacks for device d1
 	d1Eth1 := d1.Ethernets().
@@ -228,7 +228,7 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 		DhcpClient().
 		V4().
 		SetName("p1d1dhcpv4").
-    SetChoice(gosnappi.conn_eth_name.CONN_ETH=d1Eth1.Name())
+    SetEthName(d1Eth1.Name())
 		
 	d1Bgp := d1.Bgp().
 		SetRouterId("1.1.1.2")
@@ -243,7 +243,7 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 		Add().
 		SetAsNumber(2222).
 		SetAsType(gosnappi.BgpV4PeerAsType.EBGP).
-		SetPeerAddress("1.1.1.1").
+		SetPeerAddress("22.22.22.1").
 		SetName("p1d1bgpv4")
 
 	d1BgpIpv4Interface1Peer1V4Route1 := d1BgpIpv4Interface1Peer1.
@@ -255,7 +255,7 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 
 	d1BgpIpv4Interface1Peer1V4Route1.Addresses().Add().
-		SetAddress("10.10.10.1").
+		SetAddress("100.10.10.1").
 		SetPrefix(32).
 		SetCount(4).
 		SetStep(1)
@@ -291,6 +291,41 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 
   p2d2DhcpV4Server.SetLeaseTime(1000).
     SetPoolSize(100).
-    SetStartPoolAddress("100.1.1.1").
+    SetStartPoolAddress("21.21.21.1").
     SetPrefix(24).
     SetStep(1)
+
+// Port2 first chained device.
+	p2Lo1 := p2Chained1.Ipv4Loopbacks().
+		Add().
+		SetName("p2chaineddev1.v4lo1").
+		SetAddress("22.22.22.1").
+		SetEthName(d1Eth1.Name())
+
+  p2Lo1Bgp := p2Chained1.Bgp().
+		SetRouterId(p2Lo1.Address())
+
+	p2Lo1BgpIpv4Interface1 := p2Lo1Bgp.
+		Ipv4Interfaces().Add().
+		SetIpv4Name("p2chaineddev1.v4lo1")
+
+	p2Lo1BgpIpv4Interface1Peer1 := p2Lo1BgpIpv4Interface1.
+		Peers().
+		Add().
+		SetAsNumber(1111).
+		SetAsType(gosnappi.BgpV4PeerAsType.IBGP).
+		SetPeerAddress("21.21.21.1").
+		SetName("p2lo1bgpv4")
+
+	p2Lo1BgpIpv4Interface1Peer1V4Route1 := p2Lo1BgpIpv4Interface1Peer1.
+		V4Routes().
+		Add().
+		SetName("p2lo1peer1rrv4")
+
+	p2Lo1BgpRrAddr := p2Lo1BgpIpv4Interface1Peer1V4Route1.Addresses().Add().
+		SetAddress("200.1.1.1").
+		SetPrefix(32)
+
+	p2Lo1BgpIpv4Interface1Peer1V4Route1.Advanced().
+		SetMultiExitDiscriminator(50).
+		SetOrigin(gosnappi.BgpRouteAdvancedOrigin.EGP)

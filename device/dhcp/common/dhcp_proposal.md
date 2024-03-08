@@ -1,7 +1,7 @@
 array of dhcp clients over a eth not a valid usecase. OC model has only reference to dhcpclient
 
   // Case-1: DHCP Client & Server are Keysight and Relay Agent as DUT.
-  //   DHCPV4-Client(x.x.x.x)<-------> (1.1.1.1)RelayAgent(DUT)(2.2.2.1) <------>(2.2.2.2) DHCPV4-Server
+  //   DHCPV4-Client(x.x.x.x)<-------> (1.1.1.1)RelayAgent(DUT)(2.2.2.1) <------>(2.2.2.2) DHCPV4-Server(Pool: 100.1.1.1)
   // DHCP Client is configured on connected interface.
   
   config := gosnappi.NewConfig()
@@ -66,15 +66,15 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 	f1.SetName(p1.Name() + " -> " + p2.Name()).
 		TxRx().Device().
 		SetTxNames([]string{p1d1DhcpV4Client.Name()}).
-		SetRxNames([]string{p2d2DhcpV4Server.Name()})
+		SetRxNames([]string{d2p2DhcpServerv4Iface1.Ipv4Name()})
 
 	f1Eth := f1.Packet().Add().Ethernet()
 	f1Eth.Src().SetValue(d1Eth1.Mac())
 	f1Eth.Dst().Auto()
 
 	f1Ip := f1.Packet().Add().Ipv4()
-	f1Ip.Src().SetValue("10.10.10.1")
-	f1Ip.Dst().SetValue("20.20.20.1")
+	f1Ip.Src().Auto()
+	f1Ip.Dst().SetValue("2.2.2.2")
 
 	// add endpoints and packet description flow 2
 	f2 := config.Flows().Items()[1]
@@ -88,12 +88,12 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 	f2Eth.Dst().Auto()
 
 	f2Ip := f2.Packet().Add().Ipv4()
-	f2Ip.Src().SetValue("20.20.20.1")
-	f2Ip.Dst().SetValue("10.10.10.1")
+	f2Ip.Src().SetValue("2.2.2.2")
+	f2Ip.Dst().Auto()
 
 
 // Case-2: DHCP Client Behind the  Relay Agent and are Keysight and DHCP Server as Keysight/DUT.
-//   DHCPV4-Client(x.x.x.x)<------->RelayAgent(DUT)(2.2.2.1) <------>(2.2.2.2) DHCPV4-Server
+//  DHCPV4-Client(x.x.x.x)<------->(100.1.1.1)RelayAgent(DUT)(2.2.2.1) <------>(2.2.2.2) DHCPV4-Server(Pool: 100.1.1.1)
 // DHCP Client is configured on unconnected connected interface.
 
   config := gosnappi.NewConfig()
@@ -115,7 +115,7 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
   d1Eth1.Connection().SetPortName(p1.Name())
 
   // Chained Ethernet where DHCPClient behind the Relay Agent will be configured.
-  d1Eth2 := d1.Ethernets().
+  d1ChainedEth2 := d1.Ethernets().
 		Add().
 		SetName("p1d1eth2_chained").
 		SetMac("00:00:01:01:01:01").
@@ -126,22 +126,24 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 		Ipv4Addresses().
 		Add().
 		SetName("p1d1ipv4").
-		SetAddress("1.1.1.2").
-		SetGateway("1.1.1.1").
-		SetPrefix(32)
+		SetAddress("2.2.2.1").
+		SetGateway("2.2.2.2").
+		SetPrefix(24)
 
   // Configure a (place holder) Relay Agent
 	d1p1RelayAgent := d2.RelayAgent().Dhcpv4().
 		SetName("d1p1RelayAgent1").
-    SetIpv4Name(d1p1Ipv4.Name())
+    SetIpv4Name(d1p1Ipv4.Name()).
+		SetCliendSideAddress("100.1.1.1")
+		SetDhcpServer("2.2.2.2")
+
 
 	p1d1DhcpV4Client := d1Eth2.
 		DhcpClient().
 		V4().
 		SetName("p1d1dhcpv4").
-    SetEthName(d1Eth2.Name())
+    SetEthName(d1ChainedEth2.Name())
 		
-
 	// add protocol stacks for device d2
 	d2Eth1 := d2.Ethernets().
 		Add().
@@ -157,7 +159,7 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 		SetName("p2d1ipv4").
 		SetAddress("2.2.2.2").
 		SetGateway("2.2.2.1").
-		SetPrefix(32)
+		SetPrefix(24)
 
 	d2p2DhcpServerv4Iface1 := d2.DhcpServer().V4Server().
 		Ipv4Interfaces().Add().
@@ -169,7 +171,7 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 
   p2d2DhcpV4Server.SetLeaseTime(1000).
     SetPoolSize(100).
-    SetStartPoolAddress("100.1.1.1").
+    SetStartPoolAddress("100.1.1.2").
     SetPrefix(24).
     SetStep(1)
 
@@ -178,15 +180,15 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 	f1.SetName(p1.Name() + " -> " + p2.Name()).
 		TxRx().Device().
 		SetTxNames([]string{p1d1DhcpV4Client.Name()}).
-		SetRxNames([]string{p2d2DhcpV4Server.Name()})
+		SetRxNames([]string{d2p2DhcpServerv4Iface1.Ipv4Name()})
 
 	f1Eth := f1.Packet().Add().Ethernet()
 	f1Eth.Src().SetValue(d1Eth1.Mac())
 	f1Eth.Dst().Auto()
 
 	f1Ip := f1.Packet().Add().Ipv4()
-	f1Ip.Src().SetValue("10.10.10.1")
-	f1Ip.Dst().SetValue("20.20.20.1")
+	f1Ip.Src().Auto()
+	f1Ip.Dst().SetValue("2.2.2.2")
 
 	// add endpoints and packet description flow 2
 	f2 := config.Flows().Items()[1]
@@ -200,10 +202,10 @@ array of dhcp clients over a eth not a valid usecase. OC model has only referenc
 	f2Eth.Dst().Auto()
 
 	f2Ip := f2.Packet().Add().Ipv4()
-	f2Ip.Src().SetValue("20.20.20.1")
-	f2Ip.Dst().SetValue("10.10.10.1")
+	f2Ip.Src().SetValue("2.2.2.2")
+	f2Ip.Dst().Auto()
 
-//Case-3: BGP over DHCP Client on Port 1 & DHCP Server on Port2.
+//Case-3: BGP over DHCP Client on Port 1 & DHCP Server and BGP peer (over loopback)on Port2.
   config := gosnappi.NewConfig()
 
 	// add ports

@@ -14,7 +14,7 @@
  a) IP-dst: IP of DHCP server's IP stack, b) IP dst: IP P of Relay agent's IP stack]
 
 6. Traffic auto filling up f1Ip.Src().AutoDhcp() [Incorporated]
-8. Another alternative model to be created with unconnected ethernet without other exposed paramters rather mac and dhcp interfaces. [Yet to be done]
+8. Another alternative model to be created with unconnected ethernet without other exposed paramters rather mac and dhcp interfaces. [Incorporated]
 7. Just to note for partial start for dhcp/server for bgp start later after dhcp comes up first.
 	
   // Case-1: DHCP Client & Server are Keysight and Relay Agent as DUT.
@@ -116,6 +116,8 @@
 
 		// add devices
 		d1 := config.Devices().Add().SetName("p1d1")
+		d1_chained := config.Devices().Add().SetName("p1d1_chained")
+
 		d2 := config.Devices().Add().SetName("p2d1")
 
 		// add protocol stacks for device d1 where Relay Agent will be configureds
@@ -125,13 +127,6 @@
 			SetMac("00:00:01:01:01:01").
 			SetMtu(1500)
 		d1Eth1.Connection().SetPortName(p1.Name())
-
-		// Chained Ethernet where DHCPClient behind the Relay Agent will be configured.
-		d1ChainedEth2 := d1.Ethernets().
-			Add().
-			SetName("p1d1eth2_chained").
-			SetMac("00:00:01:01:01:01").
-		d1Eth1.Connection().SetPortName(d1Eth1.Name())
 
 	// Configure a IPv4 stack
 		d1p1Ipv4 := d1Eth1.
@@ -143,19 +138,6 @@
 			SetPrefix(24)
 
 		// Configure a (place holder) Relay Agent
-		
-		d1BgpIpv4Interface1 := d1Bgp.
-			Ipv4Interfaces().Add().
-			SetIpv4Name(p1d1DhcpV4Client.Name())
-
-		d1BgpIpv4Interface1Peer1 := d1BgpIpv4Interface1.
-			Peers().
-			Add().
-			SetAsNumber(2222).
-			SetAsType(gosnappi.BgpV4PeerAsType.EBGP).
-			SetPeerAddress("22.22.22.1").
-			SetName("p1d1bgpv4")
-
 		d1p1RelayAgent := d2.RelayAgent()
 		  IpV4interfaces().Add().V4RAInst().
 			SetName("d1p1RelayAgent1").
@@ -163,7 +145,15 @@
 			SetCliendSideAddress("100.1.1.1")
 			SetDhcpServer("2.2.2.2")
 
-		p1d1DhcpV4Client := d1Eth2.
+	 	// Chained Ethernet where DHCPClient behind the Relay Agent will be configured.
+		d1ChainedEth2 := d1_chained.ChainedEthernets().
+			Add().
+			SetName("p1d1eth2_chained").
+			SetMac("00:00:01:01:01:01").
+			SetChainedEthernetName
+		d1ChainedEth2.Connection().ChainedEthernetName(d1Eth1.Name())
+
+		p1d1DhcpV4Client := d1ChainedEth2.
 			dhcp_v4interface().
 			SetName("p1d1dhcpv4").
 			SetEthName(d1ChainedEth2.Name())
@@ -211,7 +201,7 @@
 		f1Eth.Dst().Auto()
 
 		f1Ip := f1.Packet().Add().Ipv4()
-		f1Ip.Src().Auto()
+		f1Ip.Src().AutoDhcp()
 		f1Ip.Dst().SetValue("2.2.2.2")
 
 		// add endpoints and packet description flow 2
@@ -227,7 +217,7 @@
 
 		f2Ip := f2.Packet().Add().Ipv4()
 		f2Ip.Src().SetValue("2.2.2.2")
-		f2Ip.Dst().Auto()
+		f2Ip.Dst().AutoDhcp()
 
 //Case-3: BGP over DHCP Client on Port 1 & DHCP Server and BGP peer (over loopback)on Port2.
   config := gosnappi.NewConfig()

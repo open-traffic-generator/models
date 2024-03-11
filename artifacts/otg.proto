@@ -265,8 +265,11 @@ message DeviceEthernet {
   // required = true
   optional string name = 8;
 
-  // DHCPv4 & DHCPv6 Clients Configuration.
-  Dhcpclient dhcp_client = 9;
+  // DHCPv4 Client Configuration.
+  DeviceDhcpv4client dhcp_v4interface = 9;
+
+  // DHCPv6 Client Configuration.
+  DeviceDhcpv6client dhcp_v6interface = 10;
 }
 
 // Ethernet interface connection to a port, LAG or VXLAN tunnel.
@@ -494,32 +497,13 @@ message DeviceIpv6GatewayMAC {
   optional string value = 3;
 }
 
-// Under Review: Information TBD
-// 
-// Configuration for emulated DHCPv4 or DHCPv6 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
-message Dhcpclient {
-
-  // DHCPv4 client's configuration.
-  DhcpClientV4 v4 = 1;
-
-  // DHCPv6 client's configuration.
-  DhcpClientV6 v6 = 2;
-}
-
 // Configuration for emulated DHCPv4 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
-message DhcpClientV4 {
+message DeviceDhcpv4client {
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
   optional string name = 1;
-
-  // The unique name of the Ethernet interface on which this DHCP Client  will be configured.
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.Ethernet/properties/name
-  // 
-  optional string eth_name = 2;
 
   // The client receives one or more DHCPOFFER messages from one or more servers.  The
   // client may choose to wait for multiple responses. The client chooses one server from
@@ -530,20 +514,20 @@ message DhcpClientV4 {
   // IP addresses. server address to 0.0.0.0, implementation will use the services of
   // the first DHCP server that responds to the DHCP Lease Request message.
   // default = 0.0.0.0
-  optional string selecting_server = 3;
+  optional string selecting_server = 2;
 
   // Description missing in models
   // default = 0.0.0.0
-  optional string first_server = 4;
+  optional string first_server = 3;
 
   // Description missing in models
   // default = 0.0.0.0
-  optional string server_address = 5;
+  optional string server_address = 4;
 
   // If the broadcast bit is set, then the server and relay agent broadcast DHCPOFFER
   // and DHCPACK messages.
   // default = False
-  optional bool broadcast = 6;
+  optional bool broadcast = 5;
 
   // A manually configured IPv4 gateway address.  The default value 0.0.0.0, meaning that
   // no manual gateway IP address is specified. If the DHCPv4 Client receives from a server
@@ -553,19 +537,19 @@ message DhcpClientV4 {
   // for traffic outside of its network;  otherwise client uses the gateway IP address
   // learned from the server.
   // default = 0.0.0.0
-  optional string gateway_ip = 7;
+  optional string gateway_ip = 6;
 
   // A manually configured gateway MAC address.  In case of non default, ARP messages
   // are sent to resolve the gateway MAC address.
   // default = 0:0:0:0:0:0
-  optional string gateway_mac = 8;
+  optional string gateway_mac = 7;
 
   // DHCPv4 Client parameters request list.
-  DeviceDhcpv4ClientParams parameters_request_list = 9;
+  Dhcpv4ClientParams parameters_request_list = 8;
 }
 
 // Configuration Parameter request list by emulated DHCPv4 Client.
-message DeviceDhcpv4ClientParams {
+message Dhcpv4ClientParams {
 
   // Request for the subnet mask option specifies the client's subnet mask as per RFC950.
   // 
@@ -591,19 +575,12 @@ message DeviceDhcpv4ClientParams {
 // Under Review: Information TBD
 // 
 // Configuration for emulated DHCPv6 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
-message DhcpClientV6 {
+message DeviceDhcpv6client {
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
   optional string name = 1;
-
-  // The unique name of the Ethernet interface on which this DHCP Client  will be configured.
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.Ethernet/properties/name
-  // 
-  optional string eth_name = 3;
 }
 
 // A container for layer1 settings.
@@ -5164,17 +5141,19 @@ message DhcpServerV6 {
 // Top level container for relay-agent configuration. Reference: https://datatracker.ietf.org/doc/html/rfc3046
 message DeviceRelayAgent {
 
-  // Description missing in models
-  DeviceDhcpv4RelayAgent dhcpv4 = 1;
+  // This contains an array of references to IPv4 interfaces, each of which will have
+  // list of V6 Relay Agent to different destinations.
+  repeated V4RAInst ipv4_interfaces = 1;
 
-  // Description missing in models
-  DeviceDhcpv6RelayAgent dhcpv6 = 2;
+  // This contains an array of references to IPv6 interfaces, each of which will have
+  // list of V6 Relay Agent to different destinations.
+  repeated V6RAInst ipv6_interfaces = 2;
 }
 
 // Under Review: Information TBD
 // 
 // Top level container for DHCPv4 relay-agent configuration. Reference: https://datatracker.ietf.org/doc/html/rfc3046
-message DeviceDhcpv4RelayAgent {
+message V4RAInst {
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -5200,7 +5179,7 @@ message DeviceDhcpv4RelayAgent {
 // Under Review: Information TBD
 // 
 // Top level container for DHCPv6 relay-agent configuration. Reference: https://datatracker.ietf.org/doc/html/rfc3046
-message DeviceDhcpv6RelayAgent {
+message V6RAInst {
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -13086,13 +13065,12 @@ message PatternFlowIpv4Src {
       unspecified = 0;
       value = 2;
       values = 3;
-      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.auto
+  // default = Choice.Enum.value
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -13103,22 +13081,16 @@ message PatternFlowIpv4Src {
   // default = ['0.0.0.0']
   repeated string values = 3;
 
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 0.0.0.0
-  optional string auto = 4;
+  // Description missing in models
+  PatternFlowIpv4SrcCounter increment = 5;
 
   // Description missing in models
-  PatternFlowIpv4SrcCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv4SrcCounter decrement = 7;
+  PatternFlowIpv4SrcCounter decrement = 6;
 
   // One or more metric tags can be used to enable tracking portion of or all bits in
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
-  repeated PatternFlowIpv4SrcMetricTag metric_tags = 8;
+  repeated PatternFlowIpv4SrcMetricTag metric_tags = 7;
 }
 
 // ipv4 counter pattern
@@ -13165,13 +13137,12 @@ message PatternFlowIpv4Dst {
       unspecified = 0;
       value = 2;
       values = 3;
-      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.auto
+  // default = Choice.Enum.value
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -13182,22 +13153,16 @@ message PatternFlowIpv4Dst {
   // default = ['0.0.0.0']
   repeated string values = 3;
 
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 0.0.0.0
-  optional string auto = 4;
+  // Description missing in models
+  PatternFlowIpv4DstCounter increment = 5;
 
   // Description missing in models
-  PatternFlowIpv4DstCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv4DstCounter decrement = 7;
+  PatternFlowIpv4DstCounter decrement = 6;
 
   // One or more metric tags can be used to enable tracking portion of or all bits in
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
-  repeated PatternFlowIpv4DstMetricTag metric_tags = 8;
+  repeated PatternFlowIpv4DstMetricTag metric_tags = 7;
 }
 
 // integer counter pattern
@@ -14479,13 +14444,12 @@ message PatternFlowIpv6Src {
       unspecified = 0;
       value = 2;
       values = 3;
-      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.auto
+  // default = Choice.Enum.value
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -14496,22 +14460,16 @@ message PatternFlowIpv6Src {
   // default = ['::0']
   repeated string values = 3;
 
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = ::0
-  optional string auto = 4;
+  // Description missing in models
+  PatternFlowIpv6SrcCounter increment = 5;
 
   // Description missing in models
-  PatternFlowIpv6SrcCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6SrcCounter decrement = 7;
+  PatternFlowIpv6SrcCounter decrement = 6;
 
   // One or more metric tags can be used to enable tracking portion of or all bits in
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
-  repeated PatternFlowIpv6SrcMetricTag metric_tags = 8;
+  repeated PatternFlowIpv6SrcMetricTag metric_tags = 7;
 }
 
 // ipv6 counter pattern
@@ -14558,13 +14516,12 @@ message PatternFlowIpv6Dst {
       unspecified = 0;
       value = 2;
       values = 3;
-      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.auto
+  // default = Choice.Enum.value
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -14575,22 +14532,16 @@ message PatternFlowIpv6Dst {
   // default = ['::0']
   repeated string values = 3;
 
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = ::0
-  optional string auto = 4;
+  // Description missing in models
+  PatternFlowIpv6DstCounter increment = 5;
 
   // Description missing in models
-  PatternFlowIpv6DstCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6DstCounter decrement = 7;
+  PatternFlowIpv6DstCounter decrement = 6;
 
   // One or more metric tags can be used to enable tracking portion of or all bits in
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
-  repeated PatternFlowIpv6DstMetricTag metric_tags = 8;
+  repeated PatternFlowIpv6DstMetricTag metric_tags = 7;
 }
 
 // mac counter pattern

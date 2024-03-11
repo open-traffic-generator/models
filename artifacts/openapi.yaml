@@ -612,11 +612,16 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
-        dhcp_client:
+        dhcp_v4interface:
           description: |-
-            DHCPv4 & DHCPv6 Clients Configuration.
-          $ref: '#/components/schemas/Dhcp.client'
+            DHCPv4 Client Configuration.
+          $ref: '#/components/schemas/Device.Dhcpv4client'
           x-field-uid: 9
+        dhcp_v6interface:
+          description: |-
+            DHCPv6 Client Configuration.
+          $ref: '#/components/schemas/Device.Dhcpv6client'
+          x-field-uid: 10
       required:
       - mac
       - name
@@ -676,16 +681,6 @@ components:
           - '#/components/schemas/Vxlan.V4Tunnel/properties/name'
           - '#/components/schemas/Vxlan.V6Tunnel/properties/name'
           x-field-uid: 4
-        chained_ethernet_name:
-          description: |
-            The unique name of the Ethernet interface behind which this Ethernet is chained.
-
-            x-constraint:
-            - /components/schemas/Device.Ethernet/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Device.Ethernet/properties/name
-          x-field-uid: 5
     Device.Vlan:
       description: |-
         Emulated VLAN protocol.
@@ -946,26 +941,7 @@ components:
           format: mac
           default: 00:00:00:00:00:00
           x-field-uid: 3
-    Dhcp.client:
-      description: |-
-        Under Review: Information TBD
-
-        Configuration for emulated DHCPv4 or DHCPv6 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
-      type: object
-      x-status:
-        status: under_review
-        information: Information TBD
-      properties:
-        v4:
-          description: "DHCPv4 client's configuration. "
-          $ref: '#/components/schemas/DhcpClient.V4'
-          x-field-uid: 1
-        v6:
-          description: |-
-            DHCPv6 client's configuration.
-          $ref: '#/components/schemas/DhcpClient.V6'
-          x-field-uid: 2
-    DhcpClient.V4:
+    Device.Dhcpv4client:
       description: |-
         Configuration for emulated DHCPv4 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
       type: object
@@ -979,59 +955,49 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
-        eth_name:
-          description: |
-            The unique name of the Ethernet interface on which this DHCP Client  will be configured.
-
-            x-constraint:
-            - /components/schemas/Device.Ethernet/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Device.Ethernet/properties/name
-          x-field-uid: 2
         selecting_server:
           description: |-
             The client receives one or more DHCPOFFER messages from one or more servers.  The client may choose to wait for multiple responses. The client chooses one server from which to request configuration parameters, based on the configuration parameters offered in the DHCPOFFER messages. use_first_server: if selected, the subnet accepts the IP addresses offered by the first server to respond with an offer of IP addresses. use_server_address: The address of the DHCP server from which the subnet will accept IP addresses. server address to 0.0.0.0, implementation will use the services of the first DHCP server that responds to the DHCP Lease Request message.
           type: string
           format: ipv4
           default: 0.0.0.0
-          x-field-uid: 3
+          x-field-uid: 2
         first_server:
           type: string
           format: ipv4
           default: 0.0.0.0
-          x-field-uid: 4
+          x-field-uid: 3
         server_address:
           type: string
           format: ipv4
           default: 0.0.0.0
-          x-field-uid: 5
+          x-field-uid: 4
         broadcast:
           description: |-
             If the broadcast bit is set, then the server and relay agent broadcast DHCPOFFER and DHCPACK messages.
           type: boolean
           default: false
-          x-field-uid: 6
+          x-field-uid: 5
         gateway_ip:
           description: |-
             A manually configured IPv4 gateway address.  The default value 0.0.0.0, meaning that no manual gateway IP address is specified. If the DHCPv4 Client receives from a server a response packet with a Router Address TLV  specifying another gateway address than the manually configured gateway IP,  then this TLV is ignored.  Whenever a manual non default gateway IP is configured, the client will use it as gateway address  for traffic outside of its network;  otherwise client uses the gateway IP address learned from the server.
           type: string
           format: ipv4
           default: 0.0.0.0
-          x-field-uid: 7
+          x-field-uid: 6
         gateway_mac:
           description: |-
             A manually configured gateway MAC address.  In case of non default, ARP messages are sent to resolve the gateway MAC address.
           type: string
           format: mac
           default: 0:0:0:0:0:0
-          x-field-uid: 8
+          x-field-uid: 7
         parameters_request_list:
           description: |-
             DHCPv4 Client parameters request list.
-          $ref: '#/components/schemas/Device.Dhcpv4Client.Params'
-          x-field-uid: 9
-    Device.Dhcpv4Client.Params:
+          $ref: '#/components/schemas/Dhcpv4Client.Params'
+          x-field-uid: 8
+    Dhcpv4Client.Params:
       description: |-
         Configuration Parameter request list by emulated DHCPv4 Client.
       type: object
@@ -1060,7 +1026,7 @@ components:
           type: boolean
           default: false
           x-field-uid: 4
-    DhcpClient.V6:
+    Device.Dhcpv6client:
       description: |-
         Under Review: Information TBD
 
@@ -1079,16 +1045,6 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
-        eth_name:
-          description: |
-            The unique name of the Ethernet interface on which this DHCP Client  will be configured.
-
-            x-constraint:
-            - /components/schemas/Device.Ethernet/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Device.Ethernet/properties/name
-          x-field-uid: 3
     Layer1:
       description: |-
         A container for layer1 settings.
@@ -1717,16 +1673,23 @@ components:
             The properties of an RSVP router and its children.
           $ref: '#/components/schemas/Device.Rsvp'
           x-field-uid: 8
+        chained_ethernets:
+          description: |-
+            Ethernet configuration for one or more emulated network interfaces.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.ChainedEthernet'
+          x-field-uid: 9
         dhcp_server:
           description: |-
             The properties of DHCP Server and its children,  such as DHCPv4, DHCPv6 servers.
           $ref: '#/components/schemas/Device.DhcpServer'
-          x-field-uid: 9
+          x-field-uid: 10
         relay_agent:
           description: |-
             This module describes a model for configuration related to Relay Agents. https://datatracker.ietf.org/doc/html/rfc3046.
           $ref: '#/components/schemas/Device.RelayAgent'
-          x-field-uid: 10
+          x-field-uid: 11
       required:
       - name
     Protocol.Options:
@@ -6921,6 +6884,69 @@ components:
           enum:
           - strict
           - loose
+    Device.ChainedEthernet:
+      description: |-
+        An Ethernet interface with IPv4 and IPv6 addresses.
+      type: object
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-unique: global
+        connection:
+          description: |-
+            Device connection to another device.
+          $ref: '#/components/schemas/ChainedEthernet.Connection'
+          x-field-uid: 2
+        mac:
+          x-field-uid: 3
+          description: |-
+            Media Access Control address.
+          type: string
+          format: mac
+        dhcp_v4interface:
+          description: |-
+            DHCPv4 Client Configuration Behind a Relay Agent.
+          $ref: '#/components/schemas/Device.Dhcpv4client'
+          x-field-uid: 4
+        dhcp_v6interface:
+          description: |-
+            DHCPv6 Client Configuration Behind a Relay Agent.
+          $ref: '#/components/schemas/Device.Dhcpv6client'
+          x-field-uid: 5
+      required:
+      - mac
+      - name
+    ChainedEthernet.Connection:
+      description: |-
+        Chained Ethernet interface connection.
+      type: object
+      properties:
+        choice:
+          description: |-
+            chained_ethernet
+          type: string
+          x-field-uid: 1
+          x-enum:
+            chained_ethernet_name:
+              x-field-uid: 1
+          enum:
+          - chained_ethernet_name
+        chained_ethernet_name:
+          description: |
+            The unique name of the Ethernet interface behind which this Ethernet is chained.
+
+            x-constraint:
+            - /components/schemas/Device.Ethernet/properties/name
+            - /components/schemas/Device.ChainedEthernet/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+          - /components/schemas/Device.ChainedEthernet/properties/name
+          x-field-uid: 2
     Device.DhcpServer:
       description: |-
         Under Review: Information TBD
@@ -7078,13 +7104,22 @@ components:
         status: under_review
         information: Information TBD
       properties:
-        dhcpv4:
-          $ref: '#/components/schemas/Device.Dhcpv4RelayAgent'
+        ipv4_interfaces:
+          description: "This contains an array of references to IPv4 interfaces, each\
+            \ of which will have list of V6 Relay Agent to different destinations.\
+            \   "
+          type: array
+          items:
+            $ref: '#/components/schemas/V4RA.Inst'
           x-field-uid: 1
-        dhcpv6:
-          $ref: '#/components/schemas/Device.Dhcpv6RelayAgent'
+        ipv6_interfaces:
+          description: |-
+            This contains an array of references to IPv6 interfaces, each of which will have list of V6 Relay Agent to different destinations.
+          type: array
+          items:
+            $ref: '#/components/schemas/V6RA.Inst'
           x-field-uid: 2
-    Device.Dhcpv4RelayAgent:
+    V4RA.Inst:
       description: |-
         Under Review: Information TBD
 
@@ -7125,7 +7160,7 @@ components:
           format: ipv4
           default: 0.0.0.0
           x-field-uid: 4
-    Device.Dhcpv6RelayAgent:
+    V6RA.Inst:
       description: |-
         Under Review: Information TBD
 
@@ -18132,18 +18167,15 @@ components:
               x-field-uid: 2
             values:
               x-field-uid: 3
-            auto:
-              x-field-uid: 1
             increment:
               x-field-uid: 4
             decrement:
               x-field-uid: 5
-          default: auto
+          default: value
           x-field-uid: 1
           enum:
           - value
           - values
-          - auto
           - increment
           - decrement
         value:
@@ -18159,28 +18191,19 @@ components:
           x-field-uid: 3
           default:
           - 0.0.0.0
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: string
-          x-field-uid: 4
-          default: 0.0.0.0
-          format: ipv4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
         metric_tags:
           description: |-
             One or more metric tags can be used to enable tracking portion of or all bits in a corresponding header field for metrics per each applicable value. These would appear as tagged metrics in corresponding flow metrics.
           type: array
           items:
             $ref: '#/components/schemas/Pattern.Flow.Ipv4.Src.MetricTag'
-          x-field-uid: 8
+          x-field-uid: 7
     Pattern.Flow.Ipv4.Dst.Counter:
       description: |-
         ipv4 counter pattern
@@ -18243,18 +18266,15 @@ components:
               x-field-uid: 2
             values:
               x-field-uid: 3
-            auto:
-              x-field-uid: 1
             increment:
               x-field-uid: 4
             decrement:
               x-field-uid: 5
-          default: auto
+          default: value
           x-field-uid: 1
           enum:
           - value
           - values
-          - auto
           - increment
           - decrement
         value:
@@ -18270,28 +18290,19 @@ components:
           x-field-uid: 3
           default:
           - 0.0.0.0
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: string
-          x-field-uid: 4
-          default: 0.0.0.0
-          format: ipv4
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
         metric_tags:
           description: |-
             One or more metric tags can be used to enable tracking portion of or all bits in a corresponding header field for metrics per each applicable value. These would appear as tagged metrics in corresponding flow metrics.
           type: array
           items:
             $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst.MetricTag'
-          x-field-uid: 8
+          x-field-uid: 7
     Pattern.Flow.Ipv4Options.Custom.Type.CopiedFlag.Counter:
       description: |-
         integer counter pattern
@@ -20275,18 +20286,15 @@ components:
               x-field-uid: 2
             values:
               x-field-uid: 3
-            auto:
-              x-field-uid: 1
             increment:
               x-field-uid: 4
             decrement:
               x-field-uid: 5
-          default: auto
+          default: value
           x-field-uid: 1
           enum:
           - value
           - values
-          - auto
           - increment
           - decrement
         value:
@@ -20302,28 +20310,19 @@ components:
           x-field-uid: 3
           default:
           - ::0
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: string
-          x-field-uid: 4
-          default: ::0
-          format: ipv6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Src.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Src.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
         metric_tags:
           description: |-
             One or more metric tags can be used to enable tracking portion of or all bits in a corresponding header field for metrics per each applicable value. These would appear as tagged metrics in corresponding flow metrics.
           type: array
           items:
             $ref: '#/components/schemas/Pattern.Flow.Ipv6.Src.MetricTag'
-          x-field-uid: 8
+          x-field-uid: 7
     Pattern.Flow.Ipv6.Dst.Counter:
       description: |-
         ipv6 counter pattern
@@ -20386,18 +20385,15 @@ components:
               x-field-uid: 2
             values:
               x-field-uid: 3
-            auto:
-              x-field-uid: 1
             increment:
               x-field-uid: 4
             decrement:
               x-field-uid: 5
-          default: auto
+          default: value
           x-field-uid: 1
           enum:
           - value
           - values
-          - auto
           - increment
           - decrement
         value:
@@ -20413,28 +20409,19 @@ components:
           x-field-uid: 3
           default:
           - ::0
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: string
-          x-field-uid: 4
-          default: ::0
-          format: ipv6
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Dst.Counter'
-          x-field-uid: 6
+          x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.Dst.Counter'
-          x-field-uid: 7
+          x-field-uid: 6
         metric_tags:
           description: |-
             One or more metric tags can be used to enable tracking portion of or all bits in a corresponding header field for metrics per each applicable value. These would appear as tagged metrics in corresponding flow metrics.
           type: array
           items:
             $ref: '#/components/schemas/Pattern.Flow.Ipv6.Dst.MetricTag'
-          x-field-uid: 8
+          x-field-uid: 7
     Pattern.Flow.PfcPause.Dst.Counter:
       description: |-
         mac counter pattern

@@ -943,8 +943,13 @@ components:
           x-field-uid: 3
     Device.Dhcpv4client:
       description: |-
+        Under Review: Information TBD
+
         Configuration for emulated DHCPv4 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
       type: object
+      x-status:
+        status: under_review
+        information: Information TBD
       required:
       - name
       properties:
@@ -957,11 +962,18 @@ components:
           x-unique: global
         selecting_server:
           description: |-
-            The client receives one or more DHCPOFFER messages from one or more servers.  The client may choose to wait for multiple responses. The client chooses one server from which to request configuration parameters, based on the configuration parameters offered in the DHCPOFFER messages. use_first_server: if selected, the subnet accepts the IP addresses offered by the first server to respond with an offer of IP addresses. use_server_address: The address of the DHCP server from which the subnet will accept IP addresses. server address to 0.0.0.0, implementation will use the services of the first DHCP server that responds to the DHCP Lease Request message.
+            The client receives one or more DHCPOFFER messages from one or more servers. The client may choose to wait for multiple responses. The client chooses one server from which to request configuration parameters, based on the configuration parameters offered in the DHCPOFFER messages. use_first_server: if selected, the subnet accepts the IP addresses offered by the first server to respond with an offer of IP addresses. use_server_address: The address of the DHCP server from which the subnet will accept IP addresses. server address to 0.0.0.0, implementation will use the services of the first DHCP server that responds to the DHCP Lease Request message.
           type: string
-          format: ipv4
-          default: 0.0.0.0
+          default: first_server
           x-field-uid: 2
+          x-enum:
+            first_server:
+              x-field-uid: 1
+            server_address:
+              x-field-uid: 2
+          enum:
+          - first_server
+          - server_address
         first_server:
           type: string
           format: ipv4
@@ -1682,7 +1694,7 @@ components:
           x-field-uid: 9
         dhcp_server:
           description: |-
-            The properties of DHCP Server and its children,  such as DHCPv4, DHCPv6 servers.
+            The properties of DHCP Server and its children, such as DHCPv4, DHCPv6 servers.
           $ref: '#/components/schemas/Device.DhcpServer'
           x-field-uid: 10
         relay_agent:
@@ -7050,19 +7062,19 @@ components:
         primary_dns_server:
           x-field-uid: 9
           description: |-
-            the primary DNS server address that is offered to DHCP clients that request this information through a TLV option.
+            The primary DNS server address that is offered to DHCP clients that request this information through a TLV option.
           type: string
           format: ipv4
         secondary_dns_server:
           x-field-uid: 10
           description: |-
-            the primary DNS server address that is offered to DHCP clients that request this information through a TLV option.
+            The primary DNS server address that is offered to DHCP clients that request this information through a TLV option.
           type: string
           format: ipv4
         echo_relay_with_tlv_82:
           x-field-uid: 11
           description: |-
-            the primary DNS server address that is offered to DHCP clients that request this information through a TLV option.
+            The primary DNS server address that is offered to DHCP clients that request this information through a TLV option.
           type: string
           format: ipv4
     DhcpServer.V6:
@@ -13936,13 +13948,31 @@ components:
           items:
             type: string
             x-enum:
-              dummy1:
+              session_state:
                 x-field-uid: 1
-              dummy2:
+              discovers_sent:
                 x-field-uid: 2
+              offers_received:
+                x-field-uid: 3
+              requests_sent:
+                x-field-uid: 4
+              acks_received:
+                x-field-uid: 5
+              nacks_received:
+                x-field-uid: 6
+              releases_sent:
+                x-field-uid: 7
+              declineds_sent:
+                x-field-uid: 8
             enum:
-            - dummy1
-            - dummy2
+            - session_state
+            - discovers_sent
+            - offers_received
+            - requests_sent
+            - acks_received
+            - nacks_received
+            - releases_sent
+            - declineds_sent
           x-field-uid: 2
     Dhcpv4Client.Metric:
       description: |-
@@ -13954,16 +13984,61 @@ components:
             The name of a configured DHCPv4 client.
           type: string
           x-field-uid: 1
-        dummy1:
+        session_state:
           description: |-
-            TBD
+            Session state as up or down. Up refers to an Established state and Down refers to any other state.
           type: string
           x-field-uid: 2
-        dummy2:
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+          enum:
+          - up
+          - down
+        discovers_sent_count:
           description: |-
-            TBD
-          type: string
+            Number of DHCPDISCOVER messages sent.
+          type: integer
+          format: uint64
           x-field-uid: 3
+        offers_received_count:
+          description: |-
+            Number of DHCPOFFER messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        requests_sent_count:
+          description: |-
+            Number of DHCPOFFER messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        acks_received_count:
+          description: |-
+            Number of lease DHCPACK messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 6
+        nacks_received_count:
+          description: |-
+            Number of negative lease DHCPNACK messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 7
+        releases_sent_count:
+          description: |-
+            Number of DHCPRELEASE messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 8
+        declineds_sent_count:
+          description: |-
+            Number of DHCPDECLINE messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 9
     Dhcpv6Client.Metrics.Request:
       description: |-
         The request to retrieve DHCPv6 per client metrics/statistics.
@@ -15526,149 +15601,67 @@ components:
         ipv4_addresses:
           type: array
           items:
-            $ref: '#/components/schemas/BgpPrefixIpv4Unicast.State'
+            $ref: '#/components/schemas/DhcpClientv4.State'
           x-field-uid: 2
         ipv6_addresses:
           type: array
           items:
-            $ref: '#/components/schemas/BgpPrefixIpv6Unicast.State'
+            $ref: '#/components/schemas/DhcpClientv6.State'
           x-field-uid: 3
-    DhcpClientv4Unicast.State:
+    DhcpClientv4.State:
       description: |-
         IPv4 unicast prefix.
       type: object
       properties:
         ipv4_address:
           description: |-
-            An IPv4 unicast address
+            The IP address associated with this DHCP Client session.
           type: string
           x-field-uid: 1
         prefix_length:
-          x-field-uid: 2
           description: |-
             The length of the prefix.
           type: integer
           format: uint32
-          maximum: 128
-    DhcpClientv6Unicast.State:
+          maximum: 32
+          x-field-uid: 2
+        gateway_address:
+          description: |-
+            The Gateway address associated with this DHCP Client session.
+          type: string
+          x-field-uid: 3
+        lease_time:
+          description: |-
+            The duration of the IP address lease, in seconds.
+          type: string
+          x-field-uid: 4
+    DhcpClientv6.State:
       description: |-
         IPv6 unicast prefix.
       type: object
       properties:
         ipv6_address:
           description: |-
-            An IPv6 unicast address
+            The IP address associated with this DHCP Client session.
           type: string
           x-field-uid: 1
-        prefix_length:
-          x-field-uid: 2
-          description: |-
-            The length of the prefix.
-          type: integer
-          format: uint32
-          maximum: 128
-        origin:
-          x-field-uid: 3
-          description: |-
-            The origin of the prefix.
-          type: string
-          x-enum:
-            igp:
-              x-field-uid: 1
-            egp:
-              x-field-uid: 2
-            incomplete:
-              x-field-uid: 3
-          enum:
-          - igp
-          - egp
-          - incomplete
-        path_id:
-          x-field-uid: 4
-          description: |-
-            The path id.
-          type: integer
-          format: uint32
-        ipv4_next_hop:
-          x-field-uid: 5
-          description: |-
-            The IPv4 address of the egress interface.
-          type: string
-          format: ipv4
-        ipv6_next_hop:
-          x-field-uid: 6
-          description: |-
-            The IPv6 address of the egress interface.
-          type: string
-          format: ipv6
-        communities:
-          x-field-uid: 7
-          description: |-
-            Optional community attributes.
-          type: array
-          items:
-            $ref: '#/components/schemas/Result.BgpCommunity'
-        as_path:
-          x-field-uid: 8
-          $ref: '#/components/schemas/Result.BgpAsPath'
-        local_preference:
-          x-field-uid: 9
-          description: |-
-            The local preference is a well-known attribute and the value is used for route selection. The route with the highest local preference value is preferred.
-          type: integer
-          format: uint32
-        multi_exit_discriminator:
-          x-field-uid: 10
-          description: |-
-            The multi exit discriminator (MED) is an optional non-transitive attribute and the value is used for route selection. The route with the lowest MED value is preferred.
-          type: integer
-          format: uint32
-    DhcpClient.State:
-      description: |-
-        BGP peer prefix.
-      type: object
-      properties:
         prefix_length:
           description: |-
             The length of the prefix.
           type: integer
           format: uint32
           maximum: 128
-          x-field-uid: 1
-        origin:
-          description: |-
-            The origin of the prefix.
-          type: string
           x-field-uid: 2
-          x-enum:
-            igp:
-              x-field-uid: 1
-            egp:
-              x-field-uid: 2
-            incomplete:
-              x-field-uid: 3
-          enum:
-          - igp
-          - egp
-          - incomplete
-        path_id:
+        gateway_address:
           description: |-
-            The path id.
-          type: integer
-          format: uint32
+            The Gateway address associated with this DHCP Client session.
+          type: string
           x-field-uid: 3
-        ipv4_next_hop:
+        lease_time:
           description: |-
-            The IPv4 address of the egress interface.
+            The duration of the IP address lease, in seconds.
           type: string
-          format: ipv4
           x-field-uid: 4
-        ipv6_next_hop:
-          description: |-
-            The IPv6 address of the egress interface.
-          type: string
-          format: ipv6
-          x-field-uid: 5
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.

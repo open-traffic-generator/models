@@ -272,7 +272,7 @@ message DeviceEthernet {
   DeviceDhcpv6client dhcp_v6interface = 10;
 }
 
-// Ethernet interface connection to a port, LAG or VXLAN tunnel.
+// Ethernet interface connection to a port, LAG, VXLAN tunnel or another Chained Ethernet.
 message EthernetConnection {
 
   message Choice {
@@ -309,6 +309,15 @@ message EthernetConnection {
   // - #/components/schemas/Vxlan.V6Tunnel/properties/name
   // 
   optional string vxlan_name = 4;
+
+  // The unique name of the Ethernet interface behind which this Ethernet is chained.
+  // Configuring IPv4/IPv6, Loopback IPv4/Ipv6 addresses or any protocol on Chained Ethernet
+  // except DHCP Client will be restricted by the implementation.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  optional string chained_ethernet_name = 5;
 }
 
 // Emulated VLAN protocol.
@@ -490,6 +499,8 @@ message DeviceIpv6GatewayMAC {
   optional string value = 3;
 }
 
+// Under Review: Information TBD
+// 
 // Configuration for emulated DHCPv4 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
 message DeviceDhcpv4client {
 
@@ -498,7 +509,14 @@ message DeviceDhcpv4client {
   // required = true
   optional string name = 1;
 
-  // The client receives one or more DHCPOFFER messages from one or more servers.  The
+  message SelectingServer {
+    enum Enum {
+      unspecified = 0;
+      first_server = 1;
+      server_address = 2;
+    }
+  }
+  // The client receives one or more DHCPOFFER messages from one or more servers. The
   // client may choose to wait for multiple responses. The client chooses one server from
   // which to request configuration parameters, based on the configuration parameters
   // offered in the DHCPOFFER messages. use_first_server: if selected, the subnet accepts
@@ -506,8 +524,8 @@ message DeviceDhcpv4client {
   // use_server_address: The address of the DHCP server from which the subnet will accept
   // IP addresses. server address to 0.0.0.0, implementation will use the services of
   // the first DHCP server that responds to the DHCP Lease Request message.
-  // default = 0.0.0.0
-  optional string selecting_server = 2;
+  // default = SelectingServer.Enum.first_server
+  optional SelectingServer.Enum selecting_server = 2;
 
   // Description missing in models
   // default = 0.0.0.0
@@ -1037,14 +1055,11 @@ message Device {
   // The properties of an RSVP router and its children.
   DeviceRsvp rsvp = 8;
 
-  // Ethernet configuration for one or more chained Ethernet interfaces.
-  repeated DeviceChainedEthernet chained_ethernets = 9;
-
-  // The properties of DHCP Server and its children,  such as DHCPv4, DHCPv6 servers.
-  DeviceDhcpServer dhcp_server = 10;
+  // The properties of DHCP Server and its children, such as DHCPv4, DHCPv6 servers.
+  DeviceDhcpServer dhcp_server = 9;
 
   // This module describes a model for configuration related to Relay Agents. https://datatracker.ietf.org/doc/html/rfc3046.
-  DeviceRelayAgent relay_agent = 11;
+  DeviceRelayAgent relay_agent = 10;
 }
 
 // Common options that apply to all configured protocols and interfaces.
@@ -5044,49 +5059,6 @@ message RsvpEroSubobject {
   optional HopType.Enum hop_type = 5;
 }
 
-// A chained Ethernet interface with DHCPv4 and DHCPv6 interfaces.
-message DeviceChainedEthernet {
-
-  // Globally unique name of an object. It also serves as the primary key for arrays of
-  // objects.
-  // required = true
-  optional string name = 1;
-
-  // Device connection to another device.
-  ChainedEthernetConnection connection = 2;
-
-  // Media Access Control address.
-  // required = true
-  optional string mac = 3;
-
-  // DHCPv4 Client Configuration Behind a Relay Agent.
-  DeviceDhcpv4client dhcp_v4interface = 4;
-
-  // DHCPv6 Client Configuration Behind a Relay Agent.
-  DeviceDhcpv6client dhcp_v6interface = 5;
-}
-
-// Chained Ethernet interface connection.
-message ChainedEthernetConnection {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      chained_ethernet_name = 1;
-    }
-  }
-  // chained_ethernet
-  optional Choice.Enum choice = 1;
-
-  // The unique name of the Ethernet interface behind which this Ethernet is chained.
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.Ethernet/properties/name
-  // - /components/schemas/Device.ChainedEthernet/properties/name
-  // 
-  optional string chained_ethernet_name = 2;
-}
-
 // Under Review: Information TBD
 // 
 // Configuration for one or more IPv4 or IPv6 DHCP servers.
@@ -5144,15 +5116,15 @@ message DhcpServerV4 {
   // The Router address advertised by the DHCPv4 server in Offer and Ack messages.
   optional string router_address = 8;
 
-  // the primary DNS server address that is offered to DHCP clients that request this
+  // The primary DNS server address that is offered to DHCP clients that request this
   // information through a TLV option.
   optional string primary_dns_server = 9;
 
-  // the primary DNS server address that is offered to DHCP clients that request this
+  // The primary DNS server address that is offered to DHCP clients that request this
   // information through a TLV option.
   optional string secondary_dns_server = 10;
 
-  // the primary DNS server address that is offered to DHCP clients that request this
+  // The primary DNS server address that is offered to DHCP clients that request this
   // information through a TLV option.
   optional string echo_relay_with_tlv_82 = 11;
 }
@@ -5206,7 +5178,9 @@ message V4RAInst {
   // 
   optional string ipv4_name = 2;
 
-  // IPv4 address for the interface attached to client's network.
+  // IPv4 address for the interface attached to client's network. This IP address is used
+  // as Source IP address  and Relay-Agent-IP address in the DHCP packet that is forwarded
+  // for DHCP server. as well
   // default = 0.0.0.0
   optional string client_side_address = 3;
 
@@ -10229,8 +10203,14 @@ message Dhcpv4ClientMetricsRequest {
   message ColumnNames {
     enum Enum {
       unspecified = 0;
-      dummy1 = 1;
-      dummy2 = 2;
+      session_state = 1;
+      discovers_sent = 2;
+      offers_received = 3;
+      requests_sent = 4;
+      acks_received = 5;
+      nacks_received = 6;
+      releases_sent = 7;
+      declineds_sent = 8;
     }
   }
   // The list of column names that the returned result set will contain. If the list is
@@ -10245,11 +10225,37 @@ message Dhcpv4ClientMetric {
   // The name of a configured DHCPv4 client.
   optional string name = 1;
 
-  // TBD
-  optional string dummy1 = 2;
+  message SessionState {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // Session state as up or down. Up refers to an Established state and Down refers to
+  // any other state.
+  optional SessionState.Enum session_state = 2;
 
-  // TBD
-  optional string dummy2 = 3;
+  // Number of DHCPDISCOVER messages sent.
+  optional uint64 discovers_sent_count = 3;
+
+  // Number of DHCPOFFER messages received.
+  optional uint64 offers_received_count = 4;
+
+  // Number of DHCPOFFER messages received.
+  optional uint64 requests_sent_count = 5;
+
+  // Number of lease DHCPACK messages received.
+  optional uint64 acks_received_count = 6;
+
+  // Number of negative lease DHCPNACK messages received.
+  optional uint64 nacks_received_count = 7;
+
+  // Number of DHCPRELEASE messages received.
+  optional uint64 releases_sent_count = 8;
+
+  // Number of DHCPDECLINE messages received.
+  optional uint64 declineds_sent_count = 9;
 }
 
 // The request to retrieve DHCPv6 per client metrics/statistics.
@@ -11302,91 +11308,42 @@ message DhcpClientAddressesState {
   optional string dhcp_client_name = 1;
 
   // Description missing in models
-  repeated BgpPrefixIpv4UnicastState ipv4_addresses = 2;
+  repeated DhcpClientv4State ipv4_addresses = 2;
 
   // Description missing in models
-  repeated BgpPrefixIpv6UnicastState ipv6_addresses = 3;
+  repeated DhcpClientv6State ipv6_addresses = 3;
 }
 
 // IPv4 unicast prefix.
-message DhcpClientv4UnicastState {
+message DhcpClientv4State {
 
-  // An IPv4 unicast address
+  // The IP address associated with this DHCP Client session.
   optional string ipv4_address = 1;
 
   // The length of the prefix.
   optional uint32 prefix_length = 2;
+
+  // The Gateway address associated with this DHCP Client session.
+  optional string gateway_address = 3;
+
+  // The duration of the IP address lease, in seconds.
+  optional string lease_time = 4;
 }
 
 // IPv6 unicast prefix.
-message DhcpClientv6UnicastState {
+message DhcpClientv6State {
 
-  // An IPv6 unicast address
+  // The IP address associated with this DHCP Client session.
   optional string ipv6_address = 1;
 
   // The length of the prefix.
   optional uint32 prefix_length = 2;
 
-  message Origin {
-    enum Enum {
-      unspecified = 0;
-      igp = 1;
-      egp = 2;
-      incomplete = 3;
-    }
-  }
-  // The origin of the prefix.
-  optional Origin.Enum origin = 3;
+  // The Gateway address associated with this DHCP Client session.
+  optional string gateway_address = 3;
 
-  // The path id.
-  optional uint32 path_id = 4;
-
-  // The IPv4 address of the egress interface.
-  optional string ipv4_next_hop = 5;
-
-  // The IPv6 address of the egress interface.
-  optional string ipv6_next_hop = 6;
-
-  // Optional community attributes.
-  repeated ResultBgpCommunity communities = 7;
-
-  // Description missing in models
-  ResultBgpAsPath as_path = 8;
-
-  // The local preference is a well-known attribute and the value is used for route selection.
-  // The route with the highest local preference value is preferred.
-  optional uint32 local_preference = 9;
-
-  // The multi exit discriminator (MED) is an optional non-transitive attribute and the
-  // value is used for route selection. The route with the lowest MED value is preferred.
-  optional uint32 multi_exit_discriminator = 10;
-}
-
-// BGP peer prefix.
-message DhcpClientState {
-
-  // The length of the prefix.
-  optional uint32 prefix_length = 1;
-
-  message Origin {
-    enum Enum {
-      unspecified = 0;
-      igp = 1;
-      egp = 2;
-      incomplete = 3;
-    }
-  }
-  // The origin of the prefix.
-  optional Origin.Enum origin = 2;
-
-  // The path id.
-  optional uint32 path_id = 3;
-
-  // The IPv4 address of the egress interface.
-  optional string ipv4_next_hop = 4;
-
-  // The IPv6 address of the egress interface.
-  optional string ipv6_next_hop = 5;
+  // The duration of the IP address lease, in seconds.
+  optional string lease_time = 4;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the

@@ -6,7 +6,7 @@ components:
       type: object
       x-status:
         status: under_review
-      required: [name]
+      required: [name,ipv6_name,leases]
       properties:
         name:
           x-include: ../../../common/common.yaml#/components/schemas/Named.Object/properties/name
@@ -17,4 +17,195 @@ components:
           type: string
           x-constraint:
           - '/components/schemas/Device.Ipv6/properties/name'
+          x-field-uid: 2
+        rapid_commit:
+          description: >-
+            If Rapid Commit is set, server responds to client initiated Rapid Commit two-message exchanges.
+          type: boolean
+          default: false
+          x-field-uid: 3
+        reconfigure_via_relay_agent:
+          description: >-
+            If the server does not have an address to which it can send the Reconfigure message directly to the client, the 
+            server uses a Relay-reply message to send the Reconfigure message to a relay agent that will relay the message to
+            the client.
+          type: boolean
+          default: false
+          x-field-uid: 4
+        primary_dns_server:
+          description: >-
+             The primary DNS server address that is advertised in DHCP Offer and Reply messages.
+          type: string
+          format: ipv6
+          x-field-uid: 5
+        secondary_dns_server:
+          description: >-
+             The secondary DNS server address that is advertised in DHCP Offer and Reply messages.
+          type: string
+          format: ipv6
+          x-field-uid: 6
+        leases:
+          description: |-
+            Array of DHCP pools configured on a server.            
+          type: array
+          items:
+            $ref: '#/components/schemas/DhcpV6Server.Leases'
+          x-field-uid: 7
+
+    DhcpV6Server.Leases:
+      description: >-
+        One DHCP pool configuration on a server.        
+      type: object 
+      properties:
+        lease_time: 
+          description: >-
+            The Life Time length in seconds that is assigned to a lease if the requesting DHCP client does not specify a specific expiration time.
+          type: integer
+          format: uint32
+          minimum: 300
+          maximum: 30000000
+          default: 86400
+          x-field-uid: 1
+        ia_type:
+          $ref: '#/components/schemas/Dhcpv6Server.IaType'
+          x-field-uid: 5
+        advanced:
+          description: >-
+            DHCPv4 Server advanced parameters list.
+          $ref: '#/components/schemas/Dhcpv6Server.Advanced'
+          x-field-uid: 8
+
+    Dhcpv6Server.IaType:
+      type: object
+      properties:
+        choice:
+          description: >-
+            Identity Association: a collection of leases assigned to a client. Each IA has an associated IAID. 
+            Each IA holds one type of lease, like an identity association for temporary addresses (IA_TA) holds 
+            temporary addresses, and an identity association for prefix delegation (IA_PD).
+          type: string
+          default: iana
+          x-field-uid: 1
+          x-enum:
+            iana:
+              x-field-uid: 1
+            iata:
+              x-field-uid: 2
+            iapd:
+              x-field-uid: 3
+            ianapd:
+              x-field-uid: 4
+        iana:
+          $ref: '#/components/schemas/Dhcpv6Server.PoolInfo'
+          x-field-uid: 2
+        iata:
+          $ref: '#/components/schemas/Dhcpv6Server.PoolInfo'
+          x-field-uid: 3  
+        iapd:
+          $ref: '#/components/schemas/Dhcpv6Server.PrefixPoolInfo'
+          x-field-uid: 4
+        ianapd:
+          $ref: '#/components/schemas/Dhcpv6Server.PoolInfo'
+          x-field-uid: 5
+
+    Dhcpv6Server.PoolInfo:
+      description: >-
+        The container for pool configurations for IA types iana,iata and ianapd.
+      type: object
+      properties:
+        start_pool_address:
+          description: >-
+            The IP address of the first lease pool.
+          type: string
+          format: ipv6
+          default: ::a0a:101
+          x-field-uid: 1
+        prefix:
+          description: >-
+            The IPv6 network prefix length to be applied to the address. 
+          type: integer
+          format: uint32
+          default: 64
+          maximum: 128
+          x-field-uid: 2
+        pool_size:
+          description: >-
+            The total number of addresses in the pool.
+          type: integer
+          format: uint32
+          default: 10
+          minimum: 1
+          maximum: 1000000
+          x-field-uid: 3
+        step:
+          description: >-
+            Increments the network address prefixes within a pool range  where multiple
+            addresses are present. The value is incremented according to the Prefix
+            Length and Step.
+          type: string
+          format: ipv6
+          default: 0::1
+          x-field-uid: 4
+
+    Dhcpv6Server.PrefixPoolInfo:
+      description: >-
+        The container for prefix pool configurations for IA type iapd.
+      type: object
+      properties:
+        start_prefix_pool_address:
+          description: >-
+            The IP address of the first prefix pool.
+          type: string
+          format: ipv6
+          default: a1a1::0
+          x-field-uid: 1
+        prefix:
+          description: >-
+            The IPv6 network prefix length to be applied to the address. 
+          type: integer
+          format: uint32
+          default: 64
+          maximum: 128
+          x-field-uid: 2
+        pool_size:
+          description: >-
+            The total number of addresses in the pool.
+          type: integer
+          format: uint32
+          default: 10
+          minimum: 1
+          maximum: 1000000
+          x-field-uid: 3
+        step:
+          description: >-
+            Increments the network address prefixes within a pool range  where multiple
+            addresses are present. The value is incremented according to the Prefix
+            Length and Step.
+          type: string
+          format: ipv6
+          default: 0:0:0:1:0:0:0:0
+          x-field-uid: 4
+
+    Dhcpv6Server.Advanced:
+      description: >-
+        Configuration for DHCPv6 server advanced settings.
+      type: object
+      properties:
+        renew_time:
+          description: >-
+            The Renew Time in seconds.
+          type: integer
+          format: uint64
+          minimum: 120
+          maximum: 30000000
+          default: 34560
+          x-field-uid: 1
+        rebind_time:
+          description: >-
+            The Rebind time in seconds. 
+          type: integer
+          format: uint64
+          minimum: 240
+          maximum: 30000000
+          default: 55296
           x-field-uid: 2

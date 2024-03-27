@@ -1,4 +1,4 @@
-1. Array of dhcp clients over a eth not a valid usecase. OC model has only reference to dhcpclient [previous comment taken care]
+1. Array of dhcp clients over a eth not a valid usecase. OC model has only reference to dhcpclient [previous comment taken care]: because DHCP server can only assign one dhcp-ip based MAC address. 
 2. dhcp_v4interface
 	 dhcp_v6interface
 	 two separate interfaces , no choice. [Incorporated]

@@ -1,4 +1,4 @@
-1. Array of dhcp clients over a eth not a valid usecase. OC model has only reference to dhcpclient [previous comment taken care]
+1. Array of dhcp clients over a eth not a valid usecase or not. OC model has only reference to dhcpclient [previous comment taken care]: However as per https://www.ietf.org/rfc/rfc2131.txt 4.2 DHCP server administrative controls (its possible to have multiple dhcp-clients with different client id over same mac)
 2. dhcp_v4interface
 	 dhcp_v6interface
 	 two separate interfaces , no choice. [Incorporated]

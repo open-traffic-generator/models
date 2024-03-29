@@ -613,14 +613,14 @@ components:
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
         dhcp_v4interfaces:
-          description: "Array of DHCPv4 Clients Configuration. "
+          description: "List of DHCPv4 Clients Configuration. "
           type: array
           items:
             $ref: '#/components/schemas/Device.Dhcpv4client'
           x-field-uid: 9
         dhcp_v6interfaces:
           description: |-
-            Array of DHCPv6 Clients Configuration.
+            List of DHCPv6 Clients Configuration.
           type: array
           items:
             $ref: '#/components/schemas/Device.Dhcpv6client'
@@ -973,7 +973,7 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
-        selecting_server:
+        choice:
           description: |-
             The client receives one or more DHCPOFFER messages from one or more servers and client may choose to wait for multiple responses. The client chooses one server from which to request configuration parameters, based on the configuration parameters offered in the DHCPOFFER messages. first_server: if selected, the subnet accepts the IP addresses offered by the first server to respond with an offer of IP addresses. server_address: The address of the DHCP server from which the subnet will accept IP addresses. If server_address is selected then next field 'server_address' to be assigned with a IP address.
           type: string
@@ -987,19 +987,18 @@ components:
           enum:
           - first_server
           - server_address
+        first_server:
+          type: boolean
+          default: true
+          x-field-uid: 3
         server_address:
           $ref: '#/components/schemas/Dhcpv4client.Server'
-          x-field-uid: 3
+          x-field-uid: 4
         broadcast:
           description: |-
             If the broadcast bit is set, then the server and relay agent broadcast DHCPOFFER and DHCPACK messages.
           type: boolean
           default: false
-          x-field-uid: 4
-        gateway_info:
-          description: |-
-            Its is an optional objection for configuring manual Gateway IP and MAC addresses.
-          $ref: '#/components/schemas/Dhcpv4client.GatewayInfo'
           x-field-uid: 5
         parameters_request_list:
           description: |-
@@ -1017,22 +1016,6 @@ components:
           type: string
           format: ipv4
           x-field-uid: 1
-    Dhcpv4client.GatewayInfo:
-      description: "A manually configured IPv4 gateway address. "
-      type: object
-      properties:
-        ip:
-          description: |-
-            If the DHCPv4 Client receives from a server a response packet with a Router Address TLV  specifying another gateway address than the manually configured gateway IP,  then received TLV is ignored.  Whenever a gateway IP is configured, the client will use it as gateway address  for traffic outside of its network;  otherwise client uses the gateway IP address learned from the server.
-          type: string
-          format: ipv4
-          x-field-uid: 1
-        mac:
-          description: |-
-            A manually configured gateway MAC address.  ARP messages are sent to resolve the gateway MAC address.
-          type: string
-          format: mac
-          x-field-uid: 2
     Dhcpv4Client.Params:
       description: |-
         Configuration Parameter request list by emulated DHCPv4 Client.
@@ -1050,7 +1033,7 @@ components:
           type: boolean
           default: true
           x-field-uid: 2
-        renewal_time:
+        renewal_timer:
           description: |-
             Request for the renewal timer, T1. When the timer expires, the client transitions from the BOUND state to the RENEWING state.
           type: boolean
@@ -8005,7 +7988,7 @@ components:
       required:
       - name
       - ipv4_name
-      - address_pool
+      - address_pools
       properties:
         name:
           x-field-uid: 1
@@ -8024,10 +8007,12 @@ components:
           x-constraint:
           - /components/schemas/Device.Ipv4/properties/name
           x-field-uid: 2
-        address_pool:
+        address_pools:
           description: |-
-            Configure DHCPv4 Server Lease parameters
-          $ref: '#/components/schemas/DhcpServerV4.Pool'
+            List of DHCPv4 Server Lease parameters
+          type: array
+          items:
+            $ref: '#/components/schemas/DhcpServerV4.Pool'
           x-field-uid: 3
     DhcpServerV4.Pool:
       description: |-
@@ -8051,7 +8036,7 @@ components:
           x-unique: global
         lease_time:
           description: |-
-            The Life Time length in seconds that is assigned to a lease  if the requesting DHCP client does not specify a specific expiration time.
+            The Life Time length in seconds that is assigned to a lease.
           type: integer
           format: uint32
           minimum: 10
@@ -15040,6 +15025,10 @@ components:
                 x-field-uid: 11
               lease_time:
                 x-field-uid: 12
+              renew_time:
+                x-field-uid: 13
+              rebind_time:
+                x-field-uid: 14
             enum:
             - session_state
             - discovers_sent
@@ -15053,6 +15042,8 @@ components:
             - prefix_length
             - gateway_address
             - lease_time
+            - renew_time
+            - rebind_time
           x-field-uid: 2
     Dhcpv4Client.Metric:
       description: |-
@@ -15141,6 +15132,18 @@ components:
             The duration of the IP address lease, in seconds.
           type: string
           x-field-uid: 13
+        renew_time:
+          description: |-
+            Time in seconds until the DHCPv4 client starts renewing the lease.
+          type: integer
+          format: uint64
+          x-field-uid: 14
+        rebind_time:
+          description: |-
+            Time in seconds until the DHCPv4 client starts rebinding.
+          type: integer
+          format: uint64
+          x-field-uid: 15
     Dhcpv4Server.Metrics.Request:
       description: |-
         The request to retrieve DHCPv4 per Server metrics/statistics.
@@ -15165,34 +15168,28 @@ components:
           items:
             type: string
             x-enum:
-              session_up:
+              discovers_received:
                 x-field-uid: 1
-              session_down:
+              offers_sent:
                 x-field-uid: 2
-              discovers_sent:
+              requests_received:
                 x-field-uid: 3
-              offers_received:
+              acks_sent:
                 x-field-uid: 4
-              requests_sent:
+              nacks_sent:
                 x-field-uid: 5
-              acks_received:
+              releases_received:
                 x-field-uid: 6
-              nacks_received:
+              declines_received:
                 x-field-uid: 7
-              releases_sent:
-                x-field-uid: 8
-              declines_sent:
-                x-field-uid: 9
             enum:
-            - session_up
-            - session_down
-            - discovers_sent
-            - offers_received
-            - requests_sent
-            - acks_received
-            - nacks_received
-            - releases_sent
-            - declines_sent
+            - discovers_received
+            - offers_sent
+            - requests_received
+            - acks_sent
+            - nacks_sent
+            - releases_received
+            - declines_received
           x-field-uid: 2
     Dhcpv4Server.Metric:
       description: |-
@@ -15204,60 +15201,48 @@ components:
             The name of a configured DHCPv4 Server.
           type: string
           x-field-uid: 1
-        session_up_count:
-          description: |-
-            The number of client sessions that are up. Client session counted as DOWN the server receives DHCPDISCOVER message  and that session becomes UP when server sends DHCPACK message.
-          type: integer
-          format: uint64
-          x-field-uid: 2
-        session_down_count:
-          description: |-
-            The number of client sessions that are down.
-          type: integer
-          format: uint64
-          x-field-uid: 3
         discovers_received_count:
           description: |-
             Number of DHCPDISCOVER messages received.
           type: integer
           format: uint64
-          x-field-uid: 4
+          x-field-uid: 2
         offers_sent_count:
           description: |-
             Number of DHCPOFFER messages sent.
           type: integer
           format: uint64
-          x-field-uid: 5
+          x-field-uid: 3
         requests_received_count:
           description: |-
             Number of DHCPOFFER messages received.
           type: integer
           format: uint64
-          x-field-uid: 6
+          x-field-uid: 4
         acks_sent_count:
           description: |-
             Number of lease DHCPACK messages sent.
           type: integer
           format: uint64
-          x-field-uid: 7
+          x-field-uid: 5
         nacks_sent_count:
           description: |-
             Number of negative lease DHCPNACK messages sent.
           type: integer
           format: uint64
-          x-field-uid: 8
+          x-field-uid: 6
         releases_received_count:
           description: |-
             Number of DHCPRELEASE messages received.
           type: integer
           format: uint64
-          x-field-uid: 9
+          x-field-uid: 7
         declines_received_count:
           description: |-
             Number of DHCPDECLINE messages received.
           type: integer
           format: uint64
-          x-field-uid: 10
+          x-field-uid: 8
     Dhcpv6Client.Metrics.Request:
       description: |-
         The request to retrieve DHCPv6 per client metrics/statistics.

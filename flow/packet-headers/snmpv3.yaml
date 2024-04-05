@@ -1,0 +1,290 @@
+components:
+  schemas:
+    Flow.Snmpv3:
+      description: |-
+        SNMPv3 PDU as defined in RFC3412, RFC2274 and RFC2574. If SNMPv3 PDU is being configured with intention of being accepted at the Device Under Test, care should be taken
+        to ensure the following:
+        - The user name should be configured to match what the SNMPv3 DUT is configured to accept.
+        - If Authentication is enabled (note that the authentication algorithm and secret token are not carried in the SNMPv3 PDU):
+          - then the Authentication algorithm to be used must be configured to match the authentication algorithm being used by the DUT.     
+          - If Authentication is enabled , then the secret token should be configired to match the DUT's configured secret token for the user.          
+        - The engine ID should be configured to match the DUT engine ID  
+        - The engineBoots and engineTime parameters should be configured such that the DUT will accept the PDU
+        - flow.metrics.enable should be set to false (resulting in non-availability of per flow metrics) if the implementation appends extra bytes to carry instrumentation data
+          since that can cause the packet to contain spurious extra bytes resulting in the DUT dropping the packet. Tx frame count can be tracked with port metrics. 
+        - This model does not support Encryption option.
+      type: object
+      properties:
+        version:
+          x-field-pattern:
+            description: >-
+              Version
+            format: integer
+            length: 31
+            default: 3            
+          x-field-uid: 1
+        global_data:
+          $ref: '#/components/schemas/Flow.Snmpv3.HeaderData'
+          x-field-uid: 2 
+        security_parameters:
+          $ref: '#/components/schemas/Flow.Snmpv3.SecurityParameters'
+          x-field-uid: 3 
+        scoped_data:
+          $ref: '#/components/schemas/Flow.Snmpv3.ScopedPdu'
+          x-field-uid: 4
+
+    Flow.Snmpv3.HeaderData:
+      description: It contains administrative parameters.The fields are described in detail at  https://www.rfc-editor.org/rfc/rfc3412#section-6.      
+      type: object
+      properties:
+        id:
+          x-field-pattern:
+            description: >-
+              It is used between two SNMP entities to coordinate request messages and responses.
+              It should be unique for each SNMP request and response generated between two SNMP endpoints.
+            format: integer
+            length: 31
+            default: 0            
+          x-field-uid: 1
+        max_size:
+          x-field-pattern:
+            description: >-
+              The maximum message size that the sender can accept when another SNMP engine sends 
+              an SNMP message (be it a response or any other message) to the sender of this message 
+              on the transport in use for this message.
+              The default  is set to the maximum number of bytes that can be sent in a one fragmented IPv4 PDU.
+              The minimum value for a valid SNMPv3 PDU should be set to 484. Lower values are allowed for negative testing scenarios.
+            format: integer
+            length: 31
+            default: 65507            
+          x-field-uid: 2
+        flags:
+          $ref: '#/components/schemas/Flow.Snmpv3.HeaderDataFlags'
+          x-field-uid: 3
+        security_model:
+          x-field-pattern:
+            description: >-
+              It identifies which Security Model was used by the sender to generate 
+              the message and therefore which securityModel MUST be used by the receiver to perform security 
+              processing for the message.
+              The default security_model is 3 which refers to User-based Security Model (USM) defined in RFC3414.
+              IANA assigned values for this field are maintained at https://www.iana.org/assignments/snmp-number-spaces/snmp-number-spaces.xhtml. 
+            format: integer
+            length: 31
+            default: 3
+            minimum: 1            
+          x-field-uid: 4
+  
+    Flow.Snmpv3.HeaderDataFlags:
+      description: It contains several bit fields which control processing of the message.
+        The Authentication flag is set to true if the authentication_parameters object is included.
+        The Encrypted flag is not supported and always set to false.
+      type: object
+      properties:
+        reportable:
+          description: >-
+            It is a secondary aid in determining whether a Report PDU MUST be sent.
+          type: boolean
+          default: false
+          x-field-uid: 1        
+    Flow.Snmpv3.SecurityParameters:
+      description: >-
+        It is used for communication between the Security Model modules in the sending and receiving SNMP engines.         
+        The fields are described in detail at https://datatracker.ietf.org/doc/html/rfc3411#section-5 .
+      type: object
+      properties:
+        authoritative_engine_id:
+          description: >-
+            It specifies the snmpEngineID of the authoritative SNMP engine involved in the exchange of the message.
+            It can have a maximum length of 32 bytes. Every SNMP endpoint should generate an unique engine id.
+          type: string
+          format: hex
+          default: ""
+          maxLength: 64
+          x-field-uid: 1
+        authoritative_engine_boots:
+          x-field-pattern:
+            description: >-
+              It specifies the snmpEngineBoots value at the authoritative SNMP engine involved in the exchange of the message.
+            format: integer
+            length: 31
+            default: 0            
+          x-field-uid: 2
+        authoritative_engine_time:
+          x-field-pattern:
+            description: >-
+              It specifies the snmpEngineTime value at the authoritative SNMP engine involved in the exchange of the message.
+            format: integer
+            default: 0
+            length: 31            
+          x-field-uid: 3
+        user_name:
+          description: >-
+            It specifies the user (principal) on whose behalf the message is being exchanged.
+          type: string
+          format: hex
+          default: ""
+          maxLength: 32
+          x-field-uid: 4
+        authentication_parameters:
+          $ref: '#/components/schemas/Flow.Snmpv3.AuthenticationParameters'
+          x-field-uid: 5          
+
+    Flow.Snmpv3.AuthenticationParameters:
+      description: |-
+        If this object is included , the Authentication flag is set to true in the header flags.
+        The contents of this object include which Authentication mechanism and the shared secret used
+        in conjunction with the Engine ID to generate the hash bytes to be inserted into the 
+        msgAuthenticationParameters field in the packet. 
+        If the object is not included, the Authentication flag will not be set in the header flags and
+        the contents of the msgAuthenticationParameters field will be empty.
+        The device under test should be configured to use the same shared secret and authentication algorithm.        
+      type: object
+      properties:
+        choice:
+          type: string
+          default: md5          
+          x-enum:
+            md5:
+              x-field-uid: 1
+            sha:
+              x-field-uid: 2 
+          x-field-uid: 1
+        md5: 
+          $ref: '#/components/schemas/Flow.Snmpv3.Md5'
+          x-field-uid: 2
+        sha: 
+          $ref: '#/components/schemas/Flow.Snmpv3.Sha'
+          x-field-uid: 3
+    Flow.Snmpv3.Md5:
+      description: >-
+        There are two modes of providing the auth_key to be used to generate the authentication hash.
+        Either it is directly provided as a sequence of 16 bytes ( 32 hex characters) or provided as a plain-text password which is used
+        to generate the 16 byte auth_key.This must match the configured password or auth_key on the device under test for the username.
+        The auth_token ( provided by user or generated from password) is used to calculate a 12 byte authentication digest that is added to the
+        outgoing SNMPv3 PDU as per https://datatracker.ietf.org/doc/html/rfc3414#section-6.3.1.        
+      type: object
+      properties:
+        choice:
+          type: string
+          default: password          
+          x-enum:
+            password:
+              x-field-uid: 1          
+            auth_key:
+              x-field-uid: 2
+            custom:
+              x-field-uid: 3 
+          x-field-uid: 1
+        password:
+          description: |- 
+            The password provided will be used to generate the 16-byte auth-key as per https://datatracker.ietf.org/doc/html/rfc3414#appendix-A.2.1
+          type: string
+          default: "password"
+          x-field-uid: 2
+        auth_key:
+          description: |-
+            The auth_key directly provided as a 16 byte (32 hex characters) to be used for creating the MD5 hash to be included in the SNMP PDU.
+          type: string
+          format: hex
+          default: "000000000000000000000000000000"
+          minLength: 32
+          maxLength: 32
+          x-field-uid: 3
+        custom:
+          description: |-
+            The initial 12 bytes (24 hex characters) of the Md5 digest to be directly inserted into the SNMPv3 PDU msgAuthenticationParameters field.
+            If less than 24 hex characters are supplied, the value should be prepended with 0s so that exactly 12 bytes are sent.
+          type: string
+          default: "000000000000000000000000"
+          format : hex
+          maxLength: 24
+          x-field-uid: 4
+    Flow.Snmpv3.Sha:
+      description: >-
+        There are two modes of providing the auth_key to be used to generate the authentication hash.
+        Either it is directly provided as a sequence of 20 bytes ( 40 hex characters) or provided as a plain-text password which is used
+        to generate the 16 byte auth_key. This must match the configured password or auth_key on the device under test for the username.
+        The auth_token ( provided by user or generated from password) is used to calculate a 12 byte authentication digest that is added to the
+        outgoing SNMPv3 PDU as per https://datatracker.ietf.org/doc/html/rfc3414#section-7.3.1 .
+      type: object
+      properties:
+        choice:
+          type: string
+          default: password          
+          x-enum:
+            password:
+              x-field-uid: 1          
+            auth_key:
+              x-field-uid: 2 
+            custom:
+              x-field-uid: 3
+          x-field-uid: 1
+        password:
+          description: |- 
+            The password provided will be used to generate the 16-byte auth-key as per https://datatracker.ietf.org/doc/html/rfc3414#appendix-A.2.2
+          type: string
+          default: "password"
+          x-field-uid: 2
+        auth_key:
+          description: |-
+            The auth_key directly provided as a 20 byte (40 hex characters) to be used for creating the MD5 hash to be included in the SNMP PDU.
+          type: string
+          default: "0000000000000000000000000000000000000000"
+          format: hex
+          minLength: 40
+          maxLength: 40
+          x-field-uid: 3
+        custom:
+          description: |-
+            The initial 12 bytes (24 hex characters) of the SHA digest to be directly inserted into the SNMPv3 PDU msgAuthenticationParameters field.
+            If less than 24 hex characters are supplied, the value should be prepended with 0s so that exactly 12 bytes are sent.
+          type: string
+          default: "000000000000000000000000"
+          format : hex
+          maxLength: 24
+          x-field-uid: 4
+
+
+    Flow.Snmpv3.ScopedPdu:
+      description: >-
+        It contains information to identify an administratively
+        unique context and a PDU.  The object identifiers in the PDU refer to
+        managed objects which are (expected to be) accessible within the
+        specified context.
+      type: object
+      properties:
+        context_engine_id :
+          description: >-
+            It is an unique identifier within an administrative domain, 
+            an SNMP entity that may realize an instance of a context with a particular contextName.
+          type: string
+          format: hex
+          default: ""
+          maxLength: 1000
+          x-field-uid: 1
+        context_name :
+          description: >-
+            It in conjunction with the context_engine_id field, 
+            identifies the particular context associated with 
+            the management information contained in the PDU portion of the message.
+          type: string
+          format: hex
+          default: ""
+          maxLength: 1000
+          x-field-uid: 2
+        data:
+          $ref: './snmpv2c.yaml#/components/schemas/Flow.Snmpv2c.Data'
+          x-field-uid: 3
+    
+        
+        
+    
+       
+
+          
+
+
+
+        
+    

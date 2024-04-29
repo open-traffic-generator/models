@@ -1,0 +1,181 @@
+components:
+  schemas:
+    ReceiveBins:
+      x-status:
+        status: under_review
+        information: There may be changes in receive_bins configuration
+      description: >-
+        Configuration for ReceiveBins settings.
+      type: object
+      properties:
+        association:
+          description: >-
+            Association.
+          $ref: '#/components/schemas/ReceiveBins.Association'
+          x-field-uid: 1
+        mode:
+          description: >-
+            TBD
+          $ref: '#/components/schemas/ReceiveBins.Mode'
+          x-field-uid: 2
+        bins:
+          description: |-
+            A list of bins that can be configured for the selected association
+          type: array
+          items:
+            $ref: '#/components/schemas/Bins'
+          x-field-uid: 3
+
+    Bins:
+      description: >-
+        Configuration for Bins settings.
+      type: object
+      required: [name]
+      properties:
+        bin_filters:
+          $ref: '#/components/schemas/Receive.PacketHeaders'
+          x-field-uid: 2
+        name:
+          x-include: ../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 3
+
+    ReceiveBins.Mode:
+      description: |-
+        The mode to be followed for populating bins with received packets satisfying the filter criteria.
+        
+        
+        Sequential mode populates bins one by one, ensuring that no two bins contain duplicate packets
+        Parallel mode populates multiple bins simultaneously, allowing one or more bins to contain duplicate packets.
+        
+        
+        If the mode is set to sequential, a default bin will automatically be created. This bin will display the number of packets that did not match with any other configured bin."
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          description: |-
+            Receive Bin Mode Options
+          type: string
+          x-field-uid: 1
+          x-enum:
+            sequential:
+              x-field-uid: 1
+            parallel:
+              x-field-uid: 2
+
+    ReceiveBins.Association:
+      description: >-
+        Configuration for receive_bins Association.
+        Based on the association, receive_bins will be applied to count packets on per port or any other parameters supported in future.
+      type: object
+      properties:
+        choice:
+          description: |-
+            The type of association.
+          type: string
+          x-field-uid: 1
+          x-enum:
+            port_name:
+              x-field-uid: 1
+        port_name:
+          description: >-
+            Name of the associated port for which bins would be configured.
+          type: string
+          x-constraint:
+          - '/components/schemas/Port/properties/name'
+          x-field-uid: 2
+
+    Receive.PacketHeaders:
+      description: |-
+        A list of filters to apply to the packet on receiving ports.
+        If no filters are specified then all packets will be counted.
+        A receive_bin can have multiple bin filters. The number of filters supported
+        is determined by the implementation.
+
+        When multiple filters are specified then implementation must &&
+        (and) all the filters.
+      type: object
+      properties:
+        packet_headers:
+          description: |- 
+            Configuration of bin filters with the packet headers.
+            Packet header filters without filter values can be used to define the structure of the packet and specify the order in which filters are applied.
+          type: array
+          items:
+            $ref: '#/components/schemas/Filter.Packet'
+          x-field-uid: 1
+
+    Filter.Packet:
+      description: >-
+        Configuration of bin filters with the packet headers
+      type: object
+      properties:
+        choice:
+          description: |-
+            The type of packet header we are interested in our receive bin.
+          type: string
+          default: ethernet
+          x-field-uid: 1
+          x-enum:
+            ethernet:
+              x-field-uid: 1
+            vlan:
+              x-field-uid: 2
+            mpls:
+              x-field-uid: 3
+            ipv4:
+              x-field-uid: 4
+            ipv6:
+              x-field-uid: 5
+            custom:
+              x-field-uid: 6
+        ethernet:
+          $ref: '../flow/packet-headers/ethernet.yaml#/components/schemas/Filter.Ethernet'
+          x-field-uid: 2
+        vlan:
+          $ref: '../flow/packet-headers/vlan.yaml#/components/schemas/Filter.Vlan'
+          x-field-uid: 3
+        mpls:
+          $ref: '../flow/packet-headers/mpls.yaml#/components/schemas/Filter.Mpls'
+          x-field-uid: 4
+        ipv4:
+          $ref: '../flow/packet-headers/ipv4.yaml#/components/schemas/Filter.Ipv4'
+          x-field-uid: 5
+        ipv6:
+          $ref: '../flow/packet-headers/ipv6.yaml#/components/schemas/Filter.Ipv6'
+          x-field-uid: 6
+        custom:
+          description: >-
+            custom
+          $ref: '#/components/schemas/Filter.Field.Custom'
+          x-field-uid: 7
+
+    Filter.Field.Custom:
+      description: |-
+        Custom configuration for filtering packet bytes in a particular bin.
+      type: object
+      required:
+        - offset
+        - value
+        - mask
+      properties:
+        offset:
+          description: |-
+            The position from the starting of the received packet from where we want the bytes to be considered for filtering.
+          type: integer
+          format: uint32
+          x-field-uid: 1
+        value:
+          description: >-
+            The value to be considered for the filtering criteria.
+          type: string
+          format: hex
+          x-field-uid: 2
+        mask:
+          description: >-
+            The corresponding mask configuration for the value to be considered in order to check for a range of allowed values.
+          type: string
+          format: hex
+          x-field-uid: 3
+
+

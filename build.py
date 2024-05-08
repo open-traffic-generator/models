@@ -12,7 +12,7 @@ import subprocess
 USE_OPENAPIART_DIR = None
 
 # supported values - branch name or None
-USE_OPENAPIART_BRANCH = "enhance_x_field_auto"
+USE_OPENAPIART_BRANCH = None
 
 OPENAPIART_REPO = "https://github.com/open-traffic-generator/openapiart.git"
 

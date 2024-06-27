@@ -20,7 +20,7 @@ The focus of this repository is the following:
 
 > The models in this repo are under development and are subject to change, especially the models under the `device` node.  All efforts will be made to keep them backwards compatible.
 
-## Setup 
+## Setup
 
 Please make sure that the client setup meets [Python Prerequisites](#python-prerequisites).
 

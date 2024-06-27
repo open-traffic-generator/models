@@ -529,7 +529,6 @@ components:
         Base Ethernet interface.
       type: object
       required:
-      - mac
       - name
       properties:
         mac:
@@ -618,17 +617,39 @@ components:
           items:
             $ref: '#/components/schemas/Device.Dhcpv4client'
           x-field-uid: 9
+        type:
+          description: "An Ethernet interface can be type of emulated, simulated internal\
+            \ or simulated external link. \nIf the link type is of simulated internal\
+            \ or simulated external then mac, mtu and vxlan will be ignored.\nA simulated\
+            \ external link is used to create a simulated external link between a\
+            \ router \nfrom a group of routers including an emulated router that are\
+            \ connected in some way to a router of another \ngroup of routers including\
+            \ another emulated router connected in someway.   "
+          type: string
+          x-enum:
+            emulated_inf:
+              x-field-uid: 1
+            simulated_internal_inf:
+              x-field-uid: 2
+            simulated_external_inf:
+              x-field-uid: 3
+          default: emulated_inf
+          x-field-uid: 10
+          enum:
+          - emulated_inf
+          - simulated_internal_inf
+          - simulated_external_inf
       required:
-      - mac
       - name
+      - mac
     Ethernet.Connection:
       description: |-
-        Ethernet interface connection to a port, LAG or VXLAN tunnel.
+        Ethernet interface connection to a port, LAG, VXLAN tunnel or its a simulated internal link.
       type: object
       properties:
         choice:
           description: |-
-            port_name, lag_name or vxlan_name
+            port_name, lag_name, vxlan_name or st_other_end_inf_name
           type: string
           x-field-uid: 1
           x-enum:
@@ -638,10 +659,13 @@ components:
               x-field-uid: 2
             vxlan_name:
               x-field-uid: 3
+            st_other_end_inf_name:
+              x-field-uid: 4
           enum:
           - port_name
           - lag_name
           - vxlan_name
+          - st_other_end_inf_name
         port_name:
           description: |
             Name of the port that the Ethernet interface is configured on.
@@ -674,6 +698,13 @@ components:
           - '#/components/schemas/Vxlan.V4Tunnel/properties/name'
           - '#/components/schemas/Vxlan.V6Tunnel/properties/name'
           x-field-uid: 4
+        st_other_end_inf_name:
+          description: "Name of the simulated interface to which this simulated interface\
+            \ forms a simulated internal Link.\n\nx-constraint:\n- x-include: \n"
+          type: string
+          x-constraint:
+          - 'x-include: '
+          x-field-uid: 5
     Device.Vlan:
       description: |-
         Emulated VLAN protocol.
@@ -1589,12 +1620,12 @@ components:
           x-field-uid: 8
     Device:
       description: |-
-        A container for emulated interfaces, loopback interfaces and protocol configurations.
+        A container for emulated or simulated interfaces, loopback interfaces and protocol configurations.
       type: object
       properties:
         ethernets:
           description: |-
-            Ethernet configuration for one or more emulated network interfaces.
+            Ethernet configuration for one or more emulated or simulated network interfaces.
           type: array
           items:
             $ref: '#/components/schemas/Device.Ethernet'
@@ -1751,9 +1782,11 @@ components:
       - name
       properties:
         eth_name:
-          description: "The unique name of the Ethernet interface on which ISIS is\
-            \ running. Two ISIS interfaces cannot share the same Ethernet.       \
-            \  \n\nx-constraint:\n- /components/schemas/Device.Ethernet/properties/name\n"
+          description: |
+            The unique name of the Ethernet interface on which ISIS is running. Two ISIS interfaces cannot share the same Ethernet. The underlying Ethernet Interface can an emulated or simulated interface. A simulated ethernet interface can be assumed to be connected to by an internal link or an external link.
+
+            x-constraint:
+            - /components/schemas/Device.Ethernet/properties/name
           type: string
           x-constraint:
           - /components/schemas/Device.Ethernet/properties/name
@@ -1852,6 +1885,12 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
+        simulated_external_neighbor:
+          description: |-
+            If 'eth_name' is refer to a simulated interface and thats connected to an external interface.
+            Then some properties of the connected neighbor should be defined here.
+          $ref: '#/components/schemas/IsisInterface.ExternalNeighbor'
+          x-field-uid: 14
     IsisInterface.Level:
       description: |-
         Configuration for the properties of Level 1 Hello.
@@ -1878,6 +1917,31 @@ components:
           format: uint32
           default: 30
           x-field-uid: 3
+    IsisInterface.ExternalNeighbor:
+      description: |-
+        For a simulated interface thats connected to an external interface. The system id, and IP address of the other end are required to populated here.
+      type: object
+      properties:
+        system_id:
+          description: |-
+            The System ID for this emulated ISIS router, e.g. "660100010001".
+          type: string
+          format: hex
+          x-field-uid: 1
+        ipv4_address:
+          description: |-
+            Assign an IPv4 address if the link is off IPv4 type.
+            The IPv4 address
+          x-field-uid: 2
+          type: string
+          format: ipv4
+        ipv6_address:
+          description: |-
+            Assign an IPv4 address if the link is off IPv4 type.
+            The IPv6 address.
+          x-field-uid: 3
+          type: string
+          format: ipv6
     Isis.MT:
       description: |-
         Configuration of properties per interface per topology when multiple topologies are configured in an ISIS router.

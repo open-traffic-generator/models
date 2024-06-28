@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 1.0.0
+/* Open Traffic Generator API 1.6.2
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -228,7 +228,7 @@ message DeviceEthernetBase {
 
   // Maximum Transmission Unit.
   // default = 1500
-  optional int32 mtu = 2;
+  optional uint32 mtu = 2;
 
   // List of VLANs
   repeated DeviceVlan vlans = 3;
@@ -251,18 +251,6 @@ message DeviceEthernetBase {
 // An Ethernet interface with IPv4 and IPv6 addresses.
 message DeviceEthernet {
 
-  // Deprecated: This property is deprecated in favor of property connection.port_name
-  // 
-  // The unique name of a Port or a LAG that will emulate this interface.
-  // port_name is deprecated and will be removed in future release.port_name and connection
-  // can't be used together, use either port_name or connection.
-  // 
-  // x-constraint:
-  // - /components/schemas/Port/properties/name
-  // - /components/schemas/Lag/properties/name
-  // 
-  optional string port_name = 1;
-
   // Device connection to physical, LAG or another device.
   EthernetConnection connection = 2;
 
@@ -279,7 +267,7 @@ message DeviceEthernet {
 
   // Maximum Transmission Unit.
   // default = 1500
-  optional int32 mtu = 6;
+  optional uint32 mtu = 6;
 
   // List of VLANs
   repeated DeviceVlan vlans = 7;
@@ -289,14 +277,8 @@ message DeviceEthernet {
   // required = true
   optional string name = 8;
 
-  // The total number of addresses in the range.
-  // default = 1
-  optional int32 count = 9;
-
-  // Increments the MAC address.  The value is incremented according to the MAC count
-  // and Step.
-  // default = 00:00:00:00:00:01
-  optional string step = 10;
+  // List of DHCPv4 Clients Configuration.
+  repeated DeviceDhcpv4client dhcpv4_interfaces = 9;
 }
 
 // Ethernet interface connection to a port, LAG or VXLAN tunnel.
@@ -356,11 +338,11 @@ message DeviceVlan {
 
   // Priority code point
   // default = 0
-  optional int32 priority = 2;
+  optional uint32 priority = 2;
 
   // VLAN identifier
   // default = 1
-  optional int32 id = 3;
+  optional uint32 id = 3;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -467,7 +449,7 @@ message DeviceIpv6 {
 
   // The network prefix.
   // default = 64
-  optional int32 prefix = 4;
+  optional uint32 prefix = 4;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -523,6 +505,68 @@ message DeviceIpv6GatewayMAC {
   // Description missing in models
   // default = 00:00:00:00:00:00
   optional string value = 3;
+}
+
+// Configuration for emulated DHCPv4 Client on a single Interface. https://www.rfc-editor.org/rfc/rfc2131.html
+message DeviceDhcpv4client {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      first_server = 1;
+      server_address = 2;
+    }
+  }
+  // The client receives one or more DHCPOFFER messages from one or more servers and client
+  // may choose to wait for multiple responses.
+  // The client chooses one server from which to request configuration
+  // parameters, based on the configuration parameters offered in the DHCPOFFER messages.
+  // - first_server: if selected, the subnet accepts the IP addresses offered by the first
+  // server to respond with an offer of IP addresses.
+  // - server_address: The address of the DHCP server from which the subnet will accept
+  // IP addresses.
+  // default = Choice.Enum.first_server
+  optional Choice.Enum choice = 2;
+
+  // The address of the DHCP server.
+  optional string server_address = 4;
+
+  // If the broadcast bit is set, then the server and relay agent broadcast DHCPOFFER
+  // and DHCPACK messages.
+  // default = False
+  optional bool broadcast = 5;
+
+  // Optional parameters field request list of DHCPv4 Client.
+  Dhcpv4ClientParams parameters_request_list = 6;
+}
+
+// Configuration Parameter request list by emulated DHCPv4 Client.
+message Dhcpv4ClientParams {
+
+  // Request for the subnet mask option specifies the client's subnet mask as per RFC950.
+  // 
+  // default = True
+  optional bool subnet_mask = 1;
+
+  // Request for the router option that specifies a list of IP addresses for routers on
+  // the client's subnet.
+  // default = True
+  optional bool router = 2;
+
+  // Request for the renewal timer, T1. When the timer expires, the client transitions
+  // from the BOUND state to the RENEWING state.
+  // default = False
+  optional bool renewal_timer = 3;
+
+  // Request for the rebinding timer (T2). When expires, the client transitions to the
+  // REBINDING state.
+  // default = False
+  optional bool rebinding_timer = 4;
 }
 
 // A container for layer1 settings.
@@ -1049,10 +1093,10 @@ message DeviceIsisMultiInstance {
   // a unique 16-bit number and including one or more  Instance-Specific Topology Identifiers
   // (ITIDs).
   // default = 1
-  optional int32 iid = 1;
+  optional uint32 iid = 1;
 
   // This contains one or more ITIDs that will be advertised in IID TLV.
-  repeated int32 itids = 2;
+  repeated uint32 itids = 2;
 }
 
 // Configuration for single ISIS interface.
@@ -1069,7 +1113,7 @@ message IsisInterface {
 
   // The default metric cost for the interface.
   // default = 10
-  optional int32 metric = 2;
+  optional uint32 metric = 2;
 
   message NetworkType {
     enum Enum {
@@ -1118,7 +1162,7 @@ message IsisInterface {
   IsisInterfaceLinkProtection link_protection = 11;
 
   // This contains list of SRLG values for the link between two interfaces.
-  repeated int32 srlg_values = 12;
+  repeated uint32 srlg_values = 12;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -1131,15 +1175,15 @@ message IsisInterfaceLevel {
 
   // The Priority setting in Level 1 LAN Hellos for Designated Router election.
   // default = 0
-  optional int32 priority = 1;
+  optional uint32 priority = 1;
 
   // The Hello interval for Level 1 Hello messages, in seconds.
   // default = 10
-  optional int32 hello_interval = 2;
+  optional uint32 hello_interval = 2;
 
   // The Dead (Holding Time) interval for Level 1 Hello messages, in seconds.
   // default = 30
-  optional int32 dead_interval = 3;
+  optional uint32 dead_interval = 3;
 }
 
 // Configuration of properties per interface per topology when multiple topologies are
@@ -1149,11 +1193,11 @@ message IsisMT {
 
   // The Multi Topology ID for one of the topologies supported on the ISIS interface.
   // default = 0
-  optional int32 mt_id = 1;
+  optional uint32 mt_id = 1;
 
   // Specifies the link metric for this topology on the ISIS interface.
   // default = 10
-  optional int32 link_metric = 2;
+  optional uint32 link_metric = 2;
 }
 
 // A container for Traffic Engineering properties on a interface.
@@ -1170,17 +1214,17 @@ message LinkStateTE {
 
   // The user-assigned link metric for Traffic Engineering.
   // default = 0
-  optional int64 metric_level = 2;
+  optional uint32 metric_level = 2;
 
   // The maximum link bandwidth (sub-TLV 9) in bytes/sec allowed for this
   // link for a direction.
   // default = 125000000
-  optional int64 max_bandwith = 3;
+  optional uint32 max_bandwith = 3;
 
   // The maximum link bandwidth (sub-TLV 10) in bytes/sec allowed for this
   // link in a direction.
   // default = 125000000
-  optional int64 max_reservable_bandwidth = 4;
+  optional uint32 max_reservable_bandwidth = 4;
 
   // Configuration of bandwidths of priority 0 through priority 7.
   LinkStatepriorityBandwidths priority_bandwidths = 5;
@@ -1195,35 +1239,35 @@ message LinkStatepriorityBandwidths {
 
   // Specifies the amount of bandwidth that can be reserved for the Priority 0.
   // default = 125000000
-  optional int64 pb0 = 1;
+  optional uint32 pb0 = 1;
 
   // Specifies the amount of bandwidth that can be reserved for the Priority 1.
   // default = 125000000
-  optional int64 pb1 = 2;
+  optional uint32 pb1 = 2;
 
   // Specify the amount of bandwidth that can be reserved for the Priority 2.
   // default = 125000000
-  optional int64 pb2 = 3;
+  optional uint32 pb2 = 3;
 
   // Specifies the amount of bandwidth that can be reserved for the Priority 3.
   // default = 125000000
-  optional int64 pb3 = 4;
+  optional uint32 pb3 = 4;
 
   // Specifies the amount of bandwidth that can be reserved for the Priority 4.
   // default = 125000000
-  optional int64 pb4 = 5;
+  optional uint32 pb4 = 5;
 
   // Specifies the amount of bandwidth that can be reserved for the Priority 5.
   // default = 125000000
-  optional int64 pb5 = 6;
+  optional uint32 pb5 = 6;
 
   // Specifies the amount of bandwidth that can be reserved for the Priority 6.
   // default = 125000000
-  optional int64 pb6 = 7;
+  optional uint32 pb6 = 7;
 
   // Specifies the amount of bandwidth that can be reserved for the Priority 7.
   // default = 125000000
-  optional int64 pb7 = 8;
+  optional uint32 pb7 = 8;
 }
 
 // Optional container for circuit authentication properties.
@@ -1359,7 +1403,7 @@ message IsisAdvanced {
   // The Number of Area Addresses permitted, with a valid range from 0 to 254.  A zero
   // indicates a maximum of 3 addresses.
   // default = 3
-  optional int32 max_area_addresses = 2;
+  optional uint32 max_area_addresses = 2;
 
   // Its combination of the ISP and HO-DSP.Usually all nodes within an area have  the
   // same area address. If no area addresses are configured, a default area of 490001
@@ -1368,28 +1412,28 @@ message IsisAdvanced {
 
   // The rate at which LSPs are re-sent in seconds.
   // default = 600
-  optional int32 lsp_refresh_rate = 4;
+  optional uint32 lsp_refresh_rate = 4;
 
   // The MaxAge for retaining a learned LSP on this router in seconds.
   // default = 1200
-  optional int32 lsp_lifetime = 5;
+  optional uint32 lsp_lifetime = 5;
 
   // The number of milliseconds between transmissions of Partial Sequence Number PDU.
   // default = 2000
-  optional int32 psnp_interval = 6;
+  optional uint32 psnp_interval = 6;
 
   // The number of milliseconds between transmissions of Partial Sequence Number PDU.
   // default = 10000
-  optional int32 csnp_interval = 7;
+  optional uint32 csnp_interval = 7;
 
   // The maximum size in bytes of any LSP that can be transmitted over a link of equal
   // or less  than maximum MTU size.
   // default = 1492
-  optional int32 max_lsp_size = 8;
+  optional uint32 max_lsp_size = 8;
 
   // The number of seconds between transmissions of LSPs/MGROUP-PDUs.
   // default = 5000
-  optional int32 lsp_mgroup_min_trans_interval = 9;
+  optional uint32 lsp_mgroup_min_trans_interval = 9;
 
   // If the Attached bit is enabled, it indicates that the ISIS router is attached to
   // another area  or the Level 2 backbone. The purpose of an Attached-Bit is to accomplish
@@ -1445,7 +1489,7 @@ message IsisV4RouteRange {
 
   // The user-defined metric associated with this route range.
   // default = 0
-  optional int32 link_metric = 2;
+  optional uint32 link_metric = 2;
 
   message OriginType {
     enum Enum {
@@ -1514,16 +1558,16 @@ message V4RouteAddress {
 
   // The IPv4 network prefix length to be applied to the address.
   // default = 24
-  optional int32 prefix = 2;
+  optional uint32 prefix = 2;
 
   // The total number of addresses in the range.
   // default = 1
-  optional int32 count = 3;
+  optional uint32 count = 3;
 
   // Increments the network address prefixes within a route range  where multiple routes
   // are present.  The value is incremented according to the Prefix Length and Step.
   // default = 1
-  optional int32 step = 4;
+  optional uint32 step = 4;
 }
 
 // A container for IPv6 route addresses.
@@ -1535,16 +1579,16 @@ message V6RouteAddress {
 
   // The IPv6 network prefix length to be applied to the address.
   // default = 64
-  optional int32 prefix = 2;
+  optional uint32 prefix = 2;
 
   // The total number of addresses in the range.
   // default = 1
-  optional int32 count = 3;
+  optional uint32 count = 3;
 
   // Increments the network address prefixes within a route range  where multiple routes
   // are present.  The value is incremented according to the Prefix Length and Step.
   // default = 1
-  optional int32 step = 4;
+  optional uint32 step = 4;
 }
 
 // A container for MAC route addresses.
@@ -1556,16 +1600,16 @@ message MACRouteAddress {
 
   // The MAC prefix length to be applied to the address.
   // default = 48
-  optional int32 prefix = 2;
+  optional uint32 prefix = 2;
 
   // The total number of mac addresses in the range.
   // default = 1
-  optional int32 count = 3;
+  optional uint32 count = 3;
 
   // Increments the mac address prefixes within a mac range  where multiple routes are
   // present.  The value is incremented according to the mac prefix Length and Step.
   // default = 1
-  optional int32 step = 4;
+  optional uint32 step = 4;
 }
 
 // Emulated ISIS IPv6 routes.
@@ -1576,7 +1620,7 @@ message IsisV6RouteRange {
 
   // The user-defined metric associated with this route range.
   // default = 0
-  optional int32 link_metric = 2;
+  optional uint32 link_metric = 2;
 
   message OriginType {
     enum Enum {
@@ -1863,17 +1907,22 @@ message BgpV4Peer {
 
   // Description missing in models
   BgpGracefulRestart graceful_restart = 14;
+
+  // BGP Updates to be sent to the peer as specified after the session is established.
+  // 
+  BgpUpdateReplay replay_updates = 15;
 }
 
 // Configuration for emulated BGPv4 peers and routes on a single IPv4 interface.
 message BgpV4Interface {
 
-  // The unique name of the IPv4 or Loopback IPv4 interface used as the source IP for
-  // this list of BGP peers.
+  // The unique name of the IPv4,  Loopback IPv4 interface or DHCPv4 client used as the
+  // source IP for this list of BGP peers.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv4/properties/name
   // - /components/schemas/Device.Ipv4Loopback/properties/name
+  // - /components/schemas/DhcpClient.V4/properties/name
   // 
   // required = true
   optional string ipv4_name = 1;
@@ -3970,6 +4019,1370 @@ message BgpGracefulRestart {
   optional uint32 stale_time = 4;
 }
 
+// Ordered BGP Updates ( including both Advertise and Withdraws ) to be sent in the
+// order given in the input to the peer after the BGP session is established.
+message BgpUpdateReplay {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      structured_pdus = 1;
+      raw_bytes = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.structured_pdus
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  BgpStructuredPdus structured_pdus = 2;
+
+  // Description missing in models
+  BgpRawBytes raw_bytes = 3;
+}
+
+// Ordered BGP Updates ( including both Advertise and Withdraws ) to be sent in the
+// order given in the input to the peer after the BGP session is established.
+message BgpRawBytes {
+
+  // Array of ordered BGP Updates ( including both Advertise and Withdraws ) to be sent
+  // in the order given in the input to the peer after the BGP session is established.
+  // 
+  repeated BgpOneUpdateReplay updates = 1;
+}
+
+// Specification of one BGP Update to be sent to the BGP peer.
+message BgpOneUpdateReplay {
+
+  // Minimum time interval in milliseconds from previous Update from the sequence of BGP
+  // Updates to be replayed.
+  // default = 0
+  optional uint32 time_gap = 1;
+
+  // Bytes specified in hex format to be sent to peer after the BGP Update Header. The
+  // Update Header will always have the  initial 16 bytes containing Marker bytes, 2 bytes
+  // containing the Length and 1 byte containing the Type.The string MUST  contain sequence
+  // of valid hex bytes. The bytes specified in hex format should be appended to the Update
+  // message to be sent  to the peer after the fixed 19 bytes described above. This byte
+  // stream can be of any length from 1 to 4077 bytes.The value  4077 is derived from
+  // the maximum length allowed for a BGP message in RFC4271 which is 4096 minus mandatory
+  // 19 bytes described  above. In the imported byte stream, one byte is represented as
+  // string of 2 characters, for example 2 character string (0x)AB  represents value of
+  // a single byte. So the maximum length of this attribute is 8154 (4077 * 2 hex characters
+  // per byte).
+  // required = true
+  optional string update_bytes = 2;
+}
+
+// Ordered BGP Updates ( including both Advertise and Withdraws ) to be sent in the
+// order given in the input to the peer after the BGP session is established.
+message BgpStructuredPdus {
+
+  // Array of ordered BGP Updates ( including both Advertise and Withdraws ) to be sent
+  // in the order given in the input to the peer after the BGP session is established.
+  // 
+  repeated BgpOneStructuredUpdateReplay updates = 1;
+}
+
+// One structured BGP Update.
+message BgpOneStructuredUpdateReplay {
+
+  // Minimum time interval in milliseconds from previous Update from the sequence of BGP
+  // Updates to be replayed.
+  // default = 0
+  optional uint32 time_gap = 1;
+
+  // Attributes carried in the Update packet alongwith the reach/unreach prefixes.
+  // 
+  BgpAttributes path_attributes = 2;
+
+  // The IPv4 prefixes to be included in the traditional UNREACH_NLRI.
+  repeated BgpOneTraditionalNlriPrefix traditional_unreach_nlris = 3;
+
+  // The IPv4 prefixes to be included in the traditional REACH_NLRI.
+  repeated BgpOneTraditionalNlriPrefix traditional_reach_nlris = 4;
+}
+
+// TRADITIONAL_NLRI is an optional part of the the BGP Update which can carry only IPv4
+// prefix information as defined in https://www.rfc-editor.org/rfc/rfc4271.html#section-4.3
+// 
+// and extended by https://datatracker.ietf.org/doc/html/rfc7911#section-3 to carry
+// additional Path Id information per prefix.
+message BgpOneTraditionalNlriPrefix {
+
+  // The IPv4 address of the network.
+  // default = 0.0.0.0
+  optional string address = 1;
+
+  // The IPv4 network prefix length to be applied to the address.
+  // default = 24
+  optional uint32 prefix = 2;
+
+  // Description missing in models
+  BgpNLRIPrefixPathId path_id = 3;
+}
+
+// One IPv4 NLRI Prefix.
+message BgpOneIpv4NLRIPrefix {
+
+  // The IPv4 address of the network.
+  // default = 0.0.0.0
+  optional string address = 1;
+
+  // The IPv4 network prefix length to be applied to the address.
+  // default = 24
+  optional uint32 prefix = 2;
+
+  // Description missing in models
+  BgpNLRIPrefixPathId path_id = 3;
+}
+
+// One IPv6 NLRI Prefix.
+message BgpOneIpv6NLRIPrefix {
+
+  // The IPv6 address of the network.
+  // default = 0::0
+  optional string address = 1;
+
+  // The IPv6 network prefix length to be applied to the address.
+  // default = 64
+  optional uint32 prefix = 2;
+
+  // Description missing in models
+  BgpNLRIPrefixPathId path_id = 3;
+}
+
+// Optional field in the NLRI carrying Path Id of the prefix.
+message BgpNLRIPrefixPathId {
+
+  // The value of the optional Path ID of the prefix.
+  // default = 1
+  optional uint32 value = 1;
+}
+
+// IPv4 Segment Routing Policy NLRI Prefix.
+message BgpIpv4SrPolicyNLRIPrefix {
+
+  // The 4-octet value uniquely identifying the policy in the context of <color, endpoint>
+  // tuple.  The distinguisher has no semantic value and is solely used by the SR Policy
+  // originator to make unique (from an NLRI perspective)  both for multiple candidate
+  // paths of the same SR Policy as well as candidate paths of different SR Policies
+  // (i.e. with different segment lists) with the same Color and Endpoint but meant for
+  // different headends.
+  // default = 1
+  optional uint32 distinguisher = 1;
+
+  // 4-octet value identifying (with the endpoint) the policy. The color is used to match
+  // the color of the destination  prefixes to steer traffic into the SR Policy as specified
+  // in section 8 of RFC9256.
+  // default = 1
+  optional uint32 color = 2;
+
+  // Identifies the endpoint of a policy.  The Endpoint is an IPv4 address and can be
+  // either a unicast or an unspecified address (0.0.0.0) as specified in section 2.1
+  // of RFC9256.
+  // default = 0.0.0.0
+  optional string endpoint = 3;
+}
+
+// One IPv6 Segment Routing Policy NLRI Prefix.
+message BgpIpv6SrPolicyNLRIPrefix {
+
+  // The 4-octet value uniquely identifying the policy in the context of <color, endpoint>
+  // tuple.  The distinguisher has no semantic value and is solely used by the SR Policy
+  // originator to make unique (from an NLRI perspective)  both for multiple candidate
+  // paths of the same SR Policy as well as candidate paths of different SR Policies
+  // (i.e. with different segment lists) with the same Color and Endpoint but meant for
+  // different headends.
+  // default = 1
+  optional uint32 distinguisher = 1;
+
+  // 4-octet value identifying (with the endpoint) the policy. The color is used to match
+  // the color of the destination  prefixes to steer traffic into the SR Policy as specified
+  // in section 8 of RFC9256.
+  // default = 1
+  optional uint32 color = 2;
+
+  // Identifies the endpoint of a policy.  The Endpoint may represent a single node or
+  // a set of nodes (e.g., an anycast address). The Endpoint is an IPv6 address and can
+  // be either a unicast or an unspecified address (0::0) as specified in section 2.1
+  // of RFC9256.
+  // default = 0::0
+  optional string endpoint = 3;
+}
+
+// Attributes carried in the Update packet alongwith the reach/unreach prefixes.
+message BgpAttributes {
+
+  // Any attributes not present in the list of configurable attributes should be added
+  // to the list of unknown attributes.
+  repeated BgpAttributesOtherAttribute other_attributes = 1;
+
+  message Origin {
+    enum Enum {
+      unspecified = 0;
+      igp = 1;
+      egp = 2;
+      incomplete = 3;
+    }
+  }
+  // The ORIGIN attribute is a mandatory attribute which can take three values:
+  // the prefix originates from an interior routing protocol 'igp', it originates from
+  // 'egp'
+  // or the origin is 'incomplete',if the prefix is learned through other means.
+  // 
+  // default = Origin.Enum.incomplete
+  optional Origin.Enum origin = 2;
+
+  // AS_PATH attribute to be included in the Update.
+  BgpAttributesAsPath as_path = 3;
+
+  // AS4_PATH attribute to be included in the Update.
+  BgpAttributesAs4Path as4_path = 4;
+
+  // Description missing in models
+  BgpAttributesNextHop next_hop = 5;
+
+  // Description missing in models
+  BgpAttributesMultiExitDiscriminator multi_exit_discriminator = 6;
+
+  // Description missing in models
+  BgpAttributesLocalPreference local_preference = 7;
+
+  // If enabled, it indicates that the ATOMIC_AGGREGATOR attribute should be included
+  // in the Update.
+  // Presence of this attribute Indicates that this route might not be getting sent on
+  // a fully optimized path
+  // since some intermediate BGP speaker has aggregated the route.
+  // 
+  // default = False
+  optional bool include_atomic_aggregator = 8;
+
+  // Description missing in models
+  BgpAttributesAggregator aggregator = 9;
+
+  // Description missing in models
+  BgpAttributesAs4Aggregator as4_aggregator = 10;
+
+  // Description missing in models
+  repeated BgpAttributesCommunity community = 11;
+
+  // Description missing in models
+  BgpAttributesOriginatorId originator_id = 12;
+
+  // When a Route Reflector reflects a route, it prepends the local CLUSTER_ID to the
+  // CLUSTER_LIST as defined in RFC4456.
+  repeated string cluster_ids = 13;
+
+  // Optional EXTENDED_COMMUNITY attribute settings.
+  // The EXTENDED_COMMUNITY Attribute is a transitive optional BGP attribute, with the
+  // Type Code 16. Community and Extended Communities  attributes
+  // are utilized to trigger routing decisions, such as acceptance, rejection,  preference,
+  // or redistribution. An extended community is an eight byte value.
+  // It is divided into two main parts. The first two bytes of the community encode a
+  // type and sub-type fields and the last six bytes carry a unique set
+  // of data in a format defined by the type and sub-type field. Extended communities
+  // provide a larger range for grouping or categorizing communities.
+  repeated BgpExtendedCommunity extended_communities = 14;
+
+  // Description missing in models
+  BgpAttributesTunnelEncapsulation tunnel_encapsulation = 15;
+
+  // Description missing in models
+  BgpAttributesMpReachNlri mp_reach = 16;
+
+  // Description missing in models
+  BgpAttributesMpUnreachNlri mp_unreach = 17;
+}
+
+// One unknown attribute stored as hex bytes.
+message BgpAttributesOtherAttribute {
+
+  // Optional flag in the BGP attribute.
+  // default = False
+  optional bool flag_optional = 1;
+
+  // Transitive flag in the BGP attribute.
+  // default = False
+  optional bool flag_transitive = 2;
+
+  // Partial flag in the BGP attribute.
+  // default = False
+  optional bool flag_partial = 3;
+
+  // Extended length flag in the BGP attribute.
+  // default = False
+  optional bool flag_extended_length = 4;
+
+  // The value of the Type field in the attribute.
+  // required = true
+  optional uint32 type = 5;
+
+  // Contents of the value field ( the contents after the initial two bytes containing
+  // the Flags and Type field ) of the attribute in hex bytes.
+  // It includes the contents of length of the extended length field if included.
+  // required = true
+  optional string raw_value = 6;
+}
+
+// The AS_PATH attribute identifies the autonomous systems through  which routing information
+// carried in this UPDATE message has passed.
+// This contains the configuration of how to include the Local AS in the AS path
+// attribute of the MP REACH NLRI. It also contains optional configuration of
+// additional AS Path Segments that can be included in the AS Path attribute.
+// The AS Path consists of a Set or Sequence of Autonomous Systems (AS) numbers  that
+// a routing information passes through to reach the destination.
+// There are two modes in which AS numbers can be encoded in the AS Path Segments
+// - When the AS Path is being exchanged between old and new BGP speakers or between
+// two old BGP speakers , the AS numbers are encoded as 2 byte values.
+// - When the AS Path is being exchanged between two new BGP speakers supporting 4 byte
+// AS , the AS numbers are encoded as 4 byte values.
+message BgpAttributesAsPath {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      four_byte_as_path = 1;
+      two_byte_as_path = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.four_byte_as_path
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  BgpAttributesAsPathFourByteAsPath four_byte_as_path = 2;
+
+  // Description missing in models
+  BgpAttributesAsPathTwoByteAsPath two_byte_as_path = 3;
+}
+
+// AS Paths with 4 byte AS numbers can be exchanged only if both BGP speakers support
+// 4 byte AS number extensions.
+message BgpAttributesAsPathFourByteAsPath {
+
+  // The AS path segments containing 4 byte AS numbers to be added in the AS Path attribute.
+  // By default, an empty AS path should always be included and for EBGP at minimum the
+  // local AS number should be present in the AS Path.
+  repeated BgpAttributesFourByteAsPathSegment segments = 1;
+}
+
+// Configuration for a single BGP AS path segment containing 4 byte AS numbers.
+message BgpAttributesFourByteAsPathSegment {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      as_seq = 1;
+      as_set = 2;
+      as_confed_seq = 3;
+      as_confed_set = 4;
+    }
+  }
+  // AS sequence is the most common type of AS_PATH, it contains the  list
+  // of ASNs starting with the most recent ASN being added read  from left
+  // to right.
+  // The other three AS_PATH types are used for Confederations
+  // - AS_SET is the type of AS_PATH attribute that summarizes routes using
+  // using the aggregate-address command, allowing AS_PATHs to be  summarized
+  // in the update as well.
+  // - AS_CONFED_SEQ gives the list of ASNs in the path starting with the  most
+  // recent ASN to be added reading left to right
+  // - AS_CONFED_SET will allow summarization of multiple AS PATHs to be  sent
+  // in BGP Updates.
+  // default = Type.Enum.as_seq
+  optional Type.Enum type = 1;
+
+  // The 4 byte AS numbers in this AS path segment.
+  repeated uint32 as_numbers = 2;
+}
+
+// AS Paths with 2 byte AS numbers is used when any of the two scenarios occur :
+// - An old BGP speaker and new BGP speaker are sending BGP Updates to one another.
+// - Two old BGP speakers are sending BGP Updates to one another.
+message BgpAttributesAsPathTwoByteAsPath {
+
+  // The AS path segments containing 2 byte AS numbers to be added in the AS Path attribute.
+  // By default, an empty AS path should always be included and for EBGP the sender's
+  // AS number should be prepended to the AS Path.
+  repeated BgpAttributesTwoByteAsPathSegment segments = 1;
+}
+
+// Configuration for a single BGP AS path segment containing 2 byte AS numbers.
+message BgpAttributesTwoByteAsPathSegment {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      as_seq = 1;
+      as_set = 2;
+      as_confed_seq = 3;
+      as_confed_set = 4;
+    }
+  }
+  // AS sequence is the most common type of AS_PATH, it contains the  list
+  // of ASNs starting with the most recent ASN being added read  from left
+  // to right.
+  // The other three AS_PATH types are used for Confederations
+  // - AS_SET is the type of AS_PATH attribute that summarizes routes using
+  // using the aggregate-address command, allowing AS_PATHs to be  summarized
+  // in the update as well.
+  // - AS_CONFED_SEQ gives the list of ASNs in the path starting with the  most
+  // recent ASN to be added reading left to right
+  // - AS_CONFED_SET will allow summarization of multiple AS PATHs to be  sent
+  // in BGP Updates.
+  // default = Type.Enum.as_seq
+  optional Type.Enum type = 1;
+
+  // The 2 byte AS numbers in this AS path segment.
+  repeated uint32 as_numbers = 2;
+}
+
+// The AS4_PATH attribute identifies the autonomous systems through  which routing information
+// carried in this UPDATE message has passed.
+// This contains the configuration of how to include the Local AS in the AS path
+// attribute of the MP REACH NLRI. It also contains optional configuration of
+// additional AS Path Segments that can be included in the AS Path attribute.
+// The AS Path consists of a Set or Sequence of Autonomous Systems (AS) numbers  that
+// a routing information passes through to reach the destination.
+// AS4_PATH is only exchanged in two scenarios:
+// - When an old BGP speaker has to forward a received AS4_PATH containing 4 byte AS
+// numbers to new BGP speaker.
+// - When a new BGP speaker is connected to an old BGP speaker and has to propagate
+// 4 byte AS numbers via the old BGP speaker.
+// Its usage is described in RFC4893.
+message BgpAttributesAs4Path {
+
+  // The AS path segments containing 4 byte AS numbers to be added in the AS4_PATH attribute.
+  repeated BgpAttributesFourByteAsPathSegment segments = 1;
+}
+
+// Optional AGGREGATOR attribute which maybe be added by a BGP speaker which performs
+// route aggregation.
+// When AGGREGATOR attribute is being sent to a new BGP speaker , the AS number is encoded
+// as a 4 byte value.
+// When AGGREGATOR attribute is being exchanged between a new and an old BGP speaker
+// or between two old BGP speakers,
+// the AS number is encoded as a 2 byte value.
+// It contain the AS number and IP address of the speaker performing the aggregation.
+// 
+message BgpAttributesAggregator {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      four_byte_as = 1;
+      two_byte_as = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.four_byte_as
+  optional Choice.Enum choice = 1;
+
+  // The value of the 4 byte  AS number of the BGP speaker which aggregated the route.
+  // If the value of the AS number is less than 2 octets ( 65535 or less), the AS4_AGGREGATOR
+  // object should not be sent.
+  // default = 65536
+  optional uint32 four_byte_as = 2;
+
+  // The value of the 2 byte AS number of the BGP speaker which aggregated the route.
+  // 
+  // default = 1
+  optional uint32 two_byte_as = 3;
+
+  // The IPv4 address of the BGP speaker which aggregated the route.
+  // default = 0.0.0.0
+  optional string ipv4_address = 4;
+}
+
+// Optional AS4_AGGREGATOR attribute which maybe be added by a BGP speaker in one of
+// two cases:
+// - If it is a new BGP speaker speaking to an old BGP speaker and needs to send a 4
+// byte value for the AS number of the BGP route aggregator.
+// - If it is a old BGP speaker speaking to a new BGP speaker and has to transparently
+// forward a received AS4_AGGREGATOR from some other peer.
+// Its usage is described in RFC4893.
+message BgpAttributesAs4Aggregator {
+
+  // The value of the 4 byte AS number of the BGP speaker which aggregated the route.
+  // 
+  optional uint32 as_num = 1;
+
+  // The IPv4 address of the BGP speaker which aggregated the route.
+  // default = 0.0.0.0
+  optional string ipv4_address = 2;
+}
+
+// The COMMUNITY attribute provide additional capability for tagging routes and for
+// modifying BGP routing policy on
+// upstream and downstream routers. BGP community is a 32-bit number which is broken
+// into 16-bit AS number and a
+// 16-bit custom value or it contains some pre-defined well known values.
+// 
+message BgpAttributesCommunity {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      custom_community = 1;
+      no_export = 2;
+      no_advertised = 3;
+      no_export_subconfed = 4;
+      llgr_stale = 5;
+      no_llgr = 6;
+    }
+  }
+  // The type of community AS number.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  BgpAttributesCustomCommunity custom_community = 2;
+}
+
+// User defined COMMUNITY attribute containing 2 byte AS and custom 2 byte value defined
+// by the administrator of the domain.
+message BgpAttributesCustomCommunity {
+
+  // First two octets of the community value containing a 2 byte AS number.
+  // default = 0
+  optional uint32 as_number = 1;
+
+  // Last two octets of the community value in hex.  If user provides less than 4 hex
+  // bytes, it should be left-padded with 0s.
+  // default = 0000
+  optional string custom = 2;
+}
+
+// Next hop to be sent inside MP_REACH NLRI or as the NEXT_HOP attribute if advertised
+// as traditional NLRI.
+message BgpAttributesNextHop {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+      ipv6_two_addresses = 3;
+    }
+  }
+  // The type of the next HOP.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The 4 byte IPv4 address of the next-hop from which the route was received.
+  // default = 0.0.0.0
+  optional string ipv4 = 2;
+
+  // The 16 byte IPv6 address of the next-hop from which the route was received.
+  // default = 0::0
+  optional string ipv6 = 3;
+
+  // Description missing in models
+  BgpAttributesNextHopIpv6TwoAddresses ipv6_two_addresses = 4;
+}
+
+// There is a specific scenario in which it is possible to receive a Global and Link
+// Local address in the Next Hop
+// field in a MP_REACH attribute or in the NEXT_HOP attribute(RFC2545: Section 3).
+message BgpAttributesNextHopIpv6TwoAddresses {
+
+  // The first IPv6 next hop in the 32 byte IPv6 Next Hop.
+  // default = 0::0
+  optional string first = 1;
+
+  // The second IPv6 next hop in the 32 byte IPv6 Next Hop.
+  // default = 0::0
+  optional string second = 2;
+}
+
+// The MP_REACH attribute is an optional attribute which can be included in the attributes
+// of a BGP Update message as defined in https://datatracker.ietf.org/doc/html/rfc4760#section-3.
+// The following AFI / SAFI combinations are supported:
+// - IPv4 Unicast with AFI as 1 and SAFI as 1
+// - IPv6 Unicast with AFI as 2 and SAFI as 1
+// - Segment Routing Policy for IPv4 Unicast with AFI as 1 and SAFI as 73 ( draft-ietf-idr-sr-policy-safi-02
+// Section 2.1 )
+// - Segment Routing Policy for IPv6 Unicast with AFI as 2 and SAFI as 73
+message BgpAttributesMpReachNlri {
+
+  // Description missing in models
+  BgpAttributesNextHop next_hop = 1;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4_unicast = 1;
+      ipv6_unicast = 2;
+      ipv4_srpolicy = 3;
+      ipv6_srpolicy = 4;
+    }
+  }
+  // The AFI and SAFI to be sent in the MPREACH_NLRI in the Update.
+  // required = true
+  optional Choice.Enum choice = 2;
+
+  // List of IPv4 prefixes being sent in the IPv4 Unicast MPREACH_NLRI .
+  repeated BgpOneIpv4NLRIPrefix ipv4_unicast = 3;
+
+  // List of IPv6 prefixes being sent in the IPv6 Unicast MPREACH_NLRI .
+  repeated BgpOneIpv6NLRIPrefix ipv6_unicast = 4;
+
+  // IPv4 endpoint with Segment Routing Policy being sent in the IPv4 MPREACH_NLRI .
+  BgpIpv4SrPolicyNLRIPrefix ipv4_srpolicy = 5;
+
+  // IPv6 endpoint with Segment Routing Policy being sent in the IPv6 MPREACH_NLRI .
+  // 
+  BgpIpv6SrPolicyNLRIPrefix ipv6_srpolicy = 6;
+}
+
+// The MP_UNREACH attribute is an optional attribute which can be included in the attributes
+// of a BGP Update message as defined in https://datatracker.ietf.org/doc/html/rfc4760#section-3.
+// The following AFI / SAFI combinations are supported:
+// - IPv4 Unicast with AFI as 1 and SAFI as 1
+// - IPv6 Unicast with AFI as 2 and SAFI as 1
+// - Segment Routing Policy for IPv4 Unicast with AFI as 1 and SAFI as 73 (draft-ietf-idr-sr-policy-safi-02
+// Section 2.1)
+// - Segment Routing Policy for IPv6 Unicast with AFI as 2 and SAFI as 73
+message BgpAttributesMpUnreachNlri {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4_unicast = 1;
+      ipv6_unicast = 2;
+      ipv4_srpolicy = 3;
+      ipv6_srpolicy = 4;
+    }
+  }
+  // The AFI and SAFI to be sent in the MPUNREACH_NLRI in the Update.
+  optional Choice.Enum choice = 1;
+
+  // List of IPv4 prefixes being sent in the IPv4 Unicast MPUNREACH_NLRI .
+  repeated BgpOneIpv4NLRIPrefix ipv4_unicast = 2;
+
+  // List of IPv6 prefixes being sent in the IPv6 Unicast MPUNREACH_NLRI .
+  repeated BgpOneIpv6NLRIPrefix ipv6_unicast = 3;
+
+  // IPv4 endpoint with Segment Routing Policy being sent in the IPv4 MPUNREACH_NLRI .
+  BgpIpv4SrPolicyNLRIPrefix ipv4_srpolicy = 4;
+
+  // IPv6 endpoint with Segment Routing Policy being sent in the IPv4 MPUNREACH_NLRI .
+  // 
+  BgpIpv6SrPolicyNLRIPrefix ipv6_srpolicy = 5;
+}
+
+// Optional MULTI_EXIT_DISCRIMINATOR attribute sent to the peer to help in the route
+// selection process.
+message BgpAttributesMultiExitDiscriminator {
+
+  // The multi exit discriminator (MED) value used for route selection sent to the peer.
+  // 
+  // default = 0
+  optional uint32 value = 1;
+}
+
+// Optional LOCAL_PREFERENCE attribute sent to the peer to indicate the degree of preference
+// 
+// for externally learned routes.This should be included only for internal peers.It
+// is
+// used for the selection of the path for the traffic leaving the AS.The route with
+// the
+// highest local preference value is preferred.
+message BgpAttributesLocalPreference {
+
+  // Value to be set in the LOCAL_PREFERENCE attribute The multi exit discriminator (MED)
+  // value used for route selection sent to the peer.
+  // default = 100
+  optional uint32 value = 1;
+}
+
+// Optional ORIGINATOR_ID attribute (type code 9) carries the Router Id of the route's
+// originator in the local AS.
+message BgpAttributesOriginatorId {
+
+  // The value of the originator's Router Id.
+  // default = 0.0.0.0
+  optional string value = 1;
+}
+
+// The TUNNEL_ENCAPSULATION  attribute is used by a BGP speaker to inform other BGP
+// speakers how to encapsulate packets that need to be sent to it.
+// It is defined in RFC9012 and is assigned a Type code of 23.
+message BgpAttributesTunnelEncapsulation {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      sr_policy = 1;
+    }
+  }
+  // Identifies a type of tunnel. The field contains values from the IANA registry BGP
+  // Tunnel Encapsulation Attribute Tunnel Types.
+  // default = Choice.Enum.sr_policy
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicy sr_policy = 2;
+}
+
+// Optional Segment Routing Policy information as defined in draft-ietf-idr-sr-policy-safi-02.
+// This information is carried in TUNNEL_ENCAPSULATION attribute with type set to  SR
+// Policy (15).
+message BgpAttributesSegmentRoutingPolicy {
+
+  // Description missing in models
+  BgpAttributesBsid binding_segment_identifier = 1;
+
+  // The SRv6 Binding SID sub-TLV is an optional sub-TLV of type 20 that is used to signal
+  // the SRv6 Binding SID
+  // related information of an SR Policy candidate path.
+  // - More than one SRv6 Binding SID sub-TLVs MAY be signaled in the same SR Policy
+  // encoding to indicate one
+  // or more SRv6 SIDs, each with potentially different SRv6 Endpoint Behaviors to
+  // be instantiated.
+  // - The format of the sub-TLV is defined in draft-ietf-idr-sr-policy-safi-02 Section
+  // 2.4.3 .
+  repeated BgpAttributesSrv6Bsid srv6_binding_segment_identifier = 2;
+
+  // Description missing in models
+  BgpAttributesSrPolicyPreference preference = 3;
+
+  // Description missing in models
+  BgpAttributesSrPolicyPriority priority = 4;
+
+  // Description missing in models
+  BgpAttributesSrPolicyPolicyName policy_name = 5;
+
+  // Description missing in models
+  BgpAttributesSrPolicyPolicyCandidateName policy_candidate_name = 6;
+
+  // Description missing in models
+  BgpAttributesSrPolicyExplicitNullPolicy explicit_null_label_policy = 7;
+
+  // Description missing in models
+  repeated BgpAttributesSrPolicySegmentList segment_list = 8;
+}
+
+// The Binding Segment Identifier is an optional sub-tlv of type 13 that can be sent
+// with a SR Policy
+// Tunnel Encapsulation attribute.
+// When the active candidate path has a specified Binding Segment Identifier, the SR
+// Policy uses that
+// BSID if this value (label in MPLS, IPv6 address in SRv6) is available.
+// - The format of the sub-TLV is defined in draft-ietf-idr-sr-policy-safi-02 Section
+// 2.4.2 .
+// - It is recommended that if SRv6 Binding SID is desired to be signalled, the SRv6
+// Binding SID sub-TLV that enables
+// the specification of the SRv6 Endpoint Behavior should be used.
+message BgpAttributesBsid {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      mpls = 1;
+      srv6 = 2;
+    }
+  }
+  // The type of Segment Identifier.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  BgpAttributesBsidMpls mpls = 2;
+
+  // Description missing in models
+  BgpAttributesBsidSrv6 srv6 = 3;
+}
+
+// When the active candidate path has a specified Binding Segment Identifier, the SR
+// Policy uses that BSID defined
+// as a MPLS label.The format of the sub-TLV is defined in draft-ietf-idr-sr-policy-safi-02
+// Section 2.4.2 .
+message BgpAttributesBsidMpls {
+
+  // S-Flag: This flag encodes the Specified-BSID-only behavior. It's usage is
+  // described in section 6.2.3 in [RFC9256].
+  // default = False
+  optional bool flag_specified_bsid_only = 1;
+
+  // I-Flag: This flag encodes the Drop Upon Invalid behavior.
+  // It's usage is described in section 8.2 in [RFC9256].
+  // default = False
+  optional bool flag_drop_upon_invalid = 2;
+
+  // Description missing in models
+  BgpAttributesSidMpls mpls_sid = 3;
+}
+
+// When the active candidate path has a specified Binding Segment Identifier, the SR
+// Policy uses that BSID defined
+// as an IPv6 Address.The format of the sub-TLV is defined in draft-ietf-idr-sr-policy-safi-02
+// Section 2.4.2 .
+message BgpAttributesBsidSrv6 {
+
+  // S-Flag: This flag encodes the Specified-BSID-only behavior. It's usage is
+  // described in section 6.2.3 in [RFC9256].
+  // default = False
+  optional bool flag_specified_bsid_only = 1;
+
+  // I-Flag: This flag encodes the Drop Upon Invalid behavior.
+  // It's usage is described in section 8.2 in [RFC9256].
+  // default = False
+  optional bool flag_drop_upon_invalid = 2;
+
+  // IPv6 address denoting the SRv6 SID.
+  // default = 0::0
+  optional string ipv6_addr = 3;
+}
+
+// The SRv6 Binding SID sub-TLV is an optional sub-TLV of type 20 that is used to signal
+// the SRv6 Binding SID
+// related information of an SR Policy candidate path.
+// - More than one SRv6 Binding SID sub-TLVs MAY be signaled in the same SR Policy
+// encoding to indicate one or
+// more SRv6 SIDs, each with potentially different SRv6 Endpoint Behaviors to be
+// instantiated.
+// - The format of the sub-TLV is defined in draft-ietf-idr-sr-policy-safi-02 Section
+// 2.4.3 .
+message BgpAttributesSrv6Bsid {
+
+  // S-Flag: This flag encodes the Specified-BSID-only behavior. It's usage is
+  // described in section 6.2.3 in [RFC9256].
+  // default = False
+  optional bool flag_specified_bsid_only = 1;
+
+  // I-Flag: This flag encodes the Drop Upon Invalid behavior.
+  // It's usage is described in section 8.2 in [RFC9256].
+  // default = False
+  optional bool flag_drop_upon_invalid = 2;
+
+  // B-Flag: This flag, when set, indicates the presence of the SRv6 Endpoint Behavior
+  // 
+  // and SID Structure encoding specified in Section 2.4.4.2.4 of draft-ietf-idr-sr-policy-safi-02.
+  // default = False
+  optional bool flag_srv6_endpoint_behavior = 3;
+
+  // IPv6 address denoting the SRv6 SID.
+  // default = 0::0
+  optional string ipv6_addr = 4;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicySRv6SIDEndpointBehaviorAndStructure srv6_endpoint_behavior = 5;
+}
+
+// This carries a 20 bit Multi Protocol Label Switching alongwith 3 bits traffic class,
+// 1 bit indicating presence
+// or absence of Bottom-Of-Stack and 8 bits carrying the Time to Live value.
+message BgpAttributesSidMpls {
+
+  // 20 bit MPLS Label value.
+  // default = 16
+  optional uint32 label = 1;
+
+  // 3 bits of Traffic Class.
+  // default = 0
+  optional uint32 traffic_class = 2;
+
+  // Bottom of Stack
+  // default = True
+  optional bool flag_bos = 3;
+
+  // 8 bits Time to Live
+  // default = 63
+  optional uint32 ttl = 4;
+}
+
+// An IPv6 address denoting a SRv6 SID.
+message BgpAttributesSidSrv6 {
+
+  // Description missing in models
+  // default = 0::0
+  optional string ip = 1;
+}
+
+// Optional Preference sub-tlv (Type 12) is used to select the best candidate path for
+// an SR Policy.
+// It is defined in Section 2.4.1 of draft-ietf-idr-sr-policy-safi-02 .
+// 
+message BgpAttributesSrPolicyPreference {
+
+  // Value to be carried in the Preference sub-tlv.
+  // default = 0
+  optional uint32 value = 1;
+}
+
+// Optional Priority sub-tlv (Type 15) used to select the order in which policies should
+// be re-computed.
+// - It is defined in Section 2.4.6 of draft-ietf-idr-sr-policy-safi-02 .
+message BgpAttributesSrPolicyPriority {
+
+  // Value to be carried in the Priority sub-tlv.
+  // default = 0
+  optional uint32 value = 1;
+}
+
+// Optional Policy Candidate Path Name sub-tlv (Type 129) which carries the symbolic
+// name for the SR Policy candidate path
+// for debugging.
+// - It is defined in Section 2.4.7 of draft-ietf-idr-sr-policy-safi-02 .
+message BgpAttributesSrPolicyPolicyCandidateName {
+
+  // Value of the symbolic Policy Candidate Path Name carried in the Policy Candidate
+  // Path Name sub-tlv.
+  // It is recommended that the size of the name is limited to 255 bytes.
+  // required = true
+  optional string value = 1;
+}
+
+// Optional Policy Name sub-tlv (Type 130) which carries the symbolic name for the SR
+// Policy for which the
+// candidate path is being advertised for debugging.
+// - It is defined in Section 2.4.8 of draft-ietf-idr-sr-policy-safi-02 .
+message BgpAttributesSrPolicyPolicyName {
+
+  // Value of the symbolic policy name carried in the Policy Name sub-tlv.
+  // It is recommended that the size of the name is limited to 255 bytes.
+  // required = true
+  optional string value = 1;
+}
+
+// This is an optional sub-tlv (Type 14) which indicates whether an Explicit NULL Label
+// must be pushed on an unlabeled IP
+// packet before other labels for IPv4 or IPv6 flows.
+// - It is defined in Section 2.4.5 of draft-ietf-idr-sr-policy-safi-02.
+message BgpAttributesSrPolicyExplicitNullPolicy {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      unknown = 1;
+      push_ipv4 = 2;
+      push_ipv6 = 3;
+      push_ipv4_and_ipv6 = 4;
+      donot_push = 5;
+    }
+  }
+  // The Explicit NULL Label policy.
+  // default = Choice.Enum.push_ipv4_and_ipv6
+  optional Choice.Enum choice = 1;
+}
+
+// One optional SEGMENT_LIST sub-tlv encoded with type of 128.
+// One sub-tlv (Type 128) encodes a single explicit path towards the endpoint as described
+// in
+// section 5.1 of [RFC9256].
+// The Segment List sub-TLV includes the elements of the paths (i.e., segments) as well
+// 
+// as an optional Weight sub-TLV.
+message BgpAttributesSrPolicySegmentList {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicySegmentListWeight weight = 1;
+
+  // Description missing in models
+  repeated BgpAttributesSegmentRoutingPolicySegmentListSegment segments = 2;
+}
+
+// The optional Weight sub-TLV (Type 9) specifies the weight associated with a given
+// segment list. The weight is used for weighted multipath.
+message BgpAttributesSegmentRoutingPolicySegmentListWeight {
+
+  // Value of the weight.
+  // default = 0
+  optional uint32 value = 1;
+}
+
+// A Segment sub-TLV describes a single segment in a segment list  i.e., a single
+// element of the explicit path. The Segment sub-TLVs are optional.
+// Segment Types A and B are defined as described in 2.4.4.2.
+// Segment Types C upto K are defined as described in in draft-ietf-idr-bgp-sr-segtypes-ext-03
+// .
+message BgpAttributesSegmentRoutingPolicySegmentListSegment {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      type_a = 1;
+      type_b = 2;
+      type_c = 3;
+      type_d = 4;
+      type_e = 5;
+      type_f = 6;
+      type_g = 7;
+      type_h = 8;
+      type_i = 9;
+      type_j = 10;
+      type_k = 11;
+    }
+  }
+  // Specify one of the segment types as defined in ietf-idr-segment-routing-te-policy
+  // - Type  A: SID only, in the form of MPLS Label.
+  // - Type  B: SID only, in the form of IPv6 Address.
+  // - Type  C: IPv4 Prefix with optional SR Algorithm.
+  // - Type  D: IPv6 Global Prefix with optional SR Algorithm for SR-MPLS.
+  // - Type  E: IPv4 Prefix with Local Interface ID.
+  // - Type  F: IPv4 Addresses for link endpoints as Local, Remote pair.
+  // - Type  G: IPv6 Prefix and Interface ID for link endpoints as Local, Remote pair
+  // for SR-MPLS.
+  // - Type  H: IPv6 Addresses for link endpoints as Local, Remote pair for SR-MPLS.
+  // - Type  I: IPv6 Global Prefix with optional SR Algorithm for SRv6.
+  // - Type  J: IPv6 Prefix and Interface ID for link endpoints as Local, Remote pair
+  // for SRv6.
+  // - Type  K: IPv6 Addresses for link endpoints as Local, Remote pair for SRv6.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeA type_a = 2;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeB type_b = 3;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeC type_c = 4;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeD type_d = 5;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeE type_e = 6;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeF type_f = 7;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeG type_g = 8;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeH type_h = 9;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeI type_i = 10;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeJ type_j = 11;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeK type_k = 12;
+}
+
+// Type A: SID only, in the form of MPLS Label.
+// It is encoded as a Segment of Type 1 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeA {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // Description missing in models
+  BgpAttributesSidMpls mpls_sid = 2;
+}
+
+// Type B: SID only, in the form of IPv6 address.
+// It is encoded as a Segment of Type 13 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeB {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // SRv6 SID.
+  // default = 0::0
+  optional string srv6_sid = 2;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicySRv6SIDEndpointBehaviorAndStructure srv6_endpoint_behavior = 3;
+}
+
+// Type C: IPv4 Node Address with optional SID.
+// It is encoded as a Segment of Type 3 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeC {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // SR Algorithm identifier when A-Flag in on. If A-flag is not enabled, it should be
+  // set to 0 on transmission and ignored on receipt.
+  // default = 0
+  optional uint32 sr_algorithm = 2;
+
+  // IPv4 address representing a node.
+  // default = 0.0.0.0
+  optional string ipv4_node_address = 3;
+
+  // Optional SR-MPLS SID.
+  BgpAttributesSidMpls sr_mpls_sid = 4;
+}
+
+// Type D: IPv6 Node Address with optional SID for SR MPLS.
+// It is encoded as a Segment of Type 4 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeD {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // SR Algorithm identifier when A-Flag in on. If A-flag is not enabled, it should be
+  // set to 0 on transmission and ignored on receipt.
+  // default = 0
+  optional uint32 sr_algorithm = 2;
+
+  // IPv6 address representing a node.
+  // default = 0::0
+  optional string ipv6_node_address = 3;
+
+  // Optional SR-MPLS SID.
+  BgpAttributesSidMpls sr_mpls_sid = 4;
+}
+
+// Type E: IPv4 Address and Local Interface ID with optional SID
+// It is encoded as a Segment of Type 5 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeE {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // The Interface Index as defined in [RFC8664].
+  // default = 0
+  optional uint32 local_interface_id = 2;
+
+  // IPv4 address representing a node.
+  // default = 0.0.0.0
+  optional string ipv4_node_address = 3;
+
+  // Optional SR-MPLS SID.
+  BgpAttributesSidMpls sr_mpls_sid = 4;
+}
+
+// Type F: IPv4 Local and Remote addresses with optional SR-MPLS SID.
+// It is encoded as a Segment of Type 6 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeF {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // Local IPv4 Address.
+  // default = 0.0.0.0
+  optional string local_ipv4_address = 2;
+
+  // Remote IPv4 Address.
+  // default = 0.0.0.0
+  optional string remote_ipv4_address = 3;
+
+  // Optional SR-MPLS SID.
+  BgpAttributesSidMpls sr_mpls_sid = 4;
+}
+
+// Type G: IPv6 Address, Interface ID for local and remote pair with optional SID for
+// SR MPLS.
+// It is encoded as a Segment of Type 7 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeG {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // The local Interface Index as defined in [RFC8664].
+  // default = 0
+  optional uint32 local_interface_id = 2;
+
+  // The IPv6 address representing the local node.
+  // default = 0::0
+  optional string local_ipv6_node_address = 3;
+
+  // The remote Interface Index as defined in [RFC8664]. The value MAY be set to zero
+  // when the local node address and interface identifiers are sufficient to describe
+  // the link.
+  // default = 0
+  optional uint32 remote_interface_id = 4;
+
+  // IPv6 address representing the remote node. The value MAY be set to zero when the
+  // local node address and interface identifiers are sufficient to describe the link.
+  // default = 0::0
+  optional string remote_ipv6_node_address = 5;
+
+  // Optional SR-MPLS SID.
+  BgpAttributesSidMpls sr_mpls_sid = 6;
+}
+
+// Type H: IPv6 Local and Remote addresses with optional SID for SR MPLS.
+// It is encoded as a Segment of Type 8 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeH {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // Local IPv6 Address.
+  // default = 0::0
+  optional string local_ipv6_address = 2;
+
+  // Remote IPv6 Address.
+  // default = 0::0
+  optional string remote_ipv6_address = 3;
+
+  // Optional SR-MPLS SID.
+  BgpAttributesSidMpls sr_mpls_sid = 6;
+}
+
+// Type I: IPv6 Node Address with optional SR Algorithm and optional SRv6 SID.
+// It is encoded as a Segment of Type 14 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeI {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // SR Algorithm identifier when A-Flag in on. If A-flag is not enabled, it should be
+  // set to 0 on transmission and ignored on receipt.
+  // default = 0
+  optional uint32 sr_algorithm = 2;
+
+  // IPv6 address representing a node.
+  // default = 0::0
+  optional string ipv6_node_address = 3;
+
+  // Description missing in models
+  BgpAttributesSidSrv6 srv6_sid = 4;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicySRv6SIDEndpointBehaviorAndStructure srv6_endpoint_behavior = 5;
+}
+
+// Type J: IPv6 Address, Interface ID for local and remote pair for SRv6 with optional
+// SID.
+// It is encoded as a Segment of Type 15 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeJ {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // SR Algorithm identifier when A-Flag in on. If A-flag is not enabled, it should be
+  // set to 0 on transmission and ignored on receipt.
+  // default = 0
+  optional uint32 sr_algorithm = 2;
+
+  // The local Interface Index as defined in [RFC8664].
+  // default = 0
+  optional uint32 local_interface_id = 3;
+
+  // The IPv6 address representing the local node.
+  // default = 0::0
+  optional string local_ipv6_node_address = 4;
+
+  // The remote Interface Index as defined in [RFC8664]. The value MAY be set to zero
+  // when the local node address and interface identifiers are sufficient to describe
+  // the link.
+  // default = 0
+  optional uint32 remote_interface_id = 5;
+
+  // IPv6 address representing the remote node. The value MAY be set to zero when the
+  // local node address and interface identifiers are sufficient to describe the link.
+  // default = 0::0
+  optional string remote_ipv6_node_address = 6;
+
+  // Description missing in models
+  BgpAttributesSidSrv6 srv6_sid = 7;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicySRv6SIDEndpointBehaviorAndStructure srv6_endpoint_behavior = 8;
+}
+
+// Type K: IPv6 Local and Remote addresses for SRv6 with optional SID.
+// It is encoded as a Segment of Type 16 in the SEGMENT_LIST sub-tlv.
+message BgpAttributesSegmentRoutingPolicyTypeK {
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicyTypeFlags flags = 1;
+
+  // SR Algorithm identifier when A-Flag in on. If A-flag is not enabled, it should be
+  // set to 0 on transmission and ignored on receipt.
+  // default = 0
+  optional uint32 sr_algorithm = 2;
+
+  // Local IPv6 Address.
+  // default = 0::0
+  optional string local_ipv6_address = 3;
+
+  // Remote IPv6 Address.
+  // default = 0::0
+  optional string remote_ipv6_address = 4;
+
+  // Description missing in models
+  BgpAttributesSidSrv6 srv6_sid = 5;
+
+  // Description missing in models
+  BgpAttributesSegmentRoutingPolicySRv6SIDEndpointBehaviorAndStructure srv6_endpoint_behavior = 6;
+}
+
+// Flags for each Segment in SEGMENT_LIST sub-tlv.
+// - V-flag. Indicates verification is enabled. See section 5, of https://datatracker.ietf.org/doc/html/rfc9256
+// - A-flag. Indicates presence of SR Algorithm field applicable to Segment Types C,
+// D , I , J and K .
+// - B-Flag. Indicates presence of SRv6 Endpoint Behavior and SID Structure encoding
+// applicable to Segment Types B , I , J and K .
+// - S-Flag: This flag, when set, indicates the presence of the SR-MPLS or SRv6 SID
+// depending on the segment type. (draft-ietf-idr-bgp-sr-segtypes-ext-03 Section 2.10).
+// This flag is applicable for Segment Types C, D, E, F, G, H, I, J, and K.
+message BgpAttributesSegmentRoutingPolicyTypeFlags {
+
+  // Indicates verification of segment data in is enabled.
+  // default = False
+  optional bool v_flag = 1;
+
+  // Indicates presence of SR Algorithm field applicable to Segment Types 3, 4, and 9.
+  // 
+  // default = False
+  optional bool a_flag = 2;
+
+  // This flag, when set, indicates the presence of the SR-MPLS or SRv6 SID depending
+  // on the segment type.
+  // default = False
+  optional bool s_flag = 3;
+
+  // Indicates presence of SRv6 Endpoint Behavior and SID Structure encoding specified
+  // in Section 2.4.4.2.4
+  // of draft-ietf-idr-sr-policy-safi-02.
+  // default = False
+  optional bool b_flag = 4;
+}
+
+// Configuration for optional SRv6 Endpoint Behavior and SID Structure. Summation of
+// lengths for Locator Block, Locator Node,  Function, and Argument MUST be less than
+// or equal to 128. - This is specified in draft-ietf-idr-sr-policy-safi-02 Section
+// 2.4.4.2.4
+message BgpAttributesSegmentRoutingPolicySRv6SIDEndpointBehaviorAndStructure {
+
+  // This is a 2-octet field that is used to specify the SRv6 Endpoint Behavior code point
+  // for the SRv6 SID as defined
+  // in section 9.2 of [RFC8986]. When set with the value 0xFFFF (i.e., Opaque), the choice
+  // of SRv6 Endpoint Behavior is
+  // left to the headend. Well known 16-bit values for this field are available at
+  // https://www.iana.org/assignments/segment-routing/segment-routing.xhtml .
+  // default = ffff
+  optional string endpoint_behaviour = 1;
+
+  // SRv6 SID Locator Block length in bits.
+  // default = 0
+  optional uint32 lb_length = 2;
+
+  // SRv6 SID Locator Node length in bits.
+  // default = 0
+  optional uint32 ln_length = 3;
+
+  // SRv6 SID Function length in bits.
+  // default = 0
+  optional uint32 func_length = 4;
+
+  // SRv6 SID Arguments length in bits.
+  // default = 0
+  optional uint32 arg_length = 5;
+}
+
+// Optional field in the NLRI carrying the distinguisher for Segment Routing Policy
+// NLRI with SAFI 73.
+message BgpNLRIPrefixSegmentRoutingDistinguisher {
+
+  // The value of the optional Segment Routing distinguisher of the prefix.
+  // default = 1
+  optional uint32 value = 1;
+}
+
 // Configuration for BGPv6 peer settings and routes.
 message BgpV6Peer {
 
@@ -4067,17 +5480,22 @@ message BgpV6Peer {
 
   // Description missing in models
   BgpGracefulRestart graceful_restart = 15;
+
+  // BGP Updates to be sent to the peer as specified after the session is established.
+  // 
+  BgpUpdateReplay replay_updates = 16;
 }
 
 // Configuration for emulated BGPv6 peers and routes on a single IPv6 interface.
 message BgpV6Interface {
 
-  // The unique name of IPv6 or Loopback IPv6 interface used as the source IP for this
-  // list of BGP peers.
+  // The unique name of IPv6 Loopback IPv6 interface or DHCPv4 client used as the source
+  // IP for this list of BGP peers.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv6/properties/name
   // - /components/schemas/Device.Ipv6Loopback/properties/name
+  // - /components/schemas/DhcpClient.V6/properties/name
   // 
   // required = true
   optional string ipv6_name = 1;
@@ -4348,7 +5766,7 @@ message VxlanV4Tunnel {
 
   // VXLAN Network Identifier (VNI) to distinguish network instances on the wire
   // required = true
-  optional int32 vni = 3;
+  optional uint32 vni = 3;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -4376,7 +5794,7 @@ message VxlanV6Tunnel {
 
   // VXLAN Network Identifier (VNI) to distinguish network instances on the wire
   // required = true
-  optional int32 vni = 3;
+  optional uint32 vni = 3;
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
@@ -4537,12 +5955,12 @@ message RsvpIpv4Interface {
   // a egress are assigned labels from this label pool.Thelabel_space_start and label_space_end
   // together defines this label-pool.
   // default = 1000
-  optional int32 label_space_start = 3;
+  optional uint32 label_space_start = 3;
 
   // The user-defined label space end value.The last label value that can be assigned
   // to the LSPs for which this router acts as egress.
   // default = 100000
-  optional int32 label_space_end = 4;
+  optional uint32 label_space_end = 4;
 
   // Enables sending of Refresh Reduction as described in RFC2961.
   // default = False
@@ -4552,7 +5970,7 @@ message RsvpIpv4Interface {
   // is no specification specified maximum value. For clarity, setting the maximum to
   // 1 hour.
   // default = 30
-  optional int32 summary_refresh_interval = 6;
+  optional uint32 summary_refresh_interval = 6;
 
   // Enables aggregration of different RSVP messages within a single PDU.
   // default = False
@@ -4561,7 +5979,7 @@ message RsvpIpv4Interface {
   // The number of milliseconds to wait after which RSVP will bundle different RSVP messages
   // and transmit Bundle messages.
   // default = 50
-  optional int32 bundle_threshold = 8;
+  optional uint32 bundle_threshold = 8;
 
   // Enables sending of Hello Messages as per RFC3209.
   // default = False
@@ -4571,13 +5989,13 @@ message RsvpIpv4Interface {
   // at which successive Hello Messages  are sent as per RFC3209. There is no specification
   // specified maximum value. For clarity, setting the maximum to 1 hour.
   // default = 9
-  optional int32 hello_interval = 10;
+  optional uint32 hello_interval = 10;
 
   // The number of missed hellos after which the node should consider RSVP Neighbor to
   // have timed out. There is no specification specified maximum value. Setting the maximum
   // allowed value to 10.
   // default = 3
-  optional int32 timeout_multiplier = 11;
+  optional uint32 timeout_multiplier = 11;
 }
 
 // Configuration for RSVP LSP IPv4 Interface.
@@ -4614,13 +6032,13 @@ message RsvpLspIpv4InterfaceP2PEgressIpv4Lsp {
   // refresh interval is jittered by upto 50%. There is no specification specified maximum
   // value. For clarity, setting the maximum to 1 hour.
   // default = 30
-  optional int32 refresh_interval = 2;
+  optional uint32 refresh_interval = 2;
 
   // The number of missed PATH refreshes after which a recieving node should consider
   // the LSP state to have timed out. There is no specification specified maximum value.
   // Setting the maximum allowed value to 10.
   // default = 3
-  optional int32 timeout_multiplier = 3;
+  optional uint32 timeout_multiplier = 3;
 
   message ReservationStyle {
     enum Enum {
@@ -4648,7 +6066,7 @@ message RsvpLspIpv4InterfaceP2PEgressIpv4Lsp {
   // IPv6 Explicit NULL' and '3 - Implicit NULL'.   Outside of this, labels are expected
   // to have a minimum value of 16.
   // default = 0
-  optional int32 fixed_label_value = 6;
+  optional uint32 fixed_label_value = 6;
 }
 
 // Configuration for an RSVP Ingress point-to-point LSP.
@@ -4665,29 +6083,29 @@ message RsvpLspIpv4InterfaceP2PIngressIpv4Lsp {
 
   // The Tunnel ID of the RSVP LSP. Carried in the SESSION object in Path Messages.
   // default = 1
-  optional int32 tunnel_id = 3;
+  optional uint32 tunnel_id = 3;
 
   // The LSP ID of the RSVP LSP. Carried in the SENDER_TEMPLATE object in Path Messages.
   // default = 1
-  optional int32 lsp_id = 4;
+  optional uint32 lsp_id = 4;
 
   // The time in seconds between successive transmissions of PATH Refreshes.  The actual
   // refresh interval is jittered by upto 50%. There is no specification specified maximum
   // value. For clarity, setting the maximum to 1 hour.
   // default = 30
-  optional int32 refresh_interval = 5;
+  optional uint32 refresh_interval = 5;
 
   // The number of missed RESV refreshes after which a recieving node should consider
   // the LSP state to have timed out. There is no specification specified maximum value.
   // Setting the maximum allowed value to 10.
   // default = 3
-  optional int32 timeout_multiplier = 6;
+  optional uint32 timeout_multiplier = 6;
 
   // The LSP id that will be used when creating a Make-Before-Break LSP when the active
   // LSP is using lsp_id. If the active LSP on which Make-Before-Break is being done is
   // using the backup_lsp_id, the new LSP created will toggle to  use the lsp_id instead.
   // default = 2
-  optional int32 backup_lsp_id = 7;
+  optional uint32 backup_lsp_id = 7;
 
   // The amount of delay in milliseconds that an implementation should wait for before
   // switching traffic to the new LSP created after  a Make-Before-Break is done on an
@@ -4700,7 +6118,7 @@ message RsvpLspIpv4InterfaceP2PIngressIpv4Lsp {
   // list of warnings in the 'Response.Warning' attribute sent in the SetConfig 'Success'
   // Response.
   // default = 0
-  optional int32 lsp_switchover_delay = 8;
+  optional uint32 lsp_switchover_delay = 8;
 
   // This contains the values of the fields to be included in the SESSION_ATTRIBUTE object
   // in the Path Message sent for the LSP.
@@ -4745,14 +6163,14 @@ message RsvpSessionAttribute {
   // is encountered when setting up the LSP. (e.g. bandwidth availability). The value
   // 0 is the highest priority while 7 is the lowest.
   // default = 7
-  optional int32 setup_priority = 3;
+  optional uint32 setup_priority = 3;
 
   // Specifies the value of the Holding Priority field. This controls whether a new LSP
   // being created with certain Setup Priority should pre-empt this LSP if resource limitation
   // is encountered when setting up the LSP. (e.g. bandwidth availability). The value
   // 0 is the highest priority while 7 is the lowest.
   // default = 7
-  optional int32 holding_priority = 4;
+  optional uint32 holding_priority = 4;
 
   // This flag permits transit routers to use a local repair mechanism which may result
   // in violation of the explicit route object.  When a fault is detected on an adjacent
@@ -4850,11 +6268,11 @@ message RsvpTspec {
 
   // Specifies the minium length of packet frames that will be policed.
   // default = 0
-  optional int32 minimum_policed_unit = 4;
+  optional uint32 minimum_policed_unit = 4;
 
   // Specifies the maximum length of packet frames that will be policed.
   // default = 0
-  optional int32 maximum_policed_unit = 5;
+  optional uint32 maximum_policed_unit = 5;
 }
 
 // Configuration for the optional RSVP-TE FAST_REROUTE object included in Path Messages
@@ -4866,19 +6284,19 @@ message RsvpFastReroute {
   // setting up a backup LSP, preemption of existing LSP can happen  if resource limitation
   // is encountered (e.g bandwidth availability).
   // default = 7
-  optional int32 setup_priority = 1;
+  optional uint32 setup_priority = 1;
 
   // Specifies the value of the Holding Priority field. This controls whether a new LSP
   // being created with certain Setup Priority should pre-empt this LSP set up with this
   // Holding Priority. While setting up a new LSP, preemption of existing LSP can happen
   // if resource limitation is encountered (e.g bandwidth availability).
   // default = 7
-  optional int32 holding_priority = 2;
+  optional uint32 holding_priority = 2;
 
   // Specifies the value of the Hop Limit field. This controls the maximum number of hops
   // the LSP should traverse to reach the  LSP end-point.
   // default = 3
-  optional int32 hop_limit = 3;
+  optional uint32 hop_limit = 3;
 
   // Specifies the value of the Bandwidth field as a 32-bit IEEE floating point integer,
   // in bytes per second, as desired for the LSP.
@@ -4940,7 +6358,7 @@ message RsvpEro {
   // this value as the prefix length of the ERO sub-object containing egress IP address.
   // 
   // default = 32
-  optional int32 prefix_length = 2;
+  optional uint32 prefix_length = 2;
 
   // Array of sub-objects to be included in the ERO. These sub-objects contain the intermediate
   // hops to be traversed by the LSP while being forwarded towards the egress endpoint.
@@ -4971,13 +6389,13 @@ message RsvpEroSubobject {
   // Prefix length for the IPv4 address in the ERO sub-object. This field is applicable
   // only if the value of 'type' is set to 'ipv4'.
   // default = 32
-  optional int32 prefix_length = 3;
+  optional uint32 prefix_length = 3;
 
   // Autonomous System number to be set in the ERO sub-object that this LSP should traverse
   // through. This field is applicable only if the value of 'type' is set to 'as_number'.
   // Note that as per RFC3209, 4-byte AS encoding is not supported.
   // default = 0
-  optional int32 as_number = 4;
+  optional uint32 as_number = 4;
 
   message HopType {
     enum Enum {
@@ -6081,6 +7499,7 @@ message FlowRouter {
   // - /components/schemas/Rsvp.LspIpv4Interface.P2PIngressIpv4Lsp/properties/name
   // - /components/schemas/Isis.V4RouteRange/properties/name
   // - /components/schemas/Isis.V6RouteRange/properties/name
+  // - /components/schemas/Device.Dhcpv4client/properties/name
   // 
   repeated string tx_names = 2;
 
@@ -6096,6 +7515,7 @@ message FlowRouter {
   // - /components/schemas/Rsvp.LspIpv4Interface.P2PEgressIpv4Lsp/properties/name
   // - /components/schemas/Isis.V4RouteRange/properties/name
   // - /components/schemas/Isis.V6RouteRange/properties/name
+  // - /components/schemas/Device.Dhcpv4client/properties/name
   // 
   repeated string rx_names = 3;
 }
@@ -6126,6 +7546,7 @@ message FlowHeader {
       igmpv1 = 18;
       mpls = 19;
       snmpv2c = 20;
+      rsvp = 21;
     }
   }
   // The available types of flow headers. If one is not provided the
@@ -6192,6 +7613,9 @@ message FlowHeader {
 
   // Description missing in models
   FlowSnmpv2c snmpv2c = 21;
+
+  // Description missing in models
+  FlowRsvp rsvp = 22;
 }
 
 // Custom packet header
@@ -6465,6 +7889,23 @@ message FlowIpv4Tos {
   PatternFlowIpv4TosUnused unused = 6;
 }
 
+// The OTG implementation can provide a system generated, value for this property.
+message FlowIpv4Auto {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      dhcp = 1;
+    }
+  }
+  // The method to be used to provide the system generated value.
+  // 
+  // The dhcp option populates the field based on the dynamic IPv4 address that has been
+  // assigned to the DHCPv4 client by a DHCPv4 server.
+  // required = true
+  optional Choice.Enum choice = 1;
+}
+
 // IPv6 packet header
 message FlowIpv6 {
 
@@ -6602,6 +8043,9 @@ message FlowTcp {
 
   // Description missing in models
   PatternFlowTcpWindow window = 15;
+
+  // Description missing in models
+  PatternFlowTcpChecksum checksum = 16;
 }
 
 // UDP packet header
@@ -7141,6 +8585,974 @@ message FlowSnmpv2cVariableBindingStringValue {
   // It contains the hex string to be sent.  As of now it is restricted to 10000 bytes.
   // default = 00
   optional string raw = 3;
+}
+
+// RSVP packet header as defined in RFC2205 and RFC3209. Currently only supported message
+// type is Path with mandatory objects and sub-objects.
+message FlowRsvp {
+
+  // RSVP Protocol Version.
+  // default = 1
+  optional uint32 version = 1;
+
+  message Flag {
+    enum Enum {
+      unspecified = 0;
+      not_refresh_reduction_capable = 1;
+      refresh_reduction_capable = 2;
+    }
+  }
+  // Flag, 0x01-0x08: Reserved.
+  // default = Flag.Enum.not_refresh_reduction_capable
+  optional Flag.Enum flag = 2;
+
+  // Description missing in models
+  PatternFlowRsvpRsvpChecksum rsvp_checksum = 3;
+
+  // Description missing in models
+  PatternFlowRsvpTimeToLive time_to_live = 4;
+
+  // Description missing in models
+  PatternFlowRsvpReserved reserved = 5;
+
+  // The sum of the lengths of the common header and all objects included in the message.
+  FlowRSVPLength rsvp_length = 6;
+
+  // An 8-bit number that identifies the function of the RSVP message. There are aound
+  // 20 message types defined in https://www.iana.org/assignments/rsvp-parameters/rsvp-parameters.xhtml#rsvp-parameters-2
+  // . Among these presently supported is Path(value: 1) message type.
+  FlowRSVPMessage message_type = 7;
+}
+
+// Description missing in models
+message FlowRSVPLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // auto or configured value.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation will provide a system generated value for this property.
+  // If the OTG implementation is unable to generate a value the default value must be
+  // used.
+  // default = 0
+  optional uint32 auto = 2;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 3;
+}
+
+// Description missing in models
+message FlowRSVPMessage {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      path = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.path
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathMessage path = 2;
+}
+
+// Path message requires the following list of objects in order as defined in https://www.rfc-editor.org/rfc/rfc3209.html#page-15:
+// 1. SESSION 2. RSVP_HOP 3. TIME_VALUES 4. EXPLICIT_ROUTE [optional] 5. LABEL_REQUEST
+// 6. SESSION_ATTRIBUTE [optional] 7. SENDER_TEMPLATE 8. SENDER_TSPEC 9. RECORD_ROUTE
+// [optional]
+message FlowRSVPPathMessage {
+
+  // Path message requires atleast SESSION, RSVP_HOP, TIME_VALUES, LABEL_REQUEST, SENDER_TEMPLATE
+  // and SENDER_TSPEC objects in order.
+  repeated FlowRSVPPathObjects objects = 1;
+}
+
+// Every RSVP object encapsulated in an RSVP message consists of a 32-bit word header
+// and the object's contents.
+message FlowRSVPPathObjects {
+
+  // Description missing in models
+  FlowRSVPPathObjectsClass class_num = 1;
+}
+
+// Description missing in models
+message FlowRSVPObjectLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // auto or configured value.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation will provide a system generated value for this property.
+  // If the OTG implementation is unable to generate a value the default value must be
+  // used.
+  // default = 4
+  optional uint32 auto = 2;
+
+  // Description missing in models
+  // default = 4
+  optional uint32 value = 3;
+}
+
+// The class number is used to identify the class of an object. Defined in https://www.iana.org/assignments/rsvp-parameters/rsvp-parameters.xhtml#rsvp-parameters-4
+// . Curently supported class numbers are for Path message type. Path message: Supported
+// Class numbers and it's value: SESSION: 1, RSVP_HOP: 3, TIME_VALUES: 5, EXPLICIT_ROUTE:
+// 20, LABEL_REQUEST: 19, SESSION_ATTRIBUTE: 207, SENDER_TEMPLATE: 11, SENDER_TSPEC:
+// 12, RECORD_ROUTE: 21, Custom: User defined bytes based on class and c-types not supported
+// in above options.
+message FlowRSVPPathObjectsClass {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      session = 1;
+      rsvp_hop = 2;
+      time_values = 3;
+      explicit_route = 4;
+      label_request = 5;
+      session_attribute = 6;
+      sender_template = 7;
+      sender_tspec = 8;
+      record_route = 9;
+      custom = 10;
+    }
+  }
+  // Description missing in models
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassSession session = 2;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassRsvpHop rsvp_hop = 3;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassTimeValues time_values = 4;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassExplicitRoute explicit_route = 5;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassLabelRequest label_request = 6;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassSessionAttribute session_attribute = 7;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassSenderTemplate sender_template = 8;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassSenderTspec sender_tspec = 9;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassRecordRoute record_route = 10;
+
+  // Description missing in models
+  FlowRSVPPathObjectsCustom custom = 11;
+}
+
+// C-Type is specific to a class num.
+message FlowRSVPPathObjectsClassSession {
+
+  // A 16-bit field containing the total object length in bytes.  Must always be a multiple
+  // of 4 or at least 4.
+  FlowRSVPObjectLength length = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsSessionCType c_type = 2;
+}
+
+// The body of an object corresponding to the class number and c-type. Currently supported
+// c-type for SESSION object is LSP Tunnel IPv4 (7).
+message FlowRSVPPathObjectsSessionCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      lsp_tunnel_ipv4 = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.lsp_tunnel_ipv4
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathSessionLspTunnelIpv4 lsp_tunnel_ipv4 = 2;
+}
+
+// Class = SESSION, LSP_TUNNEL_IPv4 C-Type = 7.
+message FlowRSVPPathSessionLspTunnelIpv4 {
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionLspTunnelIpv4Ipv4TunnelEndPointAddress ipv4_tunnel_end_point_address = 1;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionLspTunnelIpv4Reserved reserved = 2;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionLspTunnelIpv4TunnelId tunnel_id = 3;
+
+  // A 32-bit identifier used in the SESSION that remains constant over the life of the
+  // tunnel. Normally set to all zeros. Ingress nodes that wish to narrow the scope of
+  // a SESSION to the ingress-egress pair may place their IPv4 address here as a globally
+  // unique identifier.
+  FlowRSVPPathSessionExtTunnelId extended_tunnel_id = 4;
+}
+
+// Description missing in models
+message FlowRSVPPathSessionExtTunnelId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      as_integer = 1;
+      as_ipv4 = 2;
+    }
+  }
+  // 32 bit integer or IPv4 address.
+  // default = Choice.Enum.as_integer
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionExtTunnelIdAsInteger as_integer = 2;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionExtTunnelIdAsIpv4 as_ipv4 = 3;
+}
+
+// C-Type is specific to a class num.
+message FlowRSVPPathObjectsClassRsvpHop {
+
+  // A 16-bit field containing the total object length in bytes.  Must always be a multiple
+  // of 4 or at least 4.
+  FlowRSVPObjectLength length = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsRsvpHopCType c_type = 2;
+}
+
+// Object for RSVP_HOP class. Currently supported c-type is IPv4 (1).
+message FlowRSVPPathObjectsRsvpHopCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.ipv4
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathRsvpHopIpv4 ipv4 = 2;
+}
+
+// IPv4 RSVP_HOP object: Class = 3, C-Type = 1
+message FlowRSVPPathRsvpHopIpv4 {
+
+  // Description missing in models
+  PatternFlowRSVPPathRsvpHopIpv4Ipv4Address ipv4_address = 1;
+
+  // Description missing in models
+  PatternFlowRSVPPathRsvpHopIpv4LogicalInterfaceHandle logical_interface_handle = 2;
+}
+
+// C-Type is specific to a class num.
+message FlowRSVPPathObjectsClassTimeValues {
+
+  // A 16-bit field containing the total object length in bytes.  Must always be a multiple
+  // of 4 or at least 4.
+  FlowRSVPObjectLength length = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsTimeValuesCType c_type = 2;
+}
+
+// Object for TIME_VALUES class. Currently supported c-type is Type 1 Time Value (1).
+message FlowRSVPPathObjectsTimeValuesCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      type_1 = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.type_1
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathTimeValuesType1 type_1 = 2;
+}
+
+// TIME_VALUES Object: Class = 5, C-Type = 1
+message FlowRSVPPathTimeValuesType1 {
+
+  // Description missing in models
+  PatternFlowRSVPPathTimeValuesType1RefreshPeriodR refresh_period_r = 1;
+}
+
+// C-Type is specific to a class num.
+message FlowRSVPPathObjectsClassExplicitRoute {
+
+  // A 16-bit field containing the total object length in bytes.  Must always be a multiple
+  // of 4 or at least 4.
+  FlowRSVPObjectLength length = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsClassExplicitRouteCType c_type = 2;
+}
+
+// Object for EXPLICIT_ROUTE class and c-type is Type 1 Explicit Route (1).
+message FlowRSVPPathObjectsClassExplicitRouteCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      type_1 = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.type_1
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathExplicitRouteType1 type_1 = 2;
+}
+
+// Type1 Explicit Route has subobjects. Currently supported subobjects are IPv4 prefix
+// and Autonomous system number.
+message FlowRSVPPathExplicitRouteType1 {
+
+  // Description missing in models
+  repeated FlowRSVPType1ExplicitRouteSubobjects subobjects = 1;
+}
+
+// Type is specific to a subobject.
+message FlowRSVPType1ExplicitRouteSubobjects {
+
+  // Description missing in models
+  FlowRSVPType1ExplicitRouteSubobjectsType type = 1;
+}
+
+// Currently supported subobjects are IPv4 address(1) and Autonomous system number(32).
+message FlowRSVPType1ExplicitRouteSubobjectsType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4_prefix = 1;
+      as_number = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.ipv4_prefix
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathExplicitRouteType1Ipv4Prefix ipv4_prefix = 2;
+
+  // Description missing in models
+  FlowRSVPPathExplicitRouteType1ASNumber as_number = 3;
+}
+
+// Class = EXPLICIT_ROUTE, Type1 ROUTE_RECORD C-Type = 1 Subobject: IPv4 Prefix, C-Type:
+// 1
+message FlowRSVPPathExplicitRouteType1Ipv4Prefix {
+
+  // Description missing in models
+  PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixLBit l_bit = 1;
+
+  // The Length contains the total length of the subobject in bytes,including L,Type and
+  // Length fields.   The Length MUST be atleast 4, and MUST be a multiple of 4.
+  FlowRSVPExplicitRouteLength length = 2;
+
+  // Description missing in models
+  PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixIpv4Address ipv4_address = 3;
+
+  // The prefix length of the IPv4 address.
+  // default = 32
+  optional uint32 prefix = 4;
+}
+
+// Class = EXPLICIT_ROUTE, Type1 ROUTE_RECORD C-Type = 1 Subobject: Autonomous system
+// number, C-Type: 32
+message FlowRSVPPathExplicitRouteType1ASNumber {
+
+  // Description missing in models
+  PatternFlowRSVPPathExplicitRouteType1ASNumberLBit l_bit = 1;
+
+  // The Length contains the total length of the subobject in bytes,including L, Type
+  // and Length fields.   The Length MUST be atleast 4, and MUST be a multiple of 4.
+  FlowRSVPExplicitRouteASNumberLength length = 2;
+
+  // Autonomous System number to be set in the ERO sub-object that this LSP should traverse
+  // through. This field is applicable only if the value of 'type' is set to 'as_number'.
+  // default = 0
+  optional uint32 as_number = 3;
+}
+
+// Description missing in models
+message FlowRSVPExplicitRouteLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // auto or configured value.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation will provide a system generated value for this property.
+  // If the OTG implementation is unable to generate a value the default value must be
+  // used.
+  // default = 8
+  optional uint32 auto = 2;
+
+  // Description missing in models
+  // default = 8
+  optional uint32 value = 3;
+}
+
+// Description missing in models
+message FlowRSVPExplicitRouteASNumberLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // auto or configured value.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation will provide a system generated value for this property.
+  // If the OTG implementation is unable to generate a value the default value must be
+  // used.
+  // default = 4
+  optional uint32 auto = 2;
+
+  // Description missing in models
+  // default = 4
+  optional uint32 value = 3;
+}
+
+// C-Type is specific to a class num.
+message FlowRSVPPathObjectsClassLabelRequest {
+
+  // A 16-bit field containing the total object length in bytes.  Must always be a multiple
+  // of 4 or at least 4.
+  FlowRSVPObjectLength length = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsLabelRequestCType c_type = 2;
+}
+
+// Object for LABEL_REQUEST class. Currently supported c-type is Without Label Range
+// (1).
+message FlowRSVPPathObjectsLabelRequestCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      without_label_range = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.without_label_range
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathLabelRequestWithoutLabelRange without_label_range = 2;
+}
+
+// Class = LABEL_REQUEST, Without Label Range C-Type = 1
+message FlowRSVPPathLabelRequestWithoutLabelRange {
+
+  // Description missing in models
+  PatternFlowRSVPPathLabelRequestWithoutLabelRangeReserved reserved = 1;
+
+  // Description missing in models
+  PatternFlowRSVPPathLabelRequestWithoutLabelRangeL3pid l3pid = 2;
+}
+
+// C-Type is specific to a class num.
+message FlowRSVPPathObjectsClassSessionAttribute {
+
+  // A 16-bit field containing the total object length in bytes.  Must always be a multiple
+  // of 4 or at least 4.
+  FlowRSVPObjectLength length = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsSessionAttributeCType c_type = 2;
+}
+
+// Object for SESSION_ATTRIBUTE class. Currently supported c-type is LSP_Tunnel_RA (1)
+// and LSP_Tunnel (7).
+message FlowRSVPPathObjectsSessionAttributeCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      lsp_tunnel = 1;
+      lsp_tunnel_ra = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.lsp_tunnel
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathSessionAttributeLspTunnel lsp_tunnel = 2;
+
+  // Description missing in models
+  FlowRSVPPathSessionAttributeLspTunnelRa lsp_tunnel_ra = 3;
+}
+
+// SESSION_ATTRIBUTE class = 207, LSP_TUNNEL_RA C-Type = 7, resource affinity information.
+message FlowRSVPPathSessionAttributeLspTunnel {
+
+  // The priority of the session with respect to taking resources,in the range of 0 to
+  // 7. The value 0 is the highest priority. The Setup Priority is used in deciding whether
+  // this session can preempt another session.
+  // default = 7
+  optional uint32 setup_priority = 1;
+
+  // The priority of the session with respect to holding resources,in the range of 0 to
+  // 7. The value 0 is the highest priority. The Setup Priority is used in deciding whether
+  // this session can preempt another session.
+  // default = 7
+  optional uint32 holding_priority = 2;
+
+  // 0x01 Local protection desired, 0x02 Label recording desired, 0x04 SE Style desired
+  FlowRSVPLspTunnelFlag flags = 3;
+
+  // The length of the display string before padding, in bytes.
+  FlowRSVPSessionAttributeNameLength name_length = 4;
+
+  // A null padded string of characters.
+  // default =
+  optional string session_name = 5;
+}
+
+// SESSION_ATTRIBUTE class = 207, LSP_TUNNEL_RA C-Type = 1, it carries resource affinity
+// information.
+message FlowRSVPPathSessionAttributeLspTunnelRa {
+
+  // A 32-bit vector representing a set of attribute filters associated with a tunnel
+  // any of which renders a link unacceptable. A null set (all bits set to zero) doesn't
+  // render the link unacceptable. The most significant byte in the hex-string is the
+  // farthest  to the left in the byte sequence.  Leading zero bytes in the configured
+  // value may be omitted for brevity.
+  // default = 00
+  optional string exclude_any = 1;
+
+  // A 32-bit vector representing a set of attribute filters associated with a tunnel
+  // any of which renders a link acceptable. A null set (all bits set to zero) automatically
+  // passes. The most significant byte in the hex-string is the farthest  to the left
+  // in the byte sequence.  Leading zero bytes in the configured value may be omitted
+  // for brevity.
+  // default = 00
+  optional string include_any = 2;
+
+  // A 32-bit vector representing a set of attribute filters associated with a tunnel
+  // all of which must be present for a link to be acceptable. A null set (all bits set
+  // to zero) automatically passes. The most significant byte in the hex-string is the
+  // farthest to the left in the byte sequence.  Leading zero bytes in the configured
+  // value may be omitted for brevity.
+  // default = 00
+  optional string include_all = 3;
+
+  // The priority of the session with respect to taking resources,in the range of 0 to
+  // 7. The value 0 is the highest priority. The Setup Priority is used in deciding whether
+  // this session can preempt another session.
+  // default = 7
+  optional uint32 setup_priority = 4;
+
+  // The priority of the session with respect to holding resources,in the range of 0 to
+  // 7. The value 0 is the highest priority. The Setup Priority is used in deciding whether
+  // this session can preempt another session.
+  // default = 7
+  optional uint32 holding_priority = 5;
+
+  // 0x01 Local protection desired, 0x02 Label recording desired, 0x04 SE Style desired
+  FlowRSVPLspTunnelFlag flags = 6;
+
+  // The length of the display string before padding, in bytes.
+  FlowRSVPSessionAttributeNameLength name_length = 7;
+
+  // A null padded string of characters.
+  // default =
+  optional string session_name = 8;
+}
+
+// Description missing in models
+message FlowRSVPLspTunnelFlag {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      local_protection_desired = 1;
+      label_recording_desired = 2;
+      se_style_desired = 3;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.local_protection_desired
+  optional Choice.Enum choice = 1;
+}
+
+// Description missing in models
+message FlowRSVPSessionAttributeNameLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // auto or configured value.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation will provide a system generated value for this property.
+  // If the OTG implementation is unable to generate a value the default value must be
+  // used.
+  // default = 0
+  optional uint32 auto = 2;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 3;
+}
+
+// C-Type is specific to a class num.
+message FlowRSVPPathObjectsClassSenderTemplate {
+
+  // A 16-bit field containing the total object length in bytes.  Must always be a multiple
+  // of 4 or at least 4.
+  FlowRSVPObjectLength length = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsSenderTemplateCType c_type = 2;
+}
+
+// Object for SENDER_TEMPLATE class. Currently supported c-type is LSP Tunnel IPv4 (7).
+message FlowRSVPPathObjectsSenderTemplateCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      lsp_tunnel_ipv4 = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.lsp_tunnel_ipv4
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathSenderTemplateLspTunnelIpv4 lsp_tunnel_ipv4 = 2;
+}
+
+// Class = SENDER_TEMPLATE, LSP_TUNNEL_IPv4 C-Type = 7
+message FlowRSVPPathSenderTemplateLspTunnelIpv4 {
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTemplateLspTunnelIpv4Ipv4TunnelSenderAddress ipv4_tunnel_sender_address = 1;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTemplateLspTunnelIpv4Reserved reserved = 2;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTemplateLspTunnelIpv4LspId lsp_id = 3;
+}
+
+// C-Type is specific to a class num.
+message FlowRSVPPathObjectsClassSenderTspec {
+
+  // A 16-bit field containing the total object length in bytes.  Must always be a multiple
+  // of 4 or at least 4.
+  FlowRSVPObjectLength length = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsSenderTspecCType c_type = 2;
+}
+
+// Object for SENDER_TSPEC class. Currently supported c-type is int-serv (2).
+message FlowRSVPPathObjectsSenderTspecCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      int_serv = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.int_serv
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathSenderTspecIntServ int_serv = 2;
+}
+
+// int-serv SENDER_TSPEC object: Class = 12, C-Type = 2
+message FlowRSVPPathSenderTspecIntServ {
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServVersion version = 1;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServReserved1 reserved1 = 2;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServOverallLength overall_length = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServServiceHeader service_header = 4;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServZeroBit zero_bit = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServReserved2 reserved2 = 6;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServLengthOfServiceData length_of_service_data = 7;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServParameterIdTokenBucketTspec parameter_id_token_bucket_tspec = 8;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServParameter127Flag parameter_127_flag = 9;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServParameter127Length parameter_127_length = 10;
+
+  // Token bucket rate is set to sender's view of its generated traffic.
+  // default = 0
+  optional float token_bucket_rate = 11;
+
+  // Token bucket size is set to sender's view of its generated traffic.
+  // default = 0
+  optional float token_bucket_size = 12;
+
+  // The peak rate may be set to the sender's peak traffic generation rate (if known and
+  // controlled), the physical interface line rate (if known), or positive infinity (if
+  // no better value is available).
+  // default = 0
+  optional float peak_data_rate = 13;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServMinimumPolicedUnit minimum_policed_unit = 14;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServMaximumPacketSize maximum_packet_size = 15;
+}
+
+// C-Type is specific to a class num.
+message FlowRSVPPathObjectsClassRecordRoute {
+
+  // A 16-bit field containing the total object length in bytes.  Must always be a multiple
+  // of 4 or at least 4.
+  FlowRSVPObjectLength length = 1;
+
+  // Description missing in models
+  FlowRSVPPathObjectsRecordRouteCType c_type = 2;
+}
+
+// Object for RECORD_ROUTE class. c-type is Type 1 Route Record (1).
+message FlowRSVPPathObjectsRecordRouteCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      type_1 = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.type_1
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathRecordRouteType1 type_1 = 2;
+}
+
+// Type1 record route has list of subobjects. Currently supported subobjects are IPv4
+// address(1) and Label(3).
+message FlowRSVPPathRecordRouteType1 {
+
+  // Description missing in models
+  repeated FlowRSVPType1RecordRouteSubobjects subobjects = 1;
+}
+
+// Type is specific to a subobject.
+message FlowRSVPType1RecordRouteSubobjects {
+
+  // Description missing in models
+  FlowRSVPPathObjectsRecordRouteSubObjectType type = 1;
+}
+
+// Currently supported subobjects are IPv4 address(1) and Label(3).
+message FlowRSVPPathObjectsRecordRouteSubObjectType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4_address = 1;
+      label = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.ipv4_address
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowRSVPPathRecordRouteType1Ipv4Address ipv4_address = 2;
+
+  // Description missing in models
+  FlowRSVPPathRecordRouteType1Label label = 3;
+}
+
+// Class = RECORD_ROUTE, Type1 ROUTE_RECORD C-Type = 1 Subobject: IPv4 Address, C-Type:
+// 1
+message FlowRSVPPathRecordRouteType1Ipv4Address {
+
+  // The Length contains the total length of the subobject in bytes, including the Type
+  // and Length fields.   The Length MUST be atleast 4, and MUST be a multiple of 4.
+  FlowRSVPRouteRecordLength length = 1;
+
+  // Description missing in models
+  PatternFlowRSVPPathRecordRouteType1Ipv4AddressIpv4Address ipv4_address = 2;
+
+  // Description missing in models
+  PatternFlowRSVPPathRecordRouteType1Ipv4AddressPrefixLength prefix_length = 3;
+
+  // 0x01  local_protection_available, 0x02  local_protection_in_use
+  FlowRSVPRecordRouteIPv4Flag flags = 4;
+}
+
+// Description missing in models
+message FlowRSVPRecordRouteIPv4Flag {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      local_protection_available = 1;
+      local_protection_in_use = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.local_protection_available
+  optional Choice.Enum choice = 1;
+}
+
+// Class = RECORD_ROUTE, Type1 ROUTE_RECORD C-Type = 1 Subobject: Label, C-Type: 3
+message FlowRSVPPathRecordRouteType1Label {
+
+  // The Length contains the total length of the subobject in bytes, including the Type
+  // and Length fields.   The Length MUST be atleast 4, and MUST be a multiple of 4.
+  FlowRSVPRouteRecordLength length = 1;
+
+  // Description missing in models
+  PatternFlowRSVPPathRecordRouteType1LabelFlags flags = 2;
+
+  // Description missing in models
+  PatternFlowRSVPPathRecordRouteType1LabelCType c_type = 3;
+
+  // The contents of the Label Object. Copied from the Label Object.
+  FlowRSVPPathRecordRouteLabel label = 4;
+}
+
+// Description missing in models
+message FlowRSVPPathRecordRouteLabel {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      as_integer = 1;
+      as_hex = 2;
+    }
+  }
+  // 32 bit integer or hex value.
+  // default = Choice.Enum.as_integer
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 16
+  optional uint32 as_integer = 2;
+
+  // Value of the this field should not excced 4 bytes. Maximum length of this attribute
+  // is 8 (4 * 2 hex character per byte).
+  // default = 10
+  optional string as_hex = 3;
+}
+
+// Description missing in models
+message FlowRSVPRouteRecordLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // auto or configured value.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation will provide a system generated value for this property.
+  // If the OTG implementation is unable to generate a value the default value must be
+  // used.
+  // default = 8
+  optional uint32 auto = 2;
+
+  // Description missing in models
+  // default = 8
+  optional uint32 value = 3;
+}
+
+// Custom packet header
+message FlowRSVPPathObjectsCustom {
+
+  // Description missing in models
+  PatternFlowRSVPPathObjectsCustomType type = 1;
+
+  // Description missing in models
+  FlowRSVPObjectLength length = 2;
+
+  // A custom packet header defined as a string of hex bytes. The string MUST contain
+  // sequence of valid hex bytes. Spaces or colons can be part of the bytes but will be
+  // discarded. Value of the this field should not excced 65525 bytes since maximum 65528
+  // bytes can be added as object-contents in RSVP header. For type and length requires
+  // 3 bytes, hence maximum of 65524 bytes are expected. Maximum length of this attribute
+  // is 131050 (65525 * 2 hex character per byte).
+  // default = 0000
+  optional string bytes = 3;
 }
 
 // The frame size which overrides the total length of the packet
@@ -8871,6 +11283,8 @@ message MetricsRequest {
       lacp = 7;
       lldp = 8;
       rsvp = 9;
+      dhcpv4_client = 10;
+      dhcpv4_server = 11;
     }
   }
   // Description missing in models
@@ -8903,6 +11317,12 @@ message MetricsRequest {
 
   // Description missing in models
   RsvpMetricsRequest rsvp = 10;
+
+  // Description missing in models
+  Dhcpv4ClientMetricsRequest dhcpv4_client = 11;
+
+  // Description missing in models
+  Dhcpv4ServerMetricsRequest dhcpv4_server = 12;
 }
 
 // Response containing chosen traffic generator metrics.
@@ -8920,6 +11340,8 @@ message MetricsResponse {
       lacp_metrics = 7;
       lldp_metrics = 8;
       rsvp_metrics = 9;
+      dhcpv4_client = 10;
+      dhcpv4_server = 11;
     }
   }
   // Description missing in models
@@ -8952,6 +11374,12 @@ message MetricsResponse {
 
   // Description missing in models
   repeated RsvpMetric rsvp_metrics = 10;
+
+  // Description missing in models
+  repeated Dhcpv4ClientMetric dhcpv4client_metrics = 11;
+
+  // Description missing in models
+  repeated Dhcpv4ServerMetric dhcpv4server_metrics = 12;
 }
 
 // The port result request to the traffic generator
@@ -10094,6 +12522,120 @@ message RsvpMetric {
   optional uint64 path_reoptimizations = 31;
 }
 
+// The request to retrieve DHCPv4 per client metrics/statistics.
+message Dhcpv4ClientMetricsRequest {
+
+  // The names of DHCPv4 clients to return results for. An empty list will return results
+  // for all DHCPv4 client.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv4client/properties/name
+  // 
+  repeated string client_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      discovers_sent = 1;
+      offers_received = 2;
+      requests_sent = 3;
+      acks_received = 4;
+      nacks_received = 5;
+      releases_sent = 6;
+      declines_sent = 7;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.  The name of the DHCPv4 client cannot be
+  // excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// DHCPv4 per peer statistics information.
+message Dhcpv4ClientMetric {
+
+  // The name of a configured DHCPv4 client.
+  optional string name = 1;
+
+  // Number of DHCPDISCOVER messages sent.
+  optional uint64 discovers_sent = 2;
+
+  // Number of DHCPOFFER messages received.
+  optional uint64 offers_received = 3;
+
+  // Number of DHCPREQUEST messages sent.
+  optional uint64 requests_sent = 4;
+
+  // Number of lease DHCPACK messages received.
+  optional uint64 acks_received = 5;
+
+  // Number of negative lease DHCPNACK messages received.
+  optional uint64 nacks_received = 6;
+
+  // Number of DHCPRELEASE messages sent.
+  optional uint64 releases_sent = 7;
+
+  // Number of DHCPDECLINE messages sent.
+  optional uint64 declines_sent = 8;
+}
+
+// The request to retrieve DHCPv4 per Server metrics/statistics.
+message Dhcpv4ServerMetricsRequest {
+
+  // The names of DHCPv4 Servers to return results for. An empty list will return results
+  // for all DHCPv4 Server.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv4Server/properties/name
+  // 
+  repeated string server_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      discovers_received = 1;
+      offers_sent = 2;
+      requests_received = 3;
+      acks_sent = 4;
+      nacks_sent = 5;
+      releases_received = 6;
+      declines_received = 7;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.  The name of the DHCPv4 server cannot be
+  // excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// DHCPv4 per peer statistics information.
+message Dhcpv4ServerMetric {
+
+  // The name of a configured DHCPv4 Server.
+  optional string name = 1;
+
+  // Number of DHCPDISCOVER messages received.
+  optional uint64 discovers_received = 2;
+
+  // Number of DHCPOFFER messages sent.
+  optional uint64 offers_sent = 3;
+
+  // Number of DHCPOFFER messages received.
+  optional uint64 requests_received = 4;
+
+  // Number of lease DHCPACK messages sent.
+  optional uint64 acks_sent = 5;
+
+  // Number of negative lease DHCPNACK messages sent.
+  optional uint64 nacks_sent = 6;
+
+  // Number of DHCPRELEASE messages received.
+  optional uint64 releases_received = 7;
+
+  // Number of DHCPDECLINE messages received.
+  optional uint64 declines_received = 8;
+}
+
 // Request to traffic generator for states of choice
 message StatesRequest {
 
@@ -10106,6 +12648,8 @@ message StatesRequest {
       isis_lsps = 4;
       lldp_neighbors = 5;
       rsvp_lsps = 6;
+      dhcpv4_interfaces = 7;
+      dhcpv4_leases = 8;
     }
   }
   // Description missing in models
@@ -10129,6 +12673,12 @@ message StatesRequest {
 
   // Description missing in models
   RsvpLspsStateRequest rsvp_lsps = 7;
+
+  // Description missing in models
+  Dhcpv4InterfaceStateRequest dhcpv4_interfaces = 8;
+
+  // Description missing in models
+  Dhcpv4LeaseStateRequest dhcpv4_leases = 9;
 }
 
 // Response containing chosen traffic generator states
@@ -10143,6 +12693,8 @@ message StatesResponse {
       isis_lsps = 4;
       lldp_neighbors = 5;
       rsvp_lsps = 6;
+      dhcpv4_interfaces = 7;
+      dhcpv4_leases = 8;
     }
   }
   // Description missing in models
@@ -10166,6 +12718,12 @@ message StatesResponse {
 
   // Description missing in models
   repeated RsvpLspsState rsvp_lsps = 7;
+
+  // Description missing in models
+  repeated Dhcpv4InterfaceState dhcpv4_interfaces = 8;
+
+  // Description missing in models
+  repeated Dhcpv4LeasesState dhcpv4_leases = 9;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -10358,6 +12916,13 @@ message BgpPrefixIpv4UnicastState {
   // Optional community attributes.
   repeated ResultBgpCommunity communities = 7;
 
+  // Optional received Extended Community attributes. Each received Extended Community
+  // attribute is available for retrieval in two forms. Support of the 'raw' format in
+  // which all 8 bytes (16 hex characters) is always present and available for use. In
+  // addition, if supported by the implementation, the Extended Community attribute may
+  // also be retrieved in the  'structured' format which is an optional field.
+  repeated ResultExtendedCommunity extended_communities = 11;
+
   // Description missing in models
   ResultBgpAsPath as_path = 8;
 
@@ -10402,6 +12967,13 @@ message BgpPrefixIpv6UnicastState {
   // Optional community attributes.
   repeated ResultBgpCommunity communities = 7;
 
+  // Optional received Extended Community attributes. Each received Extended Community
+  // attribute is available for retrieval in two forms. Support of the 'raw' format in
+  // which all 8 bytes (16 hex characters) is always present and available for use. In
+  // addition, if supported by the implementation, the Extended Community attribute may
+  // also be retrieved in the  'structured' format which is an optional field.
+  repeated ResultExtendedCommunity extended_communities = 11;
+
   // Description missing in models
   ResultBgpAsPath as_path = 8;
 
@@ -10412,6 +12984,293 @@ message BgpPrefixIpv6UnicastState {
   // The multi exit discriminator (MED) is an optional non-transitive attribute and the
   // value is used for route selection. The route with the lowest MED value is preferred.
   optional uint32 multi_exit_discriminator = 10;
+}
+
+// Each received Extended Community attribute is available for retrieval in two forms.
+// Support of the 'raw' format in which all 8 bytes (16 hex characters) is always present
+// and available for use. In addition, if supported by the implementation, the Extended
+// Community attribute may also be retrieved in the 'structured' format which is an
+// optional field.
+message ResultExtendedCommunity {
+
+  // The raw byte contents of the 8 bytes received in the Extended Community as 16 hex
+  // characters.
+  optional string raw = 1;
+
+  // Description missing in models
+  ResultExtendedCommunityStructured structured = 2;
+}
+
+// The Extended Communities Attribute is a optional BGP attribute,defined in RFC4360
+// with the Type Code 16.
+// Community and Extended Communities  attributes are utilized to trigger routing decisions,
+// such as acceptance, rejection,  preference, or redistribution.
+// An extended community is an 8-bytes value. It is divided into two main parts. The
+// first 2 bytes of the community  encode a type and optonal sub-type field.
+// The last 6 bytes (or 7 bytes for types without a sub-type) carry a unique set of
+// data in a format defined by the type and optional sub-type field.
+// Extended communities provide a larger  range for grouping or categorizing communities.
+message ResultExtendedCommunityStructured {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      transitive_2octet_as_type = 1;
+      transitive_ipv4_address_type = 2;
+      transitive_4octet_as_type = 3;
+      transitive_opaque_type = 4;
+      non_transitive_2octet_as_type = 5;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitive2OctetAsType transitive_2octet_as_type = 2;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitiveIpv4AddressType transitive_ipv4_address_type = 3;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitive4OctetAsType transitive_4octet_as_type = 4;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitiveOpaqueType transitive_opaque_type = 5;
+
+  // Description missing in models
+  ResultExtendedCommunityNonTransitive2OctetAsType non_transitive_2octet_as_type = 6;
+}
+
+// The Route Target Community identifies one or more routers that may receive a set
+// of routes (that carry this Community) carried by BGP Update message.  It is sent
+// with sub-type as 0x02.
+message ResultExtendedCommunityTransitive2OctetAsTypeRouteTarget {
+
+  // The two octet IANA assigned AS value assigned to the Autonomous System.
+  optional uint32 global_2byte_as = 1;
+
+  // The Local Administrator sub-field contains a number from a numbering space that is
+  // administered by the organization to which the Autonomous System number carried in
+  // the Global Administrator sub-field has been assigned by an appropriate authority.
+  optional uint32 local_4byte_admin = 2;
+}
+
+// The Route Origin Community identifies one or more routers that inject a set of routes
+// (that carry this Community) into BGP. It is sent with sub-type as 0x03 .
+message ResultExtendedCommunityTransitive2OctetAsTypeRouteOrigin {
+
+  // The two octet IANA assigned AS value assigned to the Autonomous System.
+  optional uint32 global_2byte_as = 1;
+
+  // The Local Administrator sub-field contains a number from a numbering space that is
+  // administered by the organization to which the Autonomous System number carried in
+  // the Global Administrator sub-field has been assigned by an appropriate authority.
+  optional uint32 local_4byte_admin = 2;
+}
+
+// The Transitive Two-Octet AS-Specific Extended Community is sent as type 0x00 .
+// 
+message ResultExtendedCommunityTransitive2OctetAsType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      route_target_subtype = 1;
+      route_origin_subtype = 2;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitive2OctetAsTypeRouteTarget route_target_subtype = 2;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitive2OctetAsTypeRouteOrigin route_origin_subtype = 3;
+}
+
+// The Route Origin Community identifies one or more routers that inject a set of routes
+// (that carry this Community) into BGP It is sent with sub-type as 0x03.
+message ResultExtendedCommunityTransitiveIpv4AddressTypeRouteOrigin {
+
+  // An IPv4 unicast address assigned by one of the Internet registries.
+  optional string global_ipv4_admin = 1;
+
+  // The Local Administrator sub-field contains a number from a numbering space that is
+  // administered by the organization to which  the IP address carried in the Global Administrator
+  // sub-field has been assigned by an appropriate authority.
+  optional uint32 local_2byte_admin = 2;
+}
+
+// The Route Target Community identifies one or more routers that may receive a set
+// of routes (that carry this Community) carried by BGP.  It is sent with sub-type as
+// 0x02.
+message ResultExtendedCommunityTransitiveIpv4AddressTypeRouteTarget {
+
+  // An IPv4 unicast address assigned by one of the Internet registries.
+  optional string global_ipv4_admin = 1;
+
+  // The Local Administrator sub-field contains a number from a numbering space that is
+  // administered by the organization to which  the IP address carried in the Global Administrator
+  // sub-field has been assigned by an appropriate authority.
+  optional uint32 local_2byte_admin = 2;
+}
+
+// The Transitive IPv4 Address Specific Extended Community is sent as type 0x01.
+message ResultExtendedCommunityTransitiveIpv4AddressType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      route_target_subtype = 1;
+      route_origin_subtype = 2;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitiveIpv4AddressTypeRouteTarget route_target_subtype = 2;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitiveIpv4AddressTypeRouteOrigin route_origin_subtype = 3;
+}
+
+// The Route Target Community identifies one or more routers that may receive a set
+// of routes (that carry this Community) carried by BGP.  It is sent with sub-type as
+// 0x02
+message ResultExtendedCommunityTransitive4OctetAsTypeRouteTarget {
+
+  // The four octet IANA assigned AS value assigned to the Autonomous System.
+  optional uint32 global_4byte_as = 1;
+
+  // The Local Administrator sub-field contains a number from a numbering space that is
+  // administered by the organization to which the Autonomous System number carried in
+  // the Global Administrator sub-field has been assigned by an appropriate authority.
+  optional uint32 local_2byte_admin = 2;
+}
+
+// The Route Origin Community identifies one or more routers that inject a set of routes
+// (that carry this Community) into BGP. It is sent with sub-type as 0x03.
+message ResultExtendedCommunityTransitive4OctetAsTypeRouteOrigin {
+
+  // The four octet IANA assigned AS value assigned to the Autonomous System.
+  optional uint32 global_4byte_as = 1;
+
+  // The Local Administrator sub-field contains a number from a numbering space that is
+  // administered by the organization to which the Autonomous System number carried in
+  // the Global Administrator sub-field has been assigned by an appropriate authority.
+  optional uint32 local_2byte_admin = 2;
+}
+
+// The Transitive Four-Octet AS-Specific Extended Community is sent as type 0x02. It
+// is defined in RFC 5668.
+message ResultExtendedCommunityTransitive4OctetAsType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      route_target_subtype = 1;
+      route_origin_subtype = 2;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitive4OctetAsTypeRouteTarget route_target_subtype = 2;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitive4OctetAsTypeRouteOrigin route_origin_subtype = 3;
+}
+
+// The Color Community contains locally administrator defined 'color' value which is
+// used in conjunction with Encapsulation  attribute to decide whether a data packet
+// can be transmitted on a certain tunnel or not. It is defined in RFC9012 and sent
+// with sub-type as 0x0b.
+message ResultExtendedCommunityTransitiveOpaqueTypeColor {
+
+  // Two octet flag values.
+  optional uint32 flags = 1;
+
+  // The color value is user defined and configured locally and used to determine whether
+  // a data packet can be transmitted on a certain tunnel or not
+  // in conjunction with the Encapsulation attribute. It is defined in RFC9012.
+  // 
+  optional uint32 color = 2;
+}
+
+// This identifies the type of tunneling technology being signalled. It is defined in
+// RFC9012 and sent with sub-type as 0x0c.
+message ResultExtendedCommunityTransitiveOpaqueTypeEncapsulation {
+
+  // Four bytes of reserved values. Normally set to 0 on transmit and ignored on receive.
+  // 
+  optional uint32 reserved = 1;
+
+  // Identifies the type of tunneling technology being signalled. Initially defined in
+  // RFC5512 and extended in RFC9012.
+  // Some of the important tunnel types include
+  // - 1 L2TPv3 over IP	[RFC9012],
+  // - 2	GRE	[RFC9012],
+  // - 7	IP in IP	[RFC9012],
+  // - 8	VXLAN Encapsulation	[RFC8365],
+  // - 9	NVGRE Encapsulation	[RFC8365],
+  // - 10	MPLS Encapsulation	[RFC8365],
+  // - 15	SR TE Policy Type	[draft-ietf-idr-segment-routing-te-policy],
+  // - 19	Geneve Encapsulation	[RFC8926]
+  optional uint32 tunnel_type = 2;
+}
+
+// The Transitive Opaque Extended Community is sent as type 0x03.
+message ResultExtendedCommunityTransitiveOpaqueType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      color_subtype = 1;
+      encapsulation_subtype = 2;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitiveOpaqueTypeColor color_subtype = 2;
+
+  // Description missing in models
+  ResultExtendedCommunityTransitiveOpaqueTypeEncapsulation encapsulation_subtype = 3;
+}
+
+// The Link Bandwidth Extended Community attribute is defined in draft-ietf-idr-link-bandwidth.
+// It is sent with sub-type as 0x04.
+message ResultExtendedCommunityNonTransitive2OctetAsTypeLinkBandwidth {
+
+  // The value of the Global Administrator subfield should represent the Autonomous System
+  // of the router that attaches the Link Bandwidth Community. If four octet AS numbering
+  // scheme is used, AS_TRANS (23456) should be used.
+  optional uint32 global_2byte_as = 1;
+
+  // Bandwidth of the link in bytes per second. ( 1 Kbps is 1000 bytes per second and
+  // 1 Mbps is 1000 Kbps per second )
+  optional float bandwidth = 2;
+}
+
+// The Non-Transitive Two-Octet AS-Specific Extended Community is sent as type 0x40.
+// 
+message ResultExtendedCommunityNonTransitive2OctetAsType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      link_bandwidth_subtype = 1;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  ResultExtendedCommunityNonTransitive2OctetAsTypeLinkBandwidth link_bandwidth_subtype = 2;
 }
 
 // BGP communities provide additional capability for tagging routes and  for modifying
@@ -11078,6 +13937,93 @@ message RsvpLspIpv4Ero {
   }
   // The type indicated by the ERO.
   optional Type.Enum type = 3;
+}
+
+// The request for assigned IPv4 address information associated with DHCP Client sessions.
+message Dhcpv4InterfaceStateRequest {
+
+  // The names of DHCPv4 client to return results for. An empty list will return results
+  // for all DHCPv4 Client address information.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv4client/properties/name
+  // 
+  repeated string dhcp_client_names = 1;
+}
+
+// The IPv4 address associated with this DHCP Client session.
+message Dhcpv4InterfaceState {
+
+  // The name of a DHCPv4 Client.
+  optional string dhcp_client_name = 1;
+
+  // The IPv4 address associated with this DHCP Client session.
+  optional string ipv4_address = 2;
+
+  // The length of the prefix.
+  optional uint32 prefix_length = 3;
+
+  // The Gateway Ipv4 address associated with this DHCP Client session.
+  optional string gateway_address = 4;
+
+  // The duration of the IPv4 address lease, in seconds.
+  optional uint32 lease_time = 5;
+
+  // Time in seconds until the DHCPv4 client starts renewing the lease.
+  optional uint32 renew_time = 6;
+
+  // Time in seconds until the DHCPv4 client starts rebinding.
+  optional uint32 rebind_time = 7;
+}
+
+// The request to retrieve DHCP Server host allocated status.
+message Dhcpv4LeaseStateRequest {
+
+  // The names of DHCPv4 server to return results for. An empty list will return results
+  // for all DHCPv4 servers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv4server/properties/name
+  // 
+  repeated string dhcp_server_names = 1;
+}
+
+// Lease information of DHCP Server.
+message Dhcpv4LeasesState {
+
+  // The name of a DHCP Server.
+  optional string dhcp_server_name = 1;
+
+  // Description missing in models
+  repeated Dhcpv4LeaseState leases = 2;
+}
+
+// IPv4 address lease state.
+message Dhcpv4LeaseState {
+
+  // The IPv4 address associated with this lease.
+  optional string address = 1;
+
+  // The time in seconds after which the IPv4 address lease will expire.
+  optional uint32 valid_time = 2;
+
+  // The elapsed time in seconds since the address has been renewed.
+  optional uint32 preferred_time = 3;
+
+  // Time in seconds until the DHCPv4 client starts renewing the lease.
+  optional uint32 renew_time = 4;
+
+  // Time in seconds until the DHCPv4 client starts rebinding.
+  optional uint32 rebind_time = 5;
+
+  // The ID of the DHCPv4 client holding this lease.
+  optional string client_id = 6;
+
+  // The Circuit ID option found in the last request message.
+  optional string circuit_id = 7;
+
+  // The Remote ID option found in the last request message.
+  optional string remote_id = 8;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the
@@ -12795,6 +15741,7 @@ message PatternFlowIpv4Src {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -12821,6 +15768,9 @@ message PatternFlowIpv4Src {
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
   repeated PatternFlowIpv4SrcMetricTag metric_tags = 7;
+
+  // Description missing in models
+  FlowIpv4Auto auto = 8;
 }
 
 // ipv4 counter pattern
@@ -12867,6 +15817,7 @@ message PatternFlowIpv4Dst {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
@@ -12893,6 +15844,9 @@ message PatternFlowIpv4Dst {
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
   repeated PatternFlowIpv4DstMetricTag metric_tags = 7;
+
+  // Description missing in models
+  FlowIpv4Auto auto = 8;
 }
 
 // integer counter pattern
@@ -16649,6 +19603,37 @@ message PatternFlowTcpWindow {
   // a corresponding header field for metrics per each applicable value. These would appear
   // as tagged metrics in corresponding flow metrics.
   repeated PatternFlowTcpWindowMetricTag metric_tags = 7;
+}
+
+// The one's complement of the one's complement sum of all 16 bit words in header and
+// text.  An all-zero value means that no checksum will be transmitted.   While computing
+// the checksum, the checksum field itself is replaced with zeros.
+message PatternFlowTcpChecksum {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      generated = 1;
+      custom = 2;
+    }
+  }
+  // The type of checksum
+  // default = Choice.Enum.generated
+  optional Choice.Enum choice = 1;
+
+  message Generated {
+    enum Enum {
+      unspecified = 0;
+      good = 1;
+      bad = 2;
+    }
+  }
+  // A system generated checksum value
+  // default = Generated.Enum.good
+  optional Generated.Enum generated = 2;
+
+  // A custom checksum value
+  optional uint32 custom = 3;
 }
 
 // integer counter pattern
@@ -21958,6 +24943,1653 @@ message PatternFlowSnmpv2cCommonRequestId {
 
   // Description missing in models
   PatternFlowSnmpv2cCommonRequestIdCounter decrement = 6;
+}
+
+// The one's complement of the one's complement sum of the message, with the checksum
+// field replaced by zero for the purpose of computing the checksum.   An all-zero value
+// means that no checksum was transmitted.
+message PatternFlowRsvpRsvpChecksum {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      generated = 1;
+      custom = 2;
+    }
+  }
+  // The type of checksum
+  // default = Choice.Enum.generated
+  optional Choice.Enum choice = 1;
+
+  message Generated {
+    enum Enum {
+      unspecified = 0;
+      good = 1;
+      bad = 2;
+    }
+  }
+  // A system generated checksum value
+  // default = Generated.Enum.good
+  optional Generated.Enum generated = 2;
+
+  // A custom checksum value
+  optional uint32 custom = 3;
+}
+
+// integer counter pattern
+message PatternFlowRsvpTimeToLiveCounter {
+
+  // Description missing in models
+  // default = 64
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// The IP time-to-live(TTL) value with which the message was sent.
+message PatternFlowRsvpTimeToLive {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 64
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [64]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRsvpTimeToLiveCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRsvpTimeToLiveCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRsvpReservedCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Reserved
+message PatternFlowRsvpReserved {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRsvpReservedCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRsvpReservedCounter decrement = 6;
+}
+
+// ipv4 counter pattern
+message PatternFlowRSVPPathSessionLspTunnelIpv4Ipv4TunnelEndPointAddressCounter {
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string start = 1;
+
+  // Description missing in models
+  // default = 0.0.0.1
+  optional string step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// IPv4 address of the egress node for the tunnel.
+message PatternFlowRSVPPathSessionLspTunnelIpv4Ipv4TunnelEndPointAddress {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['0.0.0.0']
+  repeated string values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionLspTunnelIpv4Ipv4TunnelEndPointAddressCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionLspTunnelIpv4Ipv4TunnelEndPointAddressCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSessionLspTunnelIpv4ReservedCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Reserved field, MUST be zero.
+message PatternFlowRSVPPathSessionLspTunnelIpv4Reserved {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionLspTunnelIpv4ReservedCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionLspTunnelIpv4ReservedCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSessionLspTunnelIpv4TunnelIdCounter {
+
+  // Description missing in models
+  // default = 1
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// A 16-bit identifier used in the SESSION that remains constant over the life of the
+// tunnel.
+message PatternFlowRSVPPathSessionLspTunnelIpv4TunnelId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [1]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionLspTunnelIpv4TunnelIdCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionLspTunnelIpv4TunnelIdCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSessionExtTunnelIdAsIntegerCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// TBD
+message PatternFlowRSVPPathSessionExtTunnelIdAsInteger {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionExtTunnelIdAsIntegerCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionExtTunnelIdAsIntegerCounter decrement = 6;
+}
+
+// ipv4 counter pattern
+message PatternFlowRSVPPathSessionExtTunnelIdAsIpv4Counter {
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string start = 1;
+
+  // Description missing in models
+  // default = 0.0.0.1
+  optional string step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// IPv4 address of the ingress endpoint for the tunnel.
+message PatternFlowRSVPPathSessionExtTunnelIdAsIpv4 {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['0.0.0.0']
+  repeated string values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionExtTunnelIdAsIpv4Counter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSessionExtTunnelIdAsIpv4Counter decrement = 6;
+}
+
+// ipv4 counter pattern
+message PatternFlowRSVPPathRsvpHopIpv4Ipv4AddressCounter {
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string start = 1;
+
+  // Description missing in models
+  // default = 0.0.0.1
+  optional string step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// The IPv4 address of the interface through which the last RSVP-knowledgeable hop forwarded
+// this message.
+message PatternFlowRSVPPathRsvpHopIpv4Ipv4Address {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['0.0.0.0']
+  repeated string values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathRsvpHopIpv4Ipv4AddressCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathRsvpHopIpv4Ipv4AddressCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathRsvpHopIpv4LogicalInterfaceHandleCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Logical Interface Handle (LIH) is used to distinguish logical outgoing interfaces.
+// A node receiving an LIH in a Path message saves its value and returns it in the HOP
+// objects of subsequent Resv messages sent to the node that originated the LIH. The
+// LIH should be identically zero if there is no logical interface handle.
+message PatternFlowRSVPPathRsvpHopIpv4LogicalInterfaceHandle {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathRsvpHopIpv4LogicalInterfaceHandleCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathRsvpHopIpv4LogicalInterfaceHandleCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathTimeValuesType1RefreshPeriodRCounter {
+
+  // Description missing in models
+  // default = 30000
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// The refresh timeout period R used to generate this message;in milliseconds.
+message PatternFlowRSVPPathTimeValuesType1RefreshPeriodR {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 30000
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [30000]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathTimeValuesType1RefreshPeriodRCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathTimeValuesType1RefreshPeriodRCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixLBitCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// The L bit is an attribute of the subobject. The L bit is set if the subobject represents
+// a loose hop in the explicit route. If the bit is not set, the subobject represents
+// a strict hop in the explicit route.
+message PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixLBit {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixLBitCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixLBitCounter decrement = 6;
+}
+
+// ipv4 counter pattern
+message PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixIpv4AddressCounter {
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string start = 1;
+
+  // Description missing in models
+  // default = 0.0.0.1
+  optional string step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// This IPv4 address is treated as a prefix based on the prefix length value below.
+// Bits beyond the prefix are ignored on receipt and SHOULD be set to zero on transmission.
+message PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixIpv4Address {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['0.0.0.0']
+  repeated string values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixIpv4AddressCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathExplicitRouteType1Ipv4PrefixIpv4AddressCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathExplicitRouteType1ASNumberLBitCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// The L bit is an attribute of the subobject. The L bit is set if the subobject represents
+// a loose hop in the explicit route. If the bit is not set, the subobject represents
+// a strict hop in the explicit route.
+message PatternFlowRSVPPathExplicitRouteType1ASNumberLBit {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathExplicitRouteType1ASNumberLBitCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathExplicitRouteType1ASNumberLBitCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathLabelRequestWithoutLabelRangeReservedCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// This field is reserved.   It MUST be set to zero on transmission and MUST be ignored
+// on receipt.
+message PatternFlowRSVPPathLabelRequestWithoutLabelRangeReserved {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathLabelRequestWithoutLabelRangeReservedCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathLabelRequestWithoutLabelRangeReservedCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathLabelRequestWithoutLabelRangeL3pidCounter {
+
+  // Description missing in models
+  // default = 2048
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// An identifier of the layer 3 protocol using this path.  Standard Ethertype values
+// are used e.g. The default value of 2048 ( 0x0800 ) represents Ethertype for IPv4.
+// 
+message PatternFlowRSVPPathLabelRequestWithoutLabelRangeL3pid {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 2048
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [2048]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathLabelRequestWithoutLabelRangeL3pidCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathLabelRequestWithoutLabelRangeL3pidCounter decrement = 6;
+}
+
+// ipv4 counter pattern
+message PatternFlowRSVPPathSenderTemplateLspTunnelIpv4Ipv4TunnelSenderAddressCounter {
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string start = 1;
+
+  // Description missing in models
+  // default = 0.0.0.1
+  optional string step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// IPv4 address for a sender node.
+message PatternFlowRSVPPathSenderTemplateLspTunnelIpv4Ipv4TunnelSenderAddress {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['0.0.0.0']
+  repeated string values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTemplateLspTunnelIpv4Ipv4TunnelSenderAddressCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTemplateLspTunnelIpv4Ipv4TunnelSenderAddressCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTemplateLspTunnelIpv4ReservedCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Reserved field, MUST be zero.
+message PatternFlowRSVPPathSenderTemplateLspTunnelIpv4Reserved {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTemplateLspTunnelIpv4ReservedCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTemplateLspTunnelIpv4ReservedCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTemplateLspTunnelIpv4LspIdCounter {
+
+  // Description missing in models
+  // default = 1
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// A 16-bit identifier used in the SENDER_TEMPLATE that can be changed to allow a sender
+// to share resources with itself.
+message PatternFlowRSVPPathSenderTemplateLspTunnelIpv4LspId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [1]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTemplateLspTunnelIpv4LspIdCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTemplateLspTunnelIpv4LspIdCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServVersionCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Message format version number.
+message PatternFlowRSVPPathSenderTspecIntServVersion {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServVersionCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServVersionCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServReserved1Counter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Reserved.
+message PatternFlowRSVPPathSenderTspecIntServReserved1 {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServReserved1Counter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServReserved1Counter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServOverallLengthCounter {
+
+  // Description missing in models
+  // default = 7
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Overall length (7 words not including header).
+message PatternFlowRSVPPathSenderTspecIntServOverallLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 7
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [7]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServOverallLengthCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServOverallLengthCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServServiceHeaderCounter {
+
+  // Description missing in models
+  // default = 1
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Service header, service number - '1' (Generic information) if in a PATH message.
+message PatternFlowRSVPPathSenderTspecIntServServiceHeader {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [1]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServServiceHeaderCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServServiceHeaderCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServZeroBitCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// MUST be 0.
+message PatternFlowRSVPPathSenderTspecIntServZeroBit {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServZeroBitCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServZeroBitCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServReserved2Counter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Reserved.
+message PatternFlowRSVPPathSenderTspecIntServReserved2 {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServReserved2Counter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServReserved2Counter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServLengthOfServiceDataCounter {
+
+  // Description missing in models
+  // default = 6
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Length of service data, 6 words not including per-service header.
+message PatternFlowRSVPPathSenderTspecIntServLengthOfServiceData {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 6
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [6]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServLengthOfServiceDataCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServLengthOfServiceDataCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServParameterIdTokenBucketTspecCounter {
+
+  // Description missing in models
+  // default = 127
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Parameter ID, parameter 127 (Token Bucket TSpec)
+message PatternFlowRSVPPathSenderTspecIntServParameterIdTokenBucketTspec {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 127
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [127]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServParameterIdTokenBucketTspecCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServParameterIdTokenBucketTspecCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServParameter127FlagCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Parameter 127 flags (none set)
+message PatternFlowRSVPPathSenderTspecIntServParameter127Flag {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServParameter127FlagCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServParameter127FlagCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServParameter127LengthCounter {
+
+  // Description missing in models
+  // default = 5
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Parameter 127 length, 5 words not including per-service header
+message PatternFlowRSVPPathSenderTspecIntServParameter127Length {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 5
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [5]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServParameter127LengthCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServParameter127LengthCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServMinimumPolicedUnitCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// The minimum policed unit parameter should generally be set equal to the size of the
+// smallest packet generated by the application.
+message PatternFlowRSVPPathSenderTspecIntServMinimumPolicedUnit {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServMinimumPolicedUnitCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServMinimumPolicedUnitCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathSenderTspecIntServMaximumPacketSizeCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// The maximum packet size parameter should be set to the size of the largest packet
+// the application might wish to generate. This value must, by definition, be equal
+// to or larger than the value of The minimum policed unit.
+message PatternFlowRSVPPathSenderTspecIntServMaximumPacketSize {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServMaximumPacketSizeCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathSenderTspecIntServMaximumPacketSizeCounter decrement = 6;
+}
+
+// ipv4 counter pattern
+message PatternFlowRSVPPathRecordRouteType1Ipv4AddressIpv4AddressCounter {
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string start = 1;
+
+  // Description missing in models
+  // default = 0.0.0.1
+  optional string step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// A 32-bit unicast, host address.  Any network-reachable interface address is allowed
+// here. Illegal addresses, such as certain loopback addresses, SHOULD NOT be used.
+message PatternFlowRSVPPathRecordRouteType1Ipv4AddressIpv4Address {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['0.0.0.0']
+  repeated string values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathRecordRouteType1Ipv4AddressIpv4AddressCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathRecordRouteType1Ipv4AddressIpv4AddressCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathRecordRouteType1Ipv4AddressPrefixLengthCounter {
+
+  // Description missing in models
+  // default = 32
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Prefix-length of IPv4 address.
+message PatternFlowRSVPPathRecordRouteType1Ipv4AddressPrefixLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 32
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [32]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathRecordRouteType1Ipv4AddressPrefixLengthCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathRecordRouteType1Ipv4AddressPrefixLengthCounter decrement = 6;
+}
+
+// 0x01 = Global label. This flag indicates that the label will be understood if received
+// on any interface.
+message PatternFlowRSVPPathRecordRouteType1LabelFlags {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [1]
+  repeated uint32 values = 3;
+}
+
+// The C-Type of the included Label Object. Copied from the Label object.
+message PatternFlowRSVPPathRecordRouteType1LabelCType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [1]
+  repeated uint32 values = 3;
+}
+
+// integer counter pattern
+message PatternFlowRSVPPathObjectsCustomTypeCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// User defined object type.
+message PatternFlowRSVPPathObjectsCustomType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowRSVPPathObjectsCustomTypeCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowRSVPPathObjectsCustomTypeCounter decrement = 6;
 }
 
 // Version details

@@ -1,4 +1,4 @@
-# Open Traffic Generator Models
+# Open Traffic Generator Models 
 
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://en.wikipedia.org/wiki/MIT_License)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
@@ -20,7 +20,7 @@ The focus of this repository is the following:
 
 > The models in this repo are under development and are subject to change, especially the models under the `device` node.  All efforts will be made to keep them backwards compatible.
 
-## Setup 
+## Setup
 
 Please make sure that the client setup meets [Python Prerequisites](#python-prerequisites).
 

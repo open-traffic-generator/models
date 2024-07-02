@@ -258,6 +258,8 @@ The build script will enforce the following keyword conventions:
           x-field-uid: 2
         metric_tag:
           x-field-uid: 3
+        random:
+          x-field-uid: 4
       description: >-
         count:
         Used to specify whether or not a count property is included in the
@@ -272,6 +274,10 @@ The build script will enforce the following keyword conventions:
         metric_tag:
         Used to indicate that a flow packet header field can be expanded in
         metrics under the name given to this property.
+  
+        random:
+        Used to specify whether or not a random property is included in the
+        unique generated pattern schema object.
   ```
 
   * Sample property with extension before bundle
@@ -325,6 +331,8 @@ The build script will enforce the following keyword conventions:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Address.Counter'
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Address.Counter'
+        random:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4.Address.Random'
     ```
 
   * Sample instantiation

@@ -246,6 +246,10 @@ message DeviceEthernetBase {
   // and Step.
   // default = 00:00:00:00:00:01
   optional string step = 6;
+
+  // The max number of addresses per range.
+  // default = 1
+  optional int32 max_count = 7;
 }
 
 // An Ethernet interface with IPv4 and IPv6 addresses.
@@ -288,6 +292,10 @@ message DeviceEthernet {
   // and Step.
   // default = 00:00:00:00:00:01
   optional string step = 11;
+
+  // The max number of addresses per range.
+  // default = 1
+  optional int32 max_count = 12;
 }
 
 // Ethernet interface connection to a port, LAG or VXLAN tunnel.
@@ -357,6 +365,19 @@ message DeviceVlan {
   // objects.
   // required = true
   optional string name = 4;
+
+  // The total number of addresses in the range.
+  // default = 1
+  optional int32 count = 5;
+
+  // Increments the MAC address.  The value is incremented according to the MAC count
+  // and Step.
+  // default = 1
+  optional int32 step = 6;
+
+  // The max number of addresses per range.
+  // default = 1
+  optional int32 per_count = 7;
 }
 
 // An IPv4 interface with gateway
@@ -390,6 +411,10 @@ message DeviceIpv4 {
   // and Step.
   // default = 0.0.0.1
   optional string step = 7;
+
+  // The max number of addresses per range.
+  // default = 1
+  optional int32 max_count = 8;
 }
 
 // An IPv4 Loopback interface.
@@ -6950,6 +6975,18 @@ message DeviceHttp {
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   optional string name = 21;
+
+  // HTTP Profile
+  // default = Chrome
+  optional string profile = 22;
+
+  // HTTP Version
+  // default = HTTP11
+  optional string version = 23;
+
+  // It enables the connection persistence count throughout the test.
+  // default = 0
+  optional string connection_persistence = 24;
 }
 
 // One or more HTTP Client configurations and its HTTP methods configs.
@@ -10295,8 +10332,8 @@ message Trafficprofile {
   // Timeline is list of segments configured.
   repeated string timeline = 5;
 
-  // Description missing in models
-  TrafficprofileObjective objectives = 6;
+  // primary objective
+  repeated TrafficprofileObjective objectives = 6;
 }
 
 // One or more HTTP Client configurations and its HTTP methods configs.
@@ -10310,6 +10347,7 @@ message TrafficprofileSegment {
   optional int32 start = 2;
 
   // Duration in seconds
+  // default = 30
   optional int32 duration = 3;
 
   // Rate
@@ -10317,36 +10355,55 @@ message TrafficprofileSegment {
 
   // Target
   optional int32 target = 5;
+
+  // Amount of seconds when all users are up and performing the central test objectives,
+  // such as retrieving or serving pages.
+  optional float sustain_time = 6;
+
+  // Amount of seconds used for closing any connections that are still open after all
+  // transactions are complete.
+  // default = 30
+  optional float ramp_down_time = 7;
+
+  // Amount of seconds used for closing any connections that are still open after all
+  // transactions are complete.
+  // default = 1
+  optional float ramp_down_value = 8;
+
+  // Amount of seconds used for closing any connections that are still open after all
+  // transactions are complete.
+  // default = 30
+  optional float ramp_up_time = 9;
+
+  // Amount of seconds used for closing any connections that are still open after all
+  // transactions are complete.
+  // default = 1
+  optional float ramp_up_value = 10;
+
+  // It enables step up segement.
+  // default = False
+  optional bool enable_ramp_up = 11;
+
+  // It enables step down segement.
+  // default = False
+  optional bool enable_ramp_down = 12;
 }
 
 // objective config such simulated user, thoughput, conncurrent connections, connection
 // per sec.
 message TrafficprofileObjective {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      simulated_user = 1;
-      throughput = 2;
-      concurrent_connections = 3;
-      connection_per_sec = 4;
-    }
-  }
   // Description missing in models
-  // default = Choice.Enum.simulated_user
-  optional Choice.Enum choice = 1;
+  ObjectiveSimulatedUser simulated_user = 1;
 
   // Description missing in models
-  ObjectiveSimulatedUser simulated_user = 2;
+  ObjectiveThroughput throughput = 2;
 
   // Description missing in models
-  ObjectiveThroughput throughput = 3;
+  ObjectiveConnectionConncurrent concurrent_connections = 3;
 
   // Description missing in models
-  ObjectiveConnectionConncurrent concurrent_connections = 4;
-
-  // Description missing in models
-  ObjectiveConnectionPerSeconds connection_per_sec = 5;
+  ObjectiveConnectionPerSeconds connection_per_sec = 4;
 }
 
 // simulated user traffic
@@ -10365,60 +10422,45 @@ message ObjectiveSimulatedUser {
   // default = RampUpType.Enum.users_intervals
   optional RampUpType.Enum ramp_up_type = 1;
 
-  // Value applied to ramp_up_type to either bring up users at a certain rate.
-  optional int32 ramp_up_value = 2;
-
-  // Amount of time when all users are up and performing the central test objectives,
-  // such as retrieving or serving pages.
-  optional int32 sustain_time = 3;
-
   // Amount of seconds used for closing any connections that are still open after all
   // transactions are complete.
-  optional int32 ramp_down_time = 4;
+  // default = 0
+  optional float max_user_per_second = 2;
+
+  // Max pending users which can be tolerated.
+  // default = 10%
+  optional string max_pending_user = 3;
+
+  // Throughput Unit.
+  // default = bps
+  optional string unit = 4;
 }
 
 // Throughput traffic
 message ObjectiveThroughput {
 
-  // Amount of seconds when all users are up and performing the central test objectives,
-  // such as retrieving or serving pages.
-  optional float sustain_time = 1;
+  // Throughput Unit.
+  optional string throughput_unit = 1;
 
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_time = 2;
+  // Throughput Unit.
+  // default = bps
+  optional string unit = 2;
 }
 
 // Conncurrent connections objectives
 message ObjectiveConnectionConncurrent {
 
-  // Amount of seconds when all users are up and performing the central test objectives,
-  // such as retrieving or serving pages.
-  optional float sustain_time = 1;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_time = 2;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_value = 3;
+  // Throughput Unit.
+  // default = bps
+  optional string unit = 1;
 }
 
-// Conncurrent connections objectives
+// Connections per second objectives
 message ObjectiveConnectionPerSeconds {
 
-  // Amount of seconds when all users are up and performing the central test objectives,
-  // such as retrieving or serving pages.
-  optional float sustain_time = 1;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_time = 2;
-
-  // Amount of seconds used for closing any connections that are still open after all
-  // transactions are complete.
-  optional float ramp_down_value = 3;
+  // Throughput Unit.
+  // default = bps
+  optional string unit = 1;
 }
 
 // Error response generated while serving API request.

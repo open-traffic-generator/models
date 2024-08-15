@@ -5524,6 +5524,14 @@ components:
           maximum: 16777215
           default: 10
           x-field-uid: 4
+        enable_notification:
+          description: "If enabled, the N flag will be set in the Graceful Restart\
+            \ capability in the Open message. \nIf both peers in a BGP connection\
+            \ has this enabled, Graceful Restart procedures are performed\neven if\
+            \ the peer goes down due to sending of a Notification Message as per RFC8538."
+          type: boolean
+          default: true
+          x-field-uid: 5
     Bgp.UpdateReplay:
       description: |-
         Ordered BGP Updates ( including both Advertise and Withdraws ) to be sent in the order given in the input to the peer after the BGP session is established.
@@ -13362,7 +13370,7 @@ components:
           x-field-uid: 9
     Action.Protocol.Bgp.InitiateGracefulRestart:
       description: |-
-        Initiates BGP Graceful Restart process for the selected BGP peers. If no name is specified then Graceful Restart will be sent to all configured BGP peers.
+        Initiates BGP Graceful Restart process for the selected BGP peers. If no name is specified then Graceful Restart will be sent to all configured BGP peers. To emulate scenarios where a peer sends a Notification and stops the session, an optional Notification object is included. If the remote peer and the local peer are both configured to perform Graceful Restart for Notification triggered session , this will result in  Graceful Restart scenario to be triggered as per RFC8538.
       type: object
       properties:
         peer_names:
@@ -13386,6 +13394,70 @@ components:
           maximum: 3600
           default: 30
           x-field-uid: 2
+        notification:
+          description: |-
+            Send a Notification to the peer as per configured parameters when initially bringing down a session as per
+            configured parameters.
+          $ref: '#/components/schemas/Action.Protocol.BgpGracefulRestart.Notification'
+          x-field-uid: 3
+    Action.Protocol.BgpGracefulRestart.Notification:
+      description: "Defines the explicit contents of the NOTIFICATION message to be\
+        \ sent when executing InitiateGracefulRestart trigger.  This causes the BGP\
+        \ connection to close.If a user wants to send custom Error Code and Error\
+        \ Subcode the custom object should be configured. A user can send IANA defined\
+        \ BGP NOTIFICATIONs according to https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml. "
+      type: object
+      properties:
+        choice:
+          description: |-
+            Each BGP NOTIFICATION message includes an Error Code field indicating what type of problem occurred. For certain Error Codes, an Error  Subcode field provides additional details about the specific nature of the problem.  The choice value will provide the Error Code used in NOTIFICATION message.  The Subcode can be set for each of the corresponding errors except for Hold Timer Expired error and BGP Finite State Machine error.  In both of these cases Subcode 0 will be sent. If a user wants to use non zero Sub Code then custom choice can be used.
+          type: string
+          x-field-uid: 2
+          default: cease
+          x-enum:
+            cease:
+              x-field-uid: 1
+            message_header_error:
+              x-field-uid: 2
+            open_message_error:
+              x-field-uid: 3
+            update_message_error:
+              x-field-uid: 4
+            hold_timer_expired:
+              x-field-uid: 5
+            finite_state_machine_error:
+              x-field-uid: 6
+            custom:
+              x-field-uid: 7
+          enum:
+          - cease
+          - message_header_error
+          - open_message_error
+          - update_message_error
+          - hold_timer_expired
+          - finite_state_machine_error
+          - custom
+        cease:
+          $ref: '#/components/schemas/Device.Bgp.CeaseError'
+          x-field-uid: 3
+        message_header_error:
+          $ref: '#/components/schemas/Device.Bgp.MessageHeaderError'
+          x-field-uid: 4
+        open_message_error:
+          $ref: '#/components/schemas/Device.Bgp.OpenMessageError'
+          x-field-uid: 5
+        update_message_error:
+          $ref: '#/components/schemas/Device.Bgp.UpdateMessageError'
+          x-field-uid: 6
+        hold_timer_expired:
+          $ref: '#/components/schemas/Device.Bgp.HoldTimerExpired'
+          x-field-uid: 7
+        finite_state_machine_error:
+          $ref: '#/components/schemas/Device.Bgp.FiniteStateMachineError'
+          x-field-uid: 8
+        custom:
+          $ref: '#/components/schemas/Device.Bgp.CustomError'
+          x-field-uid: 9
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice.

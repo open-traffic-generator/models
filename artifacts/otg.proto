@@ -3990,6 +3990,14 @@ message BgpGracefulRestart {
   // only if 'enable_llgr' is set to 'true'.
   // default = 10
   optional uint32 stale_time = 4;
+
+  // If enabled, the N flag will be set in the Graceful Restart capability in the Open
+  // message.
+  // If both peers in a BGP connection has this enabled, Graceful Restart procedures are
+  // performed
+  // even if the peer goes down due to sending of a Notification Message as per RFC8538.
+  // default = True
+  optional bool enable_notification = 5;
 }
 
 // Ordered BGP Updates ( including both Advertise and Withdraws ) to be sent in the
@@ -10221,7 +10229,11 @@ message ActionProtocolBgpNotification {
 }
 
 // Initiates BGP Graceful Restart process for the selected BGP peers. If no name is
-// specified then Graceful Restart will be sent to all configured BGP peers.
+// specified then Graceful Restart will be sent to all configured BGP peers. To emulate
+// scenarios where a peer sends a Notification and stops the session, an optional Notification
+// object is included. If the remote peer and the local peer are both configured to
+// perform Graceful Restart for Notification triggered session , this will result in
+// Graceful Restart scenario to be triggered as per RFC8538.
 message ActionProtocolBgpInitiateGracefulRestart {
 
   // The names of device BGP peers objects to control.
@@ -10236,6 +10248,62 @@ message ActionProtocolBgpInitiateGracefulRestart {
   // Restart capability.
   // default = 30
   optional uint32 restart_delay = 2;
+
+  // Send a Notification to the peer as per configured parameters when initially bringing
+  // down a session as per
+  // configured parameters.
+  ActionProtocolBgpGracefulRestartNotification notification = 3;
+}
+
+// Defines the explicit contents of the NOTIFICATION message to be sent when executing
+// InitiateGracefulRestart trigger.  This causes the BGP connection to close.If a user
+// wants to send custom Error Code and Error Subcode the custom object should be configured.
+// A user can send IANA defined BGP NOTIFICATIONs according to https://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml.
+// 
+message ActionProtocolBgpGracefulRestartNotification {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      cease = 1;
+      message_header_error = 2;
+      open_message_error = 3;
+      update_message_error = 4;
+      hold_timer_expired = 5;
+      finite_state_machine_error = 6;
+      custom = 7;
+    }
+  }
+  // Each BGP NOTIFICATION message includes an Error Code field indicating what type of
+  // problem occurred. For certain Error Codes, an Error  Subcode field provides additional
+  // details about the specific nature of the problem.  The choice value will provide
+  // the Error Code used in NOTIFICATION message.  The Subcode can be set for each of
+  // the corresponding errors except for Hold Timer Expired error and BGP Finite State
+  // Machine error.  In both of these cases Subcode 0 will be sent. If a user wants to
+  // use non zero Sub Code then custom choice can be used.
+  // default = Choice.Enum.cease
+  optional Choice.Enum choice = 2;
+
+  // Description missing in models
+  DeviceBgpCeaseError cease = 3;
+
+  // Description missing in models
+  DeviceBgpMessageHeaderError message_header_error = 4;
+
+  // Description missing in models
+  DeviceBgpOpenMessageError open_message_error = 5;
+
+  // Description missing in models
+  DeviceBgpUpdateMessageError update_message_error = 6;
+
+  // Description missing in models
+  DeviceBgpHoldTimerExpired hold_timer_expired = 7;
+
+  // Description missing in models
+  DeviceBgpFiniteStateMachineError finite_state_machine_error = 8;
+
+  // Description missing in models
+  DeviceBgpCustomError custom = 9;
 }
 
 // Request to traffic generator for metrics of choice.

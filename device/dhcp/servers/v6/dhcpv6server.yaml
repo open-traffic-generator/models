@@ -1,0 +1,261 @@
+components:
+  schemas:
+    DhcpServer.V6:
+      description: >-
+        Configuration for emulated DHCPv6 Server.
+      type: object
+      required: [name,ipv6_name,leases]
+      properties:
+        name:
+          x-include: ../../../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 1
+        ipv6_name:
+          description: >-
+            The unique name of the IPv6 on which DHCPv6 server will run.
+          type: string
+          x-constraint:
+          - '/components/schemas/Device.Ipv6/properties/name'
+          x-field-uid: 2
+        rapid_commit:
+          description: >-
+            If Rapid Commit is set, server responds to client initiated Rapid Commit two-message exchanges.
+          type: boolean
+          default: false
+          x-field-uid: 3
+        reconfigure_via_relay_agent:
+          description: >-
+            If the server does not have an address to which it can send the Reconfigure message directly to the client, the 
+            server uses a Relay-reply message to send the Reconfigure message to a relay agent that will relay the message to
+            the client.
+          type: boolean
+          default: false
+          x-field-uid: 4
+        leases:
+          description: |-
+            Array of DHCP pools configured on a server.            
+          type: array
+          items:
+            $ref: '#/components/schemas/DhcpV6Server.Lease'
+          x-field-uid: 5
+        options:
+          description: >-
+            Optional DHCPv4 Server options that are sent in Dhcp server messages.
+          $ref: '#/components/schemas/Dhcpv6Server.Options'
+          x-field-uid: 6
+
+    Dhcpv6Server.Options:
+      description: >-
+        DHCP server options, these configured options are sent in Dhcp server messages.
+      type: object
+      properties:
+        dns:
+          description: |-
+            Additional DHCP server primary dns and other configuration options.            
+          $ref: '#/components/schemas/DhcpV6Server.Dns'
+          x-field-uid: 1
+        vendor_info:
+          description: |-
+            This option is used by servers to exchange vendor-specific information with clients.
+          $ref: '../../common/dhcpv6options.yaml#/components/schemas/Dhcpv6ServerOptions.VendorInfo'
+          x-field-uid: 2    
+        bootfile_url:
+          description: |-
+            The server sends this option to inform the client about a URL to a boot file which client will use for
+            network boots.
+          $ref: '../../common/dhcpv6options.yaml#/components/schemas/Dhcpv6ServerOptions.BootfileUrl'
+          x-field-uid: 3    
+
+    DhcpV6Server.Lease:
+      description: >-
+        One DHCP pool configuration on a server.        
+      type: object 
+      required: [ia_type]
+      properties:
+        lease_time: 
+          description: >-
+            The Life Time length in seconds that is assigned to a lease if the requesting DHCP client does not specify a specific expiration time.
+          type: integer
+          format: uint32
+          minimum: 300
+          maximum: 30000000
+          default: 86400
+          x-field-uid: 1
+        ia_type:
+          $ref: '#/components/schemas/Dhcpv6Server.IaType'
+          x-field-uid: 5
+
+    Dhcpv6Server.IaType:
+      type: object
+      properties:
+        choice:
+          description: >-
+            Identity Association: a collection of leases assigned to a client. Each IA has an associated IAID. 
+            Each IA holds one type of lease, like an identity association for temporary addresses (IA_TA) holds 
+            temporary addresses, and an identity association for prefix delegation (IA_PD).
+          type: string
+          default: iana
+          x-field-uid: 1
+          x-enum:
+            iana:
+              x-field-uid: 1
+            iata:
+              x-field-uid: 2
+            iapd:
+              x-field-uid: 3
+            ianapd:
+              x-field-uid: 4
+        iana:
+          $ref: '#/components/schemas/Dhcpv6Server.PoolInfo'
+          x-field-uid: 2
+        iata:
+          $ref: '#/components/schemas/Dhcpv6Server.PoolInfo'
+          x-field-uid: 3  
+        iapd:
+          $ref: '#/components/schemas/Dhcpv6Server.IapdPoolInfo'
+          x-field-uid: 4
+        ianapd:
+          $ref: '#/components/schemas/Dhcpv6Server.IanapdPoolInfo'
+          x-field-uid: 5
+
+    Dhcpv6Server.PoolInfo:
+      description: >-
+        The container for pool configurations for IA types iana and iata.
+      type: object
+      properties:
+        start_address:
+          description: >-
+            The first IP address of the lease pool.
+          type: string
+          format: ipv6
+          x-field-uid: 1
+        prefix_len:
+          description: >-
+            The IPv6 network prefix length is used for incrementing the lease address within the lease pool where multiple
+            addresses are configured by using the size field. The address is incremented using the configured Prefix Length and Step.
+          type: integer
+          format: uint32
+          default: 64
+          maximum: 128
+          x-field-uid: 2
+        size:
+          description: >-
+            The total number of addresses in the pool.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          maximum: 1000000
+          x-field-uid: 3
+        step:
+          description: >-
+            The increment value for the lease address within the lease pool where multiple
+            addresses are present. The value is incremented according to the configured Prefix
+            Length and Step.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          x-field-uid: 4
+
+    Dhcpv6Server.IapdPoolInfo:
+      description: >-
+        The container for prefix pool configurations for IA type iapd.
+      type: object
+      properties:
+        start_prefix_address:
+          description: >-
+            The first IP address of the prefix pool.
+          type: string
+          format: ipv6
+          x-field-uid: 1
+        configured_prefix_len:
+          description: >-
+            The IPv6 network prefix length is used for incrementing the lease address within the lease pool where multiple
+            addresses are configured by using the size field. The address is incremented using the configured Prefix Length and Step. 
+          type: integer
+          format: uint32
+          default: 64
+          maximum: 128
+          x-field-uid: 2
+        prefix_size:
+          description: >-
+            The total number of addresses in the pool.
+          type: integer
+          format: uint32
+          default: 10
+          minimum: 1
+          maximum: 1000000
+          x-field-uid: 3
+        prefix_step:
+          description: >-
+            The increment value for the lease address within the lease pool where multiple
+            addresses are present. The value is incremented according to the Prefix
+            Length and Step.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          x-field-uid: 4
+        advertised_prefix_len:
+          description: >-
+            The prefix length of the IPv6 prefix that the Dhcpv6 server offers to the Dhcpv6 client. 
+          type: integer
+          format: uint32
+          default: 64
+          maximum: 128
+          x-field-uid: 5
+
+    Dhcpv6Server.IanapdPoolInfo:
+      description: >-
+        The container for pool configurations for IA type ianapd.
+      type: object
+      properties:
+        iana:
+          description: >-
+            The pool configurations for IA types iana in ianapd.
+          $ref: '#/components/schemas/Dhcpv6Server.PoolInfo'
+          x-field-uid: 1
+        iapd:
+          description: >-
+            The pool configurations for IA types iapd in ianapd.
+          $ref: '#/components/schemas/Dhcpv6Server.IapdPoolInfo'
+          x-field-uid: 2
+
+    
+    DhcpV6Server.Dns:
+      description: >-
+        Optional Dns configuration for DHCPv6 server.
+      type: object
+      required: [primary]
+      properties:
+        primary:
+          description: >-
+             The primary DNS server address that is offered to DHCP clients that request this information through a TLV option.
+          type: string
+          format: ipv6
+          x-field-uid: 1
+        secondary_dns:
+          description: |-
+            DHCP server secondary dns configuration options. If included secondary DNS server address will be offered to 
+            DHCP clients that request this information through a TLV option.
+          type: array
+          items:          
+            $ref: '#/components/schemas/DhcpV6Server.SecondaryDns'
+          x-field-uid: 2
+
+    DhcpV6Server.SecondaryDns:
+      description: >-
+        Advanced Dns configuration for DHCPv6 server.
+      type: object
+      properties:
+        ip:
+          description: >-
+             The secondary DNS server address that is offered to DHCP clients that request this information through a TLV option.
+          type: string
+          format: ipv6
+          x-field-uid: 1
+
+
+    
+
+  

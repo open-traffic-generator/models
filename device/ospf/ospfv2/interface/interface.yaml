@@ -1,0 +1,225 @@
+components:
+  schemas:
+    Ospfv2.Interface:
+      description: >-
+        Configuration for single OSPFv2 interface.
+      type: object
+      required: [ipv4_name, name]
+      properties:
+        name:
+          x-include: ../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 1
+        ipv4_name:
+          description: >-
+            The globally unique name of the IPv4 interface connected to the DUT.
+            This name must match the "name" field of the "ipv4_addresses" on top which this OSPFv2 interface is configured.          
+          type: string
+          x-constraint:
+          - '/components/schemas/Device.Ipv4/properties/name'
+          x-field-uid: 2
+        choice:
+          description: |-
+            The OSPF Area ID identifies the routing area to which the host belongs. Area ID type can be following format.
+            - area_id: A 32-bit number identifying the area.
+            - area_id_as_ip: The Area ID in IPv4 address format.
+          type: string
+          default: area_id
+          x-field-uid: 3
+          x-enum:
+            area_id:
+              x-field-uid: 1
+            area_id_as_ip:
+              x-field-uid: 2
+        area_id:
+          description: >-
+            The Area ID.
+          type: integer
+          format: uint32
+          x-field-uid: 4
+        area_id_as_ip:
+          description: >-
+            The Area ID in IPv4 address format.
+          type: string
+          format: ipv4
+          x-field-uid: 5
+        network_type:
+          description: |- 
+            The OSPF network link type options.
+            - Point to Point: 
+            - Broadcast: 
+            - Point to Multipoint: In this case, at least a neigbor to be configured. 
+          type: string
+          default: broadcast
+          x-field-uid: 6
+          x-enum:
+            broadcast:
+              x-field-uid: 1
+            point_to_point:
+              x-field-uid: 2
+            point_to_multicast:
+              x-field-uid: 3
+        neighbors:
+          description: |-
+            Configuration of the list of neighbors.
+          type: array
+          items:
+            $ref: '#/components/schemas/Ospfv2Interface.Neighbor'
+          x-field-uid: 7
+        traffic_engineering:
+          description: |-
+            Contains a list of Traffic Engineering attributes.
+          type: array
+          items:
+            $ref: '../../linkstate/teprofile.yaml#/components/schemas/LinkState.TE'
+          x-field-uid: 8
+        authentication:
+          description: |-
+            The Circuit authentication method used for the interfaces on this emulated ISIS v4/v6 router.
+          $ref: './auth.yaml#/components/schemas/Ospfv2Interface.Authentication'
+          x-field-uid: 9
+        advanced:
+          description: >-
+            Optional container for advanced interface properties.
+          $ref: '#/components/schemas/IsisInterface.Advanced'
+          x-field-uid: 10
+        link_protection:
+          description: |-
+            Link protection on the OSPFv2 link between two interfaces.
+          $ref: './linkprotection.yaml#/components/schemas/Ospfv2Interface.LinkProtection'
+          x-field-uid: 11
+        srlg_values:
+          description: >-
+            This contains list of SRLG values for the link between two interfaces.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 16777215
+            default: 0
+          x-field-uid: 12
+    Ospfv2Interface.Neighbor:
+      description: >-
+        Configuration of a neighbor.
+      type: object
+      properties:
+        neighbor_ip:
+          type: string
+          format: ipv4
+          x-field-uid: 1 
+    Ospfv2Interface.Advanced:
+      description: >-
+        Contains OSPFv2 advanced properties.
+      type: object
+      properties:
+        enable_fast_hello:
+          description: |-
+            When fast hello packets are configured on the interface; 
+            the hello interval advertised in the hello packets that are sent out this interface is set to 0
+            and hello interval in the hello packets received over this interface is ignored.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        hello_interval:
+          description: |-
+            The Hello interval for Level 1 Hello messages, in seconds.
+          type: integer
+          format: uint32
+          default: 10
+          x-field-uid: 2
+        dead_interval:
+          description: |-
+            The Dead (Holding Time) interval for Level 1 Hello messages, in seconds.
+          type: integer
+          format: uint32
+          default: 40
+          x-field-uid: 3
+        routing_metric:
+          description: |-
+            routing metric associated with the interface..
+          type: integer
+          format: uint32
+          default: 0
+          x-field-uid: 4
+        priority:
+          description: |-
+            The Priority for (Backup) Designated Router election.          	
+            This value is used in Hello packets for the Designated Router (DR) election process.
+            The default is 0, which indicates that the router will not participate in the DR election process.
+          type: integer
+          format: uint32
+          default: 0
+          x-field-uid: 5
+        enable_validate_received_mtu:
+          description: |
+            This is for to verify the MTU during the Database (DB) exchange.
+            If you clear the check box, the advertised MTU size is set to 0, and the received MTU size is ignored during the DB exchange.
+          type: boolean
+          default: false
+          x-field-uid: 6
+        max_mtu:
+          description: |-
+            The value of the maximum transmit unit.
+          type: integer
+          format: uint32
+          minimum: 68
+          maximum: 14000
+          default: 1500
+          x-field-uid: 7
+    Ospfv2Interface.Options:
+      description: |-
+        The OSPF Options field is present in OSPF Hello packets, Database Description packets and all LSAs.
+        The Options field enables OSPF routers to support (or not support) optional capabilities, and to
+        communicate their capability level to other OSPF routers https://datatracker.ietf.org/doc/html/rfc2328#page-46.
+        When used in Hello packets, the Options field allows a router to reject a neighbor because of a capability mismatch.
+      type: object
+      properties:
+        t_bit:
+          description: >-
+            Type of Service: 0th-bit: describes OSPFv2's TOS capability.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        e_bit:
+          description: >-
+            External Capability: This bit describes the way AS-external-LSAs are flooded.
+          type: boolean
+          default: false
+          x-field-uid: 2
+        mc_bit:
+          description: >-
+            Multicast Capability: This bit describes whether IP multicast datagrams are forwarded according to 
+            the specifications in [Ref18], rfc2328.
+          type: boolean
+          default: false
+          x-field-uid: 3
+        np_bit:
+          description: >-
+            NSSA Capability: This bit describes the handling of Type-7 LSAs, as specified in [Ref19], rfc2328.
+          type: boolean
+          default: false
+          x-field-uid: 4
+        ea_bit:
+          description: >-
+            External Attribute: This bit describes the router's willingness to receive and forward External-Attributes-LSAs, 
+            as specified in [Ref20], rfc2328.
+          type: boolean
+          default: false
+          x-field-uid: 5
+        dc_bit:
+          description: >-
+            Demand Circuit: This bit describes the router's handling of demand circuits, as specified in [Ref21], rfc2328.
+          type: boolean
+          default: false
+          x-field-uid: 6
+        o_bit:
+          description: >-
+            Opaque LSA's Forwarded: This bit describes the router's willingness to receive and forward Opaque-LSAs, rfc2370.
+          type: boolean
+          default: false
+          x-field-uid: 7
+        unused_bit:
+          description: >-
+            Opaque LSA's Forwarded: 7th-bit: unused bit.
+          type: boolean
+          default: false
+          x-field-uid: 8

@@ -1631,6 +1631,9 @@ message Device {
 
   // The properties of DHCP Server and its children, such as DHCPv4, DHCPv6 servers.
   DeviceDhcpServer dhcp_server = 9;
+
+  // Configuration for OSPFv2 router.
+  DeviceOspfv2 ospfv2 = 10;
 }
 
 // Common options that apply to all configured protocols and interfaces.
@@ -7266,6 +7269,402 @@ message DhcpV6ServerSecondaryDns {
   optional string ip = 1;
 }
 
+// A container of properties for an OSPFv2 router and its interfaces & Route Ranges.
+message DeviceOspfv2 {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // IP address of Router ID for this emulated OSPFv2 router.
+  // required = true
+  optional string router_id = 2;
+
+  // The time in seconds for LSA retransmission.
+  // default = 5
+  optional uint32 lsa_retransmit_timer = 3;
+
+  // The time in seconds required for LSA refresh.
+  // default = 1800
+  optional uint32 lsa_refresh_time = 4;
+
+  // The gap in miliseconds between each Flood Link State Update Burst
+  // default = 33
+  optional uint32 inter_burst_lsu_interval = 5;
+
+  // The maximum number of Flood LSUpdates for each burst
+  // default = 1
+  optional uint32 max_flood_lsu_per_burst = 6;
+
+  // Description missing in models
+  Ospfv2GracefulRestart graceful_restart = 7;
+
+  // Configuration for controlling storage of OSPFv2 learned LSPs are received from the
+  // neighbors.
+  // default = False
+  optional bool learned_lsp_filter = 8;
+
+  // Support of Graceful Restart in Helper Mode. OSPF Restart Signaling (draft-nguyen-ospf-restart-06.txt).
+  Ospfv2Options lsa_options = 9;
+
+  // List of OSPFv2 interfaces for this router.
+  repeated Ospfv2Interface interfaces = 10;
+
+  // Contains advance properties of an ISIS Router..
+  Ospfv2Advanced advanced = 11;
+
+  // Emulated OSPFv4 IPv4 routes.
+  repeated Ospfv2V4RouteRange v4_routes = 12;
+}
+
+// The OSPFv2 Options field is present Database Description packets and all LSAs.
+// This enables OSPF routers to support (or not support) optional capabilities,
+// and to communicate their capability level to other OSPF routers.
+// When capabilities are exchanged in Database Description packets a
+// router can choose not to forward certain LSAs to a neighbor because
+// of its reduced functionality.
+// Reference: A.2 The Options field: https://www.rfc-editor.org/rfc/rfc2328#page-46.
+message Ospfv2Options {
+
+  // Type of Service: 0th-bit: describes OSPFv2's TOS capability.
+  // default = False
+  optional bool t_bit = 1;
+
+  // External Capability: 1st-bit: describes the way AS-external-LSAs are flooded.
+  // default = False
+  optional bool e_bit = 2;
+
+  // Multicast Capability: 2nd-bit: describes whether IP multicast datagrams are forwarded
+  // according to  the specifications in [Ref18], rfc2328.
+  // default = False
+  optional bool mc_bit = 3;
+
+  // NSSA Capability: 3rd-bit: describes the handling of Type-7 LSAs, as specified in
+  // [Ref19], rfc2328.
+  // default = False
+  optional bool np_bit = 4;
+
+  // External Attribute: 4th-bit: describes the router's willingness to receive and forward
+  // External-Attributes-LSAs,  as specified in [Ref20], rfc2328.
+  // default = False
+  optional bool ea_bit = 5;
+
+  // Demand Circuit: 4th-bit: describes the router's handling of demand circuits, as specified
+  // in [Ref21], rfc2328.
+  // default = False
+  optional bool dc_bit = 6;
+
+  // Opaque LSA's Forwarded: 6th-bit: describes the router's willingness to receive and
+  // forward Opaque-LSAs, rfc2370.
+  // default = False
+  optional bool o_bit = 7;
+
+  // Opaque LSA's Forwarded: 7th-bit: unused bit.
+  // default = False
+  optional bool unused_bit = 8;
+}
+
+// Containter of properties of OSPFv2 Graceful Retstart.
+message Ospfv2GracefulRestart {
+
+  // Support of Graceful Restart in Helper Mode. OSPF Restart Signaling (draft-nguyen-ospf-restart-06.txt).
+  // default = False
+  optional bool enbale_helper_only = 1;
+}
+
+// Container of OSPFv2 advanced paraters.
+message Ospfv2Advanced {
+
+  // Enable to indicate that the router acts as an Area Border Router.
+  // default = False
+  optional bool enable_router_lsa_b_bit = 1;
+
+  // Enable to indicate that the router acts as an AS Boundary Router.
+  // default = False
+  optional bool enable_router_lsa_e_bit = 2;
+}
+
+// Configuration for single OSPFv2 interface.
+message Ospfv2Interface {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // The globally unique name of the IPv4 interface connected to the DUT. This name must
+  // match the name field of the ipv4_addresses on top which this OSPFv2 interface is
+  // configured.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv4/properties/name
+  // 
+  // required = true
+  optional string ipv4_name = 2;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      area_id = 1;
+      area_id_as_ip = 2;
+    }
+  }
+  // The OSPF Area ID identifies the routing area to which the host belongs. Area ID type
+  // can be following format.
+  // - area_id: A 32-bit number identifying the area.
+  // - area_id_as_ip: The Area ID in IPv4 address format.
+  // default = Choice.Enum.area_id
+  optional Choice.Enum choice = 3;
+
+  // The Area ID.
+  optional uint32 area_id = 4;
+
+  // The Area ID in IPv4 address format.
+  optional string area_id_as_ip = 5;
+
+  message NetworkType {
+    enum Enum {
+      unspecified = 0;
+      broadcast = 1;
+      point_to_point = 2;
+      point_to_multicast = 3;
+    }
+  }
+  // The OSPF network link type options.
+  // - Point to Point:
+  // - Broadcast:
+  // - Point to Multipoint: In this case, at least a neigbor to be configured.
+  // default = NetworkType.Enum.broadcast
+  optional NetworkType.Enum network_type = 6;
+
+  // Configuration of the list of neighbors.
+  repeated Ospfv2InterfaceNeighbor neighbors = 7;
+
+  // Contains a list of Traffic Engineering attributes.
+  repeated LinkStateTE traffic_engineering = 8;
+
+  // The Circuit authentication method used for the interfaces on this emulated ISIS v4/v6
+  // router.
+  Ospfv2InterfaceAuthentication authentication = 9;
+
+  // Optional container for advanced interface properties.
+  IsisInterfaceAdvanced advanced = 10;
+
+  // Link protection on the OSPFv2 link between two interfaces.
+  Ospfv2InterfaceLinkProtection link_protection = 11;
+
+  // This contains list of SRLG values for the link between two interfaces.
+  repeated uint32 srlg_values = 12;
+}
+
+// Configuration of a neighbor.
+message Ospfv2InterfaceNeighbor {
+
+  // Description missing in models
+  optional string neighbor_ip = 1;
+}
+
+// Contains OSPFv2 advanced properties.
+message Ospfv2InterfaceAdvanced {
+
+  // When fast hello packets are configured on the interface;
+  // the hello interval advertised in the hello packets that are sent out this interface
+  // is set to 0
+  // and hello interval in the hello packets received over this interface is ignored.
+  // default = False
+  optional bool enable_fast_hello = 1;
+
+  // The Hello interval for Level 1 Hello messages, in seconds.
+  // default = 10
+  optional uint32 hello_interval = 2;
+
+  // The Dead (Holding Time) interval for Level 1 Hello messages, in seconds.
+  // default = 40
+  optional uint32 dead_interval = 3;
+
+  // routing metric associated with the interface..
+  // default = 0
+  optional uint32 routing_metric = 4;
+
+  // The Priority for (Backup) Designated Router election.
+  // This value is used in Hello packets for the Designated Router (DR) election process.
+  // The default is 0, which indicates that the router will not participate in the DR
+  // election process.
+  // default = 0
+  optional uint32 priority = 5;
+
+  // This is for to verify the MTU during the Database (DB) exchange.
+  // If you clear the check box, the advertised MTU size is set to 0, and the received
+  // MTU size is ignored during the DB exchange.
+  // 
+  // default = False
+  optional bool enable_validate_received_mtu = 6;
+
+  // The value of the maximum transmit unit.
+  // default = 1500
+  optional uint32 max_mtu = 7;
+}
+
+// The OSPF Options field is present in OSPF Hello packets, Database Description packets
+// and all LSAs.
+// The Options field enables OSPF routers to support (or not support) optional capabilities,
+// and to
+// communicate their capability level to other OSPF routers https://datatracker.ietf.org/doc/html/rfc2328#page-46.
+// When used in Hello packets, the Options field allows a router to reject a neighbor
+// because of a capability mismatch.
+message Ospfv2InterfaceOptions {
+
+  // Type of Service: 0th-bit: describes OSPFv2's TOS capability.
+  // default = False
+  optional bool t_bit = 1;
+
+  // External Capability: This bit describes the way AS-external-LSAs are flooded.
+  // default = False
+  optional bool e_bit = 2;
+
+  // Multicast Capability: This bit describes whether IP multicast datagrams are forwarded
+  // according to  the specifications in [Ref18], rfc2328.
+  // default = False
+  optional bool mc_bit = 3;
+
+  // NSSA Capability: This bit describes the handling of Type-7 LSAs, as specified in
+  // [Ref19], rfc2328.
+  // default = False
+  optional bool np_bit = 4;
+
+  // External Attribute: This bit describes the router's willingness to receive and forward
+  // External-Attributes-LSAs,  as specified in [Ref20], rfc2328.
+  // default = False
+  optional bool ea_bit = 5;
+
+  // Demand Circuit: This bit describes the router's handling of demand circuits, as specified
+  // in [Ref21], rfc2328.
+  // default = False
+  optional bool dc_bit = 6;
+
+  // Opaque LSA's Forwarded: This bit describes the router's willingness to receive and
+  // forward Opaque-LSAs, rfc2370.
+  // default = False
+  optional bool o_bit = 7;
+
+  // Opaque LSA's Forwarded: 7th-bit: unused bit.
+  // default = False
+  optional bool unused_bit = 8;
+}
+
+// This contains OSPFv4 authentication properties.
+// Reference: https://www.rfc-editor.org/rfc/rfc2328#appendix-D
+message Ospfv2InterfaceAuthentication {
+
+  message AuthType {
+    enum Enum {
+      unspecified = 0;
+      md5 = 1;
+      password = 2;
+    }
+  }
+  // The authentication method.
+  // - md5: If the authentication type is of 'md5' then 'md5_key_id' and 'md5_key' both
+  // are to be configured.
+  // - password:
+  // required = true
+  optional AuthType.Enum auth_type = 1;
+
+  // The unique MD5 Key Identifier per-interface.
+  optional string md5_key_id = 2;
+
+  // Authentication as an MD5 key.
+  optional string md5_key = 3;
+
+  // Authentication as a clear text password.
+  optional string password = 4;
+}
+
+// Optional container for the link protection sub TLV (type 20).
+message Ospfv2InterfaceLinkProtection {
+
+  // Enable this to protect other link or links. LSPs on a link of this type are lost
+  // if any of the links fail.
+  // default = False
+  optional bool extra_traffic = 1;
+
+  // Enabling this signifies that there is no other link protecting this
+  // link. LSPs on a link of this type are lost if the link fails.
+  // default = False
+  optional bool unprotected = 2;
+
+  // Enable this to share the Extra Traffic links between one or more
+  // links of type Shared.There are one or more disjoint links of type
+  // Extra Traffic that are protecting this link.
+  // default = False
+  optional bool shared = 3;
+
+  // Enabling this signifies that there is one dedicated disjoint link
+  // of type Extra Traffic that is protecting this link.
+  // default = False
+  optional bool dedicated_1_to_1 = 4;
+
+  // Enabling this signifies that a dedicated disjoint link is protecting
+  // this link. However, the protecting link is not advertised in the
+  // link state database and is therefore not available for the routing
+  // of LSPs.
+  // default = False
+  optional bool dedicated_1_plus_1 = 5;
+
+  // Enabling this signifies that a protection scheme that is more
+  // reliable than Dedicated 1+1.
+  // default = False
+  optional bool enhanced = 6;
+
+  // This is a Protection Scheme with value 0x40.
+  // default = False
+  optional bool reserved_40 = 7;
+
+  // This is a Protection Scheme with value 0x80.
+  // default = False
+  optional bool reserved_80 = 8;
+}
+
+// Emulated OSPFv2 IPv4 routes.
+message Ospfv2V4RouteRange {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // A list of group of IPv4 route addresses.
+  repeated V4RouteAddress addresses = 2;
+
+  // The user-defined metric associated with this route range.
+  // default = 0
+  optional uint32 router_metric = 3;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      intra_area = 1;
+      inter_area = 2;
+      external_type_1 = 3;
+      external_type_2 = 4;
+      nssa_external = 5;
+    }
+  }
+  // The type of the OSPFv2 routes. route types correspond directly to the OSPFv2 LSAs
+  // types as
+  // defined in the OSPFv2 Link State (LS) Type - <http://www.iana.org/assignments/ospfv2-parameters.
+  // Supported types are:
+  // - intra_area: for 1 Intra-Area.
+  // - inter_area: for 3 Inter Area.
+  // - external_type_1: for 5 - Autonomous System (AS) External with internal AS meteric.
+  // - external_type_2: for 5 - Autonomous System (AS) External with internal and external
+  // AS meteric.
+  // - nssa_external: for 7 - Not-So-Stubby Area (NSSA) External.
+  // default = Choice.Enum.inter_area
+  optional Choice.Enum choice = 4;
+}
+
 // A high level data plane traffic flow.
 message Flow {
 
@@ -7444,6 +7843,7 @@ message FlowRouter {
   // - /components/schemas/Rsvp.LspIpv4Interface.P2PIngressIpv4Lsp/properties/name
   // - /components/schemas/Isis.V4RouteRange/properties/name
   // - /components/schemas/Isis.V6RouteRange/properties/name
+  // - /components/schemas/Device.Ospfv2/properties/name
   // - /components/schemas/Device.Dhcpv4client/properties/name
   // - /components/schemas/Device.Dhcpv6client/properties/name
   // 
@@ -7462,6 +7862,7 @@ message FlowRouter {
   // - /components/schemas/Isis.V4RouteRange/properties/name
   // - /components/schemas/Isis.V6RouteRange/properties/name
   // - /components/schemas/Device.Dhcpv4client/properties/name
+  // - /components/schemas/Device.Ospfv2/properties/name
   // - /components/schemas/Device.Dhcpv6client/properties/name
   // 
   repeated string rx_names = 3;
@@ -11074,8 +11475,9 @@ message MetricsRequest {
       rsvp = 9;
       dhcpv4_client = 10;
       dhcpv4_server = 11;
-      dhcpv6_client = 12;
-      dhcpv6_server = 13;
+      ospfv2 = 12;
+      dhcpv6_client = 13;
+      dhcpv6_server = 14;
     }
   }
   // Description missing in models
@@ -11116,10 +11518,13 @@ message MetricsRequest {
   Dhcpv4ServerMetricsRequest dhcpv4_server = 12;
 
   // Description missing in models
-  Dhcpv6ClientMetricsRequest dhcpv6_client = 13;
+  Ospfv2MetricsRequest ospfv2 = 13;
 
   // Description missing in models
-  Dhcpv6ServerMetricsRequest dhcpv6_server = 14;
+  Dhcpv6ClientMetricsRequest dhcpv6_client = 14;
+
+  // Description missing in models
+  Dhcpv6ServerMetricsRequest dhcpv6_server = 15;
 }
 
 // Response containing chosen traffic generator metrics.
@@ -11139,8 +11544,9 @@ message MetricsResponse {
       rsvp_metrics = 9;
       dhcpv4_client = 10;
       dhcpv4_server = 11;
-      dhcpv6_client = 12;
-      dhcpv6_server = 13;
+      ospfv2 = 12;
+      dhcpv6_client = 13;
+      dhcpv6_server = 14;
     }
   }
   // Description missing in models
@@ -11181,10 +11587,13 @@ message MetricsResponse {
   repeated Dhcpv4ServerMetric dhcpv4server_metrics = 12;
 
   // Description missing in models
-  repeated Dhcpv6ClientMetric dhcpv6client_metrics = 13;
+  repeated Ospfv2Metric ospfv2_metrics = 13;
 
   // Description missing in models
-  repeated Dhcpv6ServerMetric dhcpv6server_metrics = 14;
+  repeated Dhcpv6ClientMetric dhcpv6client_metrics = 14;
+
+  // Description missing in models
+  repeated Dhcpv6ServerMetric dhcpv6server_metrics = 15;
 }
 
 // The port result request to the traffic generator
@@ -12441,6 +12850,165 @@ message Dhcpv4ServerMetric {
   optional uint64 declines_received = 8;
 }
 
+// The request to retrieve OSPFv2 per Router metrics/statistics.
+message Ospfv2MetricsRequest {
+
+  // The names of OSPFv2 Routers to return results for. An empty list will return results
+  // for all OSPFv2 router.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ospfv2/properties/name
+  // 
+  repeated string router_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      sessions_up = 1;
+      sessions_flap = 2;
+      hellos_sent = 3;
+      hellos_received = 4;
+      dbd_sent = 5;
+      dbd_received = 6;
+      ls_request_sent = 7;
+      ls_request_received = 8;
+      ls_update_sent = 9;
+      ls_update_received = 10;
+      ls_ack_sent = 11;
+      ls_ack_received = 12;
+      lsa_sent = 13;
+      lsa_received = 14;
+      lsa_ack_sent = 15;
+      lsa_ack_received = 16;
+      router_lsa_sent = 17;
+      router_lsa_received = 18;
+      network_lsa_sent = 19;
+      network_lsa_received = 20;
+      summary_lsa_sent = 21;
+      summary_lsa_received = 22;
+      external_lsa_sent = 23;
+      external_lsa_received = 24;
+      nssa_lsa_sent = 25;
+      nssa_lsa_received = 26;
+      opaque_local_sent = 27;
+      opaque_local_received = 28;
+      opaque_area_sent = 29;
+      opaque_area_received = 30;
+      opaque_domain_sent = 31;
+      opaque_domain_received = 32;
+    }
+  }
+  // The list of column names that the returned result set will contain.
+  // If the list is empty then all columns will be returned except for
+  // any result_groups.
+  // The name of the OSPFv2 Router cannot be excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// OSPFv2 per router statistics information.
+message Ospfv2Metric {
+
+  // The name of a configured OSPFv2 router.
+  optional string name = 1;
+
+  // The number of OSPFv2 sessions that are up.
+  optional uint64 sessions_up = 2;
+
+  // The number of change of OSPFv2 sessions from up to down state.
+  optional uint64 sessions_flap = 3;
+
+  // The number of OSPFv2 Hello messages transmitted.
+  optional uint64 hellos_sent = 4;
+
+  // The number of OSPFv2 Hello messages received.
+  optional uint64 hellos_received = 5;
+
+  // The number of OSPFv2 Database Description (DBD) messages transmitted.
+  optional uint64 dbd_sent = 6;
+
+  // The number of OSPFv2 Database Description (DBD) messages received.
+  optional uint64 dbd_received = 7;
+
+  // The number of OSPFv2 LinkState (LS) Request messages transmitted.
+  optional uint64 ls_request_sent = 8;
+
+  // The number of OSPFv2 LinkState (LS) Request messages received.
+  optional uint64 ls_request_received = 9;
+
+  // The number of OSPFv2 LinkState (LS) Update messages transmitted.
+  optional uint64 ls_update_sent = 10;
+
+  // The number of OSPFv2 LinkState (LS) Update messages received.
+  optional uint64 ls_update_received = 11;
+
+  // The number of OSPFv2 LinkState (LS) Acknowledgement messages transmitted.
+  optional uint64 ls_ack_sent = 12;
+
+  // The number of OSPFv2 LinkState (LS) Acknowledgement messages received.
+  optional uint64 ls_ack_received = 13;
+
+  // The total number of OSPFv2 LinkState Advertisement (LSA) messages transmitted.
+  optional uint64 lsa_sent = 14;
+
+  // The total number of OSPFv2 LinkState Advertisement (LSA) messages received.
+  optional uint64 lsa_received = 15;
+
+  // The total number of OSPFv2 LinkState Advertisement (LSA) messages acknowledged.
+  optional uint64 lsa_ack_sent = 16;
+
+  // The total number of OSPFv2 LinkState Advertisement (LSA) acknowledge messages received
+  // .
+  optional uint64 lsa_ack_received = 17;
+
+  // The number of OSPFv2 Router (Type 1) LSAs transmitted.
+  optional uint64 router_lsa_sent = 18;
+
+  // The number of OSPFv2 Router (Type 1) LSAs received.
+  optional uint64 router_lsa_received = 19;
+
+  // The number of OSPFv2 Network (Type 2) LSAs transmitted.
+  optional uint64 network_lsa_sent = 20;
+
+  // The number of OSPFv2 Network (Type 2) LSAs transmitted.
+  optional uint64 network_lsa_received = 21;
+
+  // The number of OSPFv2 Summary IP (Type 3) LSAs transmitted.
+  optional uint64 summary_lsa_sent = 22;
+
+  // The number of OSPFv2 Summary IP (Type 3) LSA received.
+  optional uint64 summary_lsa_received = 23;
+
+  // The number of OSPFv2 External (Type 5) LSAs transmitted.
+  optional uint64 external_lsa_sent = 24;
+
+  // The number of OSPFv2 External (Type 5) LSAs received.
+  optional uint64 external_lsa_received = 25;
+
+  // The number of OSPFv2 NSSA (Type 7) LSAs transmitted.
+  optional uint64 nssa_lsa_sent = 26;
+
+  // The number of OSPFv2 NSSA (Type 7) LSAs received.
+  optional uint64 nssa_lsa_received = 27;
+
+  // The number of OSPFv2 Opaque Local (Type 9) LSAs transmitted.
+  optional uint64 opaque_local_sent = 28;
+
+  // The number of OSPFv2 Opaque Local (Type 9) LSAs received.
+  optional uint64 opaque_local_received = 29;
+
+  // The number of OSPF Opaque Area (Type 10) LSAs transmitted.
+  optional uint64 opaque_area_sent = 30;
+
+  // The number of OSPFv2 Opaque Area (Type 10) LSAs received.
+  optional uint64 opaque_area_received = 31;
+
+  // The number of OSPFv2 Opaque Domain (Type 11) LSAs transmitted.
+  optional uint64 opaque_domain_sent = 32;
+
+  // The number of OSPFv2 Opaque Domain (Type 11) LSAs received.
+  optional uint64 opaque_domain_received = 33;
+}
+
 // The request to retrieve DHCPv6 per client metrics/statistics.
 message Dhcpv6ClientMetricsRequest {
 
@@ -12658,10 +13226,13 @@ message StatesRequest {
   Dhcpv4LeaseStateRequest dhcpv4_leases = 9;
 
   // Description missing in models
-  Dhcpv6InterfaceStateRequest dhcpv6_interfaces = 10;
+  Ospfv2LsasStateRequest ospfv2_lsas = 11;
 
   // Description missing in models
-  Dhcpv6LeaseStateRequest dhcpv6_leases = 11;
+  Dhcpv6InterfaceStateRequest dhcpv6_interfaces = 12;
+
+  // Description missing in models
+  Dhcpv6LeaseStateRequest dhcpv6_leases = 13;
 }
 
 // Response containing chosen traffic generator states
@@ -12678,8 +13249,9 @@ message StatesResponse {
       rsvp_lsps = 6;
       dhcpv4_interfaces = 7;
       dhcpv4_leases = 8;
-      dhcpv6_interfaces = 9;
-      dhcpv6_leases = 10;
+      ospfv2_lsas = 9;
+      dhcpv6_interfaces = 10;
+      dhcpv6_leases = 11;
     }
   }
   // Description missing in models
@@ -12711,10 +13283,13 @@ message StatesResponse {
   repeated Dhcpv4LeasesState dhcpv4_leases = 9;
 
   // Description missing in models
-  repeated Dhcpv6InterfaceState dhcpv6_interfaces = 10;
+  repeated Ospfv2LsaState ospfv2_lsas = 10;
 
   // Description missing in models
-  repeated Dhcpv6LeasesState dhcpv6_leases = 11;
+  repeated Dhcpv6InterfaceState dhcpv6_interfaces = 11;
+
+  // Description missing in models
+  repeated Dhcpv6LeasesState dhcpv6_leases = 12;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -14015,6 +14590,221 @@ message Dhcpv4LeaseState {
 
   // The Remote ID option found in the last request message.
   optional string remote_id = 8;
+}
+
+// The request to retrieve OSPFv2 Link State Advertisements (LSA) information learned
+// by the routers.
+message Ospfv2LsasStateRequest {
+
+  // The names of OSPFv2 routers for which learned information is requested. An empty
+  // list will return results for all OSPFv2 routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ospfv2Router/properties/name
+  // 
+  repeated string ospfv2_router_names = 1;
+}
+
+// The result of OSPFv2 LSA information that are retrieved.
+message Ospfv2LsaState {
+
+  // The name of the OSPFv2 Router that learned the LSA information.
+  optional string lsa_router_name = 1;
+
+  // The router ID (in the IPv4 format).
+  optional string router_id = 2;
+
+  // One or more OSPFv2 Router-LSA - Type 1.
+  repeated Ospfv2RouterLsa router_lsas = 3;
+
+  // One or more OSPFv2 Network-LSA - Type 2.
+  repeated Ospfv2NetworkLsa network_lsas = 4;
+
+  // One or more OSPFv2 Network summary LSA - Type 3.
+  repeated Ospfv2NetworkSummaryLsa network_summary_lsas = 5;
+
+  // One or more OSPFv2 Autonomous System Boundary Router (ASBR) summary LSA - Type 4.
+  repeated Ospfv2SummaryAsLsa summary_as_lsas = 6;
+
+  // OSPFv2 AS-External-LSA - Type 5.
+  repeated Ospfv2ExternalAsLsa external_as_lsas = 7;
+
+  // One or more OSPFv2 NSSA-LSA - Type 7.
+  repeated Ospfv2NssaLsa nssa_lsas = 8;
+
+  // One or more OSPFv2 Link-Scope Opaque-LSA - Type 9.
+  repeated Ospfv2OpaqueLsa opaque_lsas = 9;
+}
+
+// Contents of the router LSA
+message Ospfv2RouterLsa {
+
+  // Contents of the router LSA.
+  // required = true
+  Ospfv2CommonAttrs common_attrs = 1;
+
+  // Links that are described within the LSA.
+  repeated Ospfv2Link links = 2;
+}
+
+// Contents of the Network LSA
+message Ospfv2NetworkLsa {
+
+  // Contents of the router LSA.
+  // required = true
+  Ospfv2CommonAttrs common_attrs = 1;
+
+  // The IPv4 address mask for the network.
+  optional string network_mask = 2;
+
+  // Neighbor's Router ID for the link.
+  optional string neighbor_router_id = 3;
+}
+
+// Contents of the Network Summary LSA - Type 3.
+message Ospfv2NetworkSummaryLsa {
+
+  // Common LSA attributes.
+  // required = true
+  Ospfv2CommonAttrs common_attrs = 1;
+
+  // The IPv4 address mask for the network.
+  optional string network_mask = 2;
+
+  // The cost of the summary route TOS level 0 and all unspecified levels.
+  optional uint32 metric = 3;
+}
+
+// Contents of OSPFv2 Autonomous System Boundary Router (ASBR) summary LSA - Type 4.
+message Ospfv2SummaryAsLsa {
+
+  // Common LSA attributes.
+  // required = true
+  Ospfv2CommonAttrs common_attrs = 1;
+
+  // The IPv4 address mask for the network.
+  optional string network_mask = 2;
+
+  // The cost of the summary route TOS level 0 and all unspecified levels.
+  optional uint32 metric = 3;
+}
+
+// Contents of OSPFv2 AS-External-LSA - Type 5.
+message Ospfv2ExternalAsLsa {
+
+  // Common LSA attributes.
+  // required = true
+  Ospfv2CommonAttrs common_attrs = 1;
+
+  // The IPv4 address mask for the network.
+  optional string network_mask = 2;
+
+  // The cost of the summary route TOS level 0 and all unspecified levels.
+  optional uint32 metric = 3;
+
+  // The type of metric associated with the route range.
+  optional uint32 metric_type = 4;
+}
+
+// Contents of OSPFv2 NSSA-LSA - Type 7.
+message Ospfv2NssaLsa {
+
+  // Common LSA attributes.
+  // required = true
+  Ospfv2CommonAttrs common_attrs = 1;
+
+  // The IPv4 address mask for the network.
+  optional string network_mask = 2;
+
+  // The cost of the summary route TOS level 0 and all unspecified levels.
+  optional uint32 metric = 3;
+
+  // The type of metric associated with the route range.
+  optional uint32 metric_type = 4;
+
+  // IPv4 Forwarding address.
+  optional string forwarding_address = 5;
+}
+
+// Contents of OSPFv2 NSSA-LSA - Type 7.
+message Ospfv2OpaqueLsa {
+
+  // Common LSA attributes.
+  // required = true
+  Ospfv2CommonAttrs common_attrs = 1;
+
+  message OpaqueLsaType {
+    enum Enum {
+      unspecified = 0;
+      opaque_local = 1;
+      opaque_area = 2;
+      opaque_domain = 3;
+    }
+  }
+  // The type of Opaque TE LSAs. The LSA type.
+  optional OpaqueLsaType.Enum opaque_lsa_type = 2;
+}
+
+// TBD
+message Ospfv2CommonAttrs {
+
+  // LSA ID in t he IPv4 format. The Link State ID for the specified LSA type.
+  // required = true
+  optional string lsa_id = 1;
+
+  // The router ID (in the IPv4 format) of the router that originated the LSA.
+  // required = true
+  optional string advertising_router = 2;
+
+  // Sequence number to detect old and duplicate LSAs. The greater the sequence number
+  // the more recent the LSA.
+  optional uint32 sequence_number = 3;
+
+  // The time since the LSA's generation in seconds.
+  optional uint32 age = 4;
+
+  // The optional bits.
+  optional uint32 option_bits = 5;
+}
+
+// Generic attributes used to identify links within OSPFv2.
+message Ospfv2Link {
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      point_to_point = 1;
+      transit = 2;
+      stub = 3;
+      virtual = 4;
+    }
+  }
+  // The data associated with the link type. The value is dependent upon the subtype of
+  // the LSA. - point_to_point: The LSA represents a point-to-point connection to another
+  // router. - transit: The LSA represents a connection to a transit network. - stub:
+  // The LSA represents a connection to a stub network. - virtual: The LSA represents
+  // a virtual link connection.
+  optional Type.Enum type = 1;
+
+  // The identifier for the link specified. The value of the link
+  // identifier is dependent upon the type of the LSA.
+  optional string id = 2;
+
+  // The data associated with the link type. The value is
+  // dependent upon the subtype of the LSA. When the connection is
+  // to a stub network it represents the mask; for p2p connections
+  // that are unnumbered it represents the ifIndex value of the
+  // router's interface; for all other connections it represents
+  // the local system's IP address.
+  optional string data = 3;
+
+  // The data associated with the link type. The value is
+  // dependent upon the subtype of the LSA. When the connection is
+  // to a stub network it represents the mask; for p2p connections
+  // that are unnumbered it represents the ifIndex value of the
+  // router's interface; for all other connections it represents
+  // the local system's IP address.
+  optional uint32 metric = 4;
 }
 
 // The request for assigned IPv6 address information associated with DHCP Client sessions.

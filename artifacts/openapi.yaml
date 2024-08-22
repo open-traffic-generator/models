@@ -9787,7 +9787,6 @@ components:
         A container of properties for an OSPFv2 router and its interfaces & Route Ranges.
       type: object
       required:
-      - router_id
       - interfaces
       - name
       properties:
@@ -9798,12 +9797,28 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
-        router_id:
+        choice:
           description: |-
             IP address of Router ID for this emulated OSPFv2 router.
+            - interface_ip: When IPv4 interface address to be assigned as Router ID.
+            - custom_router_id: When, Router ID needs to be configured different from Interface IPv4 address.
+          type: string
+          default: interface_ip
+          x-field-uid: 2
+          x-enum:
+            interface_ip:
+              x-field-uid: 1
+            custom_router_id:
+              x-field-uid: 2
+          enum:
+          - interface_ip
+          - custom_router_id
+        custom_router_id:
+          description: |-
+            Router ID in IPv4 address format.
           type: string
           format: ipv4
-          x-field-uid: 2
+          x-field-uid: 3
         lsa_retransmit_timer:
           description: |-
             The time in seconds for LSA retransmission.
@@ -9811,7 +9826,7 @@ components:
           format: uint32
           default: 5
           minimum: 1
-          x-field-uid: 3
+          x-field-uid: 4
         lsa_refresh_time:
           description: |-
             The time in seconds required for LSA refresh.
@@ -9819,46 +9834,41 @@ components:
           format: uint32
           default: 1800
           minimum: 5
-          x-field-uid: 4
+          x-field-uid: 5
         inter_burst_lsu_interval:
           description: "The gap in miliseconds between each Flood Link State Update\
             \ Burst "
           type: integer
           format: uint32
           default: 33
-          x-field-uid: 5
+          x-field-uid: 6
         max_flood_lsu_per_burst:
           description: "The maximum number of Flood LSUpdates for each burst "
           type: integer
           format: uint32
           default: 1
           minimum: 1
-          x-field-uid: 6
+          x-field-uid: 7
         graceful_restart:
           $ref: '#/components/schemas/Ospfv2.GracefulRestart'
-          x-field-uid: 7
+          x-field-uid: 8
         learned_lsp_filter:
           description: |-
             Configuration for controlling storage of OSPFv2 learned LSPs are received from the neighbors.
           type: boolean
           default: false
-          x-field-uid: 8
-        lsa_options:
-          description: |-
-            Support of Graceful Restart in Helper Mode. OSPF Restart Signaling (draft-nguyen-ospf-restart-06.txt).
-          $ref: '#/components/schemas/Ospfv2.Options'
           x-field-uid: 9
+        capabilities:
+          description: |-
+            A router indicates the optional capabilities that it supports in its OSPF Hello packets, Database Description packets and in its LSAs.
+          $ref: '#/components/schemas/Ospfv2.Options'
+          x-field-uid: 10
         interfaces:
           description: |-
             List of OSPFv2 interfaces for this router.
           type: array
           items:
             $ref: '#/components/schemas/Ospfv2.Interface'
-          x-field-uid: 10
-        advanced:
-          description: |-
-            Contains advance properties of an ISIS Router..
-          $ref: '#/components/schemas/Ospfv2.Advanced'
           x-field-uid: 11
         v4_routes:
           description: |-
@@ -9924,34 +9934,29 @@ components:
           type: boolean
           default: false
           x-field-uid: 8
-    Ospfv2.GracefulRestart:
-      description: |-
-        Containter of properties of OSPFv2 Graceful Retstart.
-      type: object
-      properties:
-        enbale_helper_only:
-          description: |-
-            Support of Graceful Restart in Helper Mode. OSPF Restart Signaling (draft-nguyen-ospf-restart-06.txt).
-          type: boolean
-          default: false
-          x-field-uid: 1
-    Ospfv2.Advanced:
-      description: |-
-        Container of OSPFv2 advanced paraters.
-      type: object
-      properties:
         enable_router_lsa_b_bit:
           description: |-
             Enable to indicate that the router acts as an Area Border Router.
           type: boolean
           default: false
-          x-field-uid: 1
+          x-field-uid: 9
         enable_router_lsa_e_bit:
           description: |-
             Enable to indicate that the router acts as an AS Boundary Router.
           type: boolean
           default: false
-          x-field-uid: 2
+          x-field-uid: 10
+    Ospfv2.GracefulRestart:
+      description: |-
+        Containter of properties of OSPFv2 Graceful Retstart.
+      type: object
+      properties:
+        enable_helper_only:
+          description: |-
+            Support of Graceful Restart in Helper Mode. OSPF Restart Signaling (draft-nguyen-ospf-restart-06.txt).
+          type: boolean
+          default: false
+          x-field-uid: 1
     Ospfv2.Interface:
       description: |-
         Configuration for single OSPFv2 interface.
@@ -9997,6 +10002,7 @@ components:
             The Area ID.
           type: integer
           format: uint32
+          default: 0
           x-field-uid: 4
         area_id_as_ip:
           description: |-
@@ -10116,7 +10122,7 @@ components:
         enable_validate_received_mtu:
           description: |
             This is for to verify the MTU during the Database (DB) exchange.
-            If you clear the check box, the advertised MTU size is set to 0, and the received MTU size is ignored during the DB exchange.
+            Advertised MTU size is set to 0, and the received MTU size is ignored during the DB exchange.
           type: boolean
           default: false
           x-field-uid: 6
@@ -10187,26 +10193,30 @@ components:
           x-field-uid: 8
     Ospfv2Interface.Authentication:
       description: |-
-        This contains OSPFv4 authentication properties.
+        This contains OSPFv2 authentication properties.
         Reference: https://www.rfc-editor.org/rfc/rfc2328#appendix-D
       type: object
-      required:
-      - auth_type
       properties:
-        auth_type:
-          description: "The authentication method.\n- md5: If the authentication type\
-            \ is of 'md5' then 'md5_key_id' and 'md5_key' both are to be configured.\n\
-            - password: "
+        choice:
+          description: "The authentication method.\n- md5 - Cryptographic authentication.\
+            \ If the authentication type is of 'md5' then 'md5_key_id' and 'md5_key'\
+            \ \nboth are to be configured. A shared secret key is configured in all\
+            \ routers attached to a common network/subnet.\nFor each OSPF protocol\
+            \ packet, the key is used to generate/verify a \"message digest\" that\
+            \ is appended to the end\nof the OSPF packet.\n- clear_text - Simple password\
+            \ authentication. A 64-bit field is configured on a per-network basis.\
+            \ \nAll packets sent on a particular network must have this configured\
+            \ value (in clear text) \nin their OSPF header 64-bit authentication field."
           type: string
           x-field-uid: 1
           x-enum:
             md5:
               x-field-uid: 1
-            password:
+            clear_text:
               x-field-uid: 2
           enum:
           - md5
-          - password
+          - clear_text
         md5_key_id:
           description: |-
             The unique MD5 Key Identifier per-interface.
@@ -10215,13 +10225,13 @@ components:
           maxLength: 255
           x-field-uid: 2
         md5_key:
-          description: |-
-            Authentication as an MD5 key.
+          description: "An alphanumeric secret used to generate the 16 byte MD5 hash\
+            \ value added \nto the OSPFv2 PDU in the Authentication TLV."
           type: string
           minLength: 0
           maxLength: 255
           x-field-uid: 3
-        password:
+        clear_text:
           description: |-
             Authentication as a clear text password.
           type: string
@@ -15226,20 +15236,20 @@ components:
           items:
             $ref: '#/components/schemas/Dhcpv4Server.Metric'
           x-field-uid: 12
-        ospfv2_metrics:
-          type: array
-          items:
-            $ref: '#/components/schemas/Ospfv2.Metric'
-          x-field-uid: 13
         dhcpv6client_metrics:
           type: array
           items:
             $ref: '#/components/schemas/Dhcpv6Client.Metric'
-          x-field-uid: 14
+          x-field-uid: 13
         dhcpv6server_metrics:
           type: array
           items:
             $ref: '#/components/schemas/Dhcpv6Server.Metric'
+          x-field-uid: 14
+        ospfv2_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ospfv2.Metric'
           x-field-uid: 15
     Port.Metrics.Request:
       description: |-
@@ -18048,6 +18058,8 @@ components:
               x-field-uid: 9
             dhcpv6_leases:
               x-field-uid: 10
+            ospfv2_lsas:
+              x-field-uid: 11
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
@@ -18059,6 +18071,7 @@ components:
           - dhcpv4_leases
           - dhcpv6_interfaces
           - dhcpv6_leases
+          - ospfv2_lsas
         ipv4_neighbors:
           $ref: '#/components/schemas/Neighborsv4.States.Request'
           x-field-uid: 2
@@ -18083,15 +18096,15 @@ components:
         dhcpv4_leases:
           $ref: '#/components/schemas/Dhcpv4Lease.State.Request'
           x-field-uid: 9
-        ospfv2_lsas:
-          $ref: '#/components/schemas/Ospfv2Lsas.State.Request'
-          x-field-uid: 11
         dhcpv6_interfaces:
           $ref: '#/components/schemas/Dhcpv6Interface.State.Request'
-          x-field-uid: 12
+          x-field-uid: 10
         dhcpv6_leases:
           $ref: '#/components/schemas/Dhcpv6Lease.State.Request'
-          x-field-uid: 13
+          x-field-uid: 11
+        ospfv2_lsas:
+          $ref: '#/components/schemas/Ospfv2Lsas.State.Request'
+          x-field-uid: 12
     States.Response:
       description: |-
         Response containing chosen traffic generator states
@@ -18118,11 +18131,11 @@ components:
               x-field-uid: 7
             dhcpv4_leases:
               x-field-uid: 8
-            ospfv2_lsas:
-              x-field-uid: 9
             dhcpv6_interfaces:
-              x-field-uid: 10
+              x-field-uid: 9
             dhcpv6_leases:
+              x-field-uid: 10
+            ospfv2_lsas:
               x-field-uid: 11
           enum:
           - ipv4_neighbors
@@ -18133,9 +18146,9 @@ components:
           - rsvp_lsps
           - dhcpv4_interfaces
           - dhcpv4_leases
-          - ospfv2_lsas
           - dhcpv6_interfaces
           - dhcpv6_leases
+          - ospfv2_lsas
         ipv4_neighbors:
           type: array
           items:
@@ -18176,20 +18189,20 @@ components:
           items:
             $ref: '#/components/schemas/Dhcpv4Leases.State'
           x-field-uid: 9
-        ospfv2_lsas:
-          type: array
-          items:
-            $ref: '#/components/schemas/Ospfv2Lsa.State'
-          x-field-uid: 10
         dhcpv6_interfaces:
           type: array
           items:
             $ref: '#/components/schemas/Dhcpv6Interface.State'
-          x-field-uid: 11
+          x-field-uid: 10
         dhcpv6_leases:
           type: array
           items:
             $ref: '#/components/schemas/Dhcpv6Leases.State'
+          x-field-uid: 11
+        ospfv2_lsas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ospfv2Lsa.State'
           x-field-uid: 12
     Neighborsv4.States.Request:
       description: |-
@@ -20044,6 +20057,154 @@ components:
             The Remote ID option found in the last request message.
           type: string
           x-field-uid: 8
+    Dhcpv6Interface.State.Request:
+      description: |-
+        The request for assigned IPv6 address information associated with DHCP Client sessions.
+      type: object
+      properties:
+        dhcp_client_names:
+          description: |
+            The names of DHCPv6 client to return results for. An empty list will return results for all DHCPv6 Client address information.
+
+            x-constraint:
+            - /components/schemas/Device.Dhcpv6client/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Dhcpv6client/properties/name
+          x-field-uid: 1
+    Dhcpv6Interface.State:
+      description: |-
+        The IPv6 address associated with this DHCP Client session.
+      type: object
+      properties:
+        dhcp_client_name:
+          description: |-
+            The name of a DHCPv6 Client.
+          type: string
+          x-field-uid: 1
+        ipv6_iapd_address:
+          description: |-
+            The IPv6 IAPD address associated with this DHCP Client session.
+          type: string
+          x-field-uid: 2
+        iapd_prefix_length:
+          description: |-
+            The prefix length of the IPv6 IAPD address associated with this DHCP Client session.
+          type: integer
+          format: uint32
+          maximum: 128
+          x-field-uid: 3
+        ipv6_address:
+          description: |-
+            The IPv6 address associated with this DHCP Client session.
+          type: string
+          x-field-uid: 4
+        gateway_address:
+          description: |-
+            The Gateway IPV6 address associated with this DHCP Client session.
+          type: string
+          x-field-uid: 5
+        lease_time:
+          description: |-
+            The duration of the IPv6 address lease, in seconds.
+          type: integer
+          format: uint32
+          x-field-uid: 6
+        renew_time:
+          description: |-
+            Time in seconds until the DHCPv6 client starts renewing the lease.
+          type: integer
+          format: uint32
+          x-field-uid: 7
+        rebind_time:
+          description: |-
+            Time in seconds until the DHCPv6 client starts rebinding.
+          type: integer
+          format: uint32
+          x-field-uid: 8
+    Dhcpv6Lease.State.Request:
+      description: |-
+        The request to retrieve DHCP Server host allocated status.
+      type: object
+      properties:
+        dhcp_server_names:
+          description: |
+            The names of DHCPv6 server to return results for. An empty list will return results for all DHCPv6 servers.
+
+            x-constraint:
+            - /components/schemas/Device.Dhcpv6server/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Dhcpv6server/properties/name
+          x-field-uid: 1
+    Dhcpv6Leases.State:
+      description: |-
+        Lease information of DHCP Server.
+      type: object
+      properties:
+        dhcp_server_name:
+          description: |-
+            The name of a DHCP Server.
+          type: string
+          x-field-uid: 1
+        leases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dhcpv6ServerLease.State'
+          x-field-uid: 2
+    Dhcpv6ServerLease.State:
+      description: |-
+        IPv6 unicast prefix.
+      type: object
+      properties:
+        address:
+          description: |-
+            The IPv6 address associated with this lease.
+          type: string
+          x-field-uid: 1
+        valid_time:
+          description: |-
+            The time in seconds, IP address lease will expire.
+          type: integer
+          format: uint32
+          x-field-uid: 2
+        preferred_time:
+          description: |-
+            The time in seconds, elapsed time since address has been renewed.
+          type: integer
+          format: uint32
+          x-field-uid: 3
+        renew_time:
+          description: |-
+            Time in seconds until the DHCPv6 client starts renewing the lease.
+          type: integer
+          format: uint32
+          x-field-uid: 4
+        rebind_time:
+          description: |-
+            Time in seconds until the DHCPv6 client starts rebinding.
+          type: integer
+          format: uint32
+          x-field-uid: 5
+        client_id:
+          description: |-
+            The ID of the DHCPv6 client holding this lease.
+          type: string
+          x-field-uid: 6
+        remote_id:
+          description: |-
+            The Remote ID option found in the last request message.
+          type: string
+          x-field-uid: 7
+        interface_id:
+          description: |-
+            The Interface ID option found in the last request message.
+          type: string
+          x-field-uid: 8
     Ospfv2Lsas.State.Request:
       description: |-
         The request to retrieve OSPFv2 Link State Advertisements (LSA) information learned by the routers.
@@ -20402,154 +20563,6 @@ components:
           type: integer
           format: uint32
           x-field-uid: 4
-    Dhcpv6Interface.State.Request:
-      description: |-
-        The request for assigned IPv6 address information associated with DHCP Client sessions.
-      type: object
-      properties:
-        dhcp_client_names:
-          description: |
-            The names of DHCPv6 client to return results for. An empty list will return results for all DHCPv6 Client address information.
-
-            x-constraint:
-            - /components/schemas/Device.Dhcpv6client/properties/name
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Device.Dhcpv6client/properties/name
-          x-field-uid: 1
-    Dhcpv6Interface.State:
-      description: |-
-        The IPv6 address associated with this DHCP Client session.
-      type: object
-      properties:
-        dhcp_client_name:
-          description: |-
-            The name of a DHCPv6 Client.
-          type: string
-          x-field-uid: 1
-        ipv6_iapd_address:
-          description: |-
-            The IPv6 IAPD address associated with this DHCP Client session.
-          type: string
-          x-field-uid: 2
-        iapd_prefix_length:
-          description: |-
-            The prefix length of the IPv6 IAPD address associated with this DHCP Client session.
-          type: integer
-          format: uint32
-          maximum: 128
-          x-field-uid: 3
-        ipv6_address:
-          description: |-
-            The IPv6 address associated with this DHCP Client session.
-          type: string
-          x-field-uid: 4
-        gateway_address:
-          description: |-
-            The Gateway IPV6 address associated with this DHCP Client session.
-          type: string
-          x-field-uid: 5
-        lease_time:
-          description: |-
-            The duration of the IPv6 address lease, in seconds.
-          type: integer
-          format: uint32
-          x-field-uid: 6
-        renew_time:
-          description: |-
-            Time in seconds until the DHCPv6 client starts renewing the lease.
-          type: integer
-          format: uint32
-          x-field-uid: 7
-        rebind_time:
-          description: |-
-            Time in seconds until the DHCPv6 client starts rebinding.
-          type: integer
-          format: uint32
-          x-field-uid: 8
-    Dhcpv6Lease.State.Request:
-      description: |-
-        The request to retrieve DHCP Server host allocated status.
-      type: object
-      properties:
-        dhcp_server_names:
-          description: |
-            The names of DHCPv6 server to return results for. An empty list will return results for all DHCPv6 servers.
-
-            x-constraint:
-            - /components/schemas/Device.Dhcpv6server/properties/name
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Device.Dhcpv6server/properties/name
-          x-field-uid: 1
-    Dhcpv6Leases.State:
-      description: |-
-        Lease information of DHCP Server.
-      type: object
-      properties:
-        dhcp_server_name:
-          description: |-
-            The name of a DHCP Server.
-          type: string
-          x-field-uid: 1
-        leases:
-          type: array
-          items:
-            $ref: '#/components/schemas/Dhcpv6ServerLease.State'
-          x-field-uid: 2
-    Dhcpv6ServerLease.State:
-      description: |-
-        IPv6 unicast prefix.
-      type: object
-      properties:
-        address:
-          description: |-
-            The IPv6 address associated with this lease.
-          type: string
-          x-field-uid: 1
-        valid_time:
-          description: |-
-            The time in seconds, IP address lease will expire.
-          type: integer
-          format: uint32
-          x-field-uid: 2
-        preferred_time:
-          description: |-
-            The time in seconds, elapsed time since address has been renewed.
-          type: integer
-          format: uint32
-          x-field-uid: 3
-        renew_time:
-          description: |-
-            Time in seconds until the DHCPv6 client starts renewing the lease.
-          type: integer
-          format: uint32
-          x-field-uid: 4
-        rebind_time:
-          description: |-
-            Time in seconds until the DHCPv6 client starts rebinding.
-          type: integer
-          format: uint32
-          x-field-uid: 5
-        client_id:
-          description: |-
-            The ID of the DHCPv6 client holding this lease.
-          type: string
-          x-field-uid: 6
-        remote_id:
-          description: |-
-            The Remote ID option found in the last request message.
-          type: string
-          x-field-uid: 7
-        interface_id:
-          description: |-
-            The Interface ID option found in the last request message.
-          type: string
-          x-field-uid: 8
     Capture.Request:
       description: |-
         The capture result request to the traffic generator. Stops the port capture on the port_name and returns the capture.

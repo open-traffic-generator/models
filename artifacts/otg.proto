@@ -7277,42 +7277,53 @@ message DeviceOspfv2 {
   // required = true
   optional string name = 1;
 
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      interface_ip = 1;
+      custom_router_id = 2;
+    }
+  }
   // IP address of Router ID for this emulated OSPFv2 router.
-  // required = true
-  optional string router_id = 2;
+  // - interface_ip: When IPv4 interface address to be assigned as Router ID.
+  // - custom_router_id: When, Router ID needs to be configured different from Interface
+  // IPv4 address.
+  // default = Choice.Enum.interface_ip
+  optional Choice.Enum choice = 2;
+
+  // Router ID in IPv4 address format.
+  optional string custom_router_id = 3;
 
   // The time in seconds for LSA retransmission.
   // default = 5
-  optional uint32 lsa_retransmit_timer = 3;
+  optional uint32 lsa_retransmit_timer = 4;
 
   // The time in seconds required for LSA refresh.
   // default = 1800
-  optional uint32 lsa_refresh_time = 4;
+  optional uint32 lsa_refresh_time = 5;
 
   // The gap in miliseconds between each Flood Link State Update Burst
   // default = 33
-  optional uint32 inter_burst_lsu_interval = 5;
+  optional uint32 inter_burst_lsu_interval = 6;
 
   // The maximum number of Flood LSUpdates for each burst
   // default = 1
-  optional uint32 max_flood_lsu_per_burst = 6;
+  optional uint32 max_flood_lsu_per_burst = 7;
 
   // Description missing in models
-  Ospfv2GracefulRestart graceful_restart = 7;
+  Ospfv2GracefulRestart graceful_restart = 8;
 
   // Configuration for controlling storage of OSPFv2 learned LSPs are received from the
   // neighbors.
   // default = False
-  optional bool learned_lsp_filter = 8;
+  optional bool learned_lsp_filter = 9;
 
-  // Support of Graceful Restart in Helper Mode. OSPF Restart Signaling (draft-nguyen-ospf-restart-06.txt).
-  Ospfv2Options lsa_options = 9;
+  // A router indicates the optional capabilities that it supports in its OSPF Hello packets,
+  // Database Description packets and in its LSAs.
+  Ospfv2Options capabilities = 10;
 
   // List of OSPFv2 interfaces for this router.
-  repeated Ospfv2Interface interfaces = 10;
-
-  // Contains advance properties of an ISIS Router..
-  Ospfv2Advanced advanced = 11;
+  repeated Ospfv2Interface interfaces = 11;
 
   // Emulated OSPFv4 IPv4 routes.
   repeated Ospfv2V4RouteRange v4_routes = 12;
@@ -7363,6 +7374,14 @@ message Ospfv2Options {
   // Opaque LSA's Forwarded: 7th-bit: unused bit.
   // default = False
   optional bool unused_bit = 8;
+
+  // Enable to indicate that the router acts as an Area Border Router.
+  // default = False
+  optional bool enable_router_lsa_b_bit = 9;
+
+  // Enable to indicate that the router acts as an AS Boundary Router.
+  // default = False
+  optional bool enable_router_lsa_e_bit = 10;
 }
 
 // Containter of properties of OSPFv2 Graceful Retstart.
@@ -7370,19 +7389,7 @@ message Ospfv2GracefulRestart {
 
   // Support of Graceful Restart in Helper Mode. OSPF Restart Signaling (draft-nguyen-ospf-restart-06.txt).
   // default = False
-  optional bool enbale_helper_only = 1;
-}
-
-// Container of OSPFv2 advanced paraters.
-message Ospfv2Advanced {
-
-  // Enable to indicate that the router acts as an Area Border Router.
-  // default = False
-  optional bool enable_router_lsa_b_bit = 1;
-
-  // Enable to indicate that the router acts as an AS Boundary Router.
-  // default = False
-  optional bool enable_router_lsa_e_bit = 2;
+  optional bool enable_helper_only = 1;
 }
 
 // Configuration for single OSPFv2 interface.
@@ -7418,6 +7425,7 @@ message Ospfv2Interface {
   optional Choice.Enum choice = 3;
 
   // The Area ID.
+  // default = 0
   optional uint32 area_id = 4;
 
   // The Area ID in IPv4 address format.
@@ -7495,8 +7503,8 @@ message Ospfv2InterfaceAdvanced {
   optional uint32 priority = 5;
 
   // This is for to verify the MTU during the Database (DB) exchange.
-  // If you clear the check box, the advertised MTU size is set to 0, and the received
-  // MTU size is ignored during the DB exchange.
+  // Advertised MTU size is set to 0, and the received MTU size is ignored during the
+  // DB exchange.
   // 
   // default = False
   optional bool enable_validate_received_mtu = 6;
@@ -7553,32 +7561,41 @@ message Ospfv2InterfaceOptions {
   optional bool unused_bit = 8;
 }
 
-// This contains OSPFv4 authentication properties.
+// This contains OSPFv2 authentication properties.
 // Reference: https://www.rfc-editor.org/rfc/rfc2328#appendix-D
 message Ospfv2InterfaceAuthentication {
 
-  message AuthType {
+  message Choice {
     enum Enum {
       unspecified = 0;
       md5 = 1;
-      password = 2;
+      clear_text = 2;
     }
   }
   // The authentication method.
-  // - md5: If the authentication type is of 'md5' then 'md5_key_id' and 'md5_key' both
-  // are to be configured.
-  // - password:
-  // required = true
-  optional AuthType.Enum auth_type = 1;
+  // - md5 - Cryptographic authentication. If the authentication type is of 'md5' then
+  // 'md5_key_id' and 'md5_key'
+  // both are to be configured. A shared secret key is configured in all routers attached
+  // to a common network/subnet.
+  // For each OSPF protocol packet, the key is used to generate/verify a message digest
+  // that is appended to the end
+  // of the OSPF packet.
+  // - clear_text - Simple password authentication. A 64-bit field is configured on a
+  // per-network basis.
+  // All packets sent on a particular network must have this configured value (in clear
+  // text)
+  // in their OSPF header 64-bit authentication field.
+  optional Choice.Enum choice = 1;
 
   // The unique MD5 Key Identifier per-interface.
   optional string md5_key_id = 2;
 
-  // Authentication as an MD5 key.
+  // An alphanumeric secret used to generate the 16 byte MD5 hash value added
+  // to the OSPFv2 PDU in the Authentication TLV.
   optional string md5_key = 3;
 
   // Authentication as a clear text password.
-  optional string password = 4;
+  optional string clear_text = 4;
 }
 
 // Optional container for the link protection sub TLV (type 20).
@@ -11587,13 +11604,13 @@ message MetricsResponse {
   repeated Dhcpv4ServerMetric dhcpv4server_metrics = 12;
 
   // Description missing in models
-  repeated Ospfv2Metric ospfv2_metrics = 13;
+  repeated Dhcpv6ClientMetric dhcpv6client_metrics = 13;
 
   // Description missing in models
-  repeated Dhcpv6ClientMetric dhcpv6client_metrics = 14;
+  repeated Dhcpv6ServerMetric dhcpv6server_metrics = 14;
 
   // Description missing in models
-  repeated Dhcpv6ServerMetric dhcpv6server_metrics = 15;
+  repeated Ospfv2Metric ospfv2_metrics = 15;
 }
 
 // The port result request to the traffic generator
@@ -13195,6 +13212,7 @@ message StatesRequest {
       dhcpv4_leases = 8;
       dhcpv6_interfaces = 9;
       dhcpv6_leases = 10;
+      ospfv2_lsas = 11;
     }
   }
   // Description missing in models
@@ -13226,13 +13244,13 @@ message StatesRequest {
   Dhcpv4LeaseStateRequest dhcpv4_leases = 9;
 
   // Description missing in models
-  Ospfv2LsasStateRequest ospfv2_lsas = 11;
+  Dhcpv6InterfaceStateRequest dhcpv6_interfaces = 10;
 
   // Description missing in models
-  Dhcpv6InterfaceStateRequest dhcpv6_interfaces = 12;
+  Dhcpv6LeaseStateRequest dhcpv6_leases = 11;
 
   // Description missing in models
-  Dhcpv6LeaseStateRequest dhcpv6_leases = 13;
+  Ospfv2LsasStateRequest ospfv2_lsas = 12;
 }
 
 // Response containing chosen traffic generator states
@@ -13249,9 +13267,9 @@ message StatesResponse {
       rsvp_lsps = 6;
       dhcpv4_interfaces = 7;
       dhcpv4_leases = 8;
-      ospfv2_lsas = 9;
-      dhcpv6_interfaces = 10;
-      dhcpv6_leases = 11;
+      dhcpv6_interfaces = 9;
+      dhcpv6_leases = 10;
+      ospfv2_lsas = 11;
     }
   }
   // Description missing in models
@@ -13283,13 +13301,13 @@ message StatesResponse {
   repeated Dhcpv4LeasesState dhcpv4_leases = 9;
 
   // Description missing in models
-  repeated Ospfv2LsaState ospfv2_lsas = 10;
+  repeated Dhcpv6InterfaceState dhcpv6_interfaces = 10;
 
   // Description missing in models
-  repeated Dhcpv6InterfaceState dhcpv6_interfaces = 11;
+  repeated Dhcpv6LeasesState dhcpv6_leases = 11;
 
   // Description missing in models
-  repeated Dhcpv6LeasesState dhcpv6_leases = 12;
+  repeated Ospfv2LsaState ospfv2_lsas = 12;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -14592,6 +14610,96 @@ message Dhcpv4LeaseState {
   optional string remote_id = 8;
 }
 
+// The request for assigned IPv6 address information associated with DHCP Client sessions.
+message Dhcpv6InterfaceStateRequest {
+
+  // The names of DHCPv6 client to return results for. An empty list will return results
+  // for all DHCPv6 Client address information.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv6client/properties/name
+  // 
+  repeated string dhcp_client_names = 1;
+}
+
+// The IPv6 address associated with this DHCP Client session.
+message Dhcpv6InterfaceState {
+
+  // The name of a DHCPv6 Client.
+  optional string dhcp_client_name = 1;
+
+  // The IPv6 IAPD address associated with this DHCP Client session.
+  optional string ipv6_iapd_address = 2;
+
+  // The prefix length of the IPv6 IAPD address associated with this DHCP Client session.
+  optional uint32 iapd_prefix_length = 3;
+
+  // The IPv6 address associated with this DHCP Client session.
+  optional string ipv6_address = 4;
+
+  // The Gateway IPV6 address associated with this DHCP Client session.
+  optional string gateway_address = 5;
+
+  // The duration of the IPv6 address lease, in seconds.
+  optional uint32 lease_time = 6;
+
+  // Time in seconds until the DHCPv6 client starts renewing the lease.
+  optional uint32 renew_time = 7;
+
+  // Time in seconds until the DHCPv6 client starts rebinding.
+  optional uint32 rebind_time = 8;
+}
+
+// The request to retrieve DHCP Server host allocated status.
+message Dhcpv6LeaseStateRequest {
+
+  // The names of DHCPv6 server to return results for. An empty list will return results
+  // for all DHCPv6 servers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv6server/properties/name
+  // 
+  repeated string dhcp_server_names = 1;
+}
+
+// Lease information of DHCP Server.
+message Dhcpv6LeasesState {
+
+  // The name of a DHCP Server.
+  optional string dhcp_server_name = 1;
+
+  // Description missing in models
+  repeated Dhcpv6ServerLeaseState leases = 2;
+}
+
+// IPv6 unicast prefix.
+message Dhcpv6ServerLeaseState {
+
+  // The IPv6 address associated with this lease.
+  optional string address = 1;
+
+  // The time in seconds, IP address lease will expire.
+  optional uint32 valid_time = 2;
+
+  // The time in seconds, elapsed time since address has been renewed.
+  optional uint32 preferred_time = 3;
+
+  // Time in seconds until the DHCPv6 client starts renewing the lease.
+  optional uint32 renew_time = 4;
+
+  // Time in seconds until the DHCPv6 client starts rebinding.
+  optional uint32 rebind_time = 5;
+
+  // The ID of the DHCPv6 client holding this lease.
+  optional string client_id = 6;
+
+  // The Remote ID option found in the last request message.
+  optional string remote_id = 7;
+
+  // The Interface ID option found in the last request message.
+  optional string interface_id = 8;
+}
+
 // The request to retrieve OSPFv2 Link State Advertisements (LSA) information learned
 // by the routers.
 message Ospfv2LsasStateRequest {
@@ -14805,96 +14913,6 @@ message Ospfv2Link {
   // router's interface; for all other connections it represents
   // the local system's IP address.
   optional uint32 metric = 4;
-}
-
-// The request for assigned IPv6 address information associated with DHCP Client sessions.
-message Dhcpv6InterfaceStateRequest {
-
-  // The names of DHCPv6 client to return results for. An empty list will return results
-  // for all DHCPv6 Client address information.
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.Dhcpv6client/properties/name
-  // 
-  repeated string dhcp_client_names = 1;
-}
-
-// The IPv6 address associated with this DHCP Client session.
-message Dhcpv6InterfaceState {
-
-  // The name of a DHCPv6 Client.
-  optional string dhcp_client_name = 1;
-
-  // The IPv6 IAPD address associated with this DHCP Client session.
-  optional string ipv6_iapd_address = 2;
-
-  // The prefix length of the IPv6 IAPD address associated with this DHCP Client session.
-  optional uint32 iapd_prefix_length = 3;
-
-  // The IPv6 address associated with this DHCP Client session.
-  optional string ipv6_address = 4;
-
-  // The Gateway IPV6 address associated with this DHCP Client session.
-  optional string gateway_address = 5;
-
-  // The duration of the IPv6 address lease, in seconds.
-  optional uint32 lease_time = 6;
-
-  // Time in seconds until the DHCPv6 client starts renewing the lease.
-  optional uint32 renew_time = 7;
-
-  // Time in seconds until the DHCPv6 client starts rebinding.
-  optional uint32 rebind_time = 8;
-}
-
-// The request to retrieve DHCP Server host allocated status.
-message Dhcpv6LeaseStateRequest {
-
-  // The names of DHCPv6 server to return results for. An empty list will return results
-  // for all DHCPv6 servers.
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.Dhcpv6server/properties/name
-  // 
-  repeated string dhcp_server_names = 1;
-}
-
-// Lease information of DHCP Server.
-message Dhcpv6LeasesState {
-
-  // The name of a DHCP Server.
-  optional string dhcp_server_name = 1;
-
-  // Description missing in models
-  repeated Dhcpv6ServerLeaseState leases = 2;
-}
-
-// IPv6 unicast prefix.
-message Dhcpv6ServerLeaseState {
-
-  // The IPv6 address associated with this lease.
-  optional string address = 1;
-
-  // The time in seconds, IP address lease will expire.
-  optional uint32 valid_time = 2;
-
-  // The time in seconds, elapsed time since address has been renewed.
-  optional uint32 preferred_time = 3;
-
-  // Time in seconds until the DHCPv6 client starts renewing the lease.
-  optional uint32 renew_time = 4;
-
-  // Time in seconds until the DHCPv6 client starts rebinding.
-  optional uint32 rebind_time = 5;
-
-  // The ID of the DHCPv6 client holding this lease.
-  optional string client_id = 6;
-
-  // The Remote ID option found in the last request message.
-  optional string remote_id = 7;
-
-  // The Interface ID option found in the last request message.
-  optional string interface_id = 8;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the

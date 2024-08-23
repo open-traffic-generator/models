@@ -7293,7 +7293,7 @@ message DeviceOspfv2 {
   // Description missing in models
   Ospfv2GracefulRestart graceful_restart = 8;
 
-  // Configuration for controlling storage of OSPFv2 learned LSPs are received from the
+  // Configuration for controlling storage of OSPFv2 learned LSAs are received from the
   // neighbors.
   // default = False
   optional bool learned_lsp_filter = 9;
@@ -7380,17 +7380,37 @@ message Ospfv2Interface {
   // required = true
   optional string name = 1;
 
-  // The globally unique name of the IPv4 interface connected to the DUT. This name must
-  // match the name field of the ipv4_addresses on top which this OSPFv2 interface is
-  // configured.
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4_name = 1;
+      dhcp_intf_name = 2;
+    }
+  }
+  // The name of the interface top of which OSPFv2 is configured.
+  // - ipv4_name: The globally unique name of the IPv4 interface connected to the DUT.
+  // This name must match the name field of the ipv4_addresses on top which this OSPFv2
+  // interface is configured.
+  // - dhcp_intf_name: The Area ID in IPv4 address format.
+  // default = Choice.Enum.ipv4_name
+  optional Choice.Enum choice = 2;
+
+  // The globally unique name of the IPv4 interface connected to the DUT.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv4/properties/name
   // 
-  // required = true
-  optional string ipv4_name = 2;
+  optional string ipv4_name = 3;
 
-  message Choice {
+  // The globally unique name of the DHCPv4 interface connected to the DUT.
+  // 
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Dhcpv4client/properties/name
+  // 
+  optional string dhcp_intf_name = 4;
+
+  message AreaType {
     enum Enum {
       unspecified = 0;
       area_id = 1;
@@ -7401,15 +7421,15 @@ message Ospfv2Interface {
   // can be following format.
   // - area_id: A 32-bit number identifying the area.
   // - area_id_as_ip: The Area ID in IPv4 address format.
-  // default = Choice.Enum.area_id
-  optional Choice.Enum choice = 3;
+  // default = AreaType.Enum.area_id
+  optional AreaType.Enum area_type = 5;
 
   // The Area ID.
   // default = 0
-  optional uint32 area_id = 4;
+  optional uint32 area_id = 6;
 
   // The Area ID in IPv4 address format.
-  optional string area_id_as_ip = 5;
+  optional string area_id_as_ip = 7;
 
   message NetworkType {
     enum Enum {
@@ -7424,26 +7444,25 @@ message Ospfv2Interface {
   // - Broadcast:
   // - Point to Multipoint: In this case, at least a neigbor to be configured.
   // default = NetworkType.Enum.broadcast
-  optional NetworkType.Enum network_type = 6;
+  optional NetworkType.Enum network_type = 8;
 
   // Configuration of the list of neighbors.
-  repeated Ospfv2InterfaceNeighbor neighbors = 7;
+  repeated Ospfv2InterfaceNeighbor neighbors = 9;
 
   // Contains a list of Traffic Engineering attributes.
-  repeated LinkStateTE traffic_engineering = 8;
+  repeated LinkStateTE traffic_engineering = 10;
 
-  // The Circuit authentication method used for the interfaces on this emulated ISIS v4/v6
-  // router.
-  Ospfv2InterfaceAuthentication authentication = 9;
+  // OSPFv2 authentication properties.
+  Ospfv2InterfaceAuthentication authentication = 11;
 
   // Optional container for advanced interface properties.
-  IsisInterfaceAdvanced advanced = 10;
+  IsisInterfaceAdvanced advanced = 12;
 
   // Link protection on the OSPFv2 link between two interfaces.
-  Ospfv2InterfaceLinkProtection link_protection = 11;
+  Ospfv2InterfaceLinkProtection link_protection = 13;
 
   // This contains list of SRLG values for the link between two interfaces.
-  repeated uint32 srlg_values = 12;
+  repeated uint32 srlg_values = 14;
 }
 
 // Configuration of a neighbor.
@@ -7574,7 +7593,7 @@ message Ospfv2InterfaceAuthentication {
   // to the OSPFv2 PDU in the Authentication TLV.
   optional string md5_key = 3;
 
-  // Authentication as a clear text password.
+  // The 8 Byte authentication field in the OSPF packet.
   optional string clear_text = 4;
 }
 
@@ -11515,13 +11534,13 @@ message MetricsRequest {
   Dhcpv4ServerMetricsRequest dhcpv4_server = 12;
 
   // Description missing in models
-  Ospfv2MetricsRequest ospfv2 = 13;
+  Dhcpv6ClientMetricsRequest dhcpv6_client = 13;
 
   // Description missing in models
-  Dhcpv6ClientMetricsRequest dhcpv6_client = 14;
+  Dhcpv6ServerMetricsRequest dhcpv6_server = 14;
 
   // Description missing in models
-  Dhcpv6ServerMetricsRequest dhcpv6_server = 15;
+  Ospfv2MetricsRequest ospfv2 = 15;
 }
 
 // Response containing chosen traffic generator metrics.
@@ -11541,9 +11560,9 @@ message MetricsResponse {
       rsvp_metrics = 9;
       dhcpv4_client = 10;
       dhcpv4_server = 11;
-      ospfv2 = 12;
-      dhcpv6_client = 13;
-      dhcpv6_server = 14;
+      dhcpv6_client = 12;
+      dhcpv6_server = 13;
+      ospfv2 = 14;
     }
   }
   // Description missing in models
@@ -12847,165 +12866,6 @@ message Dhcpv4ServerMetric {
   optional uint64 declines_received = 8;
 }
 
-// The request to retrieve OSPFv2 per Router metrics/statistics.
-message Ospfv2MetricsRequest {
-
-  // The names of OSPFv2 Routers to return results for. An empty list will return results
-  // for all OSPFv2 router.
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.Ospfv2/properties/name
-  // 
-  repeated string router_names = 1;
-
-  message ColumnNames {
-    enum Enum {
-      unspecified = 0;
-      sessions_up = 1;
-      sessions_flap = 2;
-      hellos_sent = 3;
-      hellos_received = 4;
-      dbd_sent = 5;
-      dbd_received = 6;
-      ls_request_sent = 7;
-      ls_request_received = 8;
-      ls_update_sent = 9;
-      ls_update_received = 10;
-      ls_ack_sent = 11;
-      ls_ack_received = 12;
-      lsa_sent = 13;
-      lsa_received = 14;
-      lsa_ack_sent = 15;
-      lsa_ack_received = 16;
-      router_lsa_sent = 17;
-      router_lsa_received = 18;
-      network_lsa_sent = 19;
-      network_lsa_received = 20;
-      summary_lsa_sent = 21;
-      summary_lsa_received = 22;
-      external_lsa_sent = 23;
-      external_lsa_received = 24;
-      nssa_lsa_sent = 25;
-      nssa_lsa_received = 26;
-      opaque_local_sent = 27;
-      opaque_local_received = 28;
-      opaque_area_sent = 29;
-      opaque_area_received = 30;
-      opaque_domain_sent = 31;
-      opaque_domain_received = 32;
-    }
-  }
-  // The list of column names that the returned result set will contain.
-  // If the list is empty then all columns will be returned except for
-  // any result_groups.
-  // The name of the OSPFv2 Router cannot be excluded.
-  repeated ColumnNames.Enum column_names = 2;
-}
-
-// OSPFv2 per router statistics information.
-message Ospfv2Metric {
-
-  // The name of a configured OSPFv2 router.
-  optional string name = 1;
-
-  // The number of OSPFv2 sessions that are up.
-  optional uint64 sessions_up = 2;
-
-  // The number of change of OSPFv2 sessions from up to down state.
-  optional uint64 sessions_flap = 3;
-
-  // The number of OSPFv2 Hello messages transmitted.
-  optional uint64 hellos_sent = 4;
-
-  // The number of OSPFv2 Hello messages received.
-  optional uint64 hellos_received = 5;
-
-  // The number of OSPFv2 Database Description (DBD) messages transmitted.
-  optional uint64 dbd_sent = 6;
-
-  // The number of OSPFv2 Database Description (DBD) messages received.
-  optional uint64 dbd_received = 7;
-
-  // The number of OSPFv2 LinkState (LS) Request messages transmitted.
-  optional uint64 ls_request_sent = 8;
-
-  // The number of OSPFv2 LinkState (LS) Request messages received.
-  optional uint64 ls_request_received = 9;
-
-  // The number of OSPFv2 LinkState (LS) Update messages transmitted.
-  optional uint64 ls_update_sent = 10;
-
-  // The number of OSPFv2 LinkState (LS) Update messages received.
-  optional uint64 ls_update_received = 11;
-
-  // The number of OSPFv2 LinkState (LS) Acknowledgement messages transmitted.
-  optional uint64 ls_ack_sent = 12;
-
-  // The number of OSPFv2 LinkState (LS) Acknowledgement messages received.
-  optional uint64 ls_ack_received = 13;
-
-  // The total number of OSPFv2 LinkState Advertisement (LSA) messages transmitted.
-  optional uint64 lsa_sent = 14;
-
-  // The total number of OSPFv2 LinkState Advertisement (LSA) messages received.
-  optional uint64 lsa_received = 15;
-
-  // The total number of OSPFv2 LinkState Advertisement (LSA) messages acknowledged.
-  optional uint64 lsa_ack_sent = 16;
-
-  // The total number of OSPFv2 LinkState Advertisement (LSA) acknowledge messages received
-  // .
-  optional uint64 lsa_ack_received = 17;
-
-  // The number of OSPFv2 Router (Type 1) LSAs transmitted.
-  optional uint64 router_lsa_sent = 18;
-
-  // The number of OSPFv2 Router (Type 1) LSAs received.
-  optional uint64 router_lsa_received = 19;
-
-  // The number of OSPFv2 Network (Type 2) LSAs transmitted.
-  optional uint64 network_lsa_sent = 20;
-
-  // The number of OSPFv2 Network (Type 2) LSAs transmitted.
-  optional uint64 network_lsa_received = 21;
-
-  // The number of OSPFv2 Summary IP (Type 3) LSAs transmitted.
-  optional uint64 summary_lsa_sent = 22;
-
-  // The number of OSPFv2 Summary IP (Type 3) LSA received.
-  optional uint64 summary_lsa_received = 23;
-
-  // The number of OSPFv2 External (Type 5) LSAs transmitted.
-  optional uint64 external_lsa_sent = 24;
-
-  // The number of OSPFv2 External (Type 5) LSAs received.
-  optional uint64 external_lsa_received = 25;
-
-  // The number of OSPFv2 NSSA (Type 7) LSAs transmitted.
-  optional uint64 nssa_lsa_sent = 26;
-
-  // The number of OSPFv2 NSSA (Type 7) LSAs received.
-  optional uint64 nssa_lsa_received = 27;
-
-  // The number of OSPFv2 Opaque Local (Type 9) LSAs transmitted.
-  optional uint64 opaque_local_sent = 28;
-
-  // The number of OSPFv2 Opaque Local (Type 9) LSAs received.
-  optional uint64 opaque_local_received = 29;
-
-  // The number of OSPF Opaque Area (Type 10) LSAs transmitted.
-  optional uint64 opaque_area_sent = 30;
-
-  // The number of OSPFv2 Opaque Area (Type 10) LSAs received.
-  optional uint64 opaque_area_received = 31;
-
-  // The number of OSPFv2 Opaque Domain (Type 11) LSAs transmitted.
-  optional uint64 opaque_domain_sent = 32;
-
-  // The number of OSPFv2 Opaque Domain (Type 11) LSAs received.
-  optional uint64 opaque_domain_received = 33;
-}
-
 // The request to retrieve DHCPv6 per client metrics/statistics.
 message Dhcpv6ClientMetricsRequest {
 
@@ -13174,6 +13034,165 @@ message Dhcpv6ServerMetric {
 
   // Number of DHCP Reconfigure messages sent.
   optional uint64 reconfigures_sent = 16;
+}
+
+// The request to retrieve OSPFv2 per Router metrics/statistics.
+message Ospfv2MetricsRequest {
+
+  // The names of OSPFv2 Routers to return results for. An empty list will return results
+  // for all OSPFv2 router.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ospfv2/properties/name
+  // 
+  repeated string router_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      sessions_up = 1;
+      sessions_flap = 2;
+      hellos_sent = 3;
+      hellos_received = 4;
+      dbd_sent = 5;
+      dbd_received = 6;
+      ls_request_sent = 7;
+      ls_request_received = 8;
+      ls_update_sent = 9;
+      ls_update_received = 10;
+      ls_ack_sent = 11;
+      ls_ack_received = 12;
+      lsa_sent = 13;
+      lsa_received = 14;
+      lsa_ack_sent = 15;
+      lsa_ack_received = 16;
+      router_lsa_sent = 17;
+      router_lsa_received = 18;
+      network_lsa_sent = 19;
+      network_lsa_received = 20;
+      summary_lsa_sent = 21;
+      summary_lsa_received = 22;
+      external_lsa_sent = 23;
+      external_lsa_received = 24;
+      nssa_lsa_sent = 25;
+      nssa_lsa_received = 26;
+      opaque_local_sent = 27;
+      opaque_local_received = 28;
+      opaque_area_sent = 29;
+      opaque_area_received = 30;
+      opaque_domain_sent = 31;
+      opaque_domain_received = 32;
+    }
+  }
+  // The list of column names that the returned result set will contain.
+  // If the list is empty then all columns will be returned except for
+  // any result_groups.
+  // The name of the OSPFv2 Router cannot be excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// OSPFv2 per router statistics information.
+message Ospfv2Metric {
+
+  // The name of a configured OSPFv2 router.
+  optional string name = 1;
+
+  // The number of OSPFv2 sessions that are up.
+  optional uint64 sessions_up = 2;
+
+  // The number of change of OSPFv2 sessions from up to down state.
+  optional uint64 sessions_flap = 3;
+
+  // The number of OSPFv2 Hello messages transmitted.
+  optional uint64 hellos_sent = 4;
+
+  // The number of OSPFv2 Hello messages received.
+  optional uint64 hellos_received = 5;
+
+  // The number of OSPFv2 Database Description (DBD) messages transmitted.
+  optional uint64 dbd_sent = 6;
+
+  // The number of OSPFv2 Database Description (DBD) messages received.
+  optional uint64 dbd_received = 7;
+
+  // The number of OSPFv2 LinkState (LS) Request messages transmitted.
+  optional uint64 ls_request_sent = 8;
+
+  // The number of OSPFv2 LinkState (LS) Request messages received.
+  optional uint64 ls_request_received = 9;
+
+  // The number of OSPFv2 LinkState (LS) Update messages transmitted.
+  optional uint64 ls_update_sent = 10;
+
+  // The number of OSPFv2 LinkState (LS) Update messages received.
+  optional uint64 ls_update_received = 11;
+
+  // The number of OSPFv2 LinkState (LS) Acknowledgement messages transmitted.
+  optional uint64 ls_ack_sent = 12;
+
+  // The number of OSPFv2 LinkState (LS) Acknowledgement messages received.
+  optional uint64 ls_ack_received = 13;
+
+  // The total number of OSPFv2 LinkState Advertisement (LSA) messages transmitted.
+  optional uint64 lsa_sent = 14;
+
+  // The total number of OSPFv2 LinkState Advertisement (LSA) messages received.
+  optional uint64 lsa_received = 15;
+
+  // The total number of OSPFv2 LinkState Advertisement (LSA) messages acknowledged.
+  optional uint64 lsa_ack_sent = 16;
+
+  // The total number of OSPFv2 LinkState Advertisement (LSA) acknowledge messages received
+  // .
+  optional uint64 lsa_ack_received = 17;
+
+  // The number of OSPFv2 Router (Type 1) LSAs transmitted.
+  optional uint64 router_lsa_sent = 18;
+
+  // The number of OSPFv2 Router (Type 1) LSAs received.
+  optional uint64 router_lsa_received = 19;
+
+  // The number of OSPFv2 Network (Type 2) LSAs transmitted.
+  optional uint64 network_lsa_sent = 20;
+
+  // The number of OSPFv2 Network (Type 2) LSAs transmitted.
+  optional uint64 network_lsa_received = 21;
+
+  // The number of OSPFv2 Summary IP (Type 3) LSAs transmitted.
+  optional uint64 summary_lsa_sent = 22;
+
+  // The number of OSPFv2 Summary IP (Type 3) LSA received.
+  optional uint64 summary_lsa_received = 23;
+
+  // The number of OSPFv2 External (Type 5) LSAs transmitted.
+  optional uint64 external_lsa_sent = 24;
+
+  // The number of OSPFv2 External (Type 5) LSAs received.
+  optional uint64 external_lsa_received = 25;
+
+  // The number of OSPFv2 NSSA (Type 7) LSAs transmitted.
+  optional uint64 nssa_lsa_sent = 26;
+
+  // The number of OSPFv2 NSSA (Type 7) LSAs received.
+  optional uint64 nssa_lsa_received = 27;
+
+  // The number of OSPFv2 Opaque Local (Type 9) LSAs transmitted.
+  optional uint64 opaque_local_sent = 28;
+
+  // The number of OSPFv2 Opaque Local (Type 9) LSAs received.
+  optional uint64 opaque_local_received = 29;
+
+  // The number of OSPF Opaque Area (Type 10) LSAs transmitted.
+  optional uint64 opaque_area_sent = 30;
+
+  // The number of OSPFv2 Opaque Area (Type 10) LSAs received.
+  optional uint64 opaque_area_received = 31;
+
+  // The number of OSPFv2 Opaque Domain (Type 11) LSAs transmitted.
+  optional uint64 opaque_domain_sent = 32;
+
+  // The number of OSPFv2 Opaque Domain (Type 11) LSAs received.
+  optional uint64 opaque_domain_received = 33;
 }
 
 // Request to traffic generator for states of choice

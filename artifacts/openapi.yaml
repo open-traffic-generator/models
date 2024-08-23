@@ -9830,7 +9830,7 @@ components:
           x-field-uid: 8
         learned_lsp_filter:
           description: |-
-            Configuration for controlling storage of OSPFv2 learned LSPs are received from the neighbors.
+            Configuration for controlling storage of OSPFv2 learned LSAs are received from the neighbors.
           type: boolean
           default: false
           x-field-uid: 9
@@ -9938,7 +9938,6 @@ components:
         Configuration for single OSPFv2 interface.
       type: object
       required:
-      - ipv4_name
       - name
       properties:
         name:
@@ -9948,23 +9947,45 @@ components:
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
+        choice:
+          description: |-
+            The name of the interface top of which OSPFv2 is configured.
+            - ipv4_name: The globally unique name of the IPv4 interface connected to the DUT.
+              This name must match the "name" field of the "ipv4_addresses" on top which this OSPFv2 interface is configured.
+            - dhcp_intf_name: The Area ID in IPv4 address format.
+          type: string
+          default: ipv4_name
+          x-field-uid: 2
+          x-enum:
+            ipv4_name:
+              x-field-uid: 1
+            dhcp_intf_name:
+              x-field-uid: 2
+          enum:
+          - ipv4_name
+          - dhcp_intf_name
         ipv4_name:
           description: "The globally unique name of the IPv4 interface connected to\
-            \ the DUT. This name must match the \"name\" field of the \"ipv4_addresses\"\
-            \ on top which this OSPFv2 interface is configured.          \n\nx-constraint:\n\
-            - /components/schemas/Device.Ipv4/properties/name\n"
+            \ the DUT.            \n\nx-constraint:\n- /components/schemas/Device.Ipv4/properties/name\n"
           type: string
           x-constraint:
           - /components/schemas/Device.Ipv4/properties/name
-          x-field-uid: 2
-        choice:
+          x-field-uid: 3
+        dhcp_intf_name:
+          description: "The globally unique name of the DHCPv4 interface connected\
+            \ to the DUT.            \n\nx-constraint:\n- /components/schemas/Device.Dhcpv4client/properties/name\n"
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Dhcpv4client/properties/name
+          x-field-uid: 4
+        area_type:
           description: |-
             The OSPF Area ID identifies the routing area to which the host belongs. Area ID type can be following format.
             - area_id: A 32-bit number identifying the area.
             - area_id_as_ip: The Area ID in IPv4 address format.
           type: string
           default: area_id
-          x-field-uid: 3
+          x-field-uid: 5
           x-enum:
             area_id:
               x-field-uid: 1
@@ -9979,20 +10000,20 @@ components:
           type: integer
           format: uint32
           default: 0
-          x-field-uid: 4
+          x-field-uid: 6
         area_id_as_ip:
           description: |-
             The Area ID in IPv4 address format.
           type: string
           format: ipv4
-          x-field-uid: 5
+          x-field-uid: 7
         network_type:
           description: "The OSPF network link type options.\n- Point to Point: \n\
             - Broadcast: \n- Point to Multipoint: In this case, at least a neigbor\
             \ to be configured. "
           type: string
           default: broadcast
-          x-field-uid: 6
+          x-field-uid: 8
           x-enum:
             broadcast:
               x-field-uid: 1
@@ -10010,29 +10031,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Ospfv2Interface.Neighbor'
-          x-field-uid: 7
+          x-field-uid: 9
         traffic_engineering:
           description: |-
             Contains a list of Traffic Engineering attributes.
           type: array
           items:
             $ref: '#/components/schemas/LinkState.TE'
-          x-field-uid: 8
+          x-field-uid: 10
         authentication:
           description: |-
-            The Circuit authentication method used for the interfaces on this emulated ISIS v4/v6 router.
+            OSPFv2 authentication properties.
           $ref: '#/components/schemas/Ospfv2Interface.Authentication'
-          x-field-uid: 9
+          x-field-uid: 11
         advanced:
           description: |-
             Optional container for advanced interface properties.
           $ref: '#/components/schemas/IsisInterface.Advanced'
-          x-field-uid: 10
+          x-field-uid: 12
         link_protection:
           description: |-
             Link protection on the OSPFv2 link between two interfaces.
           $ref: '#/components/schemas/Ospfv2Interface.LinkProtection'
-          x-field-uid: 11
+          x-field-uid: 13
         srlg_values:
           description: |-
             This contains list of SRLG values for the link between two interfaces.
@@ -10040,9 +10061,9 @@ components:
           items:
             type: integer
             format: uint32
-            maximum: 16777215
+            maximum: 5
             default: 0
-          x-field-uid: 12
+          x-field-uid: 14
     Ospfv2Interface.Neighbor:
       description: |-
         Configuration of a neighbor.
@@ -10197,22 +10218,22 @@ components:
           description: |-
             The unique MD5 Key Identifier per-interface.
           type: string
-          minLength: 0
+          minLength: 1
           maxLength: 255
           x-field-uid: 2
         md5_key:
           description: "An alphanumeric secret used to generate the 16 byte MD5 hash\
             \ value added \nto the OSPFv2 PDU in the Authentication TLV."
           type: string
-          minLength: 0
+          minLength: 1
           maxLength: 255
           x-field-uid: 3
         clear_text:
           description: |-
-            Authentication as a clear text password.
+            The 8 Byte authentication field in the OSPF packet.
           type: string
-          minLength: 0
-          maxLength: 255
+          minLength: 1
+          maxLength: 8
           x-field-uid: 4
     Ospfv2Interface.LinkProtection:
       description: |-
@@ -15095,14 +15116,14 @@ components:
         dhcpv4_server:
           $ref: '#/components/schemas/Dhcpv4Server.Metrics.Request'
           x-field-uid: 12
-        ospfv2:
-          $ref: '#/components/schemas/Ospfv2.Metrics.Request'
-          x-field-uid: 13
         dhcpv6_client:
           $ref: '#/components/schemas/Dhcpv6Client.Metrics.Request'
-          x-field-uid: 14
+          x-field-uid: 13
         dhcpv6_server:
           $ref: '#/components/schemas/Dhcpv6Server.Metrics.Request'
+          x-field-uid: 14
+        ospfv2:
+          $ref: '#/components/schemas/Ospfv2.Metrics.Request'
           x-field-uid: 15
     Metrics.Response:
       description: |-
@@ -15136,11 +15157,11 @@ components:
               x-field-uid: 10
             dhcpv4_server:
               x-field-uid: 11
-            ospfv2:
-              x-field-uid: 12
             dhcpv6_client:
-              x-field-uid: 13
+              x-field-uid: 12
             dhcpv6_server:
+              x-field-uid: 13
+            ospfv2:
               x-field-uid: 14
           enum:
           - flow_metrics
@@ -15154,9 +15175,9 @@ components:
           - rsvp_metrics
           - dhcpv4_client
           - dhcpv4_server
-          - ospfv2
           - dhcpv6_client
           - dhcpv6_server
+          - ospfv2
         port_metrics:
           type: array
           items:
@@ -17354,6 +17375,330 @@ components:
           type: integer
           format: uint64
           x-field-uid: 8
+    Dhcpv6Client.Metrics.Request:
+      description: |-
+        The request to retrieve DHCPv6 per client metrics/statistics.
+      type: object
+      properties:
+        client_names:
+          description: |
+            The names of DHCPv6 clients to return results for. An empty list will return results for all DHCPv6 client.
+
+            x-constraint:
+            - /components/schemas/Device.Dhcpv6client/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Dhcpv6client/properties/name
+          x-field-uid: 1
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the DHCPv6 client cannot be excluded.
+          type: array
+          items:
+            type: string
+            x-enum:
+              solicits_sent:
+                x-field-uid: 1
+              advertisements_received:
+                x-field-uid: 2
+              advertisements_ignored:
+                x-field-uid: 3
+              requests_sent:
+                x-field-uid: 4
+              nacks_received:
+                x-field-uid: 5
+              replies_received:
+                x-field-uid: 6
+              information_requests_sent:
+                x-field-uid: 7
+              renews_sent:
+                x-field-uid: 8
+              rebinds_sent:
+                x-field-uid: 9
+              releases_sent:
+                x-field-uid: 10
+              reconfigures_received:
+                x-field-uid: 11
+              rapid_commit_solicits_sent:
+                x-field-uid: 12
+              rapid_commit_replies_received:
+                x-field-uid: 13
+            enum:
+            - solicits_sent
+            - advertisements_received
+            - advertisements_ignored
+            - requests_sent
+            - nacks_received
+            - replies_received
+            - information_requests_sent
+            - renews_sent
+            - rebinds_sent
+            - releases_sent
+            - reconfigures_received
+            - rapid_commit_solicits_sent
+            - rapid_commit_replies_received
+          x-field-uid: 2
+    Dhcpv6Client.Metric:
+      description: |-
+        DHCPv6 per peer statistics information.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of a configured DHCPv6 client.
+          type: string
+          x-field-uid: 1
+        solicits_sent:
+          description: |-
+            Number of DHCPSOLICIT messages sent.
+          type: integer
+          format: uint64
+          x-field-uid: 2
+        advertisements_received:
+          description: |-
+            Number of DHCPADVERTISE messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 3
+        advertisements_ignored:
+          description: |-
+            Number of DHCPADVERTISE messages ignored.
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        requests_sent:
+          description: |-
+            Number of DHCPREQUEST messages sent.
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        nacks_received:
+          description: |-
+            Number of negative lease DHCPNACK messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 6
+        replies_received:
+          description: |-
+            Number of DHCPOFFER messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 7
+        information_requests_sent:
+          description: |-
+            Number of DHCP Inform requests sent.
+          type: integer
+          format: uint64
+          x-field-uid: 8
+        renews_sent:
+          description: |-
+            Number of DHCP renew messages sent.
+          type: integer
+          format: uint64
+          x-field-uid: 9
+        rebinds_sent:
+          description: |-
+            Number of DHCP rebind messages sent.
+          type: integer
+          format: uint64
+          x-field-uid: 10
+        releases_sent:
+          description: |-
+            Number of DHCP Release messages sent.
+          type: integer
+          format: uint64
+          x-field-uid: 11
+        reconfigures_received:
+          description: |-
+            Number of DHCP Reconfigure messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 12
+        rapid_commit_solicits_sent:
+          description: |-
+            Number of rapid commit DHCPSOLICIT messages sent.
+          type: integer
+          format: uint64
+          x-field-uid: 13
+        rapid_commit_replies_received:
+          description: |-
+            Number of rapid commit DHCP Reply messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 14
+    Dhcpv6Server.Metrics.Request:
+      description: |-
+        The request to retrieve DHCPv6 per Server metrics/statistics.
+      type: object
+      properties:
+        server_names:
+          description: |
+            The names of DHCPv6 Servers to return results for. An empty list will return results for all DHCPv6 Server.
+
+            x-constraint:
+            - /components/schemas/Device.Dhcpv6Server/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Dhcpv6Server/properties/name
+          x-field-uid: 1
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the DHCPv6 server cannot be excluded.
+          type: array
+          items:
+            type: string
+            x-enum:
+              solicits_received:
+                x-field-uid: 1
+              solicits_ignored:
+                x-field-uid: 2
+              advertisements_sent:
+                x-field-uid: 3
+              requests_received:
+                x-field-uid: 4
+              nacks_sent:
+                x-field-uid: 5
+              confirms_received:
+                x-field-uid: 6
+              renewals_received:
+                x-field-uid: 7
+              rebinds_received:
+                x-field-uid: 8
+              replies_sent:
+                x-field-uid: 9
+              releases_received:
+                x-field-uid: 10
+              declines_received:
+                x-field-uid: 11
+              information_requests_received:
+                x-field-uid: 12
+              relay_forwards_received:
+                x-field-uid: 13
+              relay_replies_sent:
+                x-field-uid: 14
+              reconfigures_sent:
+                x-field-uid: 15
+            enum:
+            - solicits_received
+            - solicits_ignored
+            - advertisements_sent
+            - requests_received
+            - nacks_sent
+            - confirms_received
+            - renewals_received
+            - rebinds_received
+            - replies_sent
+            - releases_received
+            - declines_received
+            - information_requests_received
+            - relay_forwards_received
+            - relay_replies_sent
+            - reconfigures_sent
+          x-field-uid: 2
+    Dhcpv6Server.Metric:
+      description: |-
+        DHCPv6 per server statistics information.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of a configured DHCPv6 Server.
+          type: string
+          x-field-uid: 1
+        solicits_received:
+          description: |-
+            Number of DHCPSOLICIT messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 2
+        solicits_ignored:
+          description: |-
+            Number of DHCPSOLICIT messages ignored.
+          type: integer
+          format: uint64
+          x-field-uid: 3
+        advertisements_sent:
+          description: |-
+            Number of DHCP Advertise messages sent.
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        requests_received:
+          description: |-
+            Number of DHCPREQUEST messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        nacks_sent:
+          description: |-
+            Number of naks sent for DHCPREQUEST messages.
+          type: integer
+          format: uint64
+          x-field-uid: 6
+        confirms_received:
+          description: |-
+            Number of DHCP Confirm messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 7
+        renewals_received:
+          description: |-
+            Number of DHCP Renewal messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 8
+        rebinds_received:
+          description: |-
+            Number of DHCP Rebind messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 9
+        replies_sent:
+          description: |-
+            Number of DHCP Reply messages sent.
+          type: integer
+          format: uint64
+          x-field-uid: 10
+        releases_received:
+          description: |-
+            Number of DHCP Release messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 11
+        declines_received:
+          description: |-
+            Number of DHCP Decline messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 12
+        information_requests_received:
+          description: |-
+            Number of DHCP Information Request messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 13
+        relay_forwards_received:
+          description: |-
+            Number of DHCP Relay agent forward messages received.
+          type: integer
+          format: uint64
+          x-field-uid: 14
+        relay_replies_sent:
+          description: |-
+            Number of DHCP reply messages sent to Relay agent.
+          type: integer
+          format: uint64
+          x-field-uid: 15
+        reconfigures_sent:
+          description: |-
+            Number of DHCP Reconfigure messages sent.
+          type: integer
+          format: uint64
+          x-field-uid: 16
     Ospfv2.Metrics.Request:
       description: |-
         The request to retrieve OSPFv2 per Router metrics/statistics.
@@ -17680,330 +18025,6 @@ components:
           type: integer
           format: uint64
           x-field-uid: 33
-    Dhcpv6Client.Metrics.Request:
-      description: |-
-        The request to retrieve DHCPv6 per client metrics/statistics.
-      type: object
-      properties:
-        client_names:
-          description: |
-            The names of DHCPv6 clients to return results for. An empty list will return results for all DHCPv6 client.
-
-            x-constraint:
-            - /components/schemas/Device.Dhcpv6client/properties/name
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Device.Dhcpv6client/properties/name
-          x-field-uid: 1
-        column_names:
-          description: |-
-            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the DHCPv6 client cannot be excluded.
-          type: array
-          items:
-            type: string
-            x-enum:
-              solicits_sent:
-                x-field-uid: 1
-              advertisements_received:
-                x-field-uid: 2
-              advertisements_ignored:
-                x-field-uid: 3
-              requests_sent:
-                x-field-uid: 4
-              nacks_received:
-                x-field-uid: 5
-              replies_received:
-                x-field-uid: 6
-              information_requests_sent:
-                x-field-uid: 7
-              renews_sent:
-                x-field-uid: 8
-              rebinds_sent:
-                x-field-uid: 9
-              releases_sent:
-                x-field-uid: 10
-              reconfigures_received:
-                x-field-uid: 11
-              rapid_commit_solicits_sent:
-                x-field-uid: 12
-              rapid_commit_replies_received:
-                x-field-uid: 13
-            enum:
-            - solicits_sent
-            - advertisements_received
-            - advertisements_ignored
-            - requests_sent
-            - nacks_received
-            - replies_received
-            - information_requests_sent
-            - renews_sent
-            - rebinds_sent
-            - releases_sent
-            - reconfigures_received
-            - rapid_commit_solicits_sent
-            - rapid_commit_replies_received
-          x-field-uid: 2
-    Dhcpv6Client.Metric:
-      description: |-
-        DHCPv6 per peer statistics information.
-      type: object
-      properties:
-        name:
-          description: |-
-            The name of a configured DHCPv6 client.
-          type: string
-          x-field-uid: 1
-        solicits_sent:
-          description: |-
-            Number of DHCPSOLICIT messages sent.
-          type: integer
-          format: uint64
-          x-field-uid: 2
-        advertisements_received:
-          description: |-
-            Number of DHCPADVERTISE messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 3
-        advertisements_ignored:
-          description: |-
-            Number of DHCPADVERTISE messages ignored.
-          type: integer
-          format: uint64
-          x-field-uid: 4
-        requests_sent:
-          description: |-
-            Number of DHCPREQUEST messages sent.
-          type: integer
-          format: uint64
-          x-field-uid: 5
-        nacks_received:
-          description: |-
-            Number of negative lease DHCPNACK messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 6
-        replies_received:
-          description: |-
-            Number of DHCPOFFER messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 7
-        information_requests_sent:
-          description: |-
-            Number of DHCP Inform requests sent.
-          type: integer
-          format: uint64
-          x-field-uid: 8
-        renews_sent:
-          description: |-
-            Number of DHCP renew messages sent.
-          type: integer
-          format: uint64
-          x-field-uid: 9
-        rebinds_sent:
-          description: |-
-            Number of DHCP rebind messages sent.
-          type: integer
-          format: uint64
-          x-field-uid: 10
-        releases_sent:
-          description: |-
-            Number of DHCP Release messages sent.
-          type: integer
-          format: uint64
-          x-field-uid: 11
-        reconfigures_received:
-          description: |-
-            Number of DHCP Reconfigure messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 12
-        rapid_commit_solicits_sent:
-          description: |-
-            Number of rapid commit DHCPSOLICIT messages sent.
-          type: integer
-          format: uint64
-          x-field-uid: 13
-        rapid_commit_replies_received:
-          description: |-
-            Number of rapid commit DHCP Reply messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 14
-    Dhcpv6Server.Metrics.Request:
-      description: |-
-        The request to retrieve DHCPv6 per Server metrics/statistics.
-      type: object
-      properties:
-        server_names:
-          description: |
-            The names of DHCPv6 Servers to return results for. An empty list will return results for all DHCPv6 Server.
-
-            x-constraint:
-            - /components/schemas/Device.Dhcpv6Server/properties/name
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Device.Dhcpv6Server/properties/name
-          x-field-uid: 1
-        column_names:
-          description: |-
-            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the DHCPv6 server cannot be excluded.
-          type: array
-          items:
-            type: string
-            x-enum:
-              solicits_received:
-                x-field-uid: 1
-              solicits_ignored:
-                x-field-uid: 2
-              advertisements_sent:
-                x-field-uid: 3
-              requests_received:
-                x-field-uid: 4
-              nacks_sent:
-                x-field-uid: 5
-              confirms_received:
-                x-field-uid: 6
-              renewals_received:
-                x-field-uid: 7
-              rebinds_received:
-                x-field-uid: 8
-              replies_sent:
-                x-field-uid: 9
-              releases_received:
-                x-field-uid: 10
-              declines_received:
-                x-field-uid: 11
-              information_requests_received:
-                x-field-uid: 12
-              relay_forwards_received:
-                x-field-uid: 13
-              relay_replies_sent:
-                x-field-uid: 14
-              reconfigures_sent:
-                x-field-uid: 15
-            enum:
-            - solicits_received
-            - solicits_ignored
-            - advertisements_sent
-            - requests_received
-            - nacks_sent
-            - confirms_received
-            - renewals_received
-            - rebinds_received
-            - replies_sent
-            - releases_received
-            - declines_received
-            - information_requests_received
-            - relay_forwards_received
-            - relay_replies_sent
-            - reconfigures_sent
-          x-field-uid: 2
-    Dhcpv6Server.Metric:
-      description: |-
-        DHCPv6 per server statistics information.
-      type: object
-      properties:
-        name:
-          description: |-
-            The name of a configured DHCPv6 Server.
-          type: string
-          x-field-uid: 1
-        solicits_received:
-          description: |-
-            Number of DHCPSOLICIT messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 2
-        solicits_ignored:
-          description: |-
-            Number of DHCPSOLICIT messages ignored.
-          type: integer
-          format: uint64
-          x-field-uid: 3
-        advertisements_sent:
-          description: |-
-            Number of DHCP Advertise messages sent.
-          type: integer
-          format: uint64
-          x-field-uid: 4
-        requests_received:
-          description: |-
-            Number of DHCPREQUEST messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 5
-        nacks_sent:
-          description: |-
-            Number of naks sent for DHCPREQUEST messages.
-          type: integer
-          format: uint64
-          x-field-uid: 6
-        confirms_received:
-          description: |-
-            Number of DHCP Confirm messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 7
-        renewals_received:
-          description: |-
-            Number of DHCP Renewal messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 8
-        rebinds_received:
-          description: |-
-            Number of DHCP Rebind messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 9
-        replies_sent:
-          description: |-
-            Number of DHCP Reply messages sent.
-          type: integer
-          format: uint64
-          x-field-uid: 10
-        releases_received:
-          description: |-
-            Number of DHCP Release messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 11
-        declines_received:
-          description: |-
-            Number of DHCP Decline messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 12
-        information_requests_received:
-          description: |-
-            Number of DHCP Information Request messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 13
-        relay_forwards_received:
-          description: |-
-            Number of DHCP Relay agent forward messages received.
-          type: integer
-          format: uint64
-          x-field-uid: 14
-        relay_replies_sent:
-          description: |-
-            Number of DHCP reply messages sent to Relay agent.
-          type: integer
-          format: uint64
-          x-field-uid: 15
-        reconfigures_sent:
-          description: |-
-            Number of DHCP Reconfigure messages sent.
-          type: integer
-          format: uint64
-          x-field-uid: 16
     States.Request:
       description: |-
         Request to traffic generator for states of choice

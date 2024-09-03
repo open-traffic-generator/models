@@ -4,82 +4,50 @@ components:
       description: >-
         Configuration for single OSPFv2 interface.
       type: object
-      required: [name,area]
+      required: [name]
       properties:
         name:
           x-include: ../common/common.yaml#/components/schemas/Named.Object/properties/name
           x-field-uid: 1
-        choice:
-          description: |-
-            The name of the interface top of which OSPFv2 is configured.
-            - ipv4_name: The globally unique name of the IPv4 interface connected to the DUT.
-              This name must match the "name" field of the "ipv4_addresses" on top which this OSPFv2 interface is configured.
-            - dhcp_intf_name: The Area ID in IPv4 address format.
-          type: string
-          default: ipv4_name
-          x-field-uid: 2
-          x-enum:
-            ipv4_name:
-              x-field-uid: 1
-            dhcp_intf_name:
-              x-field-uid: 2
         ipv4_name:
           description: >-
             The globally unique name of the IPv4 interface connected to the DUT.            
           type: string
           x-constraint:
           - '/components/schemas/Device.Ipv4/properties/name'
-          x-field-uid: 3
+          x-field-uid: 2
         area:
           description: >-
-            The OSPF Area ID identifies the routing area to which the host belongs           
+            The OSPF Area ID identifies the routing area to which the host belongs.           
           $ref: '#/components/schemas/Ospfv2Interface.Area'
-          x-field-uid: 5
-        network:
+          x-field-uid: 3
+        network_type:
           description: |- 
             The OSPF network link type options.
-            - Point to Point: 
-            - Broadcast: 
-            - Point to Multipoint: In this case, at least a neigbor to be configured. 
-          type: string
-          default: broadcast
-          x-field-uid: 6
-          x-enum:
-            broadcast:
-              x-field-uid: 1
-            point_to_point:
-              x-field-uid: 2
-            point_to_multicast:
-              x-field-uid: 3
-        neighbors:
-          description: |-
-            Configuration of the list of neighbors.
-          type: array
-          items:
-            $ref: '#/components/schemas/Ospfv2Interface.Neighbor'
-          x-field-uid: 7
+          $ref: '#/components/schemas/Ospfv2Interface.NetworkType'
+          x-field-uid: 4
         traffic_engineering:
           description: |-
             Contains a list of Traffic Engineering attributes.
           type: array
           items:
             $ref: '/../linkstate/teprofile.yaml#/components/schemas/LinkState.TE'
-          x-field-uid: 8
+          x-field-uid: 5
         authentication:
           description: |-
             OSPFv2 authentication properties.
           $ref: './auth.yaml#/components/schemas/Ospfv2Interface.Authentication'
-          x-field-uid: 9
+          x-field-uid: 6
         advanced:
           description: >-
             Optional container for advanced interface properties.
           $ref: '#/components/schemas/Ospfv2Interface.Advanced'
-          x-field-uid: 10
+          x-field-uid: 7
         link_protection:
           description: |-
             Link protection on the OSPFv2 link between two interfaces.
           $ref: './linkprotection.yaml#/components/schemas/Ospfv2Interface.LinkProtection'
-          x-field-uid: 11
+          x-field-uid: 8
         srlg_values:
           description: >-
             This contains list of SRLG values for the link between two interfaces.
@@ -89,27 +57,65 @@ components:
             format: uint32
             maximum: 5
             default: 0
-          x-field-uid: 12
+          x-field-uid: 9
     
     Ospfv2Interface.Area:
       description: |-
-        The OSPF Area ID identifies the routing area to which the host belongs. Area ID type can be following format.
-        - number: A 32-bit number identifying the area.
-        - ip:     The Area ID in IPv4 address format.
+        Container for OSPF Area ID identifies the routing area to which the host belongs..      
       type: object
       properties:
-        number:
+        choice:
+          description: |-
+            The OSPF Area ID identifies the routing area to which the host belongs. Area ID type can be following format.
+            - id: A 32-bit number identifying the area.
+            - ip:     The Area ID in IPv4 address format.
+          type: string
+          default: id
+          x-field-uid: 1
+          x-enum:
+            id:
+              x-field-uid: 1
+            ip:
+              x-field-uid: 2
+        id:
           description: >-
             The Area ID.
           type: integer
           format: uint32
           default: 0
-          x-field-uid: 1
+          x-field-uid: 2
         ip:
           description: >-
             The Area ID in IPv4 address format.
           type: string
           format: ipv4
+          x-field-uid: 3
+
+    Ospfv2Interface.NetworkType:
+      description: >-
+        The OSPF network link type options.
+          - Point to Point: 
+          - Broadcast: 
+          - Point to Multipoint: In this case, at least a neigbor to be configured. 
+      type: object
+      properties:
+        choice:
+          type: string
+          default: broadcast
+          x-field-uid: 1
+          x-enum:
+            broadcast:
+              x-field-uid: 1
+            point_to_point:
+              x-field-uid: 2
+            point_to_multipoint:
+              x-field-uid: 3
+        point_to_multipoint:
+          description: >-
+            List of Neigbhors.
+          type: array
+          items:
+            $ref: '#/components/schemas/Ospfv2Interface.Neighbor'
           x-field-uid: 2
 
     Ospfv2Interface.Neighbor:
@@ -165,7 +171,7 @@ components:
           format: uint32
           default: 0
           x-field-uid: 5
-        enable_validate_received_mtu:
+        validate_received_mtu:
           description: |
             This is for to verify the MTU during the Database (DB) exchange.
             Advertised MTU size is set to 0, and the received MTU size is ignored during the DB exchange.

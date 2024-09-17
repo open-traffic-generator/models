@@ -9,7 +9,7 @@ import os
 import subprocess
 
 # supported values - local openapiart path or None
-USE_OPENAPIART_DIR = None
+USE_OPENAPIART_DIR = None #"C:\\Users\\waseebai\\Documents\\project\\GitHub\\openapiart"
 
 # supported values - branch name or None
 USE_OPENAPIART_BRANCH = None

@@ -1,0 +1,132 @@
+components:
+  schemas:
+    Convergence.Request:
+      description: >-
+        The container for a CPDP convergence request.
+      type: object
+      properties:
+        flow_names:
+          description: |-
+            Flow metrics will be retrieved for these flow names.
+            If no flow names are specified then all flows will be returned.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - "/components/schemas/Flow/properties/name"
+          x-field-uid: 1
+        convergence_metrics:
+          $ref: '#/components/schemas/Convergence.Flow.Request'
+          x-field-uid: 2
+    Convergence.Flow.Request:
+      description: |-
+        The container for a flow measurement request.
+      type: object
+      properties:
+        include:
+          description: Controls inclusion/exclusion of convergence metrics when fetching flow metrics.
+          type: boolean
+          default: true
+          x-field-uid: 1
+    Convergence.Metric:
+      description: |-
+        The container for convergence measurements
+      type: object
+      properties:
+        name:
+          description: >-
+            The name of a flow. 
+          type: string
+          x-field-uid: 1
+        port_tx:
+          description: |-
+            The name of the transmit port
+          type: string
+          x-field-uid: 2
+        port_rx:
+          description: |-
+            The name of the receive port
+          type: string
+          x-field-uid: 3
+        data_plane_convergence_us:
+          description: |-
+            The convergence time measured from the data plane perspective only. 
+            It measures the time from BTT, when the rate on Test Port 2 crosses 
+            below the Rx Threshold until an acceptable amount of traffic was 
+            received at time ATT, when the rate crosses above the configured 
+            rx_rate_threshold.
+          type: number
+          format: double
+          x-field-uid: 4
+        control_plane_data_plane_convergence_us:
+          description: |-
+            The total convergence time, between the event that caused the
+            switchover (at tEvent) until an acceptable amount of traffic was 
+            received at time ATT, when the rate crosses above the configured 
+            rx_rate_threshold.
+          type: number
+          format: double
+          x-field-uid: 5
+        service_interruption_time_us:
+          description: |-
+            Service interruption time is the flow_rx_rate_above_threshold minus 
+            the flow_rx_rate_below_threshold.
+          type: number
+          format: double
+          x-field-uid: 6
+        events:
+          description: |-
+            The events that were used to determine the convergence analytics.
+          type: array
+          items:
+            $ref: '#/components/schemas/Convergence.Event'
+          x-field-uid: 7
+    Convergence.Event:
+      description: |-
+        A container for an event that has occurred in the system.
+      type: object
+      properties:
+        type:
+          description: |-
+            The type of event that occurred.
+          type: string
+          example: route_withdraw
+          x-field-uid: 1
+          x-enum:
+            link_down:
+              x-field-uid: 1
+            link_up:
+              x-field-uid: 2
+            route_withdraw:
+              x-field-uid: 3
+            route_advertise:
+              x-field-uid: 4
+            flow_rx_rate_above_threshold:
+              x-field-uid: 5
+            flow_rx_rate_below_threshold:
+              x-field-uid: 6
+        source:
+          description: |-
+            The source of the event. 
+            The source MUST be the value of one of the x-constraint paths,
+            which means the source MUST be a unique name in the configuration. 
+          type: string
+          x-constraint:
+          - '/components/schemas/Port/properties/name'
+          - '/components/schemas/Flow/properties/name'
+          - '/components/schemas/Device.Bgpv4Route/properties/name'
+          - '/components/schemas/Device.Bgpv6Route/properties/name'
+          example: Bgpv4 Route Range 1
+          x-field-uid: 2
+        begin_timestamp_ns:
+          description: |-
+            The time in nanoseconds at which the event began
+          type: number
+          format: double
+          x-field-uid: 3
+        end_timestamp_ns:
+          description: |-
+            The time in nanoseconds at which the event ended
+          type: number
+          format: double
+          x-field-uid: 4

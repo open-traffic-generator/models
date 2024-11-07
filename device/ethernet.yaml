@@ -4,11 +4,12 @@ components:
       description: >-
         Base Ethernet interface.
       type: object
-      required: [mac, name]
+      required: [name]
       properties:
         mac:
           description: >-
-            Media Access Control address.
+            Media Access Control address.The implementation should ensure that the 'mac' field is explicitly configured by the user for 
+            all types of interfaces as denoted by 'connection' attribute except 'simulated_link' where 'mac' is not mandatory.
           type: string
           format: mac
           x-field-uid: 1
@@ -32,7 +33,8 @@ components:
           x-field-uid: 4
     Device.Ethernet:
       description: >-
-        An Ethernet interface with IPv4 and IPv6 addresses.
+        An Ethernet interface with IPv4 and IPv6 addresses. The implementation should ensure that the 'mac' field is explicitly configured by the user for 
+        all types of interfaces as denoted by 'connection' attribute except 'simulated_link' where MAC is not mandatory.
       type: object
       properties:
         connection:
@@ -73,7 +75,7 @@ components:
           type: array
           items:
             $ref: './dhcp/clients/v4/dhcpv4client.yaml#/components/schemas/Device.Dhcpv4client'
-          x-field-uid: 9
+          x-field-uid: 9      
         dhcpv6_interfaces:
           description: |-
             List of DHCPv6 Clients Configuration.
@@ -81,13 +83,13 @@ components:
           items:
             $ref: './dhcp/clients/v6/dhcpv6client.yaml#/components/schemas/Device.Dhcpv6client'
           x-field-uid: 10
-      required: [mac, name]
+      required: [name]
     Ethernet.Connection:
-      description: Ethernet interface connection to a port, LAG or VXLAN tunnel.
+      description: Ethernet interface connection to a port, LAG, VXLAN tunnel or a Simulated Internal Link used to create simulated topologies behind an emulated router.
       type: object
       properties:
         choice:
-          description: port_name, lag_name or vxlan_name
+          description: port_name, lag_name, vxlan_name or simulated_link
           type: string
           x-field-uid: 1
           x-enum:
@@ -97,6 +99,8 @@ components:
               x-field-uid: 2
             vxlan_name:
               x-field-uid: 3
+            simulated_link:
+              x-field-uid: 4
         port_name:
           description: Name of the port that the Ethernet interface is configured
             on.
@@ -118,3 +122,44 @@ components:
           - '#/components/schemas/Vxlan.V4Tunnel/properties/name'
           - '#/components/schemas/Vxlan.V6Tunnel/properties/name'
           x-field-uid: 4
+        simulated_link:
+          x-field-uid: 5
+          $ref: '#/components/schemas/Ethernet.SimulatedLink'
+    Ethernet.SimulatedLink:
+      description: >-
+        Details of the internal link which can be used to create simulated device topologies behind an emulated router.
+        MAC, VLAN and MTU information for the internal links are not used for purposes of emulating Simulated Topologies ( e.g. by ISIS Emulated Router behind which this is configured )
+      type: object
+      properties:
+        remote_simulated_link:
+          type: string
+          description: |-
+            Name of the remote end of the simulated interface which also must be a simulated_link on a device which might be acting either as an unconnected device in a simulated topology 
+            ( all ethernet links of type simulated_link ) or an emulated device connected to the Device Under Test (has at atleast one ethernet interface with connection to the port or
+             lag connected to the DUT)
+          x-constraint:
+            - '#/components/schemas/Device.Ethernet/properties/name'
+          x-field-uid: 1
+        link_type:
+          description: |-
+            By default, simulated links are treated as Primary links , which means that the intention is for connected device to advertise this and full topology of devices connected to it.
+            e.g. when advertised as ISIS Simulated Topology.
+
+            All simulated links inside one topology subset would normally can point to only other unconnected devices in the same topology or to the 'root' emulated device.
+            If a link is designated as secondary , only that link information will be advertised by the IGP e.g. ISIS , and not the entire topology behind it.
+            The optional secondary option allows emulation of external link scenarios where a simulated device (e.g. part of a ISIS simulated topology ) is advertised as reachable part of the topology 
+            by the emulated router behind which this is configured , as well as the other end of the secondary link which could be 
+            - 1) either a simulated device behind a different emulated router.
+            - 2) or an emulated router on same or different port.
+            This allows emulation of scenarios where one device/router is emulated to be reachable from different Emulated Routers connected to the Device Under Test. (e.g. for FRR scenarios)
+
+            If an implementation does not support multiple primary links from same simulated topology i.e. full topology advertised via multiple emulated routers, it should return an error 
+            during set_config operation with such a topology.
+          type: string
+          default: primary
+          x-enum:
+            primary:
+              x-field-uid: 1
+            secondary:
+              x-field-uid: 2
+          x-field-uid: 2

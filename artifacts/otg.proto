@@ -1678,6 +1678,9 @@ message Device {
 
   // Configuration for OSPFv2 router.
   DeviceOspfv2Router ospfv2 = 10;
+
+  // Configuration for RoCEv2 .
+  DeviceRoCEv2Peer rocev2 = 11;
 }
 
 // Common options that apply to all configured protocols and interfaces.
@@ -7844,6 +7847,233 @@ message Ospfv2V4RRExtdPrefixFlags {
   // with a loopback address.
   // default = False
   optional bool n_flag = 2;
+}
+
+// Configuration for one or more IPv4 or IPv6 RoCEv2 Peers.
+message DeviceRoCEv2Peer {
+
+  // This contains an array of references to IPv4 interfaces,  each of which will have
+  // list of peers to different destinations.
+  repeated RoCEv2V4Interface ipv4_interfaces = 1;
+
+  // This contains an array of references to IPv6 interfaces,  each of which will have
+  // list of peers to different destinations.
+  repeated RoCEv2V6Interface ipv6_interfaces = 2;
+}
+
+// Configuration for RoCEv2 IPv4 peers.
+message RoCEv2V4Peer {
+
+  // Number of Queue Pair (QP) that this device group wants to configure. Default value
+  // is 0.
+  // required = true
+  optional int32 dg_qp_count = 1;
+
+  // Option to select peers.
+  // required = true
+  optional string destination_peers = 2;
+
+  // InfiniBand protocol Maximum Transmission Unit (MTU) defines several fix size MTU:
+  // 256, 512, 1024, 2048 or 4096 bytes. RDMA write message will have payload size same
+  // as configured IB MTU. You can configure custom size also.
+  // required = true
+  optional uint32 ib_mtu = 3;
+
+  // Description missing in models
+  RoCEv2FlowSettings flow_settings = 4;
+}
+
+// Configuration for RoCEv2 IPv4 peers.
+message RoCEv2V4Interface {
+
+  // The unique name of the IPv4, used as the source IP for this list of RoCEv2 peers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv4/properties/name
+  // 
+  // required = true
+  optional string ipv4_name = 1;
+
+  // This contains the list of RoCEv2 peers configured on this interface.
+  repeated RoCEv2V4Peer peers = 2;
+}
+
+// This section has two views, Local End and Remote End.
+// Both views have same configurations. However, the remote and local peer IP addresses
+// are interchanged.
+// This configuration allows you to configure RDMA flow over the same QP number from
+// same source and destination.
+// Default value for commands at Remote peer is set to None.
+// So that by default, this remote peer does not initiate any traffic flow.
+message RoCEv2FlowSettings {
+
+  // Description missing in models
+  RoCEv2FlowSettingsLocalEnd local_end = 1;
+
+  // Description missing in models
+  RoCEv2FlowSettingsRemoteEnd remote_end = 2;
+}
+
+// Local End Flow Settings
+message RoCEv2FlowSettingsLocalEnd {
+
+  // Turn on to define QP number.
+  // default = False
+  optional bool custom_qp = 1;
+
+  // Configure the QP range.
+  // default = 1
+  optional uint32 custom_qp_number = 2;
+
+  // DSCP value for this flow
+  // default = 24
+  optional uint32 dscp = 3;
+
+  // This field allows to configure bits of the Traffic Class field in the IPv4 or IPv6
+  // header to encode four different code points.
+  // default = 1
+  optional uint32 ecn = 4;
+
+  // UDP source port number for this flow.
+  // default = 49152
+  optional uint32 udp_source_port = 5;
+
+  message ExecuteCommands {
+    enum Enum {
+      unspecified = 0;
+      none = 1;
+      RDMAWrite = 2;
+    }
+  }
+  // UDP source port number for this flow.
+  optional ExecuteCommands.Enum execute_commands = 6;
+
+  // The Maximum message size that is allowed to transfer depends on the MTU size and
+  // the number of VLANs configured on the interfaces. For any MTU, the maximum number
+  // of segmented RDMA WRITE packets for a single WRITE MESSAGE is 65535. That is, a single
+  // RDMA WRITE message can be broken into 1 WRITE FIRST, 1 WRITE LAST and (65535-2) WRITE
+  // MIDDLE messages. The maximum message size that is allowed to be transferred for a
+  // given MTU is constrained by the above conditions. For example, for an MTU size of
+  // 1500 bytes, the common header of the RDMA WRITE MIDDLE/LAST will comprise of Ethernet
+  // Header + IP Header + UDP Header + BTH Header + iCRC size + Ethernet Trailer size.
+  // This works out to be 14+20+8+12+4+4 = 62 bytes. For RDMA WRITE FIRST, we need to
+  // add the RETH header size of 16 bytes to the above, which adds up to 78 bytes. Then
+  // the maximum message size for 1500 MTU without VLAN becomes: 1500 - WRITE FIRST common
+  // header + 65534 * (1500 - WRITE LAST/MIDDLE header size) = 1500 - 78 + 65534 * (1500
+  // - 62) = 94239314 bytes or 89 MB.
+  // default = 1
+  optional uint32 message_size = 7;
+
+  message MessageSizeUnit {
+    enum Enum {
+      unspecified = 0;
+      Byte = 1;
+      KB = 2;
+      MB = 3;
+    }
+  }
+  // Unit of the transfer message size. Available options are Bytes, KB, MB.
+  optional MessageSizeUnit.Enum message_size_unit = 8;
+}
+
+// Remote End Flow Settings
+message RoCEv2FlowSettingsRemoteEnd {
+
+  // Turn on to define QP number.
+  // default = False
+  optional bool custom_qp = 1;
+
+  // Configure the QP range.
+  // default = 1
+  optional uint32 custom_qp_number = 2;
+
+  // DSCP value for this flow
+  // default = 24
+  optional uint32 dscp = 3;
+
+  // This field allows to configure bits of the Traffic Class field in the IPv4 or IPv6
+  // header to encode four different code points.
+  // default = 1
+  optional uint32 ecn = 4;
+
+  // UDP source port number for this flow.
+  // default = 49152
+  optional uint32 udp_source_port = 5;
+
+  message ExecuteCommands {
+    enum Enum {
+      unspecified = 0;
+      none = 1;
+      RDMAWrite = 2;
+    }
+  }
+  // UDP source port number for this flow.
+  optional ExecuteCommands.Enum execute_commands = 6;
+
+  // The Maximum message size that is allowed to transfer depends on the MTU size and
+  // the number of VLANs configured on the interfaces. For any MTU, the maximum number
+  // of segmented RDMA WRITE packets for a single WRITE MESSAGE is 65535. That is, a single
+  // RDMA WRITE message can be broken into 1 WRITE FIRST, 1 WRITE LAST and (65535-2) WRITE
+  // MIDDLE messages. The maximum message size that is allowed to be transferred for a
+  // given MTU is constrained by the above conditions. For example, for an MTU size of
+  // 1500 bytes, the common header of the RDMA WRITE MIDDLE/LAST will comprise of Ethernet
+  // Header + IP Header + UDP Header + BTH Header + iCRC size + Ethernet Trailer size.
+  // This works out to be 14+20+8+12+4+4 = 62 bytes. For RDMA WRITE FIRST, we need to
+  // add the RETH header size of 16 bytes to the above, which adds up to 78 bytes. Then
+  // the maximum message size for 1500 MTU without VLAN becomes: 1500 - WRITE FIRST common
+  // header + 65534 * (1500 - WRITE LAST/MIDDLE header size) = 1500 - 78 + 65534 * (1500
+  // - 62) = 94239314 bytes or 89 MB.
+  // default = 1
+  optional uint32 message_size = 7;
+
+  message MessageSizeUnit {
+    enum Enum {
+      unspecified = 0;
+      Byte = 1;
+      KB = 2;
+      MB = 3;
+    }
+  }
+  // Unit of the transfer message size. Available options are Bytes, KB, MB.
+  optional MessageSizeUnit.Enum message_size_unit = 8;
+}
+
+// Configuration for BGPv6 peer settings and routes.
+message RoCEv2V6Peer {
+
+  // Number of Queue Pair (QP) that this device group wants to configure. Default value
+  // is 0.
+  // required = true
+  optional int32 dg_qp_count = 1;
+
+  // Option to select peers.
+  // required = true
+  optional string destination_peers = 2;
+
+  // InfiniBand protocol Maximum Transmission Unit (MTU) defines several fix size MTU:
+  // 256, 512, 1024, 2048 or 4096 bytes. RDMA write message will have payload size same
+  // as configured IB MTU. You can configure custom size also.
+  // required = true
+  optional uint32 ib_mtu = 3;
+
+  // Description missing in models
+  RoCEv2FlowSettings flow_settings = 4;
+}
+
+// Configuration for emulated BGPv6 peers and routes on a single IPv6 interface.
+message RoCEv2V6Interface {
+
+  // The unique name of IPv6 Loopback IPv6 interface or DHCPv4 client used as the source
+  // IP for this list of BGP peers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv6/properties/name
+  // 
+  // required = true
+  optional string ipv6_name = 1;
+
+  // This contains the list of BGPv6 peers configured on this interface.
+  repeated RoCEv2V6Peer peers = 2;
 }
 
 // A high level data plane traffic flow.

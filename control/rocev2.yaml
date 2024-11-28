@@ -1,0 +1,186 @@
+openapi: 3.0.3
+info:
+  title: RoCEv2 Control models
+  description: >-
+    All RoCEv2 control schemas
+  version: ^0.0.0
+components:
+  schemas:
+    Action.Protocol.RoCEv2:
+      description: >-
+        Actions associated with RoCEv2 on configured resources.
+      type: object
+      required:
+        - choice
+      properties:
+        choice:
+          type: string
+          x-enum:
+            notification:
+              x-field-uid: 1
+            initiate_graceful_restart:
+              x-field-uid: 2
+          x-field-uid: 1
+        notification:
+          $ref: "#/components/schemas/Action.Protocol.RoCEv2.Notification"
+          x-field-uid: 2
+        initiate_graceful_restart:
+          $ref: "#/components/schemas/Action.Protocol.RoCEv2.InitiateGracefulRestart"
+          x-field-uid: 3
+      
+    Action.Protocol.RoCEv2.Notification:
+      description: >-
+        A NOTIFICATION message is sent when an error is detected with the RoCEv2 session, such as hold timer expiring, misconfigured AS number 
+        or a RoCEv2 session reset is requested. This causes the RoCEv2 connection to close. Send explicit NOTIFICATIONs for list of specified 
+        RoCEv2 peers. If a user wants to send custom Error Code and Error Subcode the custom object should be configured.
+        A user can send IANA defined RoCEv2 NOTIFICATIONs according to https://www.iana.org/assignments/rocev2-parameters/rocev2-parameters.xhtml. 
+      type: object
+      properties:
+        names:
+          description: >-
+            The names of RoCEv2 Peers to send NOTIFICATION to. If no name is specified then NOTIFICATION will be sent to all configured RoCEv2 peers.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/RoCEv2.V4Peer/properties/name
+          - /components/schemas/RoCEv2.V6Peer/properties/name
+          x-field-uid: 1
+        # choice:
+        #   description: >-
+        #     Each RoCEv2 NOTIFICATION message includes an Error Code field indicating what type of problem occurred. For certain Error Codes, an Error 
+        #     Subcode field provides additional details about the specific nature of the problem. 
+        #     The choice value will provide the Error Code used in NOTIFICATION message. 
+        #     The Subcode can be set for each of the corresponding errors except for Hold Timer Expired error and RoCEv2 Finite State Machine error. 
+        #     In both of these cases Subcode 0 will be sent. If a user wants to use non zero Sub Code then custom choice can be used.
+        #   type: string
+        #   x-field-uid: 2
+        #   default: cease
+        #   x-enum:
+        #     cease:
+        #       x-field-uid: 1
+        #     message_header_error:
+        #       x-field-uid: 2
+        #     open_message_error:
+        #       x-field-uid: 3
+        #     update_message_error:
+        #       x-field-uid: 4
+        #     hold_timer_expired:
+        #       x-field-uid: 5
+        #     finite_state_machine_error:
+        #       x-field-uid: 6
+        #     custom:
+        #       x-field-uid: 7
+
+        # cease:
+        #   $ref: '#/components/schemas/Device.RoCEv2.CeaseError'
+        #   x-field-uid: 3 
+        # message_header_error:
+        #   $ref: '#/components/schemas/Device.RoCEv2.MessageHeaderError'
+        #   x-field-uid: 4 
+        # open_message_error:
+        #   $ref: '#/components/schemas/Device.RoCEv2.OpenMessageError'
+        #   x-field-uid: 5 
+        # update_message_error:
+        #   $ref: '#/components/schemas/Device.RoCEv2.UpdateMessageError'
+        #   x-field-uid: 6 
+        # hold_timer_expired:
+        #   $ref: '#/components/schemas/Device.RoCEv2.HoldTimerExpired'
+        #   x-field-uid: 7
+        # finite_state_machine_error:
+        #   $ref: '#/components/schemas/Device.RoCEv2.FiniteStateMachineError'
+        #   x-field-uid: 8
+        # custom:
+        #   $ref: '#/components/schemas/Device.RoCEv2.CustomError'
+        #   x-field-uid: 9
+
+    Action.Protocol.RoCEv2.InitiateGracefulRestart:
+      description: >-
+        Initiates RoCEv2 Graceful Restart process for the selected RoCEv2 peers.
+        If no name is specified then Graceful Restart will be sent to all configured RoCEv2 peers.
+        To emulate scenarios where a peer sends a Notification and stops the session, an optional
+        Notification object is included. If the remote peer and the local peer are both configured
+        to perform Graceful Restart for Notification triggered session , this will result in 
+        Graceful Restart scenario to be triggered as per RFC8538.
+      type: object
+      properties:
+        peer_names:
+          description: >-
+            The names of device RoCEv2 peers objects to control.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/RoCEv2.V4Peer/properties/name
+          - /components/schemas/RoCEv2.V6Peer/properties/name
+          x-field-uid: 1
+        restart_delay:
+          description: |-
+            Duration (in seconds) after which selected RoCEv2 peers will initiate 
+            Graceful restart by sending the Open Message with Restart State bit set in the Graceful Restart capability.
+          type: integer
+          format: uint32
+          maximum: 3600
+          default: 30
+          x-field-uid: 2
+    #     notification: 
+    #       description: |-
+    #         Send a Notification to the peer as per configured parameters when initially bringing down a session as per
+    #         configured parameters.
+    #       $ref: "#/components/schemas/Action.Protocol.BgpGracefulRestart.Notification"
+    #       x-field-uid: 3
+
+    # Action.Protocol.BgpGracefulRestart.Notification:
+      # description: >-
+      #   Defines the explicit contents of the NOTIFICATION message to be sent when executing InitiateGracefulRestart trigger. 
+      #   This causes the RoCEv2 connection to close.If a user wants to send custom Error Code and Error Subcode the custom object should be configured.
+      #   A user can send IANA defined RoCEv2 NOTIFICATIONs according to https://www.iana.org/assignments/rocev2-parameters/rocev2-parameters.xhtml. 
+      # type: object
+      # properties:       
+      #   choice:
+      #     description: >-
+      #       Each RoCEv2 NOTIFICATION message includes an Error Code field indicating what type of problem occurred. For certain Error Codes, an Error 
+      #       Subcode field provides additional details about the specific nature of the problem. 
+      #       The choice value will provide the Error Code used in NOTIFICATION message. 
+      #       The Subcode can be set for each of the corresponding errors except for Hold Timer Expired error and RoCEv2 Finite State Machine error. 
+      #       In both of these cases Subcode 0 will be sent. If a user wants to use non zero Sub Code then custom choice can be used.
+      #     type: string
+      #     x-field-uid: 2
+      #     default: cease
+      #     x-enum:
+      #       cease:
+      #         x-field-uid: 1
+      #       message_header_error:
+      #         x-field-uid: 2
+      #       open_message_error:
+      #         x-field-uid: 3
+      #       update_message_error:
+      #         x-field-uid: 4
+      #       hold_timer_expired:
+      #         x-field-uid: 5
+      #       finite_state_machine_error:
+      #         x-field-uid: 6
+      #       custom:
+      #         x-field-uid: 7
+
+      #   cease:
+      #     $ref: '#/components/schemas/Device.RoCEv2.CeaseError'
+      #     x-field-uid: 3 
+      #   message_header_error:
+      #     $ref: '#/components/schemas/Device.RoCEv2.MessageHeaderError'
+      #     x-field-uid: 4 
+      #   open_message_error:
+      #     $ref: '#/components/schemas/Device.RoCEv2.OpenMessageError'
+      #     x-field-uid: 5 
+      #   update_message_error:
+      #     $ref: '#/components/schemas/Device.RoCEv2.UpdateMessageError'
+      #     x-field-uid: 6 
+      #   hold_timer_expired:
+      #     $ref: '#/components/schemas/Device.RoCEv2.HoldTimerExpired'
+      #     x-field-uid: 7
+      #   finite_state_machine_error:
+      #     $ref: '#/components/schemas/Device.RoCEv2.FiniteStateMachineError'
+      #     x-field-uid: 8
+      #   custom:
+      #     $ref: '#/components/schemas/Device.RoCEv2.CustomError'
+      #     x-field-uid: 9

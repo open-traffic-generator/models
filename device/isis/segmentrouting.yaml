@@ -1,0 +1,287 @@
+components:
+  schemas:
+    Isis.SegmentRouting:
+      description: |-
+        Segment Routing (SR) turns on any node to select any path (explicit or derived from IGPs SPT computations) 
+        for each of its traffic classes. The path does not depend on a hop-by-hop 
+        signaling technique (unlike LDP or RSVP). 
+        It only depends on a set of segments that are advertised by the IS-IS routing protocol. 
+        These segments act as topological sub-paths that can be combined together to form the required path.
+        Reference: https://datatracker.ietf.org/doc/html/rfc8667
+      type: object
+      properties:
+        router_capability:
+          description: |-
+            Optional IS-IS TLV named CAPABILITY, formed of multiple sub-TLVs, which allows a router to announce its
+            capabilities within an IS-IS level or the entire routing domain.        
+          $ref: '#/components/schemas/Isis.RouterCapability'
+          x-field-uid: 1
+        node_prefix:
+          description: >-
+            ISIS Router Node prefix.
+          $ref: './prefixattributes.yaml/#/components/schemas/IsisSR.RouterNodePrefix'
+          x-field-uid: 2
+  
+    IsisSR.RouterNodePrefix:
+      description: >-
+        SID/Index/Label: As defined in Section 2.1.1.1.
+        Reference: https://datatracker.ietf.org/doc/html/rfc8667#VANDLFLAGS.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Node Prefix Segment Identifier (Prefix-SID).
+            - ipv4_te_router_id: IPv4 Traffic Engineering(TE) router id to be used as Router Capability ID.
+            - interface_ip: When underlined IPv4 interface address of the ISIS interface to be assigned as Router Capability ID.
+            - custom: When, Router Capability ID needs to be configured different from above two.
+          type: string
+          default: ipv4_te_router_id
+          x-field-uid: 1
+          x-enum:
+            ipv4_te_router_id:
+              x-field-uid: 1
+            interface_ip:
+              x-field-uid: 2
+            custom_node_prefix:
+              x-field-uid: 3
+        custom_node_prefix:
+          description: >-
+            The node prefix taken in IPv4 format.
+          $ref: '#/components/schemas/IsisSR.IP'
+          x-field-uid: 2
+        redistribution:
+          description: |-
+            Defines the Up/Down (Redistribution) bit defined for TLVs 128 and 130 by RFC 2966.
+            It is used for domain-wide advertisement of prefix information.
+            If up - used when a prefix is initially advertised within the ISIS L3 hierarchy, and for all other prefixes in L1 and L2 LSPs. (default)
+            When down - used when an L1/L2 router advertises L2 prefixes in L1 LSPs. 
+            The prefixes are being advertised from a higher level (L2) down to a lower level (L1).
+          type: string
+          enum:
+          - up
+          - down
+          default: up
+          x-field-uid: 3
+        prefix_attr_enabled:
+          x-include: ./routerange.yaml#/components/schemas/Isis.RouteRange/properties/prefix_attr_enabled
+          x-field-uid: 4
+        x_flag:
+          x-include: ./routerange.yaml#/components/schemas/Isis.RouteRange/properties/x_flag
+          x-field-uid: 5
+        r_flag:
+          x-include: ./routerange.yaml#/components/schemas/Isis.RouteRange/properties/r_flag
+          x-field-uid: 6
+        n_flag:
+          x-include: ./routerange.yaml#/components/schemas/Isis.RouteRange/properties/n_flag
+          x-field-uid: 7
+        prefix_sid_params:
+          $ref: './prefixsegmentid.yaml/#/components/schemas/IsisSR.PrefixSID'
+          x-field-uid: 8
+
+    IsisSR.IP:
+      description: >-
+        TBD
+      type: object
+      properties:
+        address:
+          description: >-
+            The starting address of the network.
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        prefix:
+          description: >-
+            The IPv4 network prefix length to be applied to the address. 
+          type: integer
+          format: uint32
+          default: 24
+          maximum: 32
+          x-field-uid: 2
+        
+    Isis.RouterCapability:
+      description: >-
+        Container for the configuration of IS-IS Router CAPABILITY TLV.
+        https://datatracker.ietf.org/doc/html/rfc7981#section-2
+      type: object
+      properties:
+        choice:
+          description: |-
+            The Router Capability ID SHOULD be identical to the value advertised in the Traffic Engineering Router ID TLV [RFC5305].
+            If no Traffic Engineering Router ID is assigned, the Router ID SHOULD be identical to an IP Interface Address [RFC1195] 
+            advertised by the originating IS.
+            If the originating node does not support IPv4, then the reserved value 0.0.0.0 MUST be used in the Router ID field, 
+            and the IPv6 TE Router ID sub-TLV [RFC5316] MUST be present in the TLV.
+            - ipv4_te_router_id: IPv4 Traffic Engineering(TE) router id to be used as Router Capability ID.
+            - interface_ip: When underlined IPv4 interface address of the ISIS interface to be assigned as Router Capability ID.
+            - custom: When, Router Capability ID needs to be configured different from above two.
+          type: string
+          default: ipv4_te_router_id
+          x-field-uid: 1
+          x-enum:
+            ipv4_te_router_id:
+              x-field-uid: 1
+            interface_ip:
+              x-field-uid: 2
+            custom_router_cap_id:
+              x-field-uid: 3
+        custom_router_cap_id:
+          description: >-
+            Router CapabilityID in IPv4 address format.
+          type: string
+          format: ipv4
+          x-field-uid: 2
+        s_bit:
+          description: |-
+            S bit (0x01): If the S bit is set(1), the IS-IS Router CAPABILITY TLV
+            MUST be flooded across the entire routing domain.  If the S bit is
+            not set(0), the TLV MUST NOT be leaked between levels.  This bit MUST
+            NOT be altered during the TLV leaking.
+          type: boolean
+          default: false
+          x-field-uid: 3
+        d_bit:
+          description: |-
+            D bit (0x02): When the IS-IS Router CAPABILITY TLV is leaked from
+            Level 2 (L2) to Level 1 (L1), the D bit MUST be set.  Otherwise, this
+            bit MUST be clear.  IS-IS Router CAPABILITY TLVs with the D bit set
+            MUST NOT be leaked from Level 1 to Level 2.  This is to prevent TLV looping.
+          type: boolean
+          default: false
+          x-field-uid: 4
+        sr_capability:
+          description: |-
+            SR-Capabilities.      
+          $ref: '#/components/schemas/Isis.SRCapability'
+          x-field-uid: 5     
+        algorithms:
+          description: |-
+            This contains one or more SR-Algorithm.
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisSR.Algorithm'
+          x-field-uid: 6
+        srlbs:
+          description: |-
+            This contains the list of SR Local Block (SRLB)
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisSR.Srlb'
+          x-field-uid: 7
+  
+    Isis.SRCapability:
+      description: |-
+        Container for the configuration of IS-IS SR-CAPABILITY TLV that Segment Routing requires 
+        each router to advertise its SR data plane capability and the range of MPLS label values 
+        it uses for Segment Routing in the case where global SIDs are allocated (i.e., global indexes).
+
+        Reference: https://datatracker.ietf.org/doc/html/rfc8667#name-sr-capabilities-sub-tlv.
+        The Router Capability TLV specifies flags that control its advertisement. 
+        The SR-Capabilities sub-TLV MUST be propagated throughout the level and MUST NOT be advertised across level boundaries.
+        Therefore, Router Capability TLV distribution flags are set accordingly, i.e., 
+        the S-Flag in the Router Capability TLV [RFC7981] MUST be unset.
+      type: object
+      properties:
+        i_flag:
+          description: |-
+            MPLS IPv4 Flag. If set, then the router is capable of processing SR-MPLS-encapsulated IPv4 packets on all interfaces.
+          type: boolean
+          default: true
+          x-field-uid: 1
+        v_flag:
+          description: |-
+            MPLS IPv6 Flag. If set, then the router is capable of processing SR-MPLS-encapsulated IPv6 packets on all interfaces.
+          type: boolean
+          default: true
+          x-field-uid: 2
+        srgb_ranges:
+          description: |-
+            This contains the list of SRGB.
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisSR.Srgb'
+          x-field-uid: 3
+        
+    IsisSR.Srgb:
+      description: >-
+        This contains the propeties of SRGB range.
+        Reference: https://datatracker.ietf.org/doc/html/rfc8667#section-3.1-7.1.1
+      type: object
+      properties:
+        range:
+          description: >-
+            This represents the number of SID in a SRGB range. 
+          type: integer
+          format: uint32
+          default: 8000
+          minimum: 1
+          maximum: 16777215
+          x-field-uid: 1
+        starting_sid: 
+          description: >-
+            The SID/Label sub-TLV contains the first value of the SRGB while the range contains the number of SRGB elements.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 16777215
+          default: 16000
+          x-field-uid: 2
+
+    IsisSR.Srlb:
+      description: >-
+        This contains the propeties of SRLB. The SR Local Block (SRLB) sub-TLV contains the range of labels the node has reserved 
+        for Local SIDs. Local SIDs are used, e.g., for Adj-SIDs, and may also be allocated by components other than the IS-IS protocol
+        Reference: https://datatracker.ietf.org/doc/html/rfc8667#name-sr-local-block-sub-tlv.
+      type: object
+      properties:
+        range:
+          description: >-
+            This represents the number of SID in a SRGB range. 
+          type: integer
+          format: uint32
+          default: 8000
+          minimum: 1
+          maximum: 16777215
+          x-field-uid: 1
+        starting_sid: 
+          description: >-
+            The SID/Label sub-TLV contains the first value of the SRGB while the range contains the number of SRGB elements.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 16777215
+          default: 16000
+          x-field-uid: 2
+    
+    IsisSR.Algorithm:
+      description: >-
+        Container for SR-Algorithms.
+        Reference: https://datatracker.ietf.org/doc/html/rfc8667#name-sr-algorithm-sub-tlv.
+      type: object
+      properties:
+        algorithm:
+          description: >-
+            The Isis may use various algorithms when calculating
+            reachability to other nodes or to prefixes attached to these
+            nodes. 
+          type: integer
+          format: uint32
+          default: 0
+          minimum: 0
+          maximum: 255
+          x-field-uid: 1
+
+    IsisSR.SID:
+      description: >-
+        SID/Index/Label: As defined in Section 2.1.1.1.
+        Reference: https://datatracker.ietf.org/doc/html/rfc8667#VANDLFLAGS.
+      type: object
+      properties:
+        sid: 
+          description: >-
+            The SID/Label sub-TLV contains the first value of the SRGB while the range contains the number of SRGB elements.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 16777215
+          default: 16000
+          x-field-uid: 1

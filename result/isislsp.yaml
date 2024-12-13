@@ -156,10 +156,13 @@ components:
           items:
             $ref: '#/components/schemas/IsisLsp.Ipv6ReachabilityTlv'
           x-field-uid: 7
-        router_capability:
+        router_capabilities:
           description: |-
-            IS-IS Router CAPABILITY: Tlv 242.
-          $ref: '#/components/schemas/IsisLsp.RouterCapability'
+           IS-IS Router Capabilities: Tlv 242.
+           This container defines Router Capabilities.
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisLsp.Capability'
           x-field-uid: 8
     IsisLsp.Hostname:
       description: >-
@@ -380,10 +383,19 @@ components:
             down:
               x-field-uid: 2
         prefix_attributes:
-          $ref: '#/components/schemas/IsisLsp.PrefixAttributes'
+          description: |-
+            Extended Prefix Attribute flags container sub-TLV is type 4.
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisLsp.PrefixAttributesOneFlag'
           x-field-uid: 5
         prefix_sids:
-          $ref: '#/components/schemas/IsisLsp.PrefixSids'
+          description: |-
+            Prefix Segment-ID list. IGP-Prefix Segment is an IGP segment attached to an IGP prefix. An IGP-Prefix Segment is global
+            (unless explicitly advertised otherwise) within the SR/IGP domain.
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisLsp.PrefixSids'
           x-field-uid: 6
 
     IsisLsp.Ipv6ReachabilityTlv:
@@ -449,33 +461,54 @@ components:
             external:
               x-field-uid: 2
         prefix_attributes:
-          $ref: '#/components/schemas/IsisLsp.PrefixAttributes'
+          description: |-
+            Extended Prefix Attribute flags container sub-TLV is type 4.
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisLsp.PrefixAttributesOneFlag'
           x-field-uid: 6
         prefix_sids:
-          $ref: '#/components/schemas/IsisLsp.PrefixSids'
+          description: |-
+            Prefix Segment-ID list. IGP-Prefix Segment is an IGP segment attached to an IGP prefix. An IGP-Prefix Segment is global
+            (unless explicitly advertised otherwise) within the SR/IGP domain.
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisLsp.PrefixSids'
           x-field-uid: 7
-    IsisLsp.PrefixAttributes:
+          
+    IsisLsp.PrefixAttributesOneFlag:
       description: >-
-        This contains the properties of ISIS Prefix attributes for  the extended IPv4
-        and IPv6 reachability.
-        https://www.rfc-editor.org/rfc/rfc7794.html
+        One bit value of ISIS Prefix attributes for the extended IPv4 and IPv6 reachability.
+        https://www.rfc-editor.org/rfc/rfc7794.html.
       type: object
       properties:
-        x_flag:
-          description: |-
-            External Prefix Flag (Bit 0)
-          type: boolean
+        flag: 
+          type: string
           x-field-uid: 1
-        r_flag:
-          description: |-
-            Re-advertisement Flag (Bit 1)
-          type: boolean
-          x-field-uid: 2
-        n_flag:
-          description: |-
-            Node Flag (Bit 2)
-          type: boolean
-          x-field-uid: 3
+          x-enum:
+            external:
+              description: |-
+                External prefix flag (Bit 0). Set if the prefix has been
+                redistributed from another protocol. This includes
+                the case where multiple virtual routers are
+                supported and the source of the redistributed prefix
+                is another IS-IS instance.
+              x-field-uid: 1
+            redistribution:
+              description: |-
+                Readvertisement flag (Bit 1). Set when the prefix has been
+                leaked from one level to another (upwards or
+                downwards).
+              x-field-uid: 2
+            node:
+              description: |-
+                Node Flag (Bit 2).
+                Set when the prefix identifies the
+                advertising router, i.e., the prefix is a host
+                prefix advertising  a globally reachable address
+                typically associated with a loopback address.
+              x-field-uid: 3
+    
     IsisLsp.PrefixSids:
       description: >-
         This contains the properties of IS-IS Prefix-SID and its attributes for 
@@ -489,39 +522,14 @@ components:
             with the IGP Prefix segment attached to the specific IPv4 or IPv6 prefix.
           type: integer
           format: uint32
-          x-field-uid: 1     
-        r_flag:
+          x-field-uid: 1
+        flags:
           description: |-
-            R-Flag:Re-advertisement flag
-          type: boolean
+            Flags associated with Prefix Segment-ID.
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisLsp.PrefixSidOneFlag'
           x-field-uid: 2
-        n_flag: 
-          description: |-
-            N-Flag: Node-SID flag.  If set, then the Prefix-SID refers to
-            the router identified by the prefix
-          type: boolean
-          x-field-uid: 3
-        p_flag: 
-          description: |-
-            P-Flag: no-PHP flag.
-          type: boolean
-          x-field-uid: 4
-        e_flag: 
-          description: |-
-            E-Flag: Explicit-Null Flag.
-          type: boolean
-          x-field-uid: 5
-        v_flag:
-          description: |-
-            The value flag. If set, then the Prefix-SID carries a value instead of an index.
-          type: boolean
-          x-field-uid: 6
-        l_flag:
-          description: |-
-            The local flag.  If set, then the value/index carried by
-            the Prefix-SID has local significance.
-          type: boolean
-          x-field-uid: 7
         algorithm:
           description: |-
             The Isis may use various algorithms when calculating
@@ -531,9 +539,9 @@ components:
           format: uint32
           minimum: 0
           maximum: 255
-          x-field-uid: 8
+          x-field-uid: 3
 
-    IsisLsp.RouterCapability:
+    IsisLsp.Capability:
       description: >-
         Container of IS-IS Router CAPABILITY TLV.
       type: object
@@ -544,17 +552,17 @@ components:
           type: string
           format: ipv4
           x-field-uid: 1
-        s_bit:
+        flood:
           description: |-
-            S bit (0x01): If the S bit is set(1), the IS-IS Router CAPABILITY TLV
+            For S bit (0x01): If the S bit is set(1), the IS-IS Router CAPABILITY TLV
             MUST be flooded across the entire routing domain.  If the S bit is
             not set(0), the TLV MUST NOT be leaked between levels.  This bit MUST
             NOT be altered during the TLV leaking.
           type: boolean
           x-field-uid: 2
-        d_bit:
+        down:
           description: |-
-            D bit (0x02): When the IS-IS Router CAPABILITY TLV is leaked from
+            For D bit (0x02): When the IS-IS Router CAPABILITY TLV is leaked from
             Level 2 (L2) to Level 1 (L1), the D bit MUST be set.  Otherwise, this
             bit MUST be clear.  IS-IS Router CAPABILITY TLVs with the D bit set
             MUST NOT be leaked from Level 1 to Level 2.  This is to prevent TLV looping.
@@ -585,12 +593,12 @@ components:
         Container of IS-IS SR-CAPABILITY Sub-Tlv.
       type: object
       properties:
-        i_flag:
+        ipv4_mpls:
           description: |-
             MPLS IPv4 Flag. If set, then the router is capable of processing SR-MPLS-encapsulated IPv4 packets on all interfaces.
           type: boolean
           x-field-uid: 1
-        v_flag:
+        ipv6_mpls:
           description: |-
             MPLS IPv6 Flag. If set, then the router is capable of processing SR-MPLS-encapsulated IPv6 packets on all interfaces.
           type: boolean
@@ -732,3 +740,47 @@ components:
           type: integer
           format: uint32
           x-field-uid: 9 
+
+    IsisLsp.PrefixSidOneFlag:
+      description: >-
+        Conatiner of Flags associated with Prefix Segment-ID.
+      type: object
+      properties:
+          flag:
+            description: >-
+              One bit of 1-octet flag field of Prefix Segment Identifier.
+            description: >-
+              Prefix Segment Identifier flag type.
+            type: string
+            x-field-uid: 2
+            x-enum:
+              readvertisment:
+                description: |-
+                  Readvertisment flag. When set, the prefix to which this Prefix-SID is attached, has been propagated by
+                  the router either from another level or from redistribution..
+                x-field-uid: 1
+              node:
+                description: |-
+                  Node flag. When set, the Prefix-SID refers to the router identified by the prefix. Typically, the
+                  N-Flag is set on Prefix-SIDs attached to a router loopback address.
+                x-field-uid: 2
+              no_php:
+                description: |-
+                  Penultimate-Hop-Popping flag. When set, then the penultimate hop MUST NOT pop the Prefix-SID before
+                  delivering the packet to the node that advertised the Prefix-SID.
+                x-field-uid: 3
+              explicity_null:
+                description: |-
+                  Explicit-Null flag. When set, any upstream neighbor of the Prefix-SID originator MUST replace the
+                  Prefix-SID with a Prefix-SID having an Explicit-NULL value (0 for IPv4 and 2 for IPv6) before forwarding
+                  the packet.
+                x-field-uid: 4
+              value:
+                description: |-
+                  Value flag. When set, the Prefix-SID carries avalue (instead of an index). By default the flag is UNSET.
+                x-field-uid: 5
+              local:
+                description: |-
+                  Local flag. When set, the value/index carried by the Prefix-SID has local significance. 
+                  By default the flag is UNSET.
+                x-field-uid: 6

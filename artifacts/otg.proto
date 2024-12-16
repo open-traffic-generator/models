@@ -2528,14 +2528,14 @@ message IsisRouterCapability {
   // not set(0), the TLV MUST NOT be leaked between levels.  This bit MUST
   // NOT be altered during the TLV leaking.
   // default = False
-  optional bool s_bit = 3;
+  optional bool flood = 3;
 
   // D bit (0x02): When the IS-IS Router CAPABILITY TLV is leaked from
   // Level 2 (L2) to Level 1 (L1), the D bit MUST be set.  Otherwise, this
   // bit MUST be clear.  IS-IS Router CAPABILITY TLVs with the D bit set
   // MUST NOT be leaked from Level 1 to Level 2.  This is to prevent TLV looping.
   // default = False
-  optional bool d_bit = 4;
+  optional bool down = 4;
 
   // SR-Capabilities.
   IsisSRCapability sr_capability = 5;
@@ -2565,12 +2565,12 @@ message IsisSRCapability {
   // MPLS IPv4 Flag. If set, then the router is capable of processing SR-MPLS-encapsulated
   // IPv4 packets on all interfaces.
   // default = True
-  optional bool i_flag = 1;
+  optional bool ipv4_mpls = 1;
 
   // MPLS IPv6 Flag. If set, then the router is capable of processing SR-MPLS-encapsulated
   // IPv6 packets on all interfaces.
   // default = True
-  optional bool v_flag = 2;
+  optional bool ipv6_mpls = 2;
 
   // This contains the list of SRGB.
   repeated IsisSRSrgb srgb_ranges = 3;
@@ -2619,26 +2619,6 @@ message IsisSRAlgorithm {
   // or to prefixes attached to these nodes.
   // default = 0
   optional uint32 algorithm = 1;
-}
-
-// SID/Index/Label: As defined in Section 2.1.1.1. Reference: https://datatracker.ietf.org/doc/html/rfc8667#VANDLFLAGS.
-message IsisSRSID {
-
-  // The SID/Label sub-TLV contains the first value of the SRGB while the range contains
-  // the number of SRGB elements.
-  // default = 16000
-  optional uint32 sid = 1;
-}
-
-// The IPv4 address and its prefix.
-message IsisSRIP {
-
-  // The starting address of the network.
-  optional string address = 1;
-
-  // The IPv4 network prefix length to be applied to the address.
-  // default = 24
-  optional uint32 prefix = 2;
 }
 
 // Configuration for one or more IPv4 or IPv6 BGP peers.
@@ -14662,8 +14642,9 @@ message IsisLspTlvs {
   // Array of IPv6 Reachability TLVs (type 236) present in this LSP.
   repeated IsisLspIpv6ReachabilityTlv ipv6_reachability_tlvs = 7;
 
-  // IS-IS Router CAPABILITY: Tlv 242.
-  IsisLspRouterCapability router_capability = 8;
+  // IS-IS Router Capabilities: Tlv 242.
+  // This container defines Router Capabilities.
+  repeated IsisLspCapability router_capabilities = 8;
 }
 
 // It contains Hostname for the TLV 137.
@@ -14819,11 +14800,13 @@ message IsisLspExtendedV4Prefix {
   // (L1).
   optional RedistributionType.Enum redistribution_type = 4;
 
-  // Description missing in models
-  IsisLspPrefixAttributes prefix_attributes = 5;
+  // Extended Prefix Attribute flags container sub-TLV is type 4.
+  repeated IsisLspPrefixAttributesOneFlag prefix_attributes = 5;
 
-  // Description missing in models
-  IsisLspPrefixSids prefix_sids = 6;
+  // Prefix Segment-ID list. IGP-Prefix Segment is an IGP segment attached to an IGP prefix.
+  // An IGP-Prefix Segment is global
+  // (unless explicitly advertised otherwise) within the SR/IGP domain.
+  repeated IsisLspPrefixSids prefix_sids = 6;
 }
 
 // It defines list of IPv6 extended reachability information in one IPv6 Reachability
@@ -14874,25 +14857,29 @@ message IsisLspV6Prefix {
   // 1 LSPs.
   optional OriginType.Enum origin_type = 5;
 
-  // Description missing in models
-  IsisLspPrefixAttributes prefix_attributes = 6;
+  // Extended Prefix Attribute flags container sub-TLV is type 4.
+  repeated IsisLspPrefixAttributesOneFlag prefix_attributes = 6;
 
-  // Description missing in models
-  IsisLspPrefixSids prefix_sids = 7;
+  // Prefix Segment-ID list. IGP-Prefix Segment is an IGP segment attached to an IGP prefix.
+  // An IGP-Prefix Segment is global
+  // (unless explicitly advertised otherwise) within the SR/IGP domain.
+  repeated IsisLspPrefixSids prefix_sids = 7;
 }
 
-// This contains the properties of ISIS Prefix attributes for  the extended IPv4 and
-// IPv6 reachability. https://www.rfc-editor.org/rfc/rfc7794.html
-message IsisLspPrefixAttributes {
+// One bit value of ISIS Prefix attributes for the extended IPv4 and IPv6 reachability.
+// https://www.rfc-editor.org/rfc/rfc7794.html.
+message IsisLspPrefixAttributesOneFlag {
 
-  // External Prefix Flag (Bit 0)
-  optional bool x_flag = 1;
-
-  // Re-advertisement Flag (Bit 1)
-  optional bool r_flag = 2;
-
-  // Node Flag (Bit 2)
-  optional bool n_flag = 3;
+  message Flag {
+    enum Enum {
+      unspecified = 0;
+      external = 1;
+      redistribution = 2;
+      node = 3;
+    }
+  }
+  // Description missing in models
+  optional Flag.Enum flag = 1;
 }
 
 // This contains the properties of IS-IS Prefix-SID and its attributes for  the extended
@@ -14903,49 +14890,32 @@ message IsisLspPrefixSids {
   // to the specific IPv4 or IPv6 prefix.
   optional uint32 sid = 1;
 
-  // R-Flag:Re-advertisement flag
-  optional bool r_flag = 2;
-
-  // N-Flag: Node-SID flag.  If set, then the Prefix-SID refers to
-  // the router identified by the prefix
-  optional bool n_flag = 3;
-
-  // P-Flag: no-PHP flag.
-  optional bool p_flag = 4;
-
-  // E-Flag: Explicit-Null Flag.
-  optional bool e_flag = 5;
-
-  // The value flag. If set, then the Prefix-SID carries a value instead of an index.
-  optional bool v_flag = 6;
-
-  // The local flag.  If set, then the value/index carried by
-  // the Prefix-SID has local significance.
-  optional bool l_flag = 7;
+  // Flags associated with Prefix Segment-ID.
+  repeated IsisLspPrefixSidOneFlag flags = 2;
 
   // The Isis may use various algorithms when calculating
   // reachability to other nodes or to prefixes attached to these
   // nodes.
-  optional uint32 algorithm = 8;
+  optional uint32 algorithm = 3;
 }
 
 // Container of IS-IS Router CAPABILITY TLV.
-message IsisLspRouterCapability {
+message IsisLspCapability {
 
   // Router CapabilityID in IPv4 address format.
   optional string router_cap_id = 1;
 
-  // S bit (0x01): If the S bit is set(1), the IS-IS Router CAPABILITY TLV
+  // For S bit (0x01): If the S bit is set(1), the IS-IS Router CAPABILITY TLV
   // MUST be flooded across the entire routing domain.  If the S bit is
   // not set(0), the TLV MUST NOT be leaked between levels.  This bit MUST
   // NOT be altered during the TLV leaking.
-  optional bool s_bit = 2;
+  optional bool flood = 2;
 
-  // D bit (0x02): When the IS-IS Router CAPABILITY TLV is leaked from
+  // For D bit (0x02): When the IS-IS Router CAPABILITY TLV is leaked from
   // Level 2 (L2) to Level 1 (L1), the D bit MUST be set.  Otherwise, this
   // bit MUST be clear.  IS-IS Router CAPABILITY TLVs with the D bit set
   // MUST NOT be leaked from Level 1 to Level 2.  This is to prevent TLV looping.
-  optional bool d_bit = 3;
+  optional bool down = 3;
 
   // SR-Capabilities.
   IsisLspSRCapability sr_capability = 4;
@@ -14962,11 +14932,11 @@ message IsisLspSRCapability {
 
   // MPLS IPv4 Flag. If set, then the router is capable of processing SR-MPLS-encapsulated
   // IPv4 packets on all interfaces.
-  optional bool i_flag = 1;
+  optional bool ipv4_mpls = 1;
 
   // MPLS IPv6 Flag. If set, then the router is capable of processing SR-MPLS-encapsulated
   // IPv6 packets on all interfaces.
-  optional bool v_flag = 2;
+  optional bool ipv6_mpls = 2;
 
   // This contains the list of SRGB.
   repeated IsisLspSrgb srgb_ranges = 3;
@@ -15052,6 +15022,24 @@ message IsisLspAdjacencySID {
   // The value represents the weight of the Adj-SID for the purpose of
   // load balancing.
   optional uint32 weight = 9;
+}
+
+// Conatiner of Flags associated with Prefix Segment-ID.
+message IsisLspPrefixSidOneFlag {
+
+  message Flag {
+    enum Enum {
+      unspecified = 0;
+      readvertisment = 1;
+      node = 2;
+      no_php = 3;
+      explicity_null = 4;
+      value = 5;
+      local = 6;
+    }
+  }
+  // Prefix Segment Identifier flag type.
+  optional Flag.Enum flag = 2;
 }
 
 // The request to retrieve LLDP neighbor information for a given instance.

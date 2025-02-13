@@ -7887,31 +7887,21 @@ message Macsec {
   // required = true
   optional string name = 1;
 
-  // This contains the basic properties of SecY.
-  MacsecBasic basic = 2;
+  // Static key properties properties of SecY. Static key is used in absence MKA.
+  MacsecStaticKey static_key = 2;
 
-  // Tx secure channels.
-  repeated MacsecTxSc txscs = 3;
+  // Tx properties of SecY.
+  MacsecTx tx = 3;
 
-  // Rx secure channels.
-  repeated MacsecRxSc rxscs = 4;
+  // Rx properties of SecY.
+  repeated MacsecRx rx = 4;
 
-  // This contains crypto engine properties of SecY.
+  // Crypto engine properties of SecY.
   MacsecCryptoEngine crypto_engine = 5;
-
-  // This contains advance properties of SecY.
-  MacsecAdvance advance = 6;
 }
 
-// A container of basic properties for a SecY.
-message MacsecBasic {
-
-  // Description missing in models
-  MacsecBasicStaticKey static_key = 1;
-}
-
-// The container for static key settings.
-message MacsecBasicStaticKey {
+// A container of static key properties for a SecY.
+message MacsecStaticKey {
 
   message CipherSuite {
     enum Enum {
@@ -7940,23 +7930,82 @@ message MacsecBasicStaticKey {
   optional ConfidentialityOffset.Enum confidentiality_offset = 2;
 }
 
+// Rekey mode.
+message MacsecStaticKeyRekeyMode {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      dont_rekey = 1;
+      timer_based = 2;
+      pn_based = 3;
+    }
+  }
+  // Rekey mode choices.
+  // default = Choice.Enum.dont_rekey
+  optional Choice.Enum choice = 1;
+
+  // Container for timer based periodic rekey properties.
+  MacsecStaticKeyRekeyModeTimerBased timer_based = 2;
+}
+
+// Timer based periodic rekey properties.
+message MacsecStaticKeyRekeyModeTimerBased {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      continuous = 1;
+      fixed_count = 2;
+    }
+  }
+  // Periodic rekey attempt choices.
+  // default = Choice.Enum.continuous
+  optional Choice.Enum choice = 1;
+
+  // Fixed rekey attempts.
+  // default = 10
+  optional uint32 fixed_count = 2;
+
+  // Periodic rekey interval (sec).
+  // default = 300
+  optional uint32 interval = 3;
+}
+
 // The container for Secure Association Key(SAK) Pool.
-message MacsecBasicStaticKeySakPool {
+message MacsecStaticKeySakPool {
 
   // SAK pool name.
   optional string name = 1;
 
   // Secure Association Keys.
-  repeated MacsecBasicStaticKeySak saks = 2;
+  repeated MacsecStaticKeySak saks = 2;
 }
 
 // The container for SAK.
-message MacsecBasicStaticKeySak {
+message MacsecStaticKeySak {
 
   // SAK bits as hex string. Either 128 bits or 256 bits depending on the citpher suite
   // chosen.
   // default = F123456789ABCDEF0123456789ABCDEF
   optional string sak = 1;
+}
+
+// A container of Tx properties of SecY.
+message MacsecTx {
+
+  // Tx secure channels.
+  repeated MacsecTxSc txscs = 1;
+
+  // Description missing in models
+  MacsecTxStaticKey static_key = 2;
+}
+
+// Tx setting for static key.
+message MacsecTxStaticKey {
+
+  // Description missing in models
+  MacsecStaticKeyRekeyMode rekey_mode = 1;
 }
 
 // The container for Tx SC settings.
@@ -7989,11 +8038,11 @@ message MacsecTxScStaticKey {
   optional bool confidentiality = 3;
 
   // Tx SAK pool.
-  MacsecBasicStaticKeySakPool sak_pool = 4;
+  MacsecStaticKeySakPool sak_pool = 4;
 }
 
-// The container for Rx SC settings.
-message MacsecRxSc {
+// The container for Rx settings of SecY.
+message MacsecRx {
 
   // Enable replay protection on not.
   // default = False
@@ -8003,17 +8052,19 @@ message MacsecRxSc {
   // default = 1
   optional uint32 replay_window = 2;
 
-  // DUT MSB of XPN. The 32 most significant bits of the XPN that DUT will be using to
-  // construct the 64 bits XPN value when test starts.
-  // default = 0
-  optional uint32 dut_msb_xpn = 3;
-
-  // Description missing in models
-  MacsecRxScStaticKey static_key = 4;
+  // Rx setting for static key.
+  MacsecRxStaticKey static_key = 3;
 }
 
-// Rx SC settings for static key.
-message MacsecRxScStaticKey {
+// Container for Rx setting for static key.
+message MacsecRxStaticKey {
+
+  // Rx secure channels.
+  repeated MacsecRxSc rxscs = 1;
+}
+
+// Rx SC settings.
+message MacsecRxSc {
 
   // System ID in DUT SCI.
   optional string dut_system_id = 1;
@@ -8022,8 +8073,13 @@ message MacsecRxScStaticKey {
   // default = 1
   optional uint32 dut_port_id = 2;
 
+  // DUT MSB of XPN. The 32 most significant bits of the XPN that DUT will be using to
+  // construct the 64 bits XPN value when test starts.
+  // default = 0
+  optional uint32 dut_msb_xpn = 4;
+
   // Rx SAK pool.
-  MacsecBasicStaticKeySakPool sak_pool = 3;
+  MacsecStaticKeySakPool sak_pool = 3;
 }
 
 // A container of crypto engine properties of a SecY.
@@ -8191,62 +8247,6 @@ message MacsecCryptoEngineStatefulEncryptionDecryptionHardwareAccelerationInline
   // Rx SC identifying_field.
   // default = RxScIdentifyingField.Enum.source_mac
   optional RxScIdentifyingField.Enum rx_sc_identifying_field = 6;
-}
-
-// A container of advance properties SecY.
-message MacsecAdvance {
-
-  // Description missing in models
-  MacsecAdvanceStaticKey static_key = 1;
-}
-
-// Static key advance settings.
-message MacsecAdvanceStaticKey {
-
-  // Description missing in models
-  MacsecAdvanceStaticKeyRekeyMode rekey_mode = 1;
-}
-
-// Rekey mode.
-message MacsecAdvanceStaticKeyRekeyMode {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      dont_rekey = 1;
-      timer_based = 2;
-      pn_based = 3;
-    }
-  }
-  // Rekey mode choices.
-  // default = Choice.Enum.dont_rekey
-  optional Choice.Enum choice = 1;
-
-  // Container for timer based periodic rekey properties.
-  MacsecAdvanceStaticKeyRekeyModeTimerBased timer_based = 2;
-}
-
-// Timer based periodic rekey properties.
-message MacsecAdvanceStaticKeyRekeyModeTimerBased {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      continuous = 1;
-      fixed_count = 2;
-    }
-  }
-  // Periodic rekey attempt choices.
-  // default = Choice.Enum.continuous
-  optional Choice.Enum choice = 1;
-
-  // Fixed rekey attempts.
-  // default = 10
-  optional uint32 fixed_count = 2;
-
-  // Periodic rekey interval (sec).
-  // default = 300
-  optional uint32 interval = 3;
 }
 
 // A container of properties for a MKA supplicant.

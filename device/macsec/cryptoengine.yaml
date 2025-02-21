@@ -7,7 +7,7 @@ components:
       properties:
         choice:
           description: >-
-            Engine type based on encryption and/ or decryption capability..
+            Engine type based on encryption and/ or decryption capability. Supported types: 1) stateless_encryption_only - engine can only encrypt transmitted packets but such engine cannot decrypt packets upon arrival. As the packets cannot be decrypted on arrival, such packets cannot be delivered to the receiving device. Hence only stateless traffic can be sent. 2) stateful_encryption_decryption - engine can both encrypt transmitted packets and decrypt packets on arrival. Such engine can have hardware acceleration for faster encryption/ ddecryption. As both encryption and decryption are possible, stateful (e.g. TCP) traffic can be sent/ received.
           type: string
           default: stateless_encryption_only
           x-field-uid: 1
@@ -24,7 +24,7 @@ components:
           x-field-uid: 3
     Macsec.CryptoEngine.StatelessEncryptionOnly:
       description: >-
-        The container for stateless encryption only engine settings.
+        The container for stateless encryption only engine configuration.
       type: object
       properties:
         tx_pn:
@@ -35,7 +35,7 @@ components:
           x-field-uid: 3
     Macsec.CryptoEngine.StatefulEncryptionDecryption:
       description: >-
-        The container for stateful encryption and decryption engine settings.
+        The container for stateful encryption and decryption engine configuration.
       type: object
       properties:
         initial_pn:
@@ -46,12 +46,12 @@ components:
           x-field-uid: 2
     Macsec.CryptoEngine.StatelessEncryptionOnly.TxPn:
       description: >-
-        Tx PN settings.
+        Tx packet number(PN) configuration.
       type: object
       properties:
         choice:
           description: >-
-            Types of Tx PN series.
+            Types of Tx packet number(PN) series.
           type: string
           default: fixed_pn
           x-field-uid: 1
@@ -68,12 +68,12 @@ components:
           x-field-uid: 3
     Macsec.CryptoEngine.StatelessEncryptionOnly.FixedPn:
       description: >-
-        Fixed PN settings.
+        Fixed packet number(PN) configuration.
       type: object
       properties:
         pn:
           description: >-
-            Fixed Tx PN. PN with which all packets will be sent out.
+            Fixed Tx packet number(PN). 4 bytes PN with which all packets will be sent out.
           type: integer
           format: uint32
           minimum: 1
@@ -82,14 +82,17 @@ components:
           x-field-uid: 1
         xpn:
           description: >-
-            Fixed Tx XPN. 8 bytes PN with which all packets will be sent out.
-          type: integer
+            Fixed Tx extended packet number(XPN). 8 bytes XPN with which all packets will be sent out.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 8
           minimum: 1
-          default: 0x0000000000000006
+          default: "0x0000000000000006"
           x-field-uid: 2
     Macsec.CryptoEngine.StatelessEncryptionOnly.IncrementingPn:
       description: >-
-        Incrementing PN settings.
+        Incrementing packet number(PN) configuration.
       type: object
       properties:
         count:
@@ -103,7 +106,7 @@ components:
           x-field-uid: 1
         first_pn:
           description: >-
-            The first PN.
+            The first packet number(PN).
           type: integer
           format: uint32
           minimum: 1
@@ -111,14 +114,17 @@ components:
           x-field-uid: 2
         first_xpn:
           description: >-
-            The first XPN.
-          type: integer
+            The first extended packet number(XPN).
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 8
           minimum: 1
-          default: 0x0000000000010000
+          default: "0x0000000000010000"
           x-field-uid: 3
     Macsec.CryptoEngine.StatelessEncryptionOnly.Traffic:
       description: >-
-        Encryption only traffic settings.
+        Encryption only traffic configuration.
       type: object
       properties:
         send_gratarp:
@@ -129,12 +135,12 @@ components:
           x-field-uid: 1
     Macsec.CryptoEngine.StatefulEncryptionDecryption.InitialPn:
       description: >-
-        Initial PN settings.
+        Initial packet number(PN) configuration.
       type: object
       properties:
         pn:
           description: >-
-            Initial Tx PN.
+            Initial Tx packet number(PN).
           type: integer
           format: uint32
           minimum: 1
@@ -142,7 +148,7 @@ components:
           x-field-uid: 1
     Macsec.CryptoEngine.StatefulEncryptionDecryption.HardwareAcceleration:
       description: >-
-        Hardware acceleration settings.
+        Hardware acceleration configuration for offloading MACsec processing to hardware.
       type: object
       properties:
         choice:
@@ -161,7 +167,7 @@ components:
           x-field-uid: 2
     Macsec.CryptoEngine.StatefulEncryptionDecryption.HardwareAcceleration.InlineCrypto:
       description: >-
-        Inline cryto engine settings.
+        Inline cryto engine configuration. Encryption/ decryption are offloaded to hardware. Also dynamic fields e.g. packet number(PN) and integrity check value(ICV) are updated in MACsec header on transmit.
       type: object
       properties:
         rx_sectag_offset:
@@ -173,7 +179,7 @@ components:
           x-field-uid: 1
         type_of_ca:
           description: >-
-            Type of CA.
+            Type of connectivity association(CA).
           type: string
           x-field-uid: 2
           x-enum:
@@ -185,28 +191,33 @@ components:
               x-field-uid: 3
         max_ca_count:
           description: >-
-            Maximum CA count.
+            The maximum number of CAs configured on the port. The maximum count supported per port is 256 for Pair-wise CA, each CA having one MACsec device.
           type: integer
           format: uint32
+          minimum: 1
+          minimum: 256
           default: 256
           x-field-uid: 3
         max_dut_tx_sc_per_ca:
           description: >-
-            Maximum DUT Tx SC per CA.
+            The maximum number of DUT transmit SCs that can be supported per CA. The count should be number of Tx SCs supported by the DUT per CA, multiplied by number of DUTs in the CA in case of group CA with multiple DUTs scenario.
           type: integer
           format: uint32
+          minimum: 1
+          minimum: 256
           default: 1
           x-field-uid: 4
         max_device_per_ca:
           description: >-
-            Maximum devices per CA.
+            The maximum number of MACsec devices at test port that can be supported on each CA. This number is calculated automatically based on the values configured for Max CA Count and Max DUT Tx SC Per CA. Number of MACsec devices at test port should be configured accordingly.
           type: integer
           format: uint32
+          minimum: 1
           default: 256
           x-field-uid: 5
         rx_sc_identifying_field:
           description: >-
-            Rx SC identifying_field.
+            The field based on which secure channel(SC) will be identified by the receiving port. Supported fields are:- - 1) source MAC - identify SC based on source MAC field. 2) SCI system ID - identify SC bbased on SCI system ID field. 3) SCI port ID - identify based on SCI port ID field.
           type: string
           default: source_mac
           x-field-uid: 6

@@ -8221,7 +8221,7 @@ message DeviceMacsecEthernetInterface {
 
   // This contains the properties of Secure Entity (SecY).
   // required = true
-  Macsec secy = 2;
+  Macsec secure_entity = 2;
 }
 
 // Configuration of a Secure Entity (SecY).
@@ -8256,14 +8256,33 @@ message MacsecKeyGenerationProtocol {
   optional Choice.Enum choice = 1;
 
   // This contains the properties of Key Agreement Entity (KaY) in MKA supplicant.
-  Mka kay = 2;
+  Mka mka = 2;
 
   // Static key properties properties of SecY. Static key is used in absence MKA.
   MacsecStaticKey static_key = 3;
 }
 
-// A container of data plane properties for a secure entity(SecY).
+// A container of data plane properties.
 message MacsecDataPlane {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      encapsulation = 1;
+      no_encapsulation = 2;
+    }
+  }
+  // Choose encapsulation so that data packets are sent with MACsec encapsulation. Choose
+  // no_encapsulation so that data packets are sent without MACsec encapsulation.
+  // default = Choice.Enum.encapsulation
+  optional Choice.Enum choice = 1;
+
+  // A container of encapsulation properties for a secure entity(SecY).
+  MacsecDataPlaneEncapsulation encapsulation = 2;
+}
+
+// A container of encapsulation properties for a secure entity(SecY).
+message MacsecDataPlaneEncapsulation {
 
   // Tx properties of SecY.
   MacsecDataPlaneTx tx = 1;
@@ -8331,7 +8350,7 @@ message MacsecCryptoEngine {
 message MacsecCryptoEngineEncryptOnly {
 
   // Description missing in models
-  MacsecCryptoEngineEncryptOnlyTxSc secure_channel = 1;
+  repeated MacsecCryptoEngineEncryptOnlyTxSc secure_channels = 1;
 
   // Description missing in models
   MacsecCryptoEngineEncryptOnlyTrafficOptions traffic_options = 2;
@@ -8341,7 +8360,7 @@ message MacsecCryptoEngineEncryptOnly {
 message MacsecCryptoEngineEncryptDecrypt {
 
   // Description missing in models
-  MacsecCryptoEngineEncryptDecryptTxSc secure_channel = 1;
+  repeated MacsecCryptoEngineEncryptDecryptTxSc secure_channels = 1;
 
   // Description missing in models
   MacsecCryptoEngineEncryptDecryptHardwareAcceleration hardware_acceleration = 2;
@@ -8521,8 +8540,8 @@ message Mka {
   // Key server attributes.
   MkaKeyServer key_server = 3;
 
-  // Properties for Tx secure channels.
-  repeated MkaTxSc txscs = 4;
+  // Tx Properties.
+  repeated MkaTx tx = 4;
 }
 
 // A container of basic properties for a KaY.
@@ -8567,28 +8586,37 @@ message MkaBasic {
   // Supported Cipher Suites.
   MkaBasicSupportedCipherSuites supported_cipher_suites = 6;
 
+  // EAPOL Ethernet type.
+  // default = 0x888E
+  optional string eapol_ethernet_type = 7;
+
   // MKA Version.
   // default = 3
-  optional uint32 mka_version = 7;
+  optional uint32 mka_version = 8;
 
   // MKA Hello Time (msec).
   // default = 2000
-  optional uint32 mka_hello_time = 8;
+  optional uint32 mka_hello_time = 9;
 
   // MKA Life Time (sec).
   // default = 6
-  optional uint32 mka_life_time = 9;
+  optional uint32 mka_life_time = 10;
 
   // Send ICV Indicator in MKPDU.
   // default = True
-  optional bool send_icv_indicatior_in_mkpdu = 10;
+  optional bool send_icv_indicatior_in_mkpdu = 11;
 
   // Delay Protect.
   // default = True
-  optional bool delay_protect = 11;
+  optional bool delay_protect = 12;
 
   // Rekey Mode.
-  MkaBasicRekeyMode rekey_mode = 12;
+  MkaBasicRekeyMode rekey_mode = 13;
+
+  // Pre-shared key(PSK) chain start time (in UTC - DD-MM-YYYY HH:MM:SS). The key start
+  // time will be relative to this value.
+  // default = 00-00-0000 00:00:00
+  optional string psk_chain_start_time = 14;
 }
 
 // The container for supported cipher suites.
@@ -8735,6 +8763,13 @@ message MkaKeyServer {
   // Determines the XPN rekey threshold.
   // default = C000000000000000
   optional string rekey_threshold_xpn = 6;
+}
+
+// A container of Tx properties.
+message MkaTx {
+
+  // Tx secure channels.
+  repeated MkaTxSc secure_channels = 1;
 }
 
 // Tx secure channel(SC) properties.

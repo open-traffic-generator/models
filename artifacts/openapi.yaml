@@ -11006,7 +11006,7 @@ components:
       type: object
       required:
       - eth_name
-      - secy
+      - secure_entity
       properties:
         eth_name:
           description: |
@@ -11018,7 +11018,7 @@ components:
           x-constraint:
           - /components/schemas/Device.Ethernet/properties/name
           x-field-uid: 1
-        secy:
+        secure_entity:
           description: |-
             This contains the properties of Secure Entity (SecY).
           $ref: '#/components/schemas/Macsec'
@@ -11066,7 +11066,7 @@ components:
           enum:
           - mka
           - static_key
-        kay:
+        mka:
           description: |-
             This contains the properties of Key Agreement Entity (KaY) in MKA supplicant.
           x-field-uid: 2
@@ -11078,7 +11078,31 @@ components:
           x-field-uid: 3
     Macsec.DataPlane:
       description: |-
-        A container of data plane properties for a secure entity(SecY).
+        A container of data plane properties.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Choose "encapsulation" so that data packets are sent with MACsec encapsulation. Choose "no_encapsulation" so that data packets are sent without MACsec encapsulation.
+          type: string
+          default: encapsulation
+          x-field-uid: 1
+          x-enum:
+            encapsulation:
+              x-field-uid: 1
+            no_encapsulation:
+              x-field-uid: 2
+          enum:
+          - encapsulation
+          - no_encapsulation
+        encapsulation:
+          description: |-
+            A container of encapsulation properties for a secure entity(SecY).
+          $ref: '#/components/schemas/Macsec.DataPlane.Encapsulation'
+          x-field-uid: 2
+    Macsec.DataPlane.Encapsulation:
+      description: |-
+        A container of encapsulation properties for a secure entity(SecY).
       type: object
       properties:
         tx:
@@ -11160,8 +11184,10 @@ components:
         The container for encrypt only engine configuration.
       type: object
       properties:
-        secure_channel:
-          $ref: '#/components/schemas/Macsec.CryptoEngine.EncryptOnly.TxSc'
+        secure_channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Macsec.CryptoEngine.EncryptOnly.TxSc'
           x-field-uid: 1
         traffic_options:
           $ref: '#/components/schemas/Macsec.CryptoEngine.EncryptOnly.TrafficOptions'
@@ -11171,8 +11197,10 @@ components:
         The container for encrypt and decrypt engine configuration.
       type: object
       properties:
-        secure_channel:
-          $ref: '#/components/schemas/Macsec.CryptoEngine.EncryptDecrypt.TxSc'
+        secure_channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Macsec.CryptoEngine.EncryptDecrypt.TxSc'
           x-field-uid: 1
         hardware_acceleration:
           $ref: '#/components/schemas/Macsec.CryptoEngine.EncryptDecrypt.HardwareAcceleration'
@@ -11407,7 +11435,7 @@ components:
       required:
       - name
       - basic
-      - txscs
+      - tx
       properties:
         name:
           x-field-uid: 1
@@ -11426,12 +11454,12 @@ components:
             Key server attributes.
           $ref: '#/components/schemas/Mka.KeyServer'
           x-field-uid: 3
-        txscs:
+        tx:
           description: |-
-            Properties for Tx secure channels.
+            Tx Properties.
           type: array
           items:
-            $ref: '#/components/schemas/Mka.TxSc'
+            $ref: '#/components/schemas/Mka.Tx'
           x-field-uid: 4
     Mka.Basic:
       description: |-
@@ -11499,44 +11527,61 @@ components:
             Supported Cipher Suites.
           x-field-uid: 6
           $ref: '#/components/schemas/Mka.Basic.SupportedCipherSuites'
+        eapol_ethernet_type:
+          description: |-
+            EAPOL Ethernet type.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 4
+          default: '0x888E'
+          x-field-uid: 7
         mka_version:
           description: |-
             MKA Version.
           type: integer
           format: uint32
           default: 3
-          x-field-uid: 7
+          x-field-uid: 8
         mka_hello_time:
           description: |-
             MKA Hello Time (msec).
           type: integer
           format: uint32
           default: 2000
-          x-field-uid: 8
+          x-field-uid: 9
         mka_life_time:
           description: |-
             MKA Life Time (sec).
           type: integer
           format: uint32
           default: 6
-          x-field-uid: 9
+          x-field-uid: 10
         send_icv_indicatior_in_mkpdu:
           description: |-
             Send ICV Indicator in MKPDU.
           type: boolean
           default: true
-          x-field-uid: 10
+          x-field-uid: 11
         delay_protect:
           description: |-
             Delay Protect.
           type: boolean
           default: true
-          x-field-uid: 11
+          x-field-uid: 12
         rekey_mode:
           description: |-
             Rekey Mode.
-          x-field-uid: 12
+          x-field-uid: 13
           $ref: '#/components/schemas/Mka.Basic.RekeyMode'
+        psk_chain_start_time:
+          description: |-
+            Pre-shared key(PSK) chain start time (in UTC - DD-MM-YYYY HH:MM:SS). The key start time will be relative to this value.
+          type: string
+          minLength: 19
+          maxLength: 19
+          default: 00-00-0000 00:00:00
+          x-field-uid: 14
     Mka.Basic.SupportedCipherSuites:
       description: |-
         The container for supported cipher suites.
@@ -11771,6 +11816,20 @@ components:
           maxLength: 8
           default: C000000000000000
           x-field-uid: 6
+    Mka.Tx:
+      description: |-
+        A container of Tx properties.
+      type: object
+      required:
+      - secure_channels
+      properties:
+        secure_channels:
+          description: |-
+            Tx secure channels.
+          type: array
+          items:
+            $ref: '#/components/schemas/Mka.TxSc'
+          x-field-uid: 1
     Mka.TxSc:
       description: |-
         Tx secure channel(SC) properties.

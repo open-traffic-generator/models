@@ -43,14 +43,17 @@ message Config {
   // The flows that will be configured on the traffic generator.
   repeated Flow flows = 6;
 
-  // Description missing in models
-  Event events = 7;
+  // stateful flows currently on RoCEv2 present.
+  repeated StatefulFlow stateful_flows = 7;
 
   // Description missing in models
-  ConfigOptions options = 8;
+  Event events = 8;
+
+  // Description missing in models
+  ConfigOptions options = 9;
 
   // LLDP protocol that will be configured on traffic generator.
-  repeated Lldp lldp = 9;
+  repeated Lldp lldp = 10;
 }
 
 // Global configuration options.
@@ -7878,42 +7881,12 @@ message RoCEv2V4Peer {
   // required = true
   optional uint32 ib_mtu = 3;
 
-  message ConnectionType {
-    enum Enum {
-      unspecified = 0;
-      reliable_connection = 1;
-      reliable_datagram = 2;
-      extended_reliable_connection = 3;
-      unreliable_datagram = 4;
-      unreliable_connection = 5;
-      raw_ipv6_datagram = 6;
-      raw_ethernet_datagram = 7;
-    }
-  }
-  // There are multiple connection types. Valid values are :  Reliable Connection (RC),
-  // Reliable Datagram (RD), Extended Reliable Connection (XRC), Unreliable Datagram (UD),
-  // Unreliable Connection (UC), Raw IPv6 Datagram, Raw Ethertype Datagram.
-  optional ConnectionType.Enum connection_type = 4;
-
-  message TrafficBurstMode {
-    enum Enum {
-      unspecified = 0;
-      Continuous = 1;
-      Fixed = 2;
-    }
-  }
-  // Traffic Burst Mode to applied in RoCEv2 Traffic , Continuous or Fixed.
-  optional TrafficBurstMode.Enum traffic_burst_mode = 5;
-
-  // Burst Count to applied in RoCEv2 Traffic item.
-  optional uint32 traffic_burst_count = 6;
-
   // The name of RoCEv2 Peer
-  optional string name = 7;
+  optional string name = 4;
 
   // This configuration allows you to configure RDMA flow over the same QP number from
   // same source and destination.
-  repeated RoCEv2FlowSettings flow_settings = 8;
+  repeated RoCEv2FlowSettings flow_settings = 5;
 }
 
 // Configuration for RoCEv2 IPv4 peers.
@@ -7935,22 +7908,39 @@ message RoCEv2V4Interface {
 // same source and destination.
 message RoCEv2FlowSettings {
 
+  message ConnectionType {
+    enum Enum {
+      unspecified = 0;
+      reliable_connection = 1;
+      reliable_datagram = 2;
+      extended_reliable_connection = 3;
+      unreliable_datagram = 4;
+      unreliable_connection = 5;
+      raw_ipv6_datagram = 6;
+      raw_ethernet_datagram = 7;
+    }
+  }
+  // There are multiple connection types. Valid values are :  Reliable Connection (RC),
+  // Reliable Datagram (RD), Extended Reliable Connection (XRC), Unreliable Datagram (UD),
+  // Unreliable Connection (UC), Raw IPv6 Datagram, Raw Ethertype Datagram.
+  optional ConnectionType.Enum connection_type = 1;
+
   // Configure the QP range.
   // default = 2
-  optional uint32 source_qp_number = 1;
+  optional uint32 source_qp_number = 2;
 
   // DSCP value for this flow
   // default = 24
-  optional uint32 dscp = 2;
+  optional uint32 dscp = 3;
 
   // This field allows to configure bits of the Traffic Class field in the IPv4 or IPv6
   // header to encode four different code points.
   // default = 1
-  optional uint32 ecn = 3;
+  optional uint32 ecn = 4;
 
   // UDP source port number for this flow.
   // default = 49152
-  optional uint32 udp_source_port = 4;
+  optional uint32 udp_source_port = 5;
 
   message Rocev2Verb {
     enum Enum {
@@ -7966,16 +7956,16 @@ message RoCEv2FlowSettings {
   // RoCEv2 Verb, Available options are: none, write, wrtie_with_immediate, send, send_with_immediate
   // and read: The corresponding flow will not take part in traffic.
   // default = Rocev2Verb.Enum.write
-  optional Rocev2Verb.Enum rocev2_verb = 5;
+  optional Rocev2Verb.Enum rocev2_verb = 6;
 
   // Immediate Data field required for SEND/WRITE with immediate verb.
   // default = 00000000
-  optional string immediate_data = 6;
+  optional string immediate_data = 7;
 
   // The Maximum message size that is allowed to transfer depends on the MTU size and
   // the number of VLANs configured on the interfaces.
   // default = 1
-  optional uint32 message_size = 7;
+  optional uint32 message_size = 8;
 
   message MessageSizeUnit {
     enum Enum {
@@ -7988,7 +7978,53 @@ message RoCEv2FlowSettings {
   }
   // Unit of the transfer message size. Available options are Bytes, KB, MB.
   // default = MessageSizeUnit.Enum.mb
-  optional MessageSizeUnit.Enum message_size_unit = 8;
+  optional MessageSizeUnit.Enum message_size_unit = 9;
+
+  // Description missing in models
+  RoCEv2DCQCN dcqcn_settinga = 10;
+}
+
+// RoCEv2 DCQCN Settings.
+message RoCEv2DCQCN {
+
+  // Alpha G.
+  optional uint64 alpha_g = 1;
+
+  // Initial Alpha.
+  optional uint64 initial_alpha = 2;
+
+  // Alpha Update period in microseconds.
+  optional uint64 alpha_update_period = 3;
+
+  // Rate reduction time period in microseconds.
+  optional uint64 rate_reduction_time_period = 4;
+
+  // initial rate after first CNP in Percentage.
+  optional uint32 initial_rate_after_first_cnp = 5;
+
+  // Minimum Rate Limit in Percentage.
+  optional uint32 minimum_rate_limmit = 6;
+
+  // Maximum rate decrement at time in Percentage.
+  optional uint32 maximum_rate_decrement_at_time = 7;
+
+  // Clamp Target rate.
+  optional bool clamp_target_rate = 8;
+
+  // Rate increment time period in microseconds.
+  optional uint64 rate_increment_time = 9;
+
+  // Rate increment byte counter in uint 64 bytes.
+  optional uint64 rate_increment_byte_counter = 10;
+
+  // Rate increment threshold.
+  optional uint32 rate_increment_threshold = 11;
+
+  // additive increment rate in Percentage.
+  optional uint32 additive_increment_rate = 12;
+
+  // hyper increment rate in Percentage.
+  optional uint32 hyper_increment_rate = 13;
 }
 
 // Configuration for RoCEv2 IPv6 peer settings.
@@ -8008,42 +8044,12 @@ message RoCEv2V6Peer {
   // required = true
   optional uint32 ib_mtu = 3;
 
-  message ConnectionType {
-    enum Enum {
-      unspecified = 0;
-      reliable_connection = 1;
-      reliable_datagram = 2;
-      extended_reliable_connection = 3;
-      unreliable_datagram = 4;
-      unreliable_connection = 5;
-      raw_ipv6_datagram = 6;
-      raw_ethernet_datagram = 7;
-    }
-  }
-  // There are multiple connection types. Valid values are :  Reliable Connection (RC),
-  // Reliable Datagram (RD), Extended Reliable Connection (XRC), Unreliable Datagram (UD),
-  // Unreliable Connection (UC), Raw IPv6 Datagram, Raw Ethertype Datagram.
-  optional ConnectionType.Enum connection_type = 4;
-
-  message TrafficBurstMode {
-    enum Enum {
-      unspecified = 0;
-      Continuous = 1;
-      Fixed = 2;
-    }
-  }
-  // Traffic Burst Mode to applied in RoCEv2 Traffic , Continuous or Fixed.
-  optional TrafficBurstMode.Enum traffic_burst_mode = 5;
-
-  // Burst Count to applied in RoCEv2 Traffic item.
-  optional uint32 traffic_burst_count = 6;
-
   // The name of RoCEv2 Peer
-  optional string name = 7;
+  optional string name = 4;
 
   // This configuration allows you to configure RDMA flow over the same QP number from
   // same source and destination.
-  repeated RoCEv2FlowSettings flow_settings = 8;
+  repeated RoCEv2FlowSettings flow_settings = 5;
 }
 
 // Configuration for RoCEv2 IPv6 peers.
@@ -10750,6 +10756,98 @@ message FlowRxTxRatio {
 // the sum total of Rx packets
 // received across all Rx ports is a multiple of Rx port count and Tx packets.
 message FlowRxTxRatioRxCount {
+}
+
+// A high level data plane traffic flow.
+message StatefulFlow {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      rocev2 = 1;
+    }
+  }
+  // Stateful traffic configuration.
+  optional Choice.Enum choice = 1;
+
+  // RoCEv2 Flow Groups.
+  repeated RoCEv2Flow rocev2_flows = 2;
+}
+
+// RoCEv2 traffic flow configuration.
+message RoCEv2Flow {
+
+  // Description missing in models
+  RoCEv2FlowInfo flow_infos = 1;
+
+  // Description missing in models
+  RoCEv2PerPortSettings per_port_settings = 2;
+}
+
+// RoCEv2 traffic flow configuration.
+message RoCEv2PerPortSettings {
+
+  // Target Line Rate in percentage.
+  optional uint64 target_line_rate = 1;
+
+  // Description missing in models
+  RoCEv2InterBatch inter_batch = 2;
+}
+
+// RoCEv2 Flow Info, per flow details.
+message RoCEv2FlowInfo {
+
+  // Name of the flow group.
+  optional string name = 1;
+
+  // Tx Endpoint. Empty for RoCEv2.
+  optional string tx_endpoints = 2;
+
+  // Rx Endpoint. Empty for RoCEv2.
+  optional string rx_endpoints = 3;
+
+  message Rate {
+    enum Enum {
+      unspecified = 0;
+      line_rate = 1;
+      burst_mode = 2;
+    }
+  }
+  // Two valid choices are line_rate and burst_mode, if line_rate is selected, per_port_settings
+  // will be used to configure.
+  optional Rate.Enum rate = 4;
+
+  message BurstMode {
+    enum Enum {
+      unspecified = 0;
+      Continuous = 1;
+      Fixed = 2;
+    }
+  }
+  // Traffic Burst Mode to applied in RoCEv2 Traffic , Continuous or Fixed.
+  optional BurstMode.Enum burst_mode = 5;
+
+  // Burst Count to applied in RoCEv2 Traffic item.
+  optional uint32 burst_count = 6;
+}
+
+// RoCEv2 inter batch settigns applicable per port
+message RoCEv2InterBatch {
+
+  message InterBatchPeriodUnit {
+    enum Enum {
+      unspecified = 0;
+      nanoseconds = 1;
+      microsendons = 2;
+      milliseconds = 3;
+      seconds = 4;
+    }
+  }
+  // inter batch period units.
+  optional InterBatchPeriodUnit.Enum inter_batch_period_unit = 1;
+
+  // Inter batch Period.
+  optional uint64 inter_batch_period = 2;
 }
 
 // The optional container for event configuration.

@@ -297,6 +297,9 @@ components:
           items:
             $ref: '#/components/schemas/Lldp'
           x-field-uid: 9
+        stateful_flows:
+          $ref: '#/components/schemas/StatefulFlow'
+          x-field-uid: 10
     Config.Options:
       description: |-
         Global configuration options.
@@ -308,6 +311,9 @@ components:
         protocol_options:
           $ref: '#/components/schemas/Protocol.Options'
           x-field-uid: 2
+        per_port_options:
+          $ref: '#/components/schemas/PerPort.Options'
+          x-field-uid: 3
     Port:
       description: |-
         An abstract test port.
@@ -2464,6 +2470,11 @@ components:
             Configuration for OSPFv2 router.
           $ref: '#/components/schemas/Device.Ospfv2Router'
           x-field-uid: 10
+        rocev2:
+          description: |-
+            Configuration for Rocev2 .
+          $ref: '#/components/schemas/Device.Rocev2Peer'
+          x-field-uid: 11
       required:
       - name
     Protocol.Options:
@@ -10981,6 +10992,247 @@ components:
           type: boolean
           default: false
           x-field-uid: 2
+    Device.Rocev2Peer:
+      description: |-
+        Configuration for one or more IPv4 or IPv6 Rocev2 Peers.
+      type: object
+      properties:
+        ipv4_interfaces:
+          description: "This contains an array of references to IPv4 interfaces, \
+            \ each of which will have list of peers to different destinations.   "
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2.V4Interface'
+          x-field-uid: 1
+        ipv6_interfaces:
+          description: |-
+            This contains an array of references to IPv6 interfaces,  each of which will have list of peers to different destinations.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2.V6Interface'
+          x-field-uid: 2
+    Rocev2.V4Interface:
+      description: |-
+        Configuration for Rocev2 IPv4 peers.
+      type: object
+      required:
+      - ipv4_name
+      properties:
+        ipv4_name:
+          description: |
+            The unique name of the IPv4, used as the source IP for this list of Rocev2 peers.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv4/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+          x-field-uid: 1
+        ib_mtu:
+          description: |-
+            InfiniBand protocol Maximum Transmission Unit (MTU) defines several fix size MTU: 256, 512, 1024, 2048 or 4096 bytes. RDMA write message will have payload size same as configured IB MTU. You can configure custom size also.
+          type: integer
+          default: 1024
+          format: uint32
+          minimum: 0
+          maximum: 14000
+          x-field-uid: 2
+        peers:
+          description: |-
+            This contains the list of Rocev2 peers configured on this interface.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2.V4Peer'
+          x-field-uid: 3
+    Rocev2.V4Peer:
+      description: |-
+        Configuration for Rocev2 IPv4 peers.
+      type: object
+      required:
+      - name
+      - destination_ip_address
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-unique: global
+        destination_ip_address:
+          description: |-
+            Specify the IP address of External NIC i.e Destination Point IP Address.
+          type: string
+          format: ipv4
+          x-field-uid: 2
+        qps:
+          type: array
+          description: |-
+            This configuration allows you to configure RDMA flow over the same QP number from same source and destination.
+          items:
+            $ref: '#/components/schemas/Rocev2.QPs'
+          x-field-uid: 3
+    Rocev2.QPs:
+      description: |-
+        This configuration allows you to configure RDMA flow over the same QP number from same source and destination.
+      type: object
+      required:
+      - qp_name
+      properties:
+        qp_name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-unique: global
+        connection_type:
+          $ref: '#/components/schemas/Rocev2.ConnectionType'
+          x-field-uid: 2
+    Rocev2.ConnectionType:
+      description: |-
+        It describes the degree of reliability and to what and how the QP transfers data. There are different types.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: reliable_connection
+          x-enum:
+            reliable_connection:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - reliable_connection
+        reliable_connection:
+          $ref: '#/components/schemas/Rocev2.FlowParameters'
+          x-field-uid: 2
+    Rocev2.FlowParameters:
+      description: |-
+        ****Description here****
+      type: object
+      properties:
+        source_qp_number:
+          description: |-
+            Configure Source QP.
+          type: integer
+          format: uint32
+          default: 2
+          minimum: 2
+          maximum: 33554431
+          x-field-uid: 1
+        dscp:
+          description: |-
+            DSCP value for this flow
+          type: integer
+          format: uint32
+          default: 24
+          minimum: 0
+          maximum: 63
+          x-field-uid: 2
+        ecn:
+          description: |-
+            This field allows to configure bits of the Traffic Class field in the IPv4 or IPv6 header to encode four different code points.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 0
+          maximum: 3
+          x-field-uid: 3
+        udp_source_port:
+          description: |-
+            UDP source port number for this flow.
+          type: integer
+          format: uint32
+          default: 49152
+          minimum: 0
+          maximum: 65535
+          x-field-uid: 4
+        initial_psn:
+          description: |-
+            Initial PSN.
+          type: integer
+          format: uint64
+          default: 0
+          minimum: 0
+          maximum: 33554431
+          x-field-uid: 5
+        virtual_address:
+          description: |-
+            Virutal Address.
+          type: string
+          format: hex
+          default: '0000000000000000'
+          maxLength: 16
+          x-field-uid: 6
+        remote_key:
+          description: |-
+            Remote Key.
+          type: string
+          format: hex
+          default: '00000000'
+          maxLength: 8
+          x-field-uid: 7
+    Rocev2.V6Interface:
+      description: |-
+        Configuration for Rocev2 IPv6 peers.
+      type: object
+      required:
+      - ipv6_name
+      properties:
+        ipv6_name:
+          description: |
+            The unique name of IPv6 used as the source IP for this list of Rocev2 peers.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv6/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv6/properties/name
+          x-field-uid: 1
+        ib_mtu:
+          description: |-
+            InfiniBand protocol Maximum Transmission Unit (MTU) defines several fix size MTU: 256, 512, 1024, 2048 or 4096 bytes. RDMA write message will have payload size same as configured IB MTU. You can configure custom size also.
+          type: integer
+          default: 1024
+          format: uint32
+          minimum: 0
+          maximum: 14000
+          x-field-uid: 2
+        peers:
+          description: |-
+            This contains the list of Rocev2 IPv6 peers configured on this interface.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2.V6Peer'
+          x-field-uid: 3
+    Rocev2.V6Peer:
+      description: |-
+        Configuration for Rocev2 IPv6 peer settings.
+      type: object
+      required:
+      - name
+      - destination_ip_address
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-unique: global
+        destination_ip_address:
+          description: |-
+            Specify the IP address of External NIC i.e Destination Point IP Address.
+          type: string
+          format: ipv6
+          x-field-uid: 2
+        qps:
+          type: array
+          description: |-
+            This configuration allows you to configure RDMA flow over the same QP number from same source and destination.
+          items:
+            $ref: '#/components/schemas/Rocev2.QPs'
+          x-field-uid: 3
     Flow:
       description: |-
         A high level data plane traffic flow.
@@ -14669,6 +14921,547 @@ components:
           minLength: 1
           maxLength: 1014
           x-field-uid: 2
+    StatefulFlow:
+      description: |-
+        A high level data plane traffic flow.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Stateful traffic configuration.
+          type: string
+          x-enum:
+            rocev2:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - rocev2
+        rocev2:
+          description: |-
+            Rocev2 Flow Groups.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2.Flow'
+          x-field-uid: 2
+    Rocev2.Flow:
+      description: |-
+        Rocev2 traffic flow configuration.
+      type: object
+      properties:
+        tx_ports:
+          description: |-
+            ****Must Add proper description here****
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2.TxPorts'
+          x-field-uid: 1
+    Rocev2.TxPorts:
+      description: |-
+        ****Description here****
+      type: object
+      properties:
+        port_name:
+          description: |
+            The name of port for which this settings will be applied to.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          x-field-uid: 1
+        transmit_type:
+          $ref: '#/components/schemas/Rocev2.TransmitType'
+          x-field-uid: 2
+    Rocev2.Flows:
+      description: |-
+        ****Decription here****
+      type: object
+      required:
+      - tx_endpoint
+      - name
+      properties:
+        tx_endpoint:
+          description: |
+            The unique name of an emulated device that will be transmitting.
+
+            x-constraint:
+            - /components/schemas/Rocev2.QPs/properties/qp_name
+          type: string
+          x-constraint:
+          - /components/schemas/Rocev2.QPs/properties/qp_name
+          x-field-uid: 1
+        rx_endpoint:
+          description: |
+            The unique name of an emulated device that will be recieving.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+            - /components/schemas/Rocev2.QPs/properties/qp_name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          - /components/schemas/Rocev2.QPs/properties/qp_name
+          x-field-uid: 2
+        name:
+          x-field-uid: 3
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-unique: global
+        rocev2_verb:
+          $ref: '#/components/schemas/Rocev2.Verb'
+          x-field-uid: 4
+        message_size:
+          description: |-
+            The Maximum message size that is allowed to transfer depends on the MTU size and the number of VLANs configured on the interfaces.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 0
+          maximum: 65535
+          x-field-uid: 5
+        message_size_unit:
+          description: |-
+            Unit of the transfer message size. Available options are Bytes, KB, MB.
+          type: string
+          default: MB
+          x-enum:
+            Byte:
+              x-field-uid: 1
+            KB:
+              x-field-uid: 2
+            MB:
+              x-field-uid: 3
+            GB:
+              x-field-uid: 4
+          x-field-uid: 6
+          enum:
+          - Byte
+          - KB
+          - MB
+          - GB
+    Rocev2.TransmitType:
+      description: |-
+        ****Description here****
+      type: object
+      properties:
+        choice:
+          type: string
+          default: target_line_rate
+          x-enum:
+            target_line_rate:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - target_line_rate
+        target_line_rate:
+          $ref: '#/components/schemas/Rocev2.TargetLineRate'
+          x-field-uid: 2
+    Rocev2.TargetLineRate:
+      description: |-
+        ****Description here****
+      type: object
+      properties:
+        value:
+          description: |-
+            Target Line Rate in percentage.
+          type: integer
+          format: uint64
+          x-field-uid: 1
+        flows:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2.Flows'
+          x-field-uid: 2
+    Rocev2.Verb:
+      description: |-
+        Rocev2 Verb, Available options are: write, wrtie_with_immediate, send, send_with_immediate and read.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: write
+          x-enum:
+            write:
+              x-field-uid: 1
+            write_with_immediate:
+              x-field-uid: 2
+            send:
+              x-field-uid: 3
+            send_with_immediate:
+              x-field-uid: 4
+            read:
+              x-field-uid: 5
+          x-field-uid: 1
+          enum:
+          - write
+          - write_with_immediate
+          - send
+          - send_with_immediate
+          - read
+        write_with_immediate:
+          $ref: '#/components/schemas/Rocev2.ImmediateData'
+          x-field-uid: 2
+        send_with_immediate:
+          $ref: '#/components/schemas/Rocev2.ImmediateData'
+          x-field-uid: 3
+    Rocev2.ImmediateData:
+      description: |-
+        Immediate Data field required for SEND/WRITE with immediate verb.
+      type: object
+      properties:
+        immediate_data:
+          description: |-
+            Immediate Data field required for SEND/WRITE with immediate verb.
+          type: string
+          format: hex
+          default: '00000000'
+          x-field-uid: 1
+    PerPort.Options:
+      description: |-
+        ****Add proper description here****
+      type: object
+      properties:
+        port_settings:
+          description: "This contains all the per port settings for each protocol.\
+            \   "
+          type: array
+          items:
+            $ref: '#/components/schemas/Options.PortSettings'
+          x-field-uid: 1
+    Options.PortSettings:
+      description: |-
+        ****Add proper descriptio****
+      type: object
+      properties:
+        port_name:
+          description: |
+            The name of port for which this settings will be applied to.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          x-field-uid: 1
+        protocols:
+          type: array
+          items:
+            $ref: '#/components/schemas/Port.Protocols'
+          x-field-uid: 2
+    Port.Protocols:
+      description: |-
+        Supprted protocols.
+      type: object
+      properties:
+        dummy_field:
+          description: |-
+            Dummy
+          type: integer
+          default: 1024
+          format: uint32
+          minimum: 0
+          maximum: 14000
+          x-field-uid: 1
+        choice:
+          description: |-
+            list of protocols that have per port settings
+          type: string
+          default: rocev2
+          x-enum:
+            rocev2:
+              x-field-uid: 1
+          x-field-uid: 2
+          enum:
+          - rocev2
+        rocev2:
+          description: |-
+            Rocev2 Port Settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2.PerPortSettings'
+          x-field-uid: 3
+    Rocev2.PerPortSettings:
+      description: |-
+        A high level data plane traffic flow.
+      type: object
+      properties:
+        cnp:
+          $ref: '#/components/schemas/Rocev2.CNP'
+          x-field-uid: 1
+        ack:
+          $ref: '#/components/schemas/Rocev2.ACK'
+          x-field-uid: 2
+        nack:
+          $ref: '#/components/schemas/Rocev2.NACK'
+          x-field-uid: 3
+        cnp_delay_timer:
+          description: |-
+            Amount of time to wait between the generation of successive CNP packets. Time in microseconds.
+          type: integer
+          format: uint32
+          default: 55
+          minimum: 0
+          maximum: 255
+          x-field-uid: 10
+        enable_retransmission_ack_timeout:
+          description: |-
+            Enable Retransmission on ACK Timeout.
+          type: boolean
+          default: true
+          x-field-uid: 11
+        ack_timeout:
+          description: |-
+            Amount of time to wait before attempting to retransmit on non receipt of ACK. Time in milliseconds.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 0
+          maximum: 5369
+          x-field-uid: 12
+        retransmission_retry_count:
+          description: |-
+            Number of times to retry retransmission before giving up on non receipt of ACK.
+          type: integer
+          format: uint32
+          default: 3
+          minimum: 0
+          maximum: 254
+          x-field-uid: 13
+        dcqcn_settings:
+          $ref: '#/components/schemas/Rocev2.DCQCN'
+          x-field-uid: 14
+    Rocev2.CNP:
+      description: |-
+        CNP parameters.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: ip_dscp
+          x-enum:
+            ip_dscp:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - ip_dscp
+        ip_dscp:
+          description: |-
+            The value that would be carried in CNP packet. Available option is IP DSCP. The given value is carried in IP Header DSCP value of the CNP packet.
+          $ref: '#/components/schemas/Rocev2.PriorityValue'
+          x-field-uid: 2
+        ecn_value:
+          description: |-
+            CNP ECN Value.
+          type: string
+          default: ect_1
+          x-enum:
+            non_ect:
+              x-field-uid: 1
+            ect_1:
+              x-field-uid: 2
+            ect_0:
+              x-field-uid: 3
+            ce:
+              x-field-uid: 4
+          x-field-uid: 3
+          enum:
+          - non_ect
+          - ect_1
+          - ect_0
+          - ce
+    Rocev2.ACK:
+      description: |-
+        ACK parameters.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: ip_dscp
+          x-enum:
+            ip_dscp:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - ip_dscp
+        ip_dscp:
+          description: |-
+            The value that would be carried in ACK packet. Available option is IP DSCP. The given value is carried in IP Header DSCP value of the ACK packet.
+          $ref: '#/components/schemas/Rocev2.PriorityValue'
+          x-field-uid: 2
+        ecn_value:
+          description: |-
+            ACK ECN Value.
+          type: string
+          default: ect_1
+          x-enum:
+            non_ect:
+              x-field-uid: 1
+            ect_1:
+              x-field-uid: 2
+            ect_0:
+              x-field-uid: 3
+            ce:
+              x-field-uid: 4
+          x-field-uid: 3
+          enum:
+          - non_ect
+          - ect_1
+          - ect_0
+          - ce
+    Rocev2.NACK:
+      description: |-
+        NACK parameters.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: ip_dscp
+          x-enum:
+            ip_dscp:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - ip_dscp
+        ip_dscp:
+          description: |-
+            The value that would be carried in NACK packet. Available option is IP DSCP. The given value is carried in IP Header DSCP value of the NACK packet.
+          $ref: '#/components/schemas/Rocev2.PriorityValue'
+          x-field-uid: 2
+        ecn_value:
+          description: |-
+            NACK ECN Value.
+          type: string
+          default: ect_1
+          x-enum:
+            non_ect:
+              x-field-uid: 1
+            ect_1:
+              x-field-uid: 2
+            ect_0:
+              x-field-uid: 3
+            ce:
+              x-field-uid: 4
+          x-field-uid: 3
+          enum:
+          - non_ect
+          - ect_1
+          - ect_0
+          - ce
+    Rocev2.PriorityValue:
+      description: |-
+        Value.
+      type: object
+      properties:
+        value:
+          type: integer
+          format: uint32
+          default: 48
+          minimum: 0
+          maximum: 63
+          x-field-uid: 1
+    Rocev2.DCQCN:
+      description: |-
+        Rocev2 DCQCN Settings.
+      type: object
+      properties:
+        enable_dcqcn:
+          description: |-
+            Enable DCQCN port settigns.
+          type: boolean
+          default: true
+          x-field-uid: 1
+        alpha_g:
+          description: |-
+            Alpha G.
+          type: integer
+          format: uint64
+          x-field-uid: 2
+        initial_alpha:
+          description: |-
+            Initial Alpha.
+          type: integer
+          format: uint64
+          x-field-uid: 3
+        alpha_update_period:
+          description: |-
+            Alpha Update period in microseconds.
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        rate_reduction_time_period:
+          description: |-
+            Rate reduction time period in microseconds.
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        initial_rate_after_first_cnp:
+          description: |-
+            initial rate after first CNP in Percentage.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 100
+          x-field-uid: 6
+        minimum_rate_limmit:
+          description: |-
+            Minimum Rate Limit in Percentage.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 100
+          x-field-uid: 7
+        maximum_rate_decrement_at_time:
+          description: |-
+            Maximum rate decrement at time in Percentage.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 100
+          x-field-uid: 8
+        clamp_target_rate:
+          description: |-
+            Clamp Target rate.
+          type: boolean
+          x-field-uid: 9
+        rate_increment_time:
+          description: |-
+            Rate increment time period in microseconds.
+          type: integer
+          format: uint64
+          x-field-uid: 10
+        rate_increment_byte_counter:
+          description: |-
+            Rate increment byte counter in uint 64 bytes.
+          type: integer
+          format: uint64
+          x-field-uid: 11
+        rate_increment_threshold:
+          description: |-
+            Rate increment threshold.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 31
+          x-field-uid: 12
+        additive_increment_rate:
+          description: |-
+            additive increment rate in Percentage.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 100
+          x-field-uid: 13
+        hyper_increment_rate:
+          description: |-
+            hyper increment rate in Percentage.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 100
+          x-field-uid: 14
     Error:
       description: |-
         Error response generated while serving API request.
@@ -14886,6 +15679,9 @@ components:
         ospfv2:
           $ref: '#/components/schemas/State.Protocol.Ospfv2'
           x-field-uid: 7
+        rocev2:
+          $ref: '#/components/schemas/State.Protocol.Rocev2'
+          x-field-uid: 8
     State.Port.Link:
       description: |-
         Sets the link of configured ports.
@@ -15287,6 +16083,59 @@ components:
             \ 'up', would attempt to bring up the OSPFv2 session(s) with respective\
             \ peer(s) and advertise route(s), if configured. If the desired state\
             \ is 'down', would bring down OSPFv2 session(s) with respective peer(s). "
+          type: string
+          x-field-uid: 2
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+          enum:
+          - up
+          - down
+    State.Protocol.Rocev2:
+      description: |-
+        Sets state of configured Rocev2 peers.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          x-enum:
+            peers:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - peers
+        peers:
+          $ref: '#/components/schemas/State.Protocol.Rocev2.Peers'
+          x-field-uid: 2
+    State.Protocol.Rocev2.Peers:
+      description: |-
+        Sets state of configured Rocev2 peers.
+      required:
+      - state
+      properties:
+        peer_names:
+          description: |
+            The names of Rocev2 peers for which the state has to be applied. An empty or null list will control all Rocev2 peers.
+
+            x-constraint:
+            - /components/schemas/Rocev2.V4Peer/properties/name
+            - /components/schemas/Rocev2.V6Peer/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Rocev2.V4Peer/properties/name
+          - /components/schemas/Rocev2.V6Peer/properties/name
+          x-field-uid: 1
+        state:
+          description: "The desired state of Rocev2 peer. If the desired state is\
+            \ 'up', underlying IP interface(s) would be brought up automatically (if\
+            \ not already up),\n would attempt to bring up the Rocev2 session(s).\n\
+            If the desired state is 'down', Rocev2 session(s) would be brought down. "
           type: string
           x-field-uid: 2
           x-enum:
@@ -15882,6 +16731,10 @@ components:
               x-field-uid: 14
             convergence:
               x-field-uid: 15
+            rocev2_ipv4:
+              x-field-uid: 16
+            rocev2_ipv6:
+              x-field-uid: 17
           enum:
           - port
           - flow
@@ -15898,6 +16751,8 @@ components:
           - dhcpv6_server
           - ospfv2
           - convergence
+          - rocev2_ipv4
+          - rocev2_ipv6
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
           x-field-uid: 2
@@ -15943,6 +16798,15 @@ components:
         convergence:
           $ref: '#/components/schemas/Convergence.Request'
           x-field-uid: 16
+        rocev2_ipv4:
+          $ref: '#/components/schemas/Rocev2IPv4.Metrics.Request'
+          x-field-uid: 17
+        rocev2_ipv6:
+          $ref: '#/components/schemas/Rocev2IPv6.Metrics.Request'
+          x-field-uid: 18
+        rocev2_flow:
+          $ref: '#/components/schemas/Rocev2Flow.Metrics.Request'
+          x-field-uid: 19
     Metrics.Response:
       description: |-
         Response containing chosen traffic generator metrics.
@@ -15983,6 +16847,12 @@ components:
               x-field-uid: 14
             convergence_metrics:
               x-field-uid: 15
+            rocev2_ipv4_per_peer_metrics:
+              x-field-uid: 16
+            rocev2_ipv6_per_peer_metrics:
+              x-field-uid: 17
+            rocev2_flow_per_qp_metrics:
+              x-field-uid: 18
           enum:
           - flow_metrics
           - port_metrics
@@ -15999,6 +16869,9 @@ components:
           - dhcpv6_server
           - ospfv2_metrics
           - convergence_metrics
+          - rocev2_ipv4_per_peer_metrics
+          - rocev2_ipv6_per_peer_metrics
+          - rocev2_flow_per_qp_metrics
         port_metrics:
           type: array
           items:
@@ -16074,6 +16947,21 @@ components:
           items:
             $ref: '#/components/schemas/Convergence.Metric'
           x-field-uid: 16
+        rocev2_ipv4_per_peer_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2IPv4.Metric.PerPeer'
+          x-field-uid: 17
+        rocev2_ipv6_per_peer_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2IPv6.Metric.PerPeer'
+          x-field-uid: 18
+        rocev2_flow_per_qp_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rocev2Flow.Metric.PerPort'
+          x-field-uid: 19
     Port.Metrics.Request:
       description: |-
         The port result request to the traffic generator
@@ -19150,6 +20038,760 @@ components:
           type: number
           format: double
           x-field-uid: 4
+    Rocev2IPv4.Metrics.Request:
+      description: |-
+        The request to retrieve Rocev2 over IPv4 per peer metrics/statistics.
+      type: object
+      properties:
+        choice:
+          type: string
+          description: |-
+            Fetch stats per peer_name or per QP
+          default: per_peer
+          x-enum:
+            per_peer:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - per_peer
+        per_peer:
+          $ref: '#/components/schemas/Rocev2IPv4.ColumnNames'
+          x-field-uid: 2
+    Rocev2IPv4.ColumnNames:
+      description: |-
+        The names of Rocev2 over IPv4 peers to return results for. An empty list will return results for all Rocev2 peers.
+      type: object
+      properties:
+        peer_names:
+          type: array
+          description: |
+            The names of Rocev2 over IPv4 peers to return results for. An empty list will return results for all Rocev2 peers.
+
+            x-constraint:
+            - /components/schemas/Rocev2.V6peer/properties/name
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Rocev2.V6peer/properties/name
+          x-field-uid: 1
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the Rocev2 peer cannot be excluded.
+          type: array
+          items:
+            type: string
+            x-enum:
+              session_state:
+                x-field-uid: 1
+              qp_confugred:
+                x-field-uid: 2
+              qp_up:
+                x-field-uid: 3
+              qp_down:
+                x-field-uid: 4
+              connect_request_tx:
+                x-field-uid: 5
+              connect_request_rx:
+                x-field-uid: 6
+              connect_reply_tx:
+                x-field-uid: 7
+              connect_reply_rx:
+                x-field-uid: 8
+              ready_tx:
+                x-field-uid: 9
+              ready_rx:
+                x-field-uid: 10
+              disconnect_request_tx:
+                x-field-uid: 11
+              disconnect_request_rx:
+                x-field-uid: 12
+              disconnect_reply_tx:
+                x-field-uid: 13
+              disconnect_reply_rx:
+                x-field-uid: 14
+              reject_tx:
+                x-field-uid: 15
+              reject_rx:
+                x-field-uid: 16
+              unknown_msg_rx:
+                x-field-uid: 17
+            enum:
+            - session_state
+            - qp_confugred
+            - qp_up
+            - qp_down
+            - connect_request_tx
+            - connect_request_rx
+            - connect_reply_tx
+            - connect_reply_rx
+            - ready_tx
+            - ready_rx
+            - disconnect_request_tx
+            - disconnect_request_rx
+            - disconnect_reply_tx
+            - disconnect_reply_rx
+            - reject_tx
+            - reject_rx
+            - unknown_msg_rx
+          x-field-uid: 2
+    Rocev2IPv4.Metric.PerPeer:
+      description: |-
+        Rocev2 per peer statistics information.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of a configured Rocev2 peer.
+          type: string
+          x-field-uid: 1
+        session_state:
+          description: |-
+            Session state as up or down. Up refers to an Established state and Down refers to any other state.
+          type: string
+          x-field-uid: 2
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+          enum:
+          - up
+          - down
+        qp_configured:
+          description: |-
+            Number of QPs configured on this port.
+          type: integer
+          format: uint64
+          x-field-uid: 3
+        qp_up:
+          description: |-
+            Number of QPs that are in UP state.
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        qp_down:
+          description: |-
+            Number of QPs that have not come UP.
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        connect_request_tx:
+          description: |-
+            Number of REQ Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 6
+        connect_request_rx:
+          description: |-
+            Number of REQ Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 7
+        connect_reply_tx:
+          description: |-
+            Number of REP Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 9
+        connect_reply_rx:
+          description: |-
+            Number of REP Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 10
+        ready_tx:
+          description: |-
+            Number of RTU Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 11
+        ready_rx:
+          description: |-
+            Number of RTU Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 12
+        disconnect_request_tx:
+          description: |-
+            Number of DREQ Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 13
+        disconnect_request_rx:
+          description: |-
+            Number of DREQ Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 14
+        disconnect_reply_tx:
+          description: |-
+            Number of DREP Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 15
+        disconnect_reply_rx:
+          description: |-
+            Number of DREP Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 16
+        reject_tx:
+          description: |-
+            Number of REJ Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 17
+        unknown_msg_rx:
+          description: |-
+            Number of Unknown Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 18
+    Rocev2IPv6.Metrics.Request:
+      description: |-
+        The request to retrieve Rocev2 over IPv6 per peer metrics/statistics.
+      type: object
+      properties:
+        choice:
+          type: string
+          description: |-
+            Fetch stats per peer_name or per QP
+          default: per_peer
+          x-enum:
+            per_peer:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - per_peer
+        per_peer:
+          $ref: '#/components/schemas/Rocev2IPv6.ColumnNames'
+          x-field-uid: 2
+    Rocev2IPv6.ColumnNames:
+      description: |-
+        The names of Rocev2 over IPv6 peers to return results for. An empty list will return results for all Rocev2 peers.
+      type: object
+      properties:
+        peer_names:
+          description: |
+            The names of Rocev2 over IPv6 peers to return results for. An empty list will return results for all Rocev2 peers.
+
+            x-constraint:
+            - /components/schemas/Rocev2.V6peer/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Rocev2.V6peer/properties/name
+          x-field-uid: 1
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the Rocev2 peer cannot be excluded.
+          type: array
+          items:
+            type: string
+            x-enum:
+              session_state:
+                x-field-uid: 1
+              qp_confugred:
+                x-field-uid: 2
+              qp_up:
+                x-field-uid: 3
+              qp_down:
+                x-field-uid: 4
+              connect_request_tx:
+                x-field-uid: 5
+              connect_request_rx:
+                x-field-uid: 6
+              connect_reply_tx:
+                x-field-uid: 7
+              connect_reply_rx:
+                x-field-uid: 8
+              ready_tx:
+                x-field-uid: 9
+              ready_rx:
+                x-field-uid: 10
+              disconnect_request_tx:
+                x-field-uid: 11
+              disconnect_request_rx:
+                x-field-uid: 12
+              disconnect_reply_tx:
+                x-field-uid: 13
+              disconnect_reply_rx:
+                x-field-uid: 14
+              reject_tx:
+                x-field-uid: 15
+              reject_rx:
+                x-field-uid: 16
+              unknown_msg_rx:
+                x-field-uid: 17
+            enum:
+            - session_state
+            - qp_confugred
+            - qp_up
+            - qp_down
+            - connect_request_tx
+            - connect_request_rx
+            - connect_reply_tx
+            - connect_reply_rx
+            - ready_tx
+            - ready_rx
+            - disconnect_request_tx
+            - disconnect_request_rx
+            - disconnect_reply_tx
+            - disconnect_reply_rx
+            - reject_tx
+            - reject_rx
+            - unknown_msg_rx
+          x-field-uid: 2
+    Rocev2IPv6.Metric.PerPeer:
+      description: |-
+        Rocev2 per peer statistics information.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of a configured Rocev2 peer.
+          type: string
+          x-field-uid: 1
+        session_state:
+          description: |-
+            Session state as up or down. Up refers to an Established state and Down refers to any other state.
+          type: string
+          x-field-uid: 2
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+          enum:
+          - up
+          - down
+        qp_configured:
+          description: |-
+            Number of QPs configured on this port.
+          type: integer
+          format: uint64
+          x-field-uid: 3
+        qp_up:
+          description: |-
+            Number of QPs that are in UP state.
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        qp_down:
+          description: |-
+            Number of QPs that have not come UP.
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        connect_request_tx:
+          description: |-
+            Number of REQ Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 6
+        connect_request_rx:
+          description: |-
+            Number of REQ Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 7
+        connect_reply_tx:
+          description: |-
+            Number of REP Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 9
+        connect_reply_rx:
+          description: |-
+            Number of REP Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 10
+        ready_tx:
+          description: |-
+            Number of RTU Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 11
+        ready_rx:
+          description: |-
+            Number of RTU Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 12
+        disconnect_request_tx:
+          description: |-
+            Number of DREQ Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 13
+        disconnect_request_rx:
+          description: |-
+            Number of DREQ Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 14
+        disconnect_reply_tx:
+          description: |-
+            Number of DREP Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 15
+        disconnect_reply_rx:
+          description: |-
+            Number of DREP Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 16
+        reject_tx:
+          description: |-
+            Number of REJ Message Transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 17
+        unknown_msg_rx:
+          description: |-
+            Number of Unknown Message Received.
+          type: integer
+          format: uint64
+          x-field-uid: 18
+    Rocev2Flow.Metrics.Request:
+      description: |-
+        The request to retrieve Rocev2 FLow statistics.
+      type: object
+      properties:
+        choice:
+          type: string
+          description: |-
+            Fetch stats per peer_name or per QP
+          default: per_port
+          x-enum:
+            per_port:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - per_port
+        per_port:
+          $ref: '#/components/schemas/Rocev2Flow.ColumnNames'
+          x-field-uid: 2
+    Rocev2Flow.ColumnNames:
+      description: |-
+        The names of Rocev2 flows. An empty list will return results for all Rocev2 flows.
+      type: object
+      properties:
+        qp_names:
+          description: |-
+            The names of Rocev2 FLow to return results for. An empty list will return results for all Rocev2 FLow.
+          type: array
+          items:
+            type: string
+          x-field-uid: 1
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the Flow cannot be excluded.
+          type: array
+          items:
+            type: string
+            x-enum:
+              flow_name:
+                x-field-uid: 1
+              traffic_item:
+                x-field-uid: 2
+              port_tx:
+                x-field-uid: 3
+              port_rx:
+                x-field-uid: 4
+              src_qp:
+                x-field-uid: 5
+              dest_qp:
+                x-field-uid: 6
+              src_ipv4:
+                x-field-uid: 7
+              dest_ipv4:
+                x-field-uid: 8
+              data_frames_tx:
+                x-field-uid: 9
+              data_frame_rx:
+                x-field-uid: 10
+              frame_delta:
+                x-field-uid: 11
+              data_frames_retransmitted:
+                x-field-uid: 12
+              frame_sequence_error:
+                x-field-uid: 13
+              tx_bytes:
+                x-field-uid: 14
+              rx_bytes:
+                x-field-uid: 15
+              data_tx_rate:
+                x-field-uid: 16
+              data_rx_rate:
+                x-field-uid: 17
+              message_tx:
+                x-field-uid: 18
+              message_complete_rx:
+                x-field-uid: 19
+              message_fail:
+                x-field-uid: 20
+              flow_completion_time:
+                x-field-uid: 21
+              avg_latesncy:
+                x-field-uid: 22
+              min_latency:
+                x-field-uid: 23
+              max_latency:
+                x-field-uid: 24
+              ecn_ce_rx:
+                x-field-uid: 25
+              cnp_tx:
+                x-field-uid: 26
+              cnp_rx:
+                x-field-uid: 27
+              ack_tx:
+                x-field-uid: 28
+              ack_rx:
+                x-field-uid: 29
+              nak_tx:
+                x-field-uid: 30
+              nak_rx:
+                x-field-uid: 31
+              first_timestamp:
+                x-field-uid: 32
+              last_timestamp:
+                x-field-uid: 33
+            enum:
+            - flow_name
+            - traffic_item
+            - port_tx
+            - port_rx
+            - src_qp
+            - dest_qp
+            - src_ipv4
+            - dest_ipv4
+            - data_frames_tx
+            - data_frame_rx
+            - frame_delta
+            - data_frames_retransmitted
+            - frame_sequence_error
+            - tx_bytes
+            - rx_bytes
+            - data_tx_rate
+            - data_rx_rate
+            - message_tx
+            - message_complete_rx
+            - message_fail
+            - flow_completion_time
+            - avg_latesncy
+            - min_latency
+            - max_latency
+            - ecn_ce_rx
+            - cnp_tx
+            - cnp_rx
+            - ack_tx
+            - ack_rx
+            - nak_tx
+            - nak_rx
+            - first_timestamp
+            - last_timestamp
+          x-field-uid: 2
+    Rocev2Flow.Metric.PerPort:
+      description: |-
+        Rocev2 Flow statistics information.
+      type: object
+      properties:
+        flow_name:
+          description: |-
+            Flow Name.
+          type: string
+          x-field-uid: 1
+        traffic_item:
+          description: |-
+            Traffic Item Name.
+          type: string
+          x-field-uid: 2
+        port_tx:
+          description: |-
+            The name of the transmit port
+          type: string
+          x-field-uid: 3
+        port_rx:
+          description: |-
+            The name of the receive port
+          type: string
+          x-field-uid: 4
+        src_qp:
+          description: |-
+            Current Source QP number.
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        dest_qp:
+          description: |-
+            Current destination QP number.
+          type: integer
+          format: uint64
+          x-field-uid: 6
+        src_ipv4:
+          description: |-
+            Current source address.
+          type: string
+          format: ipv4
+          x-field-uid: 7
+        dest_ipv4:
+          description: |-
+            Current destination address.
+          type: string
+          format: ipv4
+          x-field-uid: 8
+        data_frame_tx:
+          description: |-
+            Current number of data frames transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 9
+        data_frames_rx:
+          description: |-
+            Current number of data frames received.
+          type: integer
+          format: uint64
+          x-field-uid: 10
+        frame_delta:
+          description: |-
+            Current differnece between tx and rx data frames
+          type: integer
+          format: uint64
+          x-field-uid: 11
+        data_frames_retransmitted:
+          description: |-
+            Current number of data frames re-transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 12
+        frame_sequence_error:
+          description: |-
+            Current number of frame sequence errors.
+          type: integer
+          format: uint64
+          x-field-uid: 13
+        tx_bytes:
+          description: |-
+            Current number of bytes transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 14
+        rx_bytes:
+          description: |-
+            Current number of bytes received.
+          type: integer
+          format: uint64
+          x-field-uid: 15
+        data_tx_rate:
+          description: |-
+            Current rate at which data is transmitted in Gbps.
+          type: integer
+          format: uint64
+          x-field-uid: 16
+        data_rx_rate:
+          description: |-
+            Current rate at which data is received in Gbps.
+          type: integer
+          format: uint64
+          x-field-uid: 17
+        message_tx:
+          description: |-
+            Current number of Message transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 18
+        message_complete_rx:
+          description: |-
+            Current number of Message Complete received.
+          type: integer
+          format: uint64
+          x-field-uid: 19
+        message_fail:
+          description: |-
+            Current number of Message Fail count.
+          type: integer
+          format: uint64
+          x-field-uid: 20
+        flow_completion_time:
+          description: |-
+            Current flow comletion time in ms.
+          type: integer
+          format: uint64
+          x-field-uid: 21
+        avg_latency:
+          description: |-
+            Current average latency measured in ns.
+          type: integer
+          format: uint64
+          x-field-uid: 22
+        min_latency:
+          description: |-
+            Current minimum latency measured in ns.
+          type: integer
+          format: uint64
+          x-field-uid: 23
+        max_latency:
+          description: |-
+            Current maximum latency measured in ns.
+          type: integer
+          format: uint64
+          x-field-uid: 24
+        ecn_ce_rx:
+          description: |-
+            Current number of ECN-CE Recevied.
+          type: integer
+          format: uint64
+          x-field-uid: 25
+        cnp_tx:
+          description: |-
+            Current number of CNP transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 26
+        cnp_rx:
+          description: |-
+            Current number of CNP received.
+          type: integer
+          format: uint64
+          x-field-uid: 27
+        ack_tx:
+          description: |-
+            Current number of ACK transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 28
+        ack_rx:
+          description: |-
+            Current number of ACK received.
+          type: integer
+          format: uint64
+          x-field-uid: 29
+        nak_tx:
+          description: |-
+            Current number of NAK transmitted.
+          type: integer
+          format: uint64
+          x-field-uid: 30
+        nak_rx:
+          description: |-
+            Current number of NAK received.
+          type: integer
+          format: uint64
+          x-field-uid: 31
+        first_timestamp:
+          description: |-
+            First Timestamp.
+          type: string
+          x-field-uid: 32
+        last_timestamp:
+          description: |-
+            Last Timestamp.
+          type: string
+          x-field-uid: 33
     States.Request:
       description: |-
         Request to traffic generator for states of choice

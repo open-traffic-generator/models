@@ -8955,13 +8955,12 @@ message Rocev2V4Peer {
   // required = true
   optional string destination_ip_address = 2;
 
-  // This configuration allows you to configure RDMA flow over the same QP number from
-  // same source and destination.
+  // This allows the user to set QP properties between a pair of source and destination
+  // RoCEv2 devices.
   repeated Rocev2QPs qps = 3;
 }
 
-// This configuration allows you to configure RDMA flow over the same QP number from
-// same source and destination.
+// This allows the user to set QP properties between a particular source and destination.
 message Rocev2QPs {
 
   // Globally unique name of an object. It also serves as the primary key for arrays of
@@ -8988,17 +8987,17 @@ message Rocev2ConnectionType {
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  Rocev2FlowParameters reliable_connection = 2;
+  Rocev2QPParameters reliable_connection = 2;
 }
 
 // ****Description here****
-message Rocev2FlowParameters {
+message Rocev2QPParameters {
 
   // Configure Source QP.
   // default = 2
   optional uint32 source_qp_number = 1;
 
-  // DSCP value for this flow
+  // DSCP value for data transfer verbs for this QP, for eg: RDMA Write.
   // default = 24
   optional uint32 dscp = 2;
 
@@ -9007,19 +9006,20 @@ message Rocev2FlowParameters {
   // default = 1
   optional uint32 ecn = 3;
 
-  // UDP source port number for this flow.
+  // UDP source port number for this QP.
   // default = 49152
   optional uint32 udp_source_port = 4;
 
-  // Initial PSN.
+  // Initial PSN of the data transfer packet generated for this QP.
   // default = 0
   optional uint64 initial_psn = 5;
 
-  // Virutal Address.
+  // Virtual Address where the data transfer from the remote QP will write to/read from.
+  // Applicable for RDMA verbs.
   // default = 0000000000000000
   optional string virtual_address = 6;
 
-  // Remote Key.
+  // Remote Key associated with the virtual address for this QP.
   // default = 00000000
   optional string remote_key = 7;
 }
@@ -9057,8 +9057,8 @@ message Rocev2V6Peer {
   // required = true
   optional string destination_ip_address = 2;
 
-  // This configuration allows you to configure RDMA flow over the same QP number from
-  // same source and destination.
+  // This allows the user to set QP properties between a pair of source and destination
+  // RoCEv2 devices.
   repeated Rocev2QPs qps = 3;
 }
 
@@ -12156,7 +12156,7 @@ message Rocev2Flows {
       GB = 4;
     }
   }
-  // Unit of the transfer message size. Available options are Bytes, KB, MB.
+  // Unit of the transfer message size. Available options are Bytes, KB, MB and GB.
   // default = MessageSizeUnit.Enum.mb
   optional MessageSizeUnit.Enum message_size_unit = 6;
 }
@@ -12270,31 +12270,10 @@ message Rocev2PerPortSettings {
   Rocev2CNP cnp = 1;
 
   // Description missing in models
-  Rocev2ACK ack = 2;
+  Rocev2QPConnectionType connection_type = 2;
 
   // Description missing in models
-  Rocev2NACK nack = 3;
-
-  // Amount of time to wait between the generation of successive CNP packets. Time in
-  // microseconds.
-  // default = 55
-  optional uint32 cnp_delay_timer = 4;
-
-  // Enable Retransmission on ACK Timeout.
-  // default = True
-  optional bool enable_retransmission_ack_timeout = 5;
-
-  // Amount of time to wait before attempting to retransmit on non receipt of ACK. Time
-  // in milliseconds.
-  // default = 1
-  optional uint32 ack_timeout = 6;
-
-  // Number of times to retry retransmission before giving up on non receipt of ACK.
-  // default = 3
-  optional uint32 retransmission_retry_count = 7;
-
-  // Description missing in models
-  Rocev2DCQCN dcqcn_settings = 8;
+  Rocev2DCQCN dcqcn_settings = 3;
 }
 
 // CNP parameters.
@@ -12326,6 +12305,52 @@ message Rocev2CNP {
   // CNP ECN Value.
   // default = EcnValue.Enum.ect_1
   optional EcnValue.Enum ecn_value = 3;
+
+  // Amount of time to wait between the generation of successive CNP packets. Time in
+  // microseconds.
+  // default = 55
+  optional uint32 cnp_delay_timer = 4;
+}
+
+// It describes the degree of reliability and to what and how the QP transfers data.
+// There are different types.
+message Rocev2QPConnectionType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      reliable_connection = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.reliable_connection
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  Rocev2AckAndNack reliable_connection = 2;
+}
+
+// ****Description here****
+message Rocev2AckAndNack {
+
+  // Description missing in models
+  Rocev2ACK ack = 1;
+
+  // Description missing in models
+  Rocev2NACK nack = 2;
+
+  // Enable Retransmission on ACK Timeout.
+  // default = True
+  optional bool enable_retransmission_timeout = 3;
+
+  // Amount of time to wait before attempting to retransmit on non receipt of ACK. Time
+  // in milliseconds.
+  // default = 1
+  optional uint32 retransmission_timeout_value = 4;
+
+  // Number of times to retry retransmission before giving up on non receipt of ACK.
+  // default = 3
+  optional uint32 retransmission_retry_count = 5;
 }
 
 // ACK parameters.

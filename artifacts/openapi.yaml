@@ -12162,13 +12162,13 @@ components:
         qps:
           type: array
           description: |-
-            This configuration allows you to configure RDMA flow over the same QP number from same source and destination.
+            This allows the user to set QP properties between a pair of source and destination RoCEv2 devices.
           items:
             $ref: '#/components/schemas/Rocev2.QPs'
           x-field-uid: 3
     Rocev2.QPs:
       description: |-
-        This configuration allows you to configure RDMA flow over the same QP number from same source and destination.
+        This allows the user to set QP properties between a particular source and destination.
       type: object
       required:
       - qp_name
@@ -12198,9 +12198,9 @@ components:
           enum:
           - reliable_connection
         reliable_connection:
-          $ref: '#/components/schemas/Rocev2.FlowParameters'
+          $ref: '#/components/schemas/Rocev2.QPParameters'
           x-field-uid: 2
-    Rocev2.FlowParameters:
+    Rocev2.QPParameters:
       description: |-
         ****Description here****
       type: object
@@ -12216,7 +12216,7 @@ components:
           x-field-uid: 1
         dscp:
           description: |-
-            DSCP value for this flow
+            DSCP value for data transfer verbs for this QP, for eg: RDMA Write.
           type: integer
           format: uint32
           default: 24
@@ -12234,7 +12234,7 @@ components:
           x-field-uid: 3
         udp_source_port:
           description: |-
-            UDP source port number for this flow.
+            UDP source port number for this QP.
           type: integer
           format: uint32
           default: 49152
@@ -12243,7 +12243,7 @@ components:
           x-field-uid: 4
         initial_psn:
           description: |-
-            Initial PSN.
+            Initial PSN of the data transfer packet generated for this QP.
           type: integer
           format: uint64
           default: 0
@@ -12252,7 +12252,7 @@ components:
           x-field-uid: 5
         virtual_address:
           description: |-
-            Virutal Address.
+            Virtual Address where the data transfer from the remote QP will write to/read from. Applicable for RDMA verbs.
           type: string
           format: hex
           default: '0000000000000000'
@@ -12260,7 +12260,7 @@ components:
           x-field-uid: 6
         remote_key:
           description: |-
-            Remote Key.
+            Remote Key associated with the virtual address for this QP.
           type: string
           format: hex
           default: '00000000'
@@ -12323,7 +12323,7 @@ components:
         qps:
           type: array
           description: |-
-            This configuration allows you to configure RDMA flow over the same QP number from same source and destination.
+            This allows the user to set QP properties between a pair of source and destination RoCEv2 devices.
           items:
             $ref: '#/components/schemas/Rocev2.QPs'
           x-field-uid: 3
@@ -16118,7 +16118,7 @@ components:
           x-field-uid: 5
         message_size_unit:
           description: |-
-            Unit of the transfer message size. Available options are Bytes, KB, MB.
+            Unit of the transfer message size. Available options are Bytes, KB, MB and GB.
           type: string
           default: MB
           x-enum:
@@ -16285,48 +16285,12 @@ components:
         cnp:
           $ref: '#/components/schemas/Rocev2.CNP'
           x-field-uid: 1
-        ack:
-          $ref: '#/components/schemas/Rocev2.ACK'
+        connection_type:
+          $ref: '#/components/schemas/Rocev2.QPConnectionType'
           x-field-uid: 2
-        nack:
-          $ref: '#/components/schemas/Rocev2.NACK'
-          x-field-uid: 3
-        cnp_delay_timer:
-          description: |-
-            Amount of time to wait between the generation of successive CNP packets. Time in microseconds.
-          type: integer
-          format: uint32
-          default: 55
-          minimum: 0
-          maximum: 255
-          x-field-uid: 4
-        enable_retransmission_ack_timeout:
-          description: |-
-            Enable Retransmission on ACK Timeout.
-          type: boolean
-          default: true
-          x-field-uid: 5
-        ack_timeout:
-          description: |-
-            Amount of time to wait before attempting to retransmit on non receipt of ACK. Time in milliseconds.
-          type: integer
-          format: uint32
-          default: 1
-          minimum: 0
-          maximum: 5369
-          x-field-uid: 6
-        retransmission_retry_count:
-          description: |-
-            Number of times to retry retransmission before giving up on non receipt of ACK.
-          type: integer
-          format: uint32
-          default: 3
-          minimum: 0
-          maximum: 254
-          x-field-uid: 7
         dcqcn_settings:
           $ref: '#/components/schemas/Rocev2.DCQCN'
-          x-field-uid: 8
+          x-field-uid: 3
     Rocev2.CNP:
       description: |-
         CNP parameters.
@@ -16366,6 +16330,67 @@ components:
           - ect_1
           - ect_0
           - ce
+        cnp_delay_timer:
+          description: |-
+            Amount of time to wait between the generation of successive CNP packets. Time in microseconds.
+          type: integer
+          format: uint32
+          default: 55
+          minimum: 0
+          maximum: 255
+          x-field-uid: 4
+    Rocev2.QPConnectionType:
+      description: |-
+        It describes the degree of reliability and to what and how the QP transfers data. There are different types.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: reliable_connection
+          x-enum:
+            reliable_connection:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - reliable_connection
+        reliable_connection:
+          $ref: '#/components/schemas/Rocev2.AckAndNack'
+          x-field-uid: 2
+    Rocev2.AckAndNack:
+      description: |-
+        ****Description here****
+      type: object
+      properties:
+        ack:
+          $ref: '#/components/schemas/Rocev2.ACK'
+          x-field-uid: 1
+        nack:
+          $ref: '#/components/schemas/Rocev2.NACK'
+          x-field-uid: 2
+        enable_retransmission_timeout:
+          description: |-
+            Enable Retransmission on ACK Timeout.
+          type: boolean
+          default: true
+          x-field-uid: 3
+        retransmission_timeout_value:
+          description: |-
+            Amount of time to wait before attempting to retransmit on non receipt of ACK. Time in milliseconds.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 0
+          maximum: 5369
+          x-field-uid: 4
+        retransmission_retry_count:
+          description: |-
+            Number of times to retry retransmission before giving up on non receipt of ACK.
+          type: integer
+          format: uint32
+          default: 3
+          minimum: 0
+          maximum: 254
+          x-field-uid: 5
     Rocev2.ACK:
       description: |-
         ACK parameters.

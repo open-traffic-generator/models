@@ -52,9 +52,13 @@ message Config {
   // LLDP protocol that will be configured on traffic generator.
   repeated Lldp lldp = 9;
 
-  // The list of structures containing Egress offset and it's length to be placed in the
-  // packet.
-  repeated EgressOnlyTacking egress_only_tracking = 10;
+  // Container for information on tracking desired based on certain offset and length
+  // of bits on ports
+  // for received packets on specified receive ports.
+  // It enables the user to retrieve information based on number of unique packets
+  // received for each unique value in the bits being tracked from the beginning of the
+  // test .
+  repeated EgressOnlyTracking egress_only_tracking = 10;
 }
 
 // Global configuration options.
@@ -11921,11 +11925,14 @@ message LldpOrgInfoType {
   optional string info = 2;
 }
 
-// The list of structures containing Egress offset and it's length to be placed in the
-// packet.
-message EgressOnlyTacking {
+// One specific egress tracking specification for a specified port.
+// An application which supports a single or limited number of egress tracking specifications
+// for a single port
+// should return an error if the number of egress tracking specifications for a specific
+// port or in total exceeds its capabilities.
+message EgressOnlyTracking {
 
-  // Name of the Rx port where egress only tracking enabled.
+  // Name of the received port this egress tracking rule/specification has to be applied.
   // 
   // x-constraint:
   // - /components/schemas/Port/properties/name
@@ -11936,34 +11943,27 @@ message EgressOnlyTacking {
   // One or more metric tags can be used to enable tracking portion of or all bits
   // in a corresponding header field for metrics per each applicable value.
   // These would appear as tagged metrics in corresponding egress_only_tracking metrics.
-  repeated EgressOnlyTackingMetricTag metric_tags = 2;
+  repeated EgressOnlyTrackingMetricTag metric_tags = 2;
 
-  // Offset in bits where the tracking value will be placed in the packet.
-  EgressOnlyTackingFilter filter = 3;
-}
-
-// Metric Tag can be used to enable tracking portion of or all bits
-// in a corresponding header field for metrics per each applicable value.
-// These would appear as tagged metrics in corresponding flow metrics.
-message EgressOnlyTackingMetricTag {
-
-  // Name used to identify the metrics associated with the values applicable
-  // for configured offset and length inside corresponding header field
-  // required = true
-  optional string name = 1;
-
-  // Offset in bits relative to start of corresponding header field
-  // default = 0
-  optional uint32 offset = 2;
-
-  // Number of bits to track for metrics starting from configured offset
-  // of corresponding header field
-  // default = 1
-  optional uint32 length = 3;
+  // Specified a rule which will be used to first filter received packets on this port
+  // 
+  // before applying the egress tracking metric_tags on them.
+  // If the packet does not match the rule, it will not be considered for egress tracking.
+  EgressOnlyTrackingFilter filter = 3;
 }
 
 // Description missing in models
-message EgressOnlyTackingFilter {
+message EgressOnlyTrackingMetricTag {
+
+  // Name of packet field metric tag
+  optional string name = 1;
+
+  // Description missing in models
+  EgressOnlyTrackingMetricTagValue value = 2;
+}
+
+// Description missing in models
+message EgressOnlyTrackingFilter {
 
   message Choice {
     enum Enum {
@@ -15039,7 +15039,7 @@ message EgressOnlyTrackingMetricsRequest {
   // Egress only tracking metrics will be retrieved for these port names.
   // 
   // x-constraint:
-  // - /components/schemas/EgressOnlyTacking/properties/port_name
+  // - /components/schemas/EgressOnlyTracking/properties/port_name
   // 
   repeated string port_names = 1;
 
@@ -15281,16 +15281,6 @@ message EgressOnlyTrackingTaggedMetric {
 
   // The receive rate in Megabits per second.
   optional float rx_rate_mbps = 20;
-}
-
-// Description missing in models
-message EgressOnlyTrackingMetricTag {
-
-  // Name of packet field metric tag
-  optional string name = 1;
-
-  // Description missing in models
-  EgressOnlyTrackingMetricTagValue value = 2;
 }
 
 // A container for metric tag value

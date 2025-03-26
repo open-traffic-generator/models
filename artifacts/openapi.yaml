@@ -298,11 +298,14 @@ components:
             $ref: '#/components/schemas/Lldp'
           x-field-uid: 9
         egress_only_tracking:
-          description: "The list of structures containing Egress offset and it's length\
-            \ to be placed in the packet. "
+          description: "Container for information on tracking desired based on certain\
+            \ offset and length of bits on ports \nfor received packets on specified\
+            \ receive ports. \nIt enables the user to retrieve information based on\
+            \ number of unique packets \nreceived for each unique value in the bits\
+            \ being tracked from the beginning of the test . "
           type: array
           items:
-            $ref: '#/components/schemas/EgressOnlyTacking'
+            $ref: '#/components/schemas/EgressOnlyTracking'
           x-field-uid: 10
     Config.Options:
       description: |-
@@ -15770,16 +15773,19 @@ components:
           minLength: 1
           maxLength: 1014
           x-field-uid: 2
-    EgressOnlyTacking:
-      description: |-
-        The list of structures containing Egress offset and it's length to be placed in the packet.
+    EgressOnlyTracking:
+      description: "One specific egress tracking specification for a specified port.\
+        \ \nAn application which supports a single or limited number of egress tracking\
+        \ specifications for a single port \nshould return an error if the number\
+        \ of egress tracking specifications for a specific port or in total exceeds\
+        \ its capabilities."
       type: object
       required:
       - port_name
       properties:
         port_name:
           description: |
-            Name of the Rx port where egress only tracking enabled.
+            Name of the received port this egress tracking rule/specification has to be applied.
 
             x-constraint:
             - /components/schemas/Port/properties/name
@@ -15794,46 +15800,27 @@ components:
             These would appear as tagged metrics in corresponding egress_only_tracking metrics.
           type: array
           items:
-            $ref: '#/components/schemas/EgressOnlyTacking.MetricTag'
+            $ref: '#/components/schemas/EgressOnlyTracking.MetricTag'
           x-field-uid: 2
         filter:
-          description: |-
-            Offset in bits where the tracking value will be placed in the packet.
-          $ref: '#/components/schemas/EgressOnlyTacking.Filter'
+          description: "Specified a rule which will be used to first filter received\
+            \ packets on this port \nbefore applying the egress tracking metric_tags\
+            \ on them. \nIf the packet does not match the rule, it will not be considered\
+            \ for egress tracking."
+          $ref: '#/components/schemas/EgressOnlyTracking.Filter'
           x-field-uid: 3
-    EgressOnlyTacking.MetricTag:
-      description: |-
-        Metric Tag can be used to enable tracking portion of or all bits
-        in a corresponding header field for metrics per each applicable value.
-        These would appear as tagged metrics in corresponding flow metrics.
+    EgressOnlyTracking.MetricTag:
       type: object
-      required:
-      - name
       properties:
         name:
           description: |-
-            Name used to identify the metrics associated with the values applicable
-            for configured offset and length inside corresponding header field
+            Name of packet field metric tag
           type: string
-          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-field-uid: 1
-        offset:
-          description: |-
-            Offset in bits relative to start of corresponding header field
-          type: integer
-          format: uint32
-          default: 0
+        value:
+          $ref: '#/components/schemas/EgressOnlyTracking.MetricTag.Value'
           x-field-uid: 2
-        length:
-          description: |-
-            Number of bits to track for metrics starting from configured offset
-            of corresponding header field
-          type: integer
-          format: uint32
-          default: 1
-          minimum: 1
-          x-field-uid: 3
-    EgressOnlyTacking.Filter:
+    EgressOnlyTracking.Filter:
       type: object
       properties:
         choice:
@@ -20730,12 +20717,12 @@ components:
             Egress only tracking metrics will be retrieved for these port names.
 
             x-constraint:
-            - /components/schemas/EgressOnlyTacking/properties/port_name
+            - /components/schemas/EgressOnlyTracking/properties/port_name
           type: array
           items:
             type: string
           x-constraint:
-          - /components/schemas/EgressOnlyTacking/properties/port_name
+          - /components/schemas/EgressOnlyTracking/properties/port_name
           x-field-uid: 1
         metric_names:
           description: |-
@@ -21152,17 +21139,6 @@ components:
             The receive rate in Megabits per second.
           type: number
           x-field-uid: 20
-    EgressOnlyTracking.MetricTag:
-      type: object
-      properties:
-        name:
-          description: |-
-            Name of packet field metric tag
-          type: string
-          x-field-uid: 1
-        value:
-          $ref: '#/components/schemas/EgressOnlyTracking.MetricTag.Value'
-          x-field-uid: 2
     EgressOnlyTracking.MetricTag.Value:
       description: |-
         A container for metric tag value

@@ -297,6 +297,14 @@ components:
           items:
             $ref: '#/components/schemas/Lldp'
           x-field-uid: 9
+        tracking_options:
+          description: "Container for specification of desired tracking, based on\
+            \ certain offset and length of bits \nfor received packets on specified\
+            \ receive ports. \nIt enables the user to retrieve information based on\
+            \ number of unique packets \nreceived for each unique value in the bits\
+            \ being tracked from the beginning of the test. "
+          $ref: '#/components/schemas/TrackingOptions'
+          x-field-uid: 10
     Config.Options:
       description: |-
         Global configuration options.
@@ -15785,6 +15793,106 @@ components:
           minLength: 1
           maxLength: 1014
           x-field-uid: 2
+    TrackingOptions:
+      type: object
+      properties:
+        egress_only:
+          description: "One specific egress tracking specification for a specified\
+            \ port. \nAn application which supports a single or limited number of\
+            \ egress tracking specifications for a single port \nshould return an\
+            \ error if the number of egress tracking specifications for a specific\
+            \ port or in total exceeds its capabilities."
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackingOptions.EgressOnly'
+          x-field-uid: 1
+    TrackingOptions.EgressOnly:
+      description: "One specific egress tracking specification for a specified port.\
+        \ \nAn application which supports a single or limited number of egress tracking\
+        \ specifications for a single port \nshould return an error if the number\
+        \ of egress tracking specifications for a specific port or in total exceeds\
+        \ its capabilities."
+      type: object
+      required:
+      - port_name
+      properties:
+        port_name:
+          description: |
+            Name of the received port this egress tracking rule/specification has to be applied.
+
+            x-constraint:
+            - /components/schemas/Port/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Port/properties/name
+          x-field-uid: 1
+        metric_tags:
+          description: |-
+            One or more metric tags can be used to enable tracking portion of or all bits
+            in a corresponding header field for metrics per each applicable value.
+            These would appear as tagged metrics in corresponding egress_only_tracking metrics.
+          type: array
+          items:
+            $ref: '#/components/schemas/EgressOnly.MetricTag'
+          x-field-uid: 2
+        filter:
+          description: "Specified a rule which will be used to first filter received\
+            \ packets on this port \nbefore applying the egress tracking metric_tags\
+            \ on them. \nIf the packet does not match the rule, it will not be considered\
+            \ for egress tracking."
+          type: array
+          items:
+            $ref: '#/components/schemas/EgressOnly.Filter'
+          x-field-uid: 3
+    EgressOnly.MetricTag:
+      description: |-
+        Metric Tag can be used to enable tracking portion of or all bits
+        in a corresponding header field for metrics per each applicable value.
+        These would appear as tagged metrics in corresponding egress_only_tracking metrics.
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          description: |-
+            The Name used to identify the metrics associated with the values applicable
+            for configured offset and length inside corresponding header field.
+          type: string
+          pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
+          x-field-uid: 1
+        offset:
+          description: |-
+            Offset in bits relative to start of the packet.
+          type: integer
+          format: uint32
+          default: 0
+          x-field-uid: 2
+        length:
+          description: |-
+            Number of bits to track for metrics starting from configured offset
+            from start of the packet.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          x-field-uid: 3
+    EgressOnly.Filter:
+      type: object
+      properties:
+        choice:
+          description: |-
+            If a packet does not match the filter it will not be considered for egress tracking. Currently two options are provided: none: All packets will be considered for egress only tracking. auto.macsec: This requires that macsec enabled Ethernet interface should be configured on this port.  This filter will ensure that only packets with Ethernet Type set to MacSec ( 0x88E5) will be considered for egress only tracking  and other packets will be filtered out for the purpose of egress only tracking.
+          type: string
+          x-field-uid: 1
+          default: none
+          x-enum:
+            none:
+              x-field-uid: 1
+            auto.macsec:
+              x-field-uid: 2
+          enum:
+          - none
+          - auto.macsec
     Error:
       description: |-
         Error response generated while serving API request.

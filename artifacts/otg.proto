@@ -12012,6 +12012,112 @@ message FlowsUpdate {
   repeated Flow flows = 2;
 }
 
+// A container for all configuration resources of various types to be appended.
+message ConfigAppend {
+}
+
+// A container for an existing resource to be appended.
+message ConfigAppendResource {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      devices = 1;
+      ethernets = 2;
+      flows = 3;
+      lldp = 4;
+    }
+  }
+  // Description missing in models
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The emulated devices that will be added to existing configuration on the traffic
+  // generator.
+  // The device name must not already be used in existing configuration.
+  repeated Device devices = 2;
+
+  // Ethernet configuration for one or more emulated or simulated network interfaces.
+  // The ethernet name must not already be used in existing configuration.
+  repeated ConfigAppendEthernets ethernets = 3;
+
+  // The flows that will be added to existing configuration on the traffic generator.
+  // The flow name must not already be used in existing configuration.
+  repeated Flow flows = 4;
+
+  // LLDP protocol that will be configured on traffic generator. The lldp name must not
+  // already
+  // be used in existing configuration.
+  repeated Lldp lldp = 5;
+}
+
+// A container for an existing resource to be appended.
+message ConfigAppendEthernets {
+
+  // The unique parent device name under which the ethernets will be added.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device/properties/name
+  // 
+  // required = true
+  optional string parent_device = 1;
+
+  // Ethernet configuration for one or more emulated or simulated network interfaces.
+  repeated DeviceEthernet new_ethernets = 2;
+}
+
+// A container for all configuration resources of various types to be deleted.
+message ConfigDelete {
+}
+
+// A container for an existing resource to be deleted.
+message ConfigDeleteResource {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      devices = 1;
+      ethernets = 2;
+      flows = 3;
+      lldp = 4;
+    }
+  }
+  // Description missing in models
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // List of resources of specified type that will be deleted from existing configuration
+  // on the traffic generator.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device/properties/name
+  // 
+  repeated string devices = 2;
+
+  // List of ethernets that will be deleted from existing configuration on the traffic
+  // generator.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  repeated string ethernets = 3;
+
+  // List of flows that will be deleted from existing configuration on the traffic generator.
+  // 
+  // x-constraint:
+  // - /components/schemas/Flow/properties/name
+  // 
+  repeated string flows = 4;
+
+  // List of LLDP protocols that will be deleted from existing configuration on the traffic
+  // generator.
+  // 
+  // x-constraint:
+  // - /components/schemas/Lldp/properties/name
+  // 
+  repeated string lldp = 5;
+}
+
 // Request for setting operational state of configured resources.
 message ControlState {
 
@@ -29760,6 +29866,22 @@ message UpdateConfigResponse {
 }
 
 
+message AppendConfigRequest {
+  ConfigAppend config_append = 1;
+}
+message AppendConfigResponse {
+  Warning warning = 1;
+}
+
+
+message DeleteConfigRequest {
+  ConfigDelete config_delete = 1;
+}
+message DeleteConfigResponse {
+  Warning warning = 1;
+}
+
+
 message SetControlStateRequest {
   ControlState control_state = 1;
 }
@@ -29822,6 +29944,16 @@ service Openapi {
   // additional information about a state change including any implicit changes that are
   // outside the scope of the state change.
   rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+  // Append new attributes of resources to existing configuration on the traffic generator.
+  // Resource names should not be part of existing configuration of that resource type;
+  // it should be unique for the operation to succeed. The fetched configuration shall
+  // also reflect the new configuration applied successfully.
+  rpc AppendConfig(AppendConfigRequest) returns (AppendConfigResponse);
+  // Delete attributes of resources from existing configuration on the traffic generator.
+  // Resource names should already be part of existing configuration of that resource
+  // type; for the operation to succeed. The fetched configuration shall not reflect the
+  // removed configuration deleted successfully.
+  rpc DeleteConfig(DeleteConfigRequest) returns (DeleteConfigResponse);
   // Sets the operational state of configured resources.
   rpc SetControlState(SetControlStateRequest) returns (SetControlStateResponse);
   // Triggers actions against configured resources.

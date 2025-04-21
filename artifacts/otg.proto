@@ -1727,6 +1727,9 @@ message DeviceIsisRouter {
 
   // Optional Segment Routing (SR).
   IsisSegmentRouting segment_routing = 10;
+
+  // Optional IS-IS Graceful Restart Configuration.
+  IsisGracefulRestart graceful_restart = 11;
 }
 
 // This container properties of an Multi-Instance-capable router (MI-RTR).
@@ -2676,6 +2679,40 @@ message IsisSRAlgorithm {
   // Description missing in models
   // default = 0
   optional uint32 algorithm = 1;
+}
+
+// Contains IS-IS Graceful configuration parameters. https://datatracker.ietf.org/doc/html/rfc5306
+message IsisGracefulRestart {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      normal_mode = 1;
+      starting_mode = 2;
+      graceful_restart_mode = 3;
+      helper_mode = 4;
+    }
+  }
+  // Choice of Graceful Restart mode.
+  // - normal_mode: The emulated IS-IS router sends to the neighbor router (DUT) an IIH
+  // containing a Restart TLV with the RR (Restart Request) bit unset.
+  // - starting_mode: The emulated IS-IS router is in the Starting mode.
+  // It sends to the neighbor router (DUT) an IIH containing a Restart TLV with the
+  // SA (Suppress Adjacency Advertisement) bit set.
+  // - graceful_restart: The emulated IS-IS router is in the unplanned Restarting mode.
+  // It sends to the neighbor router (DUT) an IIH containing a Restart TLV with the
+  // RR (Restart Request) bit set.
+  // - helper_mode: The emulated IS-IS router is acting as the Helper for the DUT that
+  // is restarting.
+  // It acknowledges the Restart TLV sent by the DUT by sending an IIH containing
+  // a Restart TLV with the RA (Restart Acknowledgment) bit set.
+  // default = Choice.Enum.normal_mode
+  optional Choice.Enum choice = 1;
+
+  // This is the estimated duration (in seconds) it will take for the IS-IS session to
+  // be re-established after a start/restart.
+  // default = 30
+  optional uint32 restart_time = 2;
 }
 
 // Configuration for one or more IPv4 or IPv6 BGP peers.
@@ -11787,6 +11824,9 @@ message ActionProtocol {
 
   // Description missing in models
   ActionProtocolBgp bgp = 4;
+
+  // Description missing in models
+  ActionProtocolIsis isis = 5;
 }
 
 // Response for actions associated with protocols on configured resources.
@@ -12156,6 +12196,55 @@ message ActionProtocolBgpGracefulRestartNotification {
 
   // Description missing in models
   DeviceBgpCustomError custom = 9;
+}
+
+// Actions associated with IS-IS on configured resources.
+message ActionProtocolIsis {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      initiate_starting_mode = 1;
+      initiate_to_restarting_mode = 2;
+    }
+  }
+  // Description missing in models
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  ActionProtocolIsisInitiateGracefulStart initiate_starting_mode = 2;
+
+  // Description missing in models
+  ActionProtocolIsisInitiateGracefulRestart initiate_restarting_mode = 3;
+}
+
+// Initiates IS-IS Graceful Start process for the selected IS-IS routers. If no name
+// is specified then Graceful Start will be sent to all configured IS-IS routers. To
+// emulate scenarios where a router sends Graceful Restart TlV this will result in
+// Graceful tart scenario to be triggered as per Reference: https://datatracker.ietf.org/doc/html/rfc5306.
+message ActionProtocolIsisInitiateGracefulStart {
+
+  // The names of device rfc5306 objects to control.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.IsisRouter/properties/name
+  // 
+  repeated string router_names = 1;
+}
+
+// Initiates IS-IS Graceful Restart process for the selected IS-IS routers. If no name
+// is specified then Graceful Restart will be sent to all configured IS-IS routers.
+// To emulate scenarios where a router sends Graceful Start TlV this will result in
+// Graceful Restart scenario to be triggered as perReference: https://datatracker.ietf.org/doc/html/rfc5306.
+message ActionProtocolIsisInitiateGracefulRestart {
+
+  // The names of device rfc5306 objects to control.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.IsisRouter/properties/name
+  // 
+  repeated string router_names = 1;
 }
 
 // Request to traffic generator for metrics of choice.
@@ -13017,6 +13106,18 @@ message IsisMetricsRequest {
       l2_csnp_received = 24;
       l2_lsp_sent = 25;
       l2_lsp_received = 26;
+      l1_rr_sent = 27;
+      l1_rr_received = 28;
+      l1_ra_sent = 29;
+      l1_ra_received = 30;
+      l1_sa_sent = 31;
+      l1_sa_received = 32;
+      l2_rr_sent = 33;
+      l2_rr_received = 34;
+      l2_ra_sent = 35;
+      l2_ra_received = 36;
+      l2_sa_sent = 37;
+      l2_sa_received = 38;
     }
   }
   // The list of column names that the returned result set will contain. If the list is
@@ -13108,6 +13209,39 @@ message IsisMetric {
 
   // Number of Level 2 (L2) Link State Protocol Data Units (LSPs) received.
   optional uint64 l2_lsp_received = 27;
+
+  // Number of Level 1 (L1) Restart Request (RR) sent.
+  optional uint64 l1_rr_sent = 28;
+
+  // Number of Level 1 (L1) Restart Request (RR) received.
+  optional uint64 l1_rr_received = 29;
+
+  // Number of Level 1 (L1) Restart Acknowledgement (RA) sent.
+  optional uint64 l1_ra_sent = 30;
+
+  // Number of Level 1 (L1) Restart Acknowledgement (RA) received.
+  optional uint64 l1_ra_received = 31;
+
+  // Number of Level 1 (L1) Suppress adjacency advertisement (SA) sent.
+  optional uint64 l1_sa_sent = 32;
+
+  // Number of Level 1 (L1) Suppress adjacency advertisement (SA) received.
+  optional uint64 l1_sa_received = 33;
+
+  // Number of Level 2 (L2) Restart Request (RR) received.
+  optional uint64 l2_rr_received = 34;
+
+  // Number of Level 2 (L2) Restart Acknowledgement (RA) sent.
+  optional uint64 l2_ra_sent = 35;
+
+  // Number of Level 2 (L2) Restart Acknowledgement (RA) received.
+  optional uint64 l2_ra_received = 36;
+
+  // Number of Level 2 (L2) Suppress adjacency advertisement (SA) sent.
+  optional uint64 l2_sa_sent = 37;
+
+  // Number of Level 2 (L2) Suppress adjacency advertisement (SA) received.
+  optional uint64 l2_sa_received = 38;
 }
 
 // The request to retrieve per LAG metrics/statistics.

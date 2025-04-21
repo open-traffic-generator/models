@@ -2553,6 +2553,11 @@ components:
             Optional Segment Routing (SR).
           $ref: '#/components/schemas/Isis.SegmentRouting'
           x-field-uid: 10
+        graceful_restart:
+          description: |-
+            Optional IS-IS Graceful Restart Configuration.
+          $ref: '#/components/schemas/Isis.GracefulRestart'
+          x-field-uid: 11
     Device.IsisMultiInstance:
       description: "This container properties of an Multi-Instance-capable router\
         \ (MI-RTR). "
@@ -3865,6 +3870,50 @@ components:
           default: 8000
           minimum: 1
           maximum: 4294967295
+          x-field-uid: 2
+    Isis.GracefulRestart:
+      description: |-
+        Contains IS-IS Graceful configuration parameters. https://datatracker.ietf.org/doc/html/rfc5306
+      type: object
+      properties:
+        choice:
+          description: "Choice of Graceful Restart mode.\n- normal_mode: The emulated\
+            \ IS-IS router sends to the neighbor router (DUT) an IIH containing a\
+            \ Restart TLV with the RR (Restart Request) bit unset.\n- starting_mode:\
+            \ The emulated IS-IS router is in the \"Starting\" mode. \n    It sends\
+            \ to the neighbor router (DUT) an IIH containing a Restart TLV with the\
+            \ SA (Suppress Adjacency Advertisement) bit set.\n- graceful_restart:\
+            \ The emulated IS-IS router is in the unplanned \"Restarting\" mode.\n\
+            \    It sends to the neighbor router (DUT) an IIH containing a Restart\
+            \ TLV with the RR (Restart Request) bit set.\n- helper_mode: The emulated\
+            \ IS-IS router is acting as the \"Helper\" for the DUT that is restarting.\
+            \ \n    It acknowledges the Restart TLV sent by the DUT by sending an\
+            \ IIH containing a Restart TLV with the RA (Restart Acknowledgment) bit\
+            \ set."
+          type: string
+          default: normal_mode
+          x-field-uid: 1
+          x-enum:
+            normal_mode:
+              x-field-uid: 1
+            starting_mode:
+              x-field-uid: 2
+            graceful_restart_mode:
+              x-field-uid: 3
+            helper_mode:
+              x-field-uid: 4
+          enum:
+          - normal_mode
+          - starting_mode
+          - graceful_restart_mode
+          - helper_mode
+        restart_time:
+          description: |-
+            This is the estimated duration (in seconds) it will take for the IS-IS session to be re-established after a start/restart.
+          type: integer
+          format: uint32
+          maximum: 1
+          default: 30
           x-field-uid: 2
     Device.BgpRouter:
       description: |-
@@ -17034,6 +17083,9 @@ components:
         bgp:
           $ref: '#/components/schemas/Action.Protocol.Bgp'
           x-field-uid: 4
+        isis:
+          $ref: '#/components/schemas/Action.Protocol.Isis'
+          x-field-uid: 5
     Action.Response.Protocol:
       description: |-
         Response for actions associated with protocols on configured resources.
@@ -17498,6 +17550,64 @@ components:
         custom:
           $ref: '#/components/schemas/Device.Bgp.CustomError'
           x-field-uid: 9
+    Action.Protocol.Isis:
+      description: |-
+        Actions associated with IS-IS on configured resources.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          x-enum:
+            initiate_starting_mode:
+              x-field-uid: 1
+            initiate_to_restarting_mode:
+              x-field-uid: 2
+          x-field-uid: 1
+          enum:
+          - initiate_starting_mode
+          - initiate_to_restarting_mode
+        initiate_starting_mode:
+          $ref: '#/components/schemas/Action.Protocol.Isis.InitiateGracefulStart'
+          x-field-uid: 2
+        initiate_restarting_mode:
+          $ref: '#/components/schemas/Action.Protocol.Isis.InitiateGracefulRestart'
+          x-field-uid: 3
+    Action.Protocol.Isis.InitiateGracefulStart:
+      description: |-
+        Initiates IS-IS Graceful Start process for the selected IS-IS routers. If no name is specified then Graceful Start will be sent to all configured IS-IS routers. To emulate scenarios where a router sends Graceful Restart TlV this will result in  Graceful tart scenario to be triggered as per Reference: https://datatracker.ietf.org/doc/html/rfc5306.
+      type: object
+      properties:
+        router_names:
+          description: |
+            The names of device rfc5306 objects to control.
+
+            x-constraint:
+            - /components/schemas/Device.IsisRouter/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.IsisRouter/properties/name
+          x-field-uid: 1
+    Action.Protocol.Isis.InitiateGracefulRestart:
+      description: |-
+        Initiates IS-IS Graceful Restart process for the selected IS-IS routers. If no name is specified then Graceful Restart will be sent to all configured IS-IS routers. To emulate scenarios where a router sends Graceful Start TlV this will result in  Graceful Restart scenario to be triggered as perReference: https://datatracker.ietf.org/doc/html/rfc5306.
+      type: object
+      properties:
+        router_names:
+          description: |
+            The names of device rfc5306 objects to control.
+
+            x-constraint:
+            - /components/schemas/Device.IsisRouter/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.IsisRouter/properties/name
+          x-field-uid: 1
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice.
@@ -18952,6 +19062,30 @@ components:
                 x-field-uid: 25
               l2_lsp_received:
                 x-field-uid: 26
+              l1_rr_sent:
+                x-field-uid: 27
+              l1_rr_received:
+                x-field-uid: 28
+              l1_ra_sent:
+                x-field-uid: 29
+              l1_ra_received:
+                x-field-uid: 30
+              l1_sa_sent:
+                x-field-uid: 31
+              l1_sa_received:
+                x-field-uid: 32
+              l2_rr_sent:
+                x-field-uid: 33
+              l2_rr_received:
+                x-field-uid: 34
+              l2_ra_sent:
+                x-field-uid: 35
+              l2_ra_received:
+                x-field-uid: 36
+              l2_sa_sent:
+                x-field-uid: 37
+              l2_sa_received:
+                x-field-uid: 38
             enum:
             - l1_sessions_up
             - l1_session_flap
@@ -18979,6 +19113,18 @@ components:
             - l2_csnp_received
             - l2_lsp_sent
             - l2_lsp_received
+            - l1_rr_sent
+            - l1_rr_received
+            - l1_ra_sent
+            - l1_ra_received
+            - l1_sa_sent
+            - l1_sa_received
+            - l2_rr_sent
+            - l2_rr_received
+            - l2_ra_sent
+            - l2_ra_received
+            - l2_sa_sent
+            - l2_sa_received
           x-field-uid: 2
     Isis.Metric:
       description: |-
@@ -19146,6 +19292,72 @@ components:
           type: integer
           format: uint64
           x-field-uid: 27
+        l1_rr_sent:
+          description: |-
+            Number of Level 1 (L1) Restart Request (RR) sent.
+          type: integer
+          format: uint64
+          x-field-uid: 28
+        l1_rr_received:
+          description: |-
+            Number of Level 1 (L1) Restart Request (RR) received.
+          type: integer
+          format: uint64
+          x-field-uid: 29
+        l1_ra_sent:
+          description: |-
+            Number of Level 1 (L1) Restart Acknowledgement (RA) sent.
+          type: integer
+          format: uint64
+          x-field-uid: 30
+        l1_ra_received:
+          description: |-
+            Number of Level 1 (L1) Restart Acknowledgement (RA) received.
+          type: integer
+          format: uint64
+          x-field-uid: 31
+        l1_sa_sent:
+          description: |-
+            Number of Level 1 (L1) Suppress adjacency advertisement (SA) sent.
+          type: integer
+          format: uint64
+          x-field-uid: 32
+        l1_sa_received:
+          description: |-
+            Number of Level 1 (L1) Suppress adjacency advertisement (SA) received.
+          type: integer
+          format: uint64
+          x-field-uid: 33
+        l2_rr_received:
+          description: |-
+            Number of Level 2 (L2) Restart Request (RR) received.
+          type: integer
+          format: uint64
+          x-field-uid: 34
+        l2_ra_sent:
+          description: |-
+            Number of Level 2 (L2) Restart Acknowledgement (RA) sent.
+          type: integer
+          format: uint64
+          x-field-uid: 35
+        l2_ra_received:
+          description: |-
+            Number of Level 2 (L2) Restart Acknowledgement (RA) received.
+          type: integer
+          format: uint64
+          x-field-uid: 36
+        l2_sa_sent:
+          description: |-
+            Number of Level 2 (L2) Suppress adjacency advertisement (SA) sent.
+          type: integer
+          format: uint64
+          x-field-uid: 37
+        l2_sa_received:
+          description: |-
+            Number of Level 2 (L2) Suppress adjacency advertisement (SA) received.
+          type: integer
+          format: uint64
+          x-field-uid: 38
     Lag.Metrics.Request:
       description: |-
         The request to retrieve per LAG metrics/statistics.

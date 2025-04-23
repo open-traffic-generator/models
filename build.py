@@ -12,7 +12,7 @@ import subprocess
 USE_OPENAPIART_DIR = None
 
 # supported values - branch name or None
-USE_OPENAPIART_BRANCH = "support_array_top_level"
+USE_OPENAPIART_BRANCH = None
 
 OPENAPIART_REPO = "https://github.com/open-traffic-generator/openapiart.git"
 

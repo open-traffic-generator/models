@@ -10,37 +10,22 @@ components:
       description: >-
         Actions associated with IS-IS on configured resources.
       type: object
-      required:
-        - choice
       properties:
-        choice:
-          type: string
-          x-enum:
-            initiate_unplanned_restart:
-              x-field-uid: 1
-            initiate_starting:
-              x-field-uid: 2
-          x-field-uid: 1
-        initiate_unplanned_restart:
+        initiate_restart:
           description: >-
-            Initiates IS-IS Unplanned Graceful Restart process for the selected IS-IS routers.
-            If no name is specified then Graceful Restart will be sent to all configured IS-IS routers.
-            When an emulated IS-IS router is in the unplanned "Restarting" mode,
-            it sends to the neighbor router (DUT) an IIH containing a Restart TLV with the RR (Restart Request) bit set.
-            To emulate scenarios where a router sends Graceful Restart TlV this will result in 
-            Unplanned Graceful Restart scenario to be triggered as per Reference: https://datatracker.ietf.org/doc/html/rfc5306.
-          $ref: "#/components/schemas/Isis.Action.Protocol.Isis.StartParams"
+            Configuration for the initiation of the IS-IS Graceful Restart.
+          $ref: "#/components/schemas/Isis.Action.Protocol.Isis.InitiateRestart"
           x-field-uid: 2
-        initiate_start:
-          description: >-
-            Initiates IS-IS Start Process for the selected IS-IS routers. 
-            It sends to the neighbor router (DUT) an IIH containing a Restart TLV with the SA (Suppress Adjacency Advertisement) bit set.
-          $ref: "#/components/schemas/Isis.Action.Protocol.Isis.StartParams"
-          x-field-uid: 3
 
-    Isis.Action.Protocol.Isis.StartParams:
-      description: >-
-        Configuration for IS-IS Graceful Restart 
+    Isis.Action.Protocol.Isis.InitiateRestart:
+      description: |-
+        Container of the configiuration for the initiation of IS-IS Graceful Restart.
+        3 Timers T1 and T2 are used both by a restarting router and a starting router. Timer T3 is used only by a restarting router.
+        - Timer T1 is maintained per interface and indicates the time after which an unacknowledged (re)start attempt will be repeated. Its value is 3 seconds.
+        - Timer T2 is maintained for each LSP database (LSPDB) for Level 1 and Level 2. Default value is 60 seconds.
+        - Timer T3 is maintained for the entire system fter which the router will declare that it has failed to achieve database synchronization 
+          (by setting the overload bit in its own LSP). Its initial value is 65535 seconds and is set to minimum of the remaining times of received IIHs 
+          containing a Restart TlV with the RA set.
       type: object
       properties:
         router_names:
@@ -52,14 +37,76 @@ components:
           x-constraint:
           - /components/schemas/Device.IsisRouter/properties/name
           x-field-uid: 1
-        restart_time:
+        choice:
+          type: string
+          default: unplanned
+          x-field-uid: 2
+          x-enum:
+            unplanned:
+              x-field-uid: 1
+            subpress_adjacency:
+              x-field-uid: 3
+        unplanned:
+          $ref: "#/components/schemas/Isis.Action.Protocol.Isis.UnplannedRestart"
+          x-field-uid: 3
+        subpress_adjacency:
+          $ref: "#/components/schemas/Isis.Action.Protocol.Isis.SubpressAdjacency"
+          x-field-uid: 5
+
+    Isis.Action.Protocol.Isis.UnplannedRestart:
+      description: >-
+        Initiates IS-IS Unplanned Graceful Restart process for the selected IS-IS routers.
+        If no name is specified then Graceful Restart will be sent to all configured IS-IS routers.
+        When an emulated IS-IS router is in the unplanned "Restarting" mode,
+        it sends to the neighbor router (DUT) an IIH containing a Restart TLV with the RR (Restart Request) bit set.
+      type: object
+      properties:
+        holding_time:
           description: >-
             This is the estimated duration (in seconds) it will take for the
-            IS-IS session to be re-established after a start/restart.
-            This paramter is used in starting or restarting operation.
+            IS-IS session to be re-established after a restart.
+            The hold-timer in the IIH is updated with this time.
           type: integer
           format: uint32
           maximum: 4096
           default: 30
+          minimum: 10
+          x-field-uid: 1
+        restart_after:
+          description: >-
+            Time (in seconds) after which the actually restart will be initiated in IIH with Restart Tlv having RR bit set.
+          type: integer
+          format: uint32
+          maximum: 4096
+          default: 10
+          minimum: 10
+          x-field-uid: 2
+        
+    Isis.Action.Protocol.Isis.SubpressAdjacency:
+      description: >-
+        Initiates IS-IS Suppress adjacency advertisement process for the selected IS-IS routers.
+        If no name is specified then Start will be sent to all configured IS-IS routers.
+        When an emulated IS-IS router is in the unplanned "Restarting" mode,
+        it sends to the neighbor router (DUT) an IIH containing a Restart TLV with the SA (Suppress adjacency advertisement) bit set.
+      type: object
+      properties:
+        holding_time:
+          description: >-
+            This is the estimated duration (in seconds) it will take for
+            the IS-IS session to be re-established after a start by initiating Restart TLV having SA bit set in IIH.
+            The hold-timer in the IIH is updated with this time.
+          type: integer
+          format: uint32
+          maximum: 4096
+          default: 30
+          minimum: 10
+          x-field-uid: 1
+        restart_after:
+          description: >-
+            Time (in seconds) after which the actually Restart TLV will be initiated in IIH with Restart Tlv having SA bit set.
+          type: integer
+          format: uint32
+          maximum: 4096
+          default: 10
           minimum: 10
           x-field-uid: 2

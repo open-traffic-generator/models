@@ -14031,7 +14031,6 @@ message IsisActionProtocolIsisInitiateRestart {
     enum Enum {
       unspecified = 0;
       unplanned = 1;
-      subpress_adjacency = 3;
     }
   }
   // Description missing in models
@@ -14040,45 +14039,25 @@ message IsisActionProtocolIsisInitiateRestart {
 
   // Description missing in models
   IsisActionProtocolIsisUnplannedRestart unplanned = 3;
-
-  // Description missing in models
-  IsisActionProtocolIsisSupressAdjacency supress_adjacency = 5;
 }
 
 // Initiates IS-IS Unplanned Graceful Restart process for the selected IS-IS routers.
 // If no name is specified then Graceful Restart will be sent to all configured IS-IS
 // routers. When an emulated IS-IS router is in the unplanned Restarting mode, it sends
-// to the neighbor router (DUT) an IIH containing a Restart TLV with the RR (Restart
-// Request) bit set.
+// an IIH PDU containing a Restart TLV with the RR (Restart Request) bit set and  waits
+// for RA (Restart Acknowledge) in an IIH PDU from Neigbhor(s).  The time T1 is maintained
+// per interface and indicates the time after which an unacknowledged (re)start attempt
+// will be repeated for 3 times.
 message IsisActionProtocolIsisUnplannedRestart {
 
   // This is the estimated duration (in seconds) it will take for the IS-IS session to
-  // be re-established after a restart. The hold-timer in the IIH is updated with this
-  // time.
+  // be re-established after a restart. The hold-timer in the IIH PDU is updated with
+  // this time.
   // default = 30
   optional uint32 holding_time = 1;
 
-  // Time (in seconds) after which the actually restart will be initiated in IIH with
-  // Restart Tlv having RR bit set.
-  // default = 10
-  optional uint32 restart_after = 2;
-}
-
-// Initiates IS-IS Suppress adjacency advertisement process for the selected IS-IS routers.
-// If no name is specified then Start will be sent to all configured IS-IS routers.
-// When an emulated IS-IS router is in the unplanned Restarting mode, it sends to the
-// neighbor router (DUT) an IIH containing a Restart TLV with the SA (Suppress adjacency
-// advertisement) bit set.
-message IsisActionProtocolIsisSupressAdjacency {
-
-  // This is the estimated duration (in seconds) it will take for the IS-IS session to
-  // be re-established after a start by initiating Restart TLV having SA bit set in IIH.
-  // The hold-timer in the IIH is updated with this time.
-  // default = 30
-  optional uint32 holding_time = 1;
-
-  // Time (in seconds) after which the actually Restart TLV will be initiated in IIH with
-  // Restart TLV having SA bit set.
+  // Once it receives Restarting TLV having RA bit set in a IIH PDU,  Time (in seconds),
+  // after which IIH PDU will be sent having Restart Tlv with RR bit unset.
   // default = 10
   optional uint32 restart_after = 2;
 }
@@ -14998,18 +14977,6 @@ message IsisMetricsRequest {
       l2_csnp_received = 24;
       l2_lsp_sent = 25;
       l2_lsp_received = 26;
-      l1_rr_sent = 27;
-      l1_rr_received = 28;
-      l1_ra_sent = 29;
-      l1_ra_received = 30;
-      l1_sa_sent = 31;
-      l1_sa_received = 32;
-      l2_rr_sent = 33;
-      l2_rr_received = 34;
-      l2_ra_sent = 35;
-      l2_ra_received = 36;
-      l2_sa_sent = 37;
-      l2_sa_received = 38;
     }
   }
   // The list of column names that the returned result set will contain. If the list is
@@ -15101,39 +15068,6 @@ message IsisMetric {
 
   // Number of Level 2 (L2) Link State Protocol Data Units (LSPs) received.
   optional uint64 l2_lsp_received = 27;
-
-  // Number of Level 1 (L1) Restart Request (RR) sent.
-  optional uint64 l1_rr_sent = 28;
-
-  // Number of Level 1 (L1) Restart Request (RR) received.
-  optional uint64 l1_rr_received = 29;
-
-  // Number of Level 1 (L1) Restart Acknowledgement (RA) sent.
-  optional uint64 l1_ra_sent = 30;
-
-  // Number of Level 1 (L1) Restart Acknowledgement (RA) received.
-  optional uint64 l1_ra_received = 31;
-
-  // Number of Level 1 (L1) Suppress adjacency advertisement (SA) sent.
-  optional uint64 l1_sa_sent = 32;
-
-  // Number of Level 1 (L1) Suppress adjacency advertisement (SA) received.
-  optional uint64 l1_sa_received = 33;
-
-  // Number of Level 2 (L2) Restart Request (RR) received.
-  optional uint64 l2_rr_received = 34;
-
-  // Number of Level 2 (L2) Restart Acknowledgement (RA) sent.
-  optional uint64 l2_ra_sent = 35;
-
-  // Number of Level 2 (L2) Restart Acknowledgement (RA) received.
-  optional uint64 l2_ra_received = 36;
-
-  // Number of Level 2 (L2) Suppress adjacency advertisement (SA) sent.
-  optional uint64 l2_sa_sent = 37;
-
-  // Number of Level 2 (L2) Suppress adjacency advertisement (SA) received.
-  optional uint64 l2_sa_received = 38;
 }
 
 // The request to retrieve per LAG metrics/statistics.
@@ -19177,36 +19111,8 @@ message IsisIIHsState {
   // The name of the ISIS Router.
   optional string isis_router_name = 1;
 
-  // IIH information of this router.
-  repeated IsisRouterIIHState local_state = 2;
-
   // One or more Neigbors that are learned by this ISIS router.
   repeated IsisNeighborIIHState neighbors_states = 3;
-}
-
-// A ISIS Router IIH Information.
-message IsisRouterIIHState {
-
-  message LevelType {
-    enum Enum {
-      unspecified = 0;
-      level_1 = 1;
-      level_2 = 2;
-      level_1_2 = 3;
-    }
-  }
-  // This indicates whether this router is participating in Level-1 (L1),  Level-2 (L2)
-  // or both L1 and L2 domains on this interface.
-  optional LevelType.Enum level_type = 1;
-
-  // Hold timer is in the IIH
-  optional uint32 hold_timer = 2;
-
-  // Reference to Restarting status of this Router.
-  IsisIIHLocalRestartStatus local_restarting_status = 3;
-
-  // It refers to IIH packet TLVs container.
-  IsisIIHTlvs tlvs = 4;
 }
 
 // A ISIS Neigbor Information.

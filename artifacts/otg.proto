@@ -2702,13 +2702,13 @@ message IsisSRSrlb {
 // Restart TLV in all transmitted IIHs.
 // - If this router is to be acting as the Helper mode for a Restarting Router.
 // - If this router is to be acting as the Restarting mode then Restart trigger should
-// be initiated from set_control_action for isis under protocol choice.
+// be initiated by set_control_action for isis under protocol choice.
 // In that case, helper_mode can be configured as true or false for the Helper mode
 // as well Restarting mode or only Restaring router respectively.
-// Refrence: https://datatracker.ietf.org/doc/html/rfc8706
+// Reference: https://datatracker.ietf.org/doc/html/rfc8706
 message IsisGracefulRestart {
 
-  // The emulated IS-IS router is acting as the Helper for the DUT that is restarting.
+  // The emulated IS-IS router will act as the Helper for the DUT that is restarting.
   // It acknowledges the Restart TLV sent by the DUT by sending an IIH containing a Restart
   // TLV with the RA (Restart Acknowledgment) bit set.
   // default = True
@@ -14006,8 +14006,8 @@ message ActionProtocolIsis {
   IsisActionProtocolIsisInitiateRestart initiate_restart = 2;
 }
 
-// Container of the configiuration for the initiation of IS-IS Graceful Restart.
-// 3 Timers T1 and T2 are used both by a restarting router and a starting router. Timer
+// Container of the configuration for the initiation of IS-IS Graceful Restart.
+// Timers T1 and T2 are used both by a restarting router and a starting router. Timer
 // T3 is used only by a restarting router.
 // - Timer T1 is maintained per interface and indicates the time after which an unacknowledged
 // (re)start attempt will be repeated. Its value is 3 seconds.
@@ -14042,7 +14042,7 @@ message IsisActionProtocolIsisInitiateRestart {
   IsisActionProtocolIsisUnplannedRestart unplanned = 3;
 
   // Description missing in models
-  IsisActionProtocolIsisSubpressAdjacency subpress_adjacency = 5;
+  IsisActionProtocolIsisSupressAdjacency supress_adjacency = 5;
 }
 
 // Initiates IS-IS Unplanned Graceful Restart process for the selected IS-IS routers.
@@ -14069,7 +14069,7 @@ message IsisActionProtocolIsisUnplannedRestart {
 // When an emulated IS-IS router is in the unplanned Restarting mode, it sends to the
 // neighbor router (DUT) an IIH containing a Restart TLV with the SA (Suppress adjacency
 // advertisement) bit set.
-message IsisActionProtocolIsisSubpressAdjacency {
+message IsisActionProtocolIsisSupressAdjacency {
 
   // This is the estimated duration (in seconds) it will take for the IS-IS session to
   // be re-established after a start by initiating Restart TLV having SA bit set in IIH.
@@ -14078,7 +14078,7 @@ message IsisActionProtocolIsisSubpressAdjacency {
   optional uint32 holding_time = 1;
 
   // Time (in seconds) after which the actually Restart TLV will be initiated in IIH with
-  // Restart Tlv having SA bit set.
+  // Restart TLV having SA bit set.
   // default = 10
   optional uint32 restart_after = 2;
 }
@@ -19178,7 +19178,7 @@ message IsisIIHsState {
   optional string isis_router_name = 1;
 
   // IIH information of this router.
-  repeated IsisRouterIIHState my_state = 2;
+  repeated IsisRouterIIHState local_state = 2;
 
   // One or more Neigbors that are learned by this ISIS router.
   repeated IsisNeighborIIHState neighbors_states = 3;
@@ -19202,8 +19202,8 @@ message IsisRouterIIHState {
   // Hold timer is in the IIH
   optional uint32 hold_timer = 2;
 
-  // Reference to Restarting Information.
-  IsisIIHRestartInfo restarting_info = 3;
+  // Reference to Restarting status of this Router.
+  IsisIIHLocalRestartStatus local_restarting_status = 3;
 
   // It refers to IIH packet TLVs container.
   IsisIIHTlvs tlvs = 4;
@@ -19234,22 +19234,22 @@ message IsisNeighborIIHState {
       level_1_2 = 3;
     }
   }
-  // This indicates whether Neighbor ISIS router is participating in Level-1 (L1),
+  // This indicates whether Neighbor IS-IS router is participating in Level-1 (L1),
   // Level-2 (L2) or both L1 and L2 domains on this interface.
   optional LevelType.Enum level_type = 3;
 
-  // Hold timer is in the IIH.
+  // Hold timer is in the IIH PDU.
   optional uint32 hold_timer = 4;
 
   // Reference to Restarting Information.
-  IsisIIHRestartInfo restarting_info = 5;
+  IsisIIHNeighborRestartStatus neigbhor_restarting_status = 5;
 
-  // It refers to IIH packet TLVs container.
+  // It refers to IIH PDU TLVs container.
   IsisIIHTlvs tlvs = 6;
 }
 
-// This contains the list of TLVs present in a IIH packet.
-message IsisIIHRestartInfo {
+// When this router is Restarting/Starting the Graceful Restart status will be available.
+message IsisIIHLocalRestartStatus {
 
   message State {
     enum Enum {
@@ -19259,21 +19259,62 @@ message IsisIIHRestartInfo {
       restarting = 3;
     }
   }
-  // Current State of this router when the Restarting Tlv is present in IIH. - starting:
+  // Current State of this router when the Restarting Tlv is present in IIH PDU. - starting:
   // Is in Starting state when Restarting Tlv has been sent with SA bit set. - running:
   // Is in Running state when Restarting Tlv is not present or Restarting Tlv has been
   // sent with SA or RR bits unset. - restarting: Is in Restarting state when Restarting
   // Tlv has been sent with RR bits set.
   optional State.Enum state = 3;
 
-  // The time is taken to sync up the LSDB.
-  optional uint32 last_lsdb_syncup_time = 4;
+  // The time (in second) is taken to bring up adjacency after the the Restart
+  optional uint32 last_adjacency_bring_up_time = 4;
 
-  // The time is taken to bring up adjacency.
-  optional uint32 last_adjacency_bring_up_time = 5;
+  // The time (in second) is actually taken to synchronize the LSDBs of all devices of
+  // the same level. By this time, router has received all CSNP(s) and LSP(s) from the
+  // neighbo(s). This value can be maximum of T2 timer value. Level-1 and Level-2 LSDBs
+  // maintain their respective T2 timers.
+  optional uint32 last_lsdb_syncup_time = 5;
+
+  // If the T3 timer expired, that is Gressful Restart has been failed otherwise succeeded.
+  optional bool last_gr_attempt_status = 6;
 }
 
-// This contains the list of TLVs present in a IIH packet.
+// When neighbor router is Restarting/Starting the Graceful Restart status will be available.
+message IsisIIHNeighborRestartStatus {
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      running = 1;
+      starting = 2;
+      restarting = 3;
+    }
+  }
+  // Current State of Neighbor router when the Restarting Tlv is present in IIH PDU. -
+  // starting: Is in Starting state when Restarting Tlv has been received with SA bit
+  // set. - running: Is in Running state when Restarting Tlv is not present or Restarting
+  // Tlv has been received with SA or RR bits unset. - restarting: Is in Restarting state
+  // when Restarting Tlv has been received with RR bits set.
+  optional State.Enum state = 3;
+
+  // The time in second is taken to sync up the LSDB by the Restarting Neighbor. The time
+  // is counted by a Helper router when the Restart TLV with RR bit set in a IIH PDU is
+  // received and till it receives the LSP(s) from the Neighbor Router.
+  optional uint32 last_lsdb_syncup_time = 4;
+
+  // The time (in second) is taken to bring up adjacency by the Restarting Neighbor. The
+  // time is counted by a Helper router when the Restart TLV with RR bit set in a IIH
+  // PDU is received and till it receives the Restart TLV with RR bit unset in a IIH PDU
+  // from the Neighbor Router.
+  optional uint32 last_adjacency_bring_up_time = 5;
+
+  // If the LSP(s) are not received by the Remaining Time, in Restarting TLV with RA bit
+  // set, by this helper router  then the Neigbhor Gressful Restart has been failed otherwise
+  // succeeded.
+  optional bool last_gr_attempt_status = 6;
+}
+
+// This contains the list of TLVs present in a IIH PDU.
 message IsisIIHTlvs {
 
   // Restart Tlv.

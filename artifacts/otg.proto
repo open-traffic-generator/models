@@ -2698,8 +2698,6 @@ message IsisSRSrlb {
 }
 
 // Contains IS-IS Graceful configuration parameters.
-// The emulated IS-IS router that supports Graceful Restart capability MUST include
-// Restart TLV in all transmitted IIHs.
 // - If this router is to be acting as the Restarting mode then Restart trigger should
 // be initiated by set_control_action for isis under protocol choice.
 // Reference: https://datatracker.ietf.org/doc/html/rfc8706
@@ -14003,13 +14001,14 @@ message ActionProtocolIsis {
   IsisActionProtocolIsisInitiateRestart initiate_restart = 2;
 }
 
-// Container of the configuration for the initiation of IS-IS Graceful Restart.
 // Timers T1 and T2 are used both by a restarting router and a starting router. Timer
 // T3 is used only by a restarting router.
 // - Timer T1 is maintained per interface and indicates the time after which an unacknowledged
 // (re)start attempt will be repeated. Its value is 3 seconds.
-// - Timer T2 is maintained for each LSP database (LSPDB) for Level 1 and Level 2. Default
+// - Timer T2 is maintained for each LSP database (LSDB) for Level 1 and Level 2. Default
 // value is 60 seconds.
+// When the timer T2 expires or is canceled, indicating that synchroization of that
+// level is complete and SPF for that level is run.
 // - Timer T3 is maintained for the entire system fter which the router will declare
 // that it has failed to achieve database synchronization
 // (by setting the overload bit in its own LSP). Its initial value is 65535 seconds
@@ -14041,10 +14040,11 @@ message IsisActionProtocolIsisInitiateRestart {
 // Initiates IS-IS Unplanned Graceful Restart process for the selected IS-IS routers.
 // If no name is specified then Graceful Restart will be sent to all configured IS-IS
 // routers. When an emulated IS-IS router is in the unplanned Restarting mode, it sends
-// an IIH PDU containing a Restart TLV with the RR (Restart Request) bit set and  waits
-// for RA (Restart Acknowledge) in an IIH PDU from Neigbhor(s).  The time T1 is maintained
-// per interface and indicates the time after which an unacknowledged (re)start attempt
-// will be repeated.
+// an IIH PDU containing a Restart TLV with the RR (Restart Request) bit set and holding_time
+// updated to as specified by user to indicate the maximum time within which this router
+// or routers will complete the graceful restart.  It waits for RA (Restart Acknowledge)
+// in an IIH PDU from Neigbhor(s).  The timer T1 is maintained per interface and indicates
+// the time after which an unacknowledged (re)start attempt will be repeated.
 message IsisActionProtocolIsisUnplannedRestart {
 
   // This is the estimated duration (in seconds) it will take for the IS-IS session to
@@ -14054,7 +14054,9 @@ message IsisActionProtocolIsisUnplannedRestart {
   optional uint32 holding_time = 1;
 
   // Once it receives Restarting TLV having RA bit set in a IIH PDU,  time (in seconds),
-  // after which IIH PDU, having Restart Tlv with RR bit unset, will be sent.
+  // after which IIH PDU, having Restart Tlv with RR bit unset, will be sent. This should
+  // result in IIH to be Txed indicating restart is Completed,  not started i.e. RR bit
+  // is cleared and hold_timer is reset to normal.
   // default = 10
   optional uint32 restart_after = 2;
 }
@@ -14974,10 +14976,10 @@ message IsisMetricsRequest {
       l2_csnp_received = 24;
       l2_lsp_sent = 25;
       l2_lsp_received = 26;
-      l1_neighbor_gr_initiated = 27;
-      l1_neighbor_gr_succeeded = 28;
-      l2_neighbor_gr_initiated = 29;
-      l2_neighbor_gr_succeeded = 30;
+      gr_initiated = 27;
+      gr_succeeded = 28;
+      neighbor_gr_initiated = 29;
+      neighbor_gr_succeeded = 30;
     }
   }
   // The list of column names that the returned result set will contain. If the list is
@@ -15070,17 +15072,22 @@ message IsisMetric {
   // Number of Level 2 (L2) Link State Protocol Data Units (LSPs) received.
   optional uint64 l2_lsp_received = 27;
 
-  // Number of Level 1 (L1) Graceful Restart initiated by a Neighbor.
-  optional uint64 l1_neighbor_gr_initiated = 28;
+  // Number of Graceful Restarts that were initiated by this router.
+  optional uint64 gr_initiated = 28;
 
-  // Number of Level 1 (L1) Graceful Restart succeeded that were initiated by a Neighbor.
-  optional uint64 l1_neighbor_gr_succeeded = 29;
+  // Number of Graceful Restarts succeeded that were initiated by a this router. This
+  // counter is incremented when Restart TLV having RR bit unset in the sent IIH PDU after
+  // the Graceful Restart was initiated by a router.
+  optional uint64 gr_succeeded = 29;
 
-  // Number of Level 2 (L2) Graceful Restart initiated by a Neighbor.
-  optional uint64 l2_neighbor_gr_initiated = 30;
+  // Number of Graceful Restarts that were initiated by a Neighbor. This counter is incremented
+  // for Restart TLV having RR bit set in the received IIH PDU.
+  optional uint64 neighbor_gr_initiated = 30;
 
-  // Number of Level 2 (L2) Graceful Restart succeeded that were initiated by a Neighbor.
-  optional uint64 l2_neighbor_gr_succeeded = 31;
+  // Number of Graceful Restarts succeeded that were initiated by a Neighbor. This counter
+  // is incremented when Restart TLV having RR bit unset in the received IIH PDU after
+  // the Graceful Restart was initiated by a Neighbor.
+  optional uint64 neighbor_gr_succeeded = 31;
 }
 
 // The request to retrieve per LAG metrics/statistics.
@@ -16997,7 +17004,7 @@ message StatesResponse {
       dhcpv6_leases = 10;
       ospfv2_lsas = 11;
       ospfv3_lsas = 12;
-      isis_iihs = 13;
+      isis_adjacencies = 13;
     }
   }
   // Description missing in models
@@ -17041,7 +17048,7 @@ message StatesResponse {
   repeated Ospfv3LsaState ospfv3_lsas = 13;
 
   // Description missing in models
-  repeated IsisIIHsState isis_iihs = 14;
+  repeated IsisIIHsState isis_adjacencies = 14;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -19127,11 +19134,11 @@ message IsisIIHsState {
   // State of this router.
   repeated IsisLocalIIHState states = 2;
 
-  // One or more Neigbors that are learned by this ISIS router.
-  repeated IsisNeighborIIHState neighbors_states = 3;
+  // One or more Neighbors that are learned by this ISIS router.
+  repeated IsisNeighborIIHState neighbor_states = 3;
 }
 
-// A ISIS Neigbor Information.
+// Information for a local adjacency.
 message IsisLocalIIHState {
 
   message LevelType {
@@ -19146,7 +19153,7 @@ message IsisLocalIIHState {
   // Level-2 (L2) or both L1 and L2 domains on this interface.
   optional LevelType.Enum level_type = 1;
 
-  // Hold timer is in the IIH PDU.
+  // Hold timer being sent in the IIH PDU.
   optional uint32 hold_timer = 2;
 
   // Reference to Restarting Information.
@@ -19156,7 +19163,7 @@ message IsisLocalIIHState {
   IsisIIHTlvs tlvs = 4;
 }
 
-// A ISIS Neigbor Information.
+// A ISIS Neighbor Information.
 message IsisNeighborIIHState {
 
   // System ID of a neighbor in the format, e.g. '640000000001'.
@@ -19230,24 +19237,55 @@ message IsisIIHNeighborRestartStatus {
 
   // This object holds the information of last Graceful Restart status provided the neigbhor
   // router is restarted at least once throught out a test run.
-  IsisIIHNeighborGRLastAttemptStatus last_attempted_status = 2;
+  IsisIIHNeighborGRLastAttemptStatus last_attempt_status = 2;
 }
 
 // This object contains the status of the last attempted Graceful Restart status of
 // this router.
+// - succeeded: Corresponding the 'succeeded' object is populated if the last Graceful
+// Status is successful.
+// - failed: Corresponding the 'failed' object is populated if the last Graceful Status
+// is unsuccessful.
+// - unavailable: This value is set if Graceful Restart status is not available at this
+// moment beause either of Graceful
+// Restart status is not given or Graceful Restart status is in progress.
 message IsisIIHLocalGRLastAttemptStatus {
 
-  // The actual value of T2 timer (in second) is taken to synchronize the L1 LSDB by this
-  // Restarting router.
-  // By this time, router deletes the T1 timers on all the interfaces and the CSNP list
-  // is cleared and all LSPs are collected.
-  optional uint32 l1_lsdb_syncup_time = 1;
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      succeeded = 1;
+      failed = 2;
+      unavailable = 3;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
 
-  // The actual value of T2 timer (in second) is taken to synchronize the L2 LSDB by this
-  // Restarting router.
-  // By this time, router deletes the T1 timers on all the interfaces and the CSNP list
-  // is cleared and all LSPs are collected.
-  optional uint32 l2_lsdb_syncup_time = 2;
+  // Description missing in models
+  IsisIIHLocalGRLastAttemptSucceeded succeeded = 2;
+
+  // Description missing in models
+  IsisIIHLocalGRLastAttemptFailed failed = 3;
+
+  // Description missing in models
+  optional bool unavailable = 4;
+}
+
+// This object contains failure status of Graceful Restart in the last attempted.
+message IsisIIHLocalGRLastAttemptFailed {
+
+  // Failure reason of last Graceful Restart.
+  optional string reason = 1;
+}
+
+// This object contains the result of a successful graceful restart status in the last
+// attempted.
+message IsisIIHLocalGRLastAttemptSucceeded {
+
+  // The time is taken to synchronize the L1 and L2 LSDB by this Restarting router.
+  // By this time, the CSNP list is cleared and all LSPs are collected by the neighbor(s).
+  optional uint32 lsdb_syncup_time = 1;
 
   // The time (in second) is taken to bring up the adjacency by this Restarting router.
   // The time is counted when the Restart TLV with RR bit set in a IIH PDU is sent
@@ -19255,28 +19293,55 @@ message IsisIIHLocalGRLastAttemptStatus {
   optional uint32 adjacency_bring_up_time = 3;
 }
 
-// This object contains the status of the last successful Graceful Restart status of
-// a neighbor router.
+// This object contains the status of the last attempted Graceful Restart status of
+// a ISIS neighbor.
+// - succeeded: Corresponding the 'succeeded' object is populated if the last Graceful
+// Status is successful.
+// - failed: Corresponding the 'failed' object is populated if the last Graceful Status
+// is unsuccessful.
+// - unavailable: This value is set if Graceful Restart status is not available at this
+// moment beause either of Graceful
+// Restart status is not given or Graceful Restart status is in progress.
 message IsisIIHNeighborGRLastAttemptStatus {
 
-  // The minimum time in second is taken to sync up the L1 LSDB by the Restarting Neighbor.
-  // The time is counted by a Helper router when the first Restart TLV with RR bit is
-  // set
-  // and till it receives the first L2 LSP(s) from the Neighbor Router.
-  optional uint32 l1_lsdb_syncup_time = 1;
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      succeeded = 1;
+      failed = 2;
+      unavailable = 3;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
 
-  // The minimum time in second is taken to sync up the l2 LSDB by the Restarting Neighbor.
-  // The time is counted by a Helper router when the first Restart TLV with RR bit is
-  // set
-  // and till it receives the first L2 LSP(s) from the Neighbor Router.
-  optional uint32 l2_lsdb_syncup_time = 2;
+  // Description missing in models
+  IsisIIHNeighborGRLastAttemptSucceeded succeeded = 2;
+
+  // Description missing in models
+  IsisIIHNeighborGRLastAttemptFailed failed = 3;
+
+  // Description missing in models
+  optional bool unavailable = 4;
+}
+
+// This object contains failure status of Graceful Restart in the last attempted.
+message IsisIIHNeighborGRLastAttemptFailed {
+
+  // Failure reason of last Graceful Restart.
+  optional string reason = 1;
+}
+
+// This object contains the result of a successful graceful restart status in the last
+// attempted by a Neighbor.
+message IsisIIHNeighborGRLastAttemptSucceeded {
 
   // The time (in second) is taken to bring up adjacency by the Restarting Neighbor.
   // The time is counted by a Helper router when the Restart TLV with RR bit set in a
   // IIH PDU is received
   // and till it receives the Restart TLV with RR bit unset in a IIH PDU from the Neighbor
   // Router.
-  optional uint32 adjacency_bring_up_time = 3;
+  optional uint32 adjacency_bring_up_time = 1;
 }
 
 // This contains the list of TLVs present in a IIH PDU.

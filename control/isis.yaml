@@ -19,10 +19,10 @@ components:
 
     Isis.Action.Protocol.Isis.InitiateRestart:
       description: |-
-        Container of the configuration for the initiation of IS-IS Graceful Restart.
         Timers T1 and T2 are used both by a restarting router and a starting router. Timer T3 is used only by a restarting router.
         - Timer T1 is maintained per interface and indicates the time after which an unacknowledged (re)start attempt will be repeated. Its value is 3 seconds.
-        - Timer T2 is maintained for each LSP database (LSPDB) for Level 1 and Level 2. Default value is 60 seconds.
+        - Timer T2 is maintained for each LSP database (LSDB) for Level 1 and Level 2. Default value is 60 seconds.
+          When the timer T2 expires or is canceled, indicating that synchroization of that level is complete and SPF for that level is run.
         - Timer T3 is maintained for the entire system fter which the router will declare that it has failed to achieve database synchronization 
           (by setting the overload bit in its own LSP). Its initial value is 65535 seconds and is set to minimum of the remaining times of received IIHs 
           containing a Restart TlV with the RA set.
@@ -53,9 +53,11 @@ components:
         Initiates IS-IS Unplanned Graceful Restart process for the selected IS-IS routers.
         If no name is specified then Graceful Restart will be sent to all configured IS-IS routers.
         When an emulated IS-IS router is in the unplanned "Restarting" mode,
-        it sends an IIH PDU containing a Restart TLV with the RR (Restart Request) bit set and 
-        waits for RA (Restart Acknowledge) in an IIH PDU from Neigbhor(s). 
-        The time T1 is maintained per interface and indicates the time after which an unacknowledged (re)start attempt will be repeated.
+        it sends an IIH PDU containing a Restart TLV with the RR (Restart Request) bit set and
+        holding_time updated to as specified by user to indicate the maximum time within which this router 
+        or routers will complete the graceful restart. 
+        It waits for RA (Restart Acknowledge) in an IIH PDU from Neigbhor(s). 
+        The timer T1 is maintained per interface and indicates the time after which an unacknowledged (re)start attempt will be repeated.
       type: object
       properties:
         holding_time:
@@ -72,6 +74,8 @@ components:
           description: >-
             Once it receives Restarting TLV having RA bit set in a IIH PDU, 
             time (in seconds), after which IIH PDU, having Restart Tlv with RR bit unset, will be sent.
+            This should result in IIH to be Txed indicating restart is Completed, 
+            not started i.e. RR bit is cleared and hold_timer is reset to normal.
           type: integer
           format: uint32
           maximum: 4096

@@ -14006,14 +14006,14 @@ message ActionProtocolIsis {
 // - Timer T1 is maintained per interface and indicates the time after which an unacknowledged
 // (re)start attempt will be repeated. Its value is 3 seconds.
 // - Timer T2 is maintained for each LSP database (LSDB) for Level 1 and Level 2. Default
-// value is 60 seconds.
+// value is 90 seconds.
 // When the timer T2 expires or is canceled, indicating that synchroization of that
 // level is complete and SPF for that level is run.
-// - Timer T3 is maintained for the entire system fter which the router will declare
+// - Timer T3 is maintained for the entire system after which the router will declare
 // that it has failed to achieve database synchronization
 // (by setting the overload bit in its own LSP). Its initial value is 65535 seconds
 // and is set to minimum of the remaining times of received IIHs
-// containing a Restart TlV with the RA set.
+// containing a Restart TLV with the RA set.
 message IsisActionProtocolIsisInitiateRestart {
 
   // The names of device objects to control.
@@ -15076,8 +15076,9 @@ message IsisMetric {
   optional uint64 gr_initiated = 28;
 
   // Number of Graceful Restarts succeeded that were initiated by a this router. This
-  // counter is incremented when Restart TLV having RR bit unset in the sent IIH PDU after
-  // the Graceful Restart was initiated by a router.
+  // counter is incremented if the Graceful Restart completes succesfully before the T3
+  // timer expires. Timer T3 is maintained for the entire system after which  the router
+  // will declare that it has failed to achieve database synchronization.
   optional uint64 gr_succeeded = 29;
 
   // Number of Graceful Restarts that were initiated by a Neighbor. This counter is incremented
@@ -19131,11 +19132,21 @@ message IsisIIHsState {
   // The name of the ISIS Router.
   optional string isis_router_name = 1;
 
-  // State of this router.
-  repeated IsisLocalIIHState states = 2;
+  // Current state of adjacencies.
+  repeated IsisLocalIIHAdjacencyStates adjacency_states = 2;
+}
 
-  // One or more Neighbors that are learned by this ISIS router.
-  repeated IsisNeighborIIHState neighbor_states = 3;
+// Information for a local adjacency.
+message IsisLocalIIHAdjacencyStates {
+
+  // System ID of a neighbor in the format, e.g. '650000000001'.
+  optional string neighbor_system_id = 1;
+
+  // Local adjacency state of this ISIS router.
+  IsisLocalIIHState local_states = 2;
+
+  // A IS-IS neighbor that are learned by this ISIS router.
+  IsisNeighborIIHState neighbor_states = 3;
 }
 
 // Information for a local adjacency.
@@ -19163,11 +19174,8 @@ message IsisLocalIIHState {
   IsisIIHTlvs tlvs = 4;
 }
 
-// A ISIS Neighbor Information.
+// Information for neighbor adjacency State.
 message IsisNeighborIIHState {
-
-  // System ID of a neighbor in the format, e.g. '640000000001'.
-  optional string system_id = 1;
 
   message LevelType {
     enum Enum {
@@ -19179,16 +19187,16 @@ message IsisNeighborIIHState {
   }
   // This indicates whether Neighbor IS-IS router is participating in Level-1 (L1),
   // Level-2 (L2) or both L1 and L2 domains on this interface.
-  optional LevelType.Enum level_type = 2;
+  optional LevelType.Enum level_type = 1;
 
   // Hold timer is in the IIH PDU.
-  optional uint32 hold_timer = 3;
+  optional uint32 hold_timer = 2;
 
   // Reference to Restarting Information.
-  IsisIIHNeighborRestartStatus restarting_status = 4;
+  IsisIIHNeighborRestartStatus restarting_status = 3;
 
   // It refers to IIH PDU TLVs container.
-  IsisIIHTlvs tlvs = 5;
+  IsisIIHTlvs tlvs = 4;
 }
 
 // This contains the Restarting/Starting/Running state of this router.
@@ -19211,7 +19219,7 @@ message IsisIIHLocalRestartStatus {
   optional State.Enum state = 1;
 
   // This object holds the information of last Graceful Restart status provided the router
-  // is restarted at least once throught out a test run.
+  // is restarted at least once throught out a run.
   IsisIIHLocalGRLastAttemptStatus last_attempted_status = 2;
 }
 
@@ -19236,7 +19244,7 @@ message IsisIIHNeighborRestartStatus {
   optional State.Enum state = 1;
 
   // This object holds the information of last Graceful Restart status provided the neigbhor
-  // router is restarted at least once throught out a test run.
+  // router is restarted at least once throught out a run.
   IsisIIHNeighborGRLastAttemptStatus last_attempt_status = 2;
 }
 

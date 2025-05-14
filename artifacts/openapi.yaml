@@ -18527,13 +18527,13 @@ components:
         \ router. Timer T3 is used only by a restarting router.\n- Timer T1 is maintained\
         \ per interface and indicates the time after which an unacknowledged (re)start\
         \ attempt will be repeated. Its value is 3 seconds.\n- Timer T2 is maintained\
-        \ for each LSP database (LSDB) for Level 1 and Level 2. Default value is 60\
+        \ for each LSP database (LSDB) for Level 1 and Level 2. Default value is 90\
         \ seconds.\n  When the timer T2 expires or is canceled, indicating that synchroization\
         \ of that level is complete and SPF for that level is run.\n- Timer T3 is\
-        \ maintained for the entire system fter which the router will declare that\
+        \ maintained for the entire system after which the router will declare that\
         \ it has failed to achieve database synchronization \n  (by setting the overload\
         \ bit in its own LSP). Its initial value is 65535 seconds and is set to minimum\
-        \ of the remaining times of received IIHs \n  containing a Restart TlV with\
+        \ of the remaining times of received IIHs \n  containing a Restart TLV with\
         \ the RA set."
       type: object
       properties:
@@ -18573,7 +18573,7 @@ components:
           format: uint32
           maximum: 4096
           default: 30
-          minimum: 10
+          minimum: 1
           x-field-uid: 1
         restart_after:
           description: |-
@@ -18582,7 +18582,7 @@ components:
           format: uint32
           maximum: 4096
           default: 10
-          minimum: 10
+          minimum: 1
           x-field-uid: 2
     Metrics.Request:
       description: |-
@@ -20306,10 +20306,8 @@ components:
           format: uint64
           x-field-uid: 28
         gr_succeeded:
-          description: "Number of Graceful Restarts succeeded that were initiated\
-            \ by a this router. This counter is incremented when Restart TLV having\
-            \ RR bit unset in the sent IIH PDU after the Graceful Restart was initiated\
-            \ by a router. "
+          description: |-
+            Number of Graceful Restarts succeeded that were initiated by a this router. This counter is incremented if the Graceful Restart completes succesfully before the T3 timer expires. Timer T3 is maintained for the entire system after which  the router will declare that it has failed to achieve database synchronization.
           type: integer
           format: uint64
           x-field-uid: 29
@@ -20321,10 +20319,8 @@ components:
           format: uint64
           x-field-uid: 30
         neighbor_gr_succeeded:
-          description: "Number of Graceful Restarts succeeded that were initiated\
-            \ by a Neighbor. This counter is incremented when Restart TLV having RR\
-            \ bit unset in the received IIH PDU after the Graceful Restart was initiated\
-            \ by a Neighbor. "
+          description: |-
+            Number of Graceful Restarts succeeded that were initiated by a Neighbor. This counter is incremented when Restart TLV having RR bit unset in the received IIH PDU after the Graceful Restart was initiated by a Neighbor.
           type: integer
           format: uint64
           x-field-uid: 31
@@ -26950,19 +26946,31 @@ components:
             The name of the ISIS Router.
           type: string
           x-field-uid: 1
-        states:
-          description: |-
-            State of this router.
+        adjacency_states:
+          description: "Current state of adjacencies. "
           type: array
           items:
-            $ref: '#/components/schemas/IsisLocalIIH.State'
+            $ref: '#/components/schemas/IsisLocalIIH.AdjacencyStates'
+          x-field-uid: 2
+    IsisLocalIIH.AdjacencyStates:
+      description: |-
+        Information for a local adjacency.
+      type: object
+      properties:
+        neighbor_system_id:
+          description: |-
+            System ID of a neighbor in the format, e.g. '650000000001'.
+          type: string
+          x-field-uid: 1
+        local_states:
+          description: |-
+            Local adjacency state of this ISIS router.
+          $ref: '#/components/schemas/IsisLocalIIH.State'
           x-field-uid: 2
         neighbor_states:
           description: |-
-            One or more Neighbors that are learned by this ISIS router.
-          type: array
-          items:
-            $ref: '#/components/schemas/IsisNeighborIIH.State'
+            A IS-IS neighbor that are learned by this ISIS router.
+          $ref: '#/components/schemas/IsisNeighborIIH.State'
           x-field-uid: 3
     IsisLocalIIH.State:
       description: |-
@@ -27003,19 +27011,14 @@ components:
           x-field-uid: 4
     IsisNeighborIIH.State:
       description: |-
-        A ISIS Neighbor Information.
+        Information for neighbor adjacency State.
       type: object
       properties:
-        system_id:
-          description: |-
-            System ID of a neighbor in the format, e.g. '640000000001'.
-          type: string
-          x-field-uid: 1
         level_type:
           description: "This indicates whether Neighbor IS-IS router is participating\
             \ in Level-1 (L1), \nLevel-2 (L2) or both L1 and L2 domains on this interface."
           type: string
-          x-field-uid: 2
+          x-field-uid: 1
           x-enum:
             level_1:
               x-field-uid: 1
@@ -27032,17 +27035,17 @@ components:
             Hold timer is in the IIH PDU.
           type: integer
           format: uint32
-          x-field-uid: 3
+          x-field-uid: 2
         restarting_status:
           description: |-
             Reference to Restarting Information.
           $ref: '#/components/schemas/IsisIIH.NeighborRestartStatus'
-          x-field-uid: 4
+          x-field-uid: 3
         tlvs:
           description: |-
             It refers to IIH PDU TLVs container.
           $ref: '#/components/schemas/IsisIIH.Tlvs'
-          x-field-uid: 5
+          x-field-uid: 4
     IsisIIH.LocalRestartStatus:
       description: |-
         This contains the Restarting/Starting/Running state of this router.
@@ -27069,7 +27072,7 @@ components:
           - restarting
         last_attempted_status:
           description: |-
-            This object holds the information of last Graceful Restart status provided the router is restarted at least once throught out a test run.
+            This object holds the information of last Graceful Restart status provided the router is restarted at least once throught out a run.
           $ref: '#/components/schemas/IsisIIH.LocalGRLastAttemptStatus'
           x-field-uid: 2
     IsisIIH.NeighborRestartStatus:
@@ -27098,7 +27101,7 @@ components:
           - restarting
         last_attempt_status:
           description: |-
-            This object holds the information of last Graceful Restart status provided the neigbhor router is restarted at least once throught out a test run.
+            This object holds the information of last Graceful Restart status provided the neigbhor router is restarted at least once throught out a run.
           $ref: '#/components/schemas/IsisIIH.NeighborGRLastAttemptStatus'
           x-field-uid: 2
     IsisIIH.LocalGRLastAttemptStatus:

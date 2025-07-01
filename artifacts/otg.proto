@@ -17094,7 +17094,8 @@ message StatesRequest {
       dhcpv6_leases = 10;
       ospfv2_lsas = 11;
       ospfv3_lsas = 12;
-      bmp_prefixes = 13;
+      bmp_servers = 13;
+      bmp_prefixes = 14;
     }
   }
   // Description missing in models
@@ -17138,7 +17139,10 @@ message StatesRequest {
   Ospfv3LsasStateRequest ospfv3_lsas = 13;
 
   // Description missing in models
-  BmpPrefixStateRequest bmp_prefixes = 14;
+  BmpServerStateRequest bmp_servers = 14;
+
+  // Description missing in models
+  BmpPrefixStateRequest bmp_prefixes = 15;
 }
 
 // Response containing chosen traffic generator states
@@ -17159,7 +17163,8 @@ message StatesResponse {
       dhcpv6_leases = 10;
       ospfv2_lsas = 11;
       ospfv3_lsas = 12;
-      bmp_prefixes = 13;
+      bmp_servers = 13;
+      bmp_prefixes = 14;
     }
   }
   // Description missing in models
@@ -17203,7 +17208,10 @@ message StatesResponse {
   repeated Ospfv3LsaState ospfv3_lsas = 13;
 
   // Description missing in models
-  repeated BmpPrefixesState bmp_prefixes = 14;
+  repeated BmpServerState bmp_servers = 14;
+
+  // Description missing in models
+  repeated BmpPrefixesState bmp_prefixes = 15;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -19266,6 +19274,94 @@ message Ospfv3Link {
   // router's interface; for all other connections it represents
   // the local system's IP address.
   optional uint32 metric = 2;
+}
+
+// The request for BMP server information.
+message BmpServerStateRequest {
+
+  // The names of BMP server to return results for. An empty list will return results
+  // for all BMP server information.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Bmp.Server/properties/name
+  // 
+  repeated string bmp_server_names = 1;
+}
+
+// The information associated with BMP server.
+message BmpServerState {
+
+  // The name of a BMP server.
+  optional string bmp_server_name = 1;
+
+  // The administratively assigned UTF-8 string information carried in Information field
+  // of  Information TLV in Initiation message.
+  repeated string information_string = 2;
+
+  // The Information sysName MIB-II [RFC1213] object information carried in Information
+  // field of  Information TLV in Initiation message.
+  optional string system_name = 3;
+
+  // The Information sysDesc MIB-II [RFC1213] object information carried in Information
+  // field of  Information TLV in Initiation message.
+  optional string system_description = 4;
+
+  // The UTF-8 string information carried in Information field of Information TLV in Termination
+  // message. It MAY be used  to provide further detail for any of the defined reasons.
+  // Multiple String TLVs may be included in the message.
+  repeated string termination_string = 5;
+
+  message TerminationReason {
+    enum Enum {
+      administratively_closed = 1;
+      unspecified = 2;
+      out_of_resource = 3;
+      redundant_connection = 4;
+      administratively_closed_permanently = 5;
+    }
+  }
+  // The Information field contains a 2-byte code indicating the reason that the connection
+  // was terminated.
+  optional TerminationReason.Enum termination_reason = 6;
+
+  // Description missing in models
+  repeated BmpServerPeerState peers = 7;
+}
+
+// The Peer Up message is used to indicate that a peering session has come up  (i.e.,
+// has transitioned into the Established state).
+message BmpServerPeerState {
+
+  // The IPv4 or IPv6 local address associated with the Bgp peer.
+  optional string local_address = 1;
+
+  // The IPv4 or IPv6 remote address associated with the Bgp peer.
+  optional string remote_address = 2;
+
+  // The local port number associated with the peering TCP session, or 0 if no TCP session
+  // actually exists.
+  optional uint32 local_port = 3;
+
+  // The remote port number associated with the peering TCP session, or 0 if no TCP session
+  // actually exists.
+  optional uint32 remote_port = 4;
+
+  // The BGP Identifier of the peer.
+  optional string peer_bgp_id = 5;
+
+  message PeerDownReason {
+    enum Enum {
+      unspecified = 0;
+      local_closed = 1;
+      local_closed_without_notification = 2;
+      remote_closed = 3;
+      remote_closed_without_notification = 4;
+      peer_information_removed_from_bmp_server = 5;
+    }
+  }
+  // The Information field contains a 2-byte code indicating the reason that the connection
+  // was terminated.
+  optional PeerDownReason.Enum peer_down_reason = 6;
 }
 
 // The request to retrieve BMP server learned BGP peer prefix information.

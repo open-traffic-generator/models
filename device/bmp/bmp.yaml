@@ -4,21 +4,21 @@ components:
       description: >-
         Top-level container for BGP Monitoring Protocol (BMP) configuration.
         BMP, as defined in RFC 7854, provides a mechanism to monitor BGP sessions.
-        This configuration pertains to the device when acting as a BMP collector/server,
+        This configuration pertains to the device when acting as a BMP Monitor /server,
         listening for connections from BGP speakers (routers) acting as BMP clients.
         BMP is unidirectional, meaning the monitoring station only receives information; it doesn't send commands or control the monitored router. .
       type: object
       properties:
         ipv4_interfaces:
           description: >-
-            This contains an array of references to IPv4 interfaces, each of which will have one or more BMP servers  configured, each BMP server will have a connection to a different monitored router.   
+            This contains an array of references to IPv4 interfaces, each of which will have one or more BMP Monitors configured, each BMP Monitor will have a connection to a different monitored router.   
           type: array
           items: 
             $ref: './bmp.yaml#/components/schemas/Device.Bmp.V4Interface'
           x-field-uid: 1
         ipv6_interfaces:
           description: >-
-            This contains an array of references to IPv6 interfaces, each of which will have one or more BMP servers configured, each BMP server will have a connection to a different monitored router.
+            This contains an array of references to IPv6 interfaces, each of which will have one or more BMP Monitors configured, each BMP Monitor will have a connection to a different monitored router.
           type: array
           items:
             $ref: './bmp.yaml#/components/schemas/Device.Bmp.V6Interface'
@@ -26,118 +26,152 @@ components:
 
     Device.Bmp.V4Interface:
       description: >-
-        Configuration for BMP servers on a single IPv4 interface.
+        Configuration for BMP Monitors on a single IPv4 interface.
       type: object
-      required: [ipv4_name, servers]
+      required: [ipv4_name, monitors]
       properties:
         ipv4_name:
           description: >-
-            The unique name of the IPv4 interface used as the source IP for BMP server.
+            The unique name of the IPv4 interface used as the source IP for the BMP Monitor.
           type: string
           x-constraint:
           - '/components/schemas/Device.Ipv4/properties/name'          
           x-field-uid: 1
-        servers:
+        monitors:
           description: >-
-            This contains the configuration of BMP servers configured on this IPv4 interface.
+            This contains the configuration of BMP Monitors configured on this IPv4 interface.
           type: array
           items:
-            $ref: './bmp.yaml#/components/schemas/Device.Bmp.ServerV4'
+            $ref: './bmp.yaml#/components/schemas/Device.Bmp.MonitorV4'
           x-field-uid: 2
 
     Device.Bmp.V6Interface:
       description: >-
-        Configuration for BMP servers on a single IPv6 interface.
+        Configuration for BMP Monitors on a single IPv6 interface.
       type: object
-      required: [ipv6_name, servers]
+      required: [ipv6_name, monitors]
       properties:
         ipv6_name:
           description: >-
-            The unique name of the IPv6 interface used as the source IP for BMP server.
+            The unique name of the IPv6 interface used as the source IP for BMP Monitor.
           type: string
           x-constraint:
           - '/components/schemas/Device.Ipv6/properties/name'
           x-field-uid: 1
-        servers:
+        monitors:
           description: >-
-            This contains the configuration of a BMP servers configured on this IPv6 interface.
+            This contains the configuration of BMP Monitors configured on this IPv6 interface.
           type: array
           items: 
-            $ref: './bmp.yaml#/components/schemas/Device.Bmp.ServerV6'
+            $ref: './bmp.yaml#/components/schemas/Device.Bmp.MonitorV6'
           x-field-uid: 2
 
-    Device.Bmp.ServerV4:
+    Device.Bmp.MonitorV4:
       description: >-
-        Configuration for a BMP server connected to a specific IPv4 BMP client.
+        Configuration for a BMP Monitor for a specific IPv4 BMP client.
       type: object
       required: [name,client_ip]
       properties:
         client_ip:
           description: |- 
-            The IPv4 address of the BMP client from which connections will be accepted by this BMP server.
+            The IPv4 address of the BMP client from which connections will be accepted from or initiated with by this BMP server.
           type: string
           format: ipv4
           x-field-uid: 1
-        listen_port:
-          description: |-
-            The TCP port number on which to accept BMP connection from the remote monitored router.
-          type: integer
-          format: uint32
-          default: 11019
-          maximum: 65535
-          x-field-uid: 2
+        connection:
+          description: >-
+            Optional object containing information about whether the BMP Monitor should operate in passive or active mode and corresponding information depending on the mode.           
+          $ref: '#/components/schemas/Device.BmpMonitor.Connection'
+          x-field-uid: 2            
         discard_adj_rib:
           description: |-
             If enabled, discard the BGP prefix information sent by the remote BMP client.
           type: boolean
           default: false
-          x-field-uid: 3
-        passive_mode:
-          description: |-
-            If set to true, the BMP server will wait for the remote BMP client to initiate the BMP session
-            by establishing the TCP connection, rather than initiating the session from the BMP Server.
-          type: boolean
-          default: true
-          x-field-uid: 4      
+          x-field-uid: 3        
         name:
           x-include: ../../common/common.yaml#/components/schemas/Named.Object/properties/name
-          x-field-uid: 5
+          x-field-uid: 4
 
-    Device.Bmp.ServerV6:
+    Device.Bmp.MonitorV6:
       description: >-
-        Configuration for a BMP server connected to a specific IPv6 BMP client.
+        Configuration for a BMP Monitor connected to a specific IPv6 BMP client.
       type: object
       required: [name,client_ip]
       properties:
         client_ip:
           description: |- 
-            The IPv6 address of the BMP client from which connections will be accepted by this BMP server.
+            The IPv6 address of the BMP client from which connections will be accepted by this BMP Monitor.
           type: string
           format: ipv6
           x-field-uid: 1
-        listen_port:
-          description: |-
-            The TCP port number on which to accept BMP connection from the remote monitored router.
-          type: integer
-          format: uint32
-          default: 11019
-          maximum: 65535
-          x-field-uid: 2
+        connection:
+          description: >-
+            Optional object containing information about whether the BMP Monitor should operate in passive or active mode and corresponding information depending on the mode.           
+          x-field-uid: 2  
+          $ref: '#/components/schemas/Device.BmpMonitor.Connection'                   
         discard_adj_rib:
           description: |-
             If enabled, discard the BGP prefix information sent by the remote BMP client.
           type: boolean
           default: false
-          x-field-uid: 3 
-        passive_mode:
-          description: |-
-            If set to true, the BMP server will wait for the remote BMP client to initiate the BMP session
-            by establishing the TCP connection, rather than initiating the session from the BMP Server.
-          type: boolean
-          default: true
-          x-field-uid: 4     
+          x-field-uid: 3         
         name:
           x-include: ../../common/common.yaml#/components/schemas/Named.Object/properties/name
-          x-field-uid: 5
+          x-field-uid: 4
+
+    Device.BmpMonitor.Connection:
+      description: >-
+        Container of information about whether the BMP Monitor should operate in passive or active mode and corresponding information depending on the mode. 
+      type: object
+      properties:
+        choice:
+          type: string 
+          default: passive           
+          x-enum:
+            passive:
+              x-field-uid: 1
+            active:
+              x-field-uid: 2            
+          x-field-uid: 1
+        passive:        
+          x-field-uid: 2
+          $ref: '#/components/schemas/Device.BmpMonitor.PassiveConnection'
+        active:        
+          x-field-uid: 3
+          $ref: '#/components/schemas/Device.BmpMonitor.ActiveConnection'
+
+    Device.BmpMonitor.PassiveConnection:
+      description: >-
+        Container of information when BMP Monitor is configured in passive mode.
+        This means that BMP Monitor will not initiate the TCP connection but wait for the BMP Collector it is configured to accept connection from 
+        to initiate the connection. 
+        Note that in this case it is required to configure the BMP Collector in active mode otherwise BMP connection will not be intiated by either end.        
+      type: object
+      properties:    
+        listen_port:
+          description: |-
+            The TCP port number on which to listen for TCP connections from the remote BMP Collector router.
+          type: integer
+          format: uint32
+          default: 11019
+          maximum: 65535
+          x-field-uid: 1
+
+    Device.BmpMonitor.ActiveConnection:
+      description: >-
+        Container of information when BMP Monitor is configured in active mode.
+        This means that BMP Monitor will initiate the TCP connection to the remote BMP Collector it is configured to initiate connection to.        
+        Note that in this case it is required to configure the BMP Collector in passive mode for the BMP session to not be rejected from both ends. 
+      type: object
+      properties:    
+        remote_port:
+          description: |-
+            The TCP port number on which to initiate BMP connection to the remote BMP Collector router.
+          type: integer
+          format: uint32
+          default: 11019
+          maximum: 65535
+          x-field-uid: 1
    
    

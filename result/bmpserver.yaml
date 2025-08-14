@@ -1,14 +1,14 @@
 components:
   schemas:
-    BmpServer.State.Request:
+    BmpMonitors.State.Request:
       description: >-
         The request for BMP server information.
       type: object
       properties:
-        bmp_server_names:
+        bmp_monitor_names:
           description: >-
-            The names of BMP server to return results for.
-            An empty list will return results for all BMP server information.
+            The names of the BMP Monitors  to return results for.
+            An empty list will return results for all BMP Monitors.
           type: array
           items:
             type: string
@@ -16,71 +16,33 @@ components:
           - "/components/schemas/Device.Bmp.Server/properties/name"
           x-field-uid: 1
 
-    BmpServer.State:
+    BmpMonitor.State:
       description: >-
-       The information associated with BMP server.
+       The information learned by a specific BMP Monitor or server.
       type: object
       properties:
-        bmp_server_name:
+        bmp_monitor_name:
           description: >-
-            The name of a BMP server.
+            The name of the BMP Monitor configured for which the information is being returned..
           type: string
           x-field-uid: 1
-        information_string:
-          description: >-
-            The administratively assigned UTF-8 string information carried in Information field of 
-            Information TLV in Initiation message.
-          type: array
-          items:
-            type: string
-          x-field-uid: 2
-        system_name:
-          description: >-
-            The Information sysName MIB-II [RFC1213] object information carried in Information field of 
-            Information TLV in Initiation message.
+        collector_router_id:
+          description: >- 
+            The IPv4 Router ID of the BMP collector or client to which this BMP Monitor is connected.
+            Note that each BMP Monitor is connected to a single BMP Collector , though multiple BMP Monitors can be configured on the 
+            same IPv4 or IPv6 interface , each connected to different BMP Collectors. 
+            Each BMP collector can in turn report information about multiple BGP peer sessions on that router.
           type: string
-          x-field-uid: 3
-        system_description:
-          description: >-
-            The Information sysDesc MIB-II [RFC1213] object information carried in Information field of 
-            Information TLV in Initiation message.
-          type: string
-          x-field-uid: 4
-        termination_string:
-          description: >-
-            The UTF-8 string information carried in Information field of Information TLV in Termination message. It MAY be used 
-            to provide further detail for any of the defined reasons. Multiple String TLVs may be included in the message.
-          type: array
-          items:
-            type: string
-          x-field-uid: 5        
-        termination_reason:
-          description: >-
-            The Information field contains a 2-byte code indicating the reason that the connection was terminated.
-          type: array
-          items:
-            type: string
-            x-enum:
-              administratively_closed:
-                x-field-uid: 1
-              not_specified:
-                x-field-uid: 2
-              out_of_resource:
-                x-field-uid: 3
-              redundant_connection:
-                x-field-uid: 4
-              administratively_closed_permanently:
-                x-field-uid: 5
-          x-field-uid: 6
+          format: ipv4
+          x-field-uid: 2       
         peers:
           type: array
           items:
             $ref: '#/components/schemas/BmpServerPeer.State'
-          x-field-uid: 7
+          x-field-uid: 3
     BmpServerPeer.State:
       description: >-
-        The Peer Up message is used to indicate that a peering session has come up 
-        (i.e., has transitioned into the Established state). 
+        The information returned by a BMP Collector to the BMP Monitor related to a specific BGP session on the router.
       type: object
       properties:
         local_address:
@@ -110,20 +72,658 @@ components:
             The BGP Identifier of the peer.
           type: string
           x-field-uid: 5
-        peer_down_reason:
+        status:
           description: >-
-            The Information field contains a 2-byte code indicating the reason that the connection was terminated.
+            The current state of the BGP session. 
+            Note that per peer stats and rib information might be empty if the peer state is down.
           type: string
-          x-enum:
-            local_closed:
-              x-field-uid: 1
-            local_closed_without_notification:
-              x-field-uid: 2
-            remote_closed:
-              x-field-uid: 3
-            remote_closed_without_notification:
-              x-field-uid: 4
-            peer_information_removed_from_bmp_server:
-              x-field-uid: 5
           x-field-uid: 6
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+        stats:
+          description: >-
+            The last set of BMP stats sent by the BMP collector for this peer.
+            The set of supported stats are available at https://www.rfc-editor.org/rfc/rfc7854.html#section-4.8.
+            It might be empty if no stats have been received yet or peer is still in down state.
+          $ref: '#/components/schemas/BmpServerPeer.Stats'
+          x-field-uid: 7    
+        pre_policy_in_rib:
+          description: >- 
+            The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP Collector 
+            which are part of the Adj-RIB-In database *before* inbound policies were applied.
+            Note that routes which have been advertised initially and currently in withdrawn state can be included in the
+            returned set of routes by setting the status of that specific route to 'withdrawn'.
+            Routes which have been received from this peer and part of current Pre-Policy In-Rib DB should have the status
+            set to 'advertised'
+            Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration, no BGP routes will be stored and the
+            pre_policy_in_rib will not be present in the response.
+          $ref: '#/components/schemas/BmpServerPeer.PrePolicyInRib'
+          x-field-uid: 8
+        post_policy_in_rib:
+          description: >- 
+            The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP Collector 
+            which are part of the Adj-RIB-In database *after* inbound policies were applied.
+            Note that routes which have been advertised initially and currently in withdrawn state can be included in the
+            returned set of routes by setting the status of that specific route to 'withdrawn'.
+            Routes which have been received from this peer and part of current Post-Policy In-Rib DB should have the status
+            set to 'advertised'
+            Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration, no BGP routes will be stored and the
+            pre_policy_in_rib will not be present in the response. 
+          $ref: '#/components/schemas/BmpServerPeer.PostPolicyInRib'
+          x-field-uid: 9 
+
+    BmpServerPeer.Stats:
+      description: >-
+        Container for periodic per peer stats sent by BMP Collector to a BMP Monitor
+      type: object
+      properties:
+        rejected_prefixes:
+          description: >-
+            Number of prefixes rejected by inbound policy.
+          type: integer
+          format: uint32
+          x-field-uid: 1
+        duplicate_prefixes:
+          description: >-
+            Number of (known) duplicate prefix advertisements.
+          type: integer
+          format: uint32
+          x-field-uid: 2
+        duplicate_withdraws:
+          description: >-
+            Number of (known) duplicate withdraws.
+          type: integer
+          format: uint32
+          x-field-uid: 3
+        cluster_list_invalidated_updates:
+          description: >-
+            Number of updates invalidated due to CLUSTER_LIST loop.
+          type: integer
+          format: uint32
+          x-field-uid: 4
+        as_path_invalidated_updates:
+          description: >-
+            Number of updates invalidated due to AS_PATH loop.
+          type: integer
+          format: uint32
+          x-field-uid: 5
+        originator_id_invalidated_updates:
+          description: >-
+            Number of updates invalidated due to ORIGINATOR_ID.
+          type: integer
+          format: uint32
+          x-field-uid: 6
+        as_confed_invalidated_updates:
+          description: >-
+            Number of updates invalidated due to AS_CONFED loop.
+          type: integer
+          format: uint32
+          x-field-uid: 7
+        adj_rib_routes:
+          description: >-
+            Number of routes in Adj-RIBs-In.
+          type: integer
+          format: uint64
+          x-field-uid: 8
+        local_rib_routes:
+          description: >-
+            Number of routes in Loc-RIB.
+          type: integer
+          format: uint64
+          x-field-uid: 9
+        withdraw_updates_received:
+          description: >-
+            Number of updates subjected to treat-as-withdraw treatment [RFC7606].
+          type: integer
+          format: uint32
+          x-field-uid: 10
+        withdraw_prefixes_received:
+          description: >-
+            Number of prefixes  subjected to treat-as-withdraw treatment [RFC7606].
+          type: integer
+          format: uint32
+          x-field-uid: 11
+        duplicate_updates:
+          description: >-
+            Number of duplicate update messages received.
+          type: integer
+          format: uint32
+          x-field-uid: 12
+
+    BmpServerPeer.PrePolicyInRib:
+      description: >-
+        Container for pre-policy In-RIB routes received from this peer by the BMP Monitor.
+      type: object
+      properties:
+        ipv4_unicast_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BmpPrefixIpv4Unicast.State'
+          x-field-uid: 1
+        ipv6_unicast_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BmpPrefixIpv6Unicast.State'
+          x-field-uid: 2
+
+    BmpServerPeer.PostPolicyInRib:
+      description: >-
+        Container for post-policy In-RIB routes received from this peer by the BMP Monitor.
+      type: object
+      properties:
+        ipv4_unicast_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BmpPrefixIpv4Unicast.State'
+          x-field-uid: 1
+        ipv6_unicast_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BmpPrefixIpv6Unicast.State'
+          x-field-uid: 2
+
+    BmpPrefixIpv4Unicast.State:
+      description: >-
+        IPv4 unicast prefix.
+      type: object
+      properties:
+        ipv4_address:
+          description: >-
+            An IPv4 unicast address
+          type: string
+          x-field-uid: 1
+        prefix_length:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/prefix_length'
+          x-field-uid: 2
+        origin:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/origin'
+          x-field-uid: 3
+        path_id:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/path_id'
+          x-field-uid: 4
+        ipv4_next_hop:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/ipv4_next_hop'
+          x-field-uid: 5
+        ipv6_next_hop:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/ipv6_next_hop'
+          x-field-uid: 6
+        communities:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/communities'
+          x-field-uid: 7
+        extended_communities:
+          description: >-
+            Optional received Extended Community attributes.
+            Each received Extended Community attribute is available for retrieval in two forms.
+            Support of the 'raw' format in which all 8 bytes (16 hex characters) is always present and available for use.
+            In addition, if supported by the implementation, the Extended Community attribute may also be retrieved in the 
+            'structured' format which is an optional field.
+          type: array
+          items:
+            $ref: '#/components/schemas/Result.ExtendedCommunity'          
+          x-field-uid: 11
+        as_path:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/as_path'
+          x-field-uid: 8
+        local_preference:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/local_preference'
+          x-field-uid: 9
+        multi_exit_discriminator:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/multi_exit_discriminator'
+          x-field-uid: 10
+
+    BmpPrefixIpv6Unicast.State:
+      description: >-
+        IPv6 unicast prefix.
+      type: object
+      properties:
+        ipv6_address:
+          description: >-
+            An IPv6 unicast address
+          type: string
+          x-field-uid: 1
+        prefix_length:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/prefix_length'
+          x-field-uid: 2
+        origin:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/origin'
+          x-field-uid: 3
+        path_id:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/path_id'
+          x-field-uid: 4
+        ipv4_next_hop:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/ipv4_next_hop'
+          x-field-uid: 5
+        ipv6_next_hop:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/ipv6_next_hop'
+          x-field-uid: 6
+        communities:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/communities'
+          x-field-uid: 7
+        extended_communities:
+          description: >-
+            Optional received Extended Community attributes.
+            Each received Extended Community attribute is available for retrieval in two forms.
+            Support of the 'raw' format in which all 8 bytes (16 hex characters) is always present and available for use.
+            In addition, if supported by the implementation, the Extended Community attribute may also be retrieved in the 
+            'structured' format which is an optional field.
+          type: array
+          items:
+            $ref: '#/components/schemas/Result.ExtendedCommunity'          
+          x-field-uid: 11
+        as_path:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/as_path'
+          x-field-uid: 8
+        local_preference:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/local_preference'
+          x-field-uid: 9
+        multi_exit_discriminator:
+          x-include: '#/components/schemas/BmpPrefix.State/properties/multi_exit_discriminator'
+          x-field-uid: 10
+          
+    BmpPrefix.State:
+      description: >-
+        BMP server learned BGP peer prefix.
+      type: object
+      properties:
+        prefix_length:
+          description: >-
+            The length of the prefix.
+          type: integer
+          format: uint32
+          maximum: 128
+          x-field-uid: 1
+        origin:
+          description: >-
+            The origin of the prefix.
+          type: string
+          x-field-uid: 2
+          x-enum:
+            igp:
+              x-field-uid: 1
+            egp:
+              x-field-uid: 2
+            incomplete:
+              x-field-uid: 3
+        path_id:
+          description: >-
+            The path id.
+          type: integer
+          format: uint32
+          x-field-uid: 3
+        ipv4_next_hop:
+          description: >-
+            The IPv4 address of the egress interface.
+          type: string
+          format: ipv4
+          x-field-uid: 4
+        ipv6_next_hop:
+          description: >-
+            The IPv6 address of the egress interface.
+          type: string
+          format: ipv6
+          x-field-uid: 5
+        communities:
+          description: >-
+            Optional community attributes.
+          type: array
+          items:
+            $ref: './resultbgpcommunity.yaml#/components/schemas/Result.BgpCommunity'
+          x-field-uid: 6
+        as_path:
+          $ref: './resultbgpaspath.yaml#/components/schemas/Result.BgpAsPath'
+          x-field-uid: 7
+        local_preference:
+          description: >-
+            The local preference is a well-known attribute and the value is used for route selection.
+            The route with the highest local preference value is preferred.
+          type: integer
+          format : uint32
+          x-field-uid: 8
+        multi_exit_discriminator:
+          description: >-
+            The multi exit discriminator (MED) is an optional non-transitive attribute and the value is used for route selection.
+            The route with the lowest MED value is preferred.
+          type: integer
+          format : uint32
+          x-field-uid: 9
+    Result.ExtendedCommunity:
+      description:
+        Each received Extended Community attribute is available for retrieval in two forms.
+        Support of the 'raw' format in which all 8 bytes (16 hex characters) is always present and available for use.
+        In addition, if supported by the implementation, the Extended Community attribute may also be retrieved in the 
+        'structured' format which is an optional field. 
+      type: object
+      properties:
+        raw:
+          description: >-
+            The raw byte contents of the 8 bytes received in the Extended Community as 16 hex characters.              
+          type: string
+          format: hex
+          maxLength: 16
+          x-field-uid: 1  
+        structured:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Result.ExtendedCommunityStructured'
+
+    Result.ExtendedCommunityStructured:
+      description: |-
+        The Extended Communities Attribute is a optional BGP attribute,defined in RFC4360 with the Type Code 16. 
+        Community and Extended Communities  attributes are utilized to trigger routing decisions, such as acceptance, rejection,  preference, or redistribution. 
+        An extended community is an 8-bytes value. It is divided into two main parts. The first 2 bytes of the community  encode a type and optonal sub-type field.
+        The last 6 bytes (or 7 bytes for types without a sub-type) carry a unique set of data in a format defined by the type and optional sub-type field. 
+        Extended communities provide a larger  range for grouping or categorizing communities.
+      type: object
+      properties:        
+        choice:
+          type: string             
+          x-enum:
+            transitive_2octet_as_type:
+              x-field-uid: 1
+            transitive_ipv4_address_type:
+              x-field-uid: 2
+            transitive_4octet_as_type:
+              x-field-uid: 3
+            transitive_opaque_type:
+              x-field-uid: 4         
+            non_transitive_2octet_as_type:
+              x-field-uid: 5         
+          x-field-uid: 1
+        transitive_2octet_as_type:        
+          x-field-uid: 2
+          $ref: '#/components/schemas/Result.ExtendedCommunity.Transitive2OctetAsType'
+        transitive_ipv4_address_type:        
+          x-field-uid: 3
+          $ref: '#/components/schemas/Result.ExtendedCommunity.TransitiveIpv4AddressType'
+        transitive_4octet_as_type:        
+          x-field-uid: 4
+          $ref: '#/components/schemas/Result.ExtendedCommunity.Transitive4OctetAsType'
+        transitive_opaque_type:        
+          x-field-uid: 5
+          $ref: '#/components/schemas/Result.ExtendedCommunity.TransitiveOpaqueType'
+        non_transitive_2octet_as_type:        
+          x-field-uid: 6
+          $ref: '#/components/schemas/Result.ExtendedCommunity.NonTransitive2OctetAsType'
+    Result.ExtendedCommunity.Transitive2OctetAsType.RouteTarget:
+      description: >-
+        The Route Target Community identifies one or more routers that may receive a set of routes (that carry this Community) carried by BGP Update message. 
+        It is sent with sub-type as 0x02.            
+      type: object
+      properties:
+        global_2byte_as:
+          description: >-
+            The two octet IANA assigned AS value assigned to the Autonomous System.
+          type: integer
+          format: uint32
+          maximum: 65535
+          x-field-uid: 1
+        local_4byte_admin:
+          type: integer
+          format: uint32
+          description: >-
+            The Local Administrator sub-field contains a number from a numbering space that is administered by the organization to which the
+            Autonomous System number carried in the Global Administrator sub-field has been assigned by an appropriate authority.
+          x-field-uid: 2
+    Result.ExtendedCommunity.Transitive2OctetAsType.RouteOrigin:
+      description: >-          
+        The Route Origin Community identifies one or more routers that inject a set of routes (that carry this Community) into BGP.
+        It is sent with sub-type as 0x03 .
+      type: object
+      properties:
+        global_2byte_as:
+          description: >-
+            The two octet IANA assigned AS value assigned to the Autonomous System.
+          type: integer
+          format: uint32
+          maximum: 65535      
+          x-field-uid: 1
+        local_4byte_admin:
+          description: >-
+            The Local Administrator sub-field contains a number from a numbering space that is administered by the organization to which the
+            Autonomous System number carried in the Global Administrator sub-field has been assigned by an appropriate authority.
+          type: integer
+          format: uint32      
+          x-field-uid: 2
+    Result.ExtendedCommunity.Transitive2OctetAsType:
+      description: >-
+        The Transitive Two-Octet AS-Specific Extended Community is sent as type 0x00 .         
+      type: object
+      properties:        
+        choice:
+          type: string   
+          x-enum:
+            route_target_subtype:
+              x-field-uid: 1
+            route_origin_subtype:
+              x-field-uid: 2
+          x-field-uid: 1
+        route_target_subtype:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Result.ExtendedCommunity.Transitive2OctetAsType.RouteTarget'
+        route_origin_subtype:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Result.ExtendedCommunity.Transitive2OctetAsType.RouteOrigin'
+    Result.ExtendedCommunity.TransitiveIpv4AddressType.RouteOrigin:
+      description: >-          
+        The Route Origin Community identifies one or more routers that inject a set of routes (that carry this Community) into BGP
+        It is sent with sub-type as 0x03.
+      type: object
+      properties:
+        global_ipv4_admin:
+          description: >-
+            An IPv4 unicast address assigned by one of the Internet registries.            
+          type: string
+          format: ipv4             
+          x-field-uid: 1
+        local_2byte_admin:
+          description: >-
+            The Local Administrator sub-field contains a number from a numbering space that is administered by the organization to which 
+            the IP address carried in the Global Administrator sub-field has been assigned by an appropriate authority.
+          type: integer
+          format: uint32      
+          maximum: 65535
+          x-field-uid: 2
+    Result.ExtendedCommunity.TransitiveIpv4AddressType.RouteTarget:
+      description: >-
+        The Route Target Community identifies one or more routers that may receive a set of routes (that carry this Community) carried by BGP. 
+        It is sent with sub-type as 0x02.             
+      type: object
+      properties:
+        global_ipv4_admin:
+          description: >-
+            An IPv4 unicast address assigned by one of the Internet registries. 
+          type: string
+          format: ipv4               
+          x-field-uid: 1
+        local_2byte_admin:
+          type: integer
+          format: uint32
+          maximum: 65535        
+          description: >-
+            The Local Administrator sub-field contains a number from a numbering space that is administered by the organization to which 
+            the IP address carried in the Global Administrator sub-field has been assigned by an appropriate authority.
+          x-field-uid: 2
+    Result.ExtendedCommunity.TransitiveIpv4AddressType:
+      description: >-
+        The Transitive IPv4 Address Specific Extended Community is sent as type 0x01.
+      type: object
+      properties:        
+        choice:
+          type: string   
+          x-enum:
+            route_target_subtype:
+              x-field-uid: 1
+            route_origin_subtype:
+              x-field-uid: 2
+          x-field-uid: 1
+        route_target_subtype:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Result.ExtendedCommunity.TransitiveIpv4AddressType.RouteTarget'
+        route_origin_subtype:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Result.ExtendedCommunity.TransitiveIpv4AddressType.RouteOrigin'
+    Result.ExtendedCommunity.Transitive4OctetAsType.RouteTarget:
+      description: >-
+        The Route Target Community identifies one or more routers that may receive a set of routes (that carry this Community) carried by BGP. 
+        It is sent with sub-type as 0x02              
+      type: object
+      properties:
+        global_4byte_as:
+          description: >-
+            The four octet IANA assigned AS value assigned to the Autonomous System.
+          type: integer
+          format: uint32       
+          x-field-uid: 1
+        local_2byte_admin:
+          type: integer
+          format: uint32      
+          maximum: 65535
+          description: >-
+            The Local Administrator sub-field contains a number from a numbering space that is administered by the organization to which the
+            Autonomous System number carried in the Global Administrator sub-field has been assigned by an appropriate authority.
+          x-field-uid: 2
+    Result.ExtendedCommunity.Transitive4OctetAsType.RouteOrigin:
+      description: >-          
+        The Route Origin Community identifies one or more routers that inject a set of routes (that carry this Community) into BGP.
+        It is sent with sub-type as 0x03.
+      type: object
+      properties:
+        global_4byte_as:
+          description: >-
+            The four octet IANA assigned AS value assigned to the Autonomous System.
+          type: integer
+          format: uint32             
+          x-field-uid: 1
+        local_2byte_admin:
+          description: >-
+            The Local Administrator sub-field contains a number from a numbering space that is administered by the organization to which the
+            Autonomous System number carried in the Global Administrator sub-field has been assigned by an appropriate authority.
+          type: integer
+          format: uint32       
+          maximum: 65535
+          x-field-uid: 2
+    Result.ExtendedCommunity.Transitive4OctetAsType:
+      description: >-
+        The Transitive Four-Octet AS-Specific Extended Community is sent as type 0x02. It is defined in RFC 5668.       
+      type: object
+      properties:        
+        choice:
+          type: string     
+          x-enum:
+            route_target_subtype:
+              x-field-uid: 1
+            route_origin_subtype:
+              x-field-uid: 2
+          x-field-uid: 1
+        route_target_subtype:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Result.ExtendedCommunity.Transitive4OctetAsType.RouteTarget'
+        route_origin_subtype:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Result.ExtendedCommunity.Transitive4OctetAsType.RouteOrigin'
+    Result.ExtendedCommunity.TransitiveOpaqueType.Color:
+      description: >-
+        The Color Community contains locally administrator defined 'color' value which is used in conjunction with Encapsulation 
+        attribute to decide whether a data packet can be transmitted on a certain tunnel or not.
+        It is defined in RFC9012 and sent with sub-type as 0x0b.             
+      type: object
+      properties:
+        flags:
+          description: >-
+            Two octet flag values. 
+          type: integer
+          format: uint32         
+          maximum: 65535              
+          x-field-uid: 1
+        color:
+          type: integer
+          format: uint32         
+          description: |-
+            The color value is user defined and configured locally and used to determine whether a data packet can be transmitted on a certain tunnel or not
+            in conjunction with the Encapsulation attribute. It is defined in RFC9012.           
+          x-field-uid: 2
+    Result.ExtendedCommunity.TransitiveOpaqueType.Encapsulation:
+      description: >-          
+        This identifies the type of tunneling technology being signalled.
+        It is defined in RFC9012 and sent with sub-type as 0x0c.
+      type: object
+      properties:
+        reserved:
+          description: >-
+            Four bytes of reserved values. Normally set to 0 on transmit and ignored on receive. 
+          type: integer
+          format: uint32               
+          x-field-uid: 1
+        tunnel_type:
+          description: |-
+            Identifies the type of tunneling technology being signalled. Initially defined in RFC5512 and extended in RFC9012.
+            Some of the important tunnel types include 
+            - 1 L2TPv3 over IP	[RFC9012],           
+            - 2	GRE	[RFC9012],          
+            - 7	IP in IP	[RFC9012],
+            - 8	VXLAN Encapsulation	[RFC8365],
+            - 9	NVGRE Encapsulation	[RFC8365],
+            - 10	MPLS Encapsulation	[RFC8365],
+            - 15	SR TE Policy Type	[draft-ietf-idr-segment-routing-te-policy],
+            - 19	Geneve Encapsulation	[RFC8926]
+          type: integer
+          format: uint32
+          maximum: 65535       
+          x-field-uid: 2
+    Result.ExtendedCommunity.TransitiveOpaqueType:
+      description: >-
+        The Transitive Opaque Extended Community is sent as type 0x03.
+      type: object
+      properties:        
+        choice:
+          type: string    
+          x-enum:
+            color_subtype:
+              x-field-uid: 1
+            encapsulation_subtype:
+              x-field-uid: 2
+          x-field-uid: 1
+        color_subtype:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Result.ExtendedCommunity.TransitiveOpaqueType.Color'
+        encapsulation_subtype:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Result.ExtendedCommunity.TransitiveOpaqueType.Encapsulation'  
+    Result.ExtendedCommunity.NonTransitive2OctetAsType.LinkBandwidth:
+      description: >-          
+        The Link Bandwidth Extended Community attribute is defined in draft-ietf-idr-link-bandwidth.
+        It is sent with sub-type as 0x04.
+      type: object
+      properties:
+        global_2byte_as:
+          description: >-
+            The value of the Global Administrator subfield should represent the Autonomous System of the router that
+            attaches the Link Bandwidth Community. If four octet AS numbering scheme is used, AS_TRANS (23456) should be used.
+          type: integer
+          format: uint32        
+          maximum: 65535          
+          x-field-uid: 1
+        bandwidth:
+          description: >-
+            Bandwidth of the link in bytes per second.
+            ( 1 Kbps is 1000 bytes per second and 1 Mbps is 1000 Kbps per second )
+          type: number
+          format: float            
+          x-field-uid: 2      
+    Result.ExtendedCommunity.NonTransitive2OctetAsType:
+      description: >-
+        The Non-Transitive Two-Octet AS-Specific Extended Community is sent as type 0x40.         
+      type: object
+      properties:        
+        choice:
+          type: string      
+          x-enum:
+            link_bandwidth_subtype:
+              x-field-uid: 1            
+          x-field-uid: 1
+        link_bandwidth_subtype:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Result.ExtendedCommunity.NonTransitive2OctetAsType.LinkBandwidth'   
   

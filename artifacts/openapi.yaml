@@ -12900,12 +12900,12 @@ components:
           x-field-uid: 3
     Device.Bmp:
       description: |-
-        Top-level container for BGP Monitoring Protocol (BMP) configuration. BMP, as defined in RFC 7854, provides a mechanism to monitor BGP sessions. This configuration pertains to the device when acting as a BMP collector/server, listening for connections from BGP speakers (routers) acting as BMP clients. BMP is unidirectional, meaning the monitoring station only receives information; it doesn't send commands or control the monitored router. .
+        Top-level container for BGP Monitoring Protocol (BMP) configuration. BMP, as defined in RFC 7854, provides a mechanism to monitor BGP sessions. This configuration pertains to the device when acting as a BMP Monitor /server, listening for connections from BGP speakers (routers) acting as BMP clients. BMP is unidirectional, meaning the monitoring station only receives information; it doesn't send commands or control the monitored router. .
       type: object
       properties:
         ipv4_interfaces:
           description: "This contains an array of references to IPv4 interfaces, each\
-            \ of which will have one or more BMP servers  configured, each BMP server\
+            \ of which will have one or more BMP Monitors configured, each BMP Monitor\
             \ will have a connection to a different monitored router.   "
           type: array
           items:
@@ -12913,22 +12913,22 @@ components:
           x-field-uid: 1
         ipv6_interfaces:
           description: |-
-            This contains an array of references to IPv6 interfaces, each of which will have one or more BMP servers configured, each BMP server will have a connection to a different monitored router.
+            This contains an array of references to IPv6 interfaces, each of which will have one or more BMP Monitors configured, each BMP Monitor will have a connection to a different monitored router.
           type: array
           items:
             $ref: '#/components/schemas/Device.Bmp.V6Interface'
           x-field-uid: 2
     Device.Bmp.V4Interface:
       description: |-
-        Configuration for BMP servers on a single IPv4 interface.
+        Configuration for BMP Monitors on a single IPv4 interface.
       type: object
       required:
       - ipv4_name
-      - servers
+      - monitors
       properties:
         ipv4_name:
           description: |
-            The unique name of the IPv4 interface used as the source IP for BMP server.
+            The unique name of the IPv4 interface used as the source IP for the BMP Monitor.
 
             x-constraint:
             - /components/schemas/Device.Ipv4/properties/name
@@ -12936,24 +12936,24 @@ components:
           x-constraint:
           - /components/schemas/Device.Ipv4/properties/name
           x-field-uid: 1
-        servers:
+        monitors:
           description: |-
-            This contains the configuration of BMP servers configured on this IPv4 interface.
+            This contains the configuration of BMP Monitors configured on this IPv4 interface.
           type: array
           items:
-            $ref: '#/components/schemas/Device.Bmp.ServerV4'
+            $ref: '#/components/schemas/Device.Bmp.MonitorV4'
           x-field-uid: 2
     Device.Bmp.V6Interface:
       description: |-
-        Configuration for BMP servers on a single IPv6 interface.
+        Configuration for BMP Monitors on a single IPv6 interface.
       type: object
       required:
       - ipv6_name
-      - servers
+      - monitors
       properties:
         ipv6_name:
           description: |
-            The unique name of the IPv6 interface used as the source IP for BMP server.
+            The unique name of the IPv6 interface used as the source IP for BMP Monitor.
 
             x-constraint:
             - /components/schemas/Device.Ipv6/properties/name
@@ -12961,16 +12961,16 @@ components:
           x-constraint:
           - /components/schemas/Device.Ipv6/properties/name
           x-field-uid: 1
-        servers:
+        monitors:
           description: |-
-            This contains the configuration of a BMP servers configured on this IPv6 interface.
+            This contains the configuration of BMP Monitors configured on this IPv6 interface.
           type: array
           items:
-            $ref: '#/components/schemas/Device.Bmp.ServerV6'
+            $ref: '#/components/schemas/Device.Bmp.MonitorV6'
           x-field-uid: 2
-    Device.Bmp.ServerV4:
+    Device.Bmp.MonitorV4:
       description: |-
-        Configuration for a BMP server connected to a specific IPv4 BMP client.
+        Configuration for a BMP Monitor for a specific IPv4 BMP client.
       type: object
       required:
       - name
@@ -12978,17 +12978,15 @@ components:
       properties:
         client_ip:
           description: |-
-            The IPv4 address of the BMP client from which connections will be accepted by this BMP server.
+            The IPv4 address of the BMP client from which connections will be accepted from or initiated with by this BMP server.
           type: string
           format: ipv4
           x-field-uid: 1
-        listen_port:
-          description: |-
-            The TCP port number on which to accept BMP connection from the remote monitored router.
-          type: integer
-          format: uint32
-          default: 11019
-          maximum: 65535
+        connection:
+          description: "Optional object containing information about whether the BMP\
+            \ Monitor should operate in passive or active mode and corresponding information\
+            \ depending on the mode.           "
+          $ref: '#/components/schemas/Device.BmpMonitor.Connection'
           x-field-uid: 2
         discard_adj_rib:
           description: |-
@@ -12996,23 +12994,16 @@ components:
           type: boolean
           default: false
           x-field-uid: 3
-        passive_mode:
-          description: |-
-            If set to true, the BMP server will wait for the remote BMP client to initiate the BMP session
-            by establishing the TCP connection, rather than initiating the session from the BMP Server.
-          type: boolean
-          default: true
-          x-field-uid: 4
         name:
-          x-field-uid: 5
+          x-field-uid: 4
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
-    Device.Bmp.ServerV6:
+    Device.Bmp.MonitorV6:
       description: |-
-        Configuration for a BMP server connected to a specific IPv6 BMP client.
+        Configuration for a BMP Monitor connected to a specific IPv6 BMP client.
       type: object
       required:
       - name
@@ -13020,38 +13011,86 @@ components:
       properties:
         client_ip:
           description: |-
-            The IPv6 address of the BMP client from which connections will be accepted by this BMP server.
+            The IPv6 address of the BMP client from which connections will be accepted by this BMP Monitor.
           type: string
           format: ipv6
           x-field-uid: 1
-        listen_port:
-          description: |-
-            The TCP port number on which to accept BMP connection from the remote monitored router.
-          type: integer
-          format: uint32
-          default: 11019
-          maximum: 65535
+        connection:
+          description: "Optional object containing information about whether the BMP\
+            \ Monitor should operate in passive or active mode and corresponding information\
+            \ depending on the mode.           "
           x-field-uid: 2
+          $ref: '#/components/schemas/Device.BmpMonitor.Connection'
         discard_adj_rib:
           description: |-
             If enabled, discard the BGP prefix information sent by the remote BMP client.
           type: boolean
           default: false
           x-field-uid: 3
-        passive_mode:
-          description: |-
-            If set to true, the BMP server will wait for the remote BMP client to initiate the BMP session
-            by establishing the TCP connection, rather than initiating the session from the BMP Server.
-          type: boolean
-          default: true
-          x-field-uid: 4
         name:
-          x-field-uid: 5
+          x-field-uid: 4
           description: |-
             Globally unique name of an object. It also serves as the primary key for arrays of objects.
           type: string
           pattern: ^[\sa-zA-Z0-9-_()><\[\]]+$
           x-unique: global
+    Device.BmpMonitor.Connection:
+      description: "Container of information about whether the BMP Monitor should\
+        \ operate in passive or active mode and corresponding information depending\
+        \ on the mode. "
+      type: object
+      properties:
+        choice:
+          type: string
+          default: passive
+          x-enum:
+            passive:
+              x-field-uid: 1
+            active:
+              x-field-uid: 2
+          x-field-uid: 1
+          enum:
+          - passive
+          - active
+        passive:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Device.BmpMonitor.PassiveConnection'
+        active:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Device.BmpMonitor.ActiveConnection'
+    Device.BmpMonitor.PassiveConnection:
+      description: "Container of information when BMP Monitor is configured in passive\
+        \ mode. This means that BMP Monitor will not initiate the TCP connection but\
+        \ wait for the BMP Collector it is configured to accept connection from  to\
+        \ initiate the connection.  Note that in this case it is required to configure\
+        \ the BMP Collector in active mode otherwise BMP connection will not be intiated\
+        \ by either end.        "
+      type: object
+      properties:
+        listen_port:
+          description: |-
+            The TCP port number on which to listen for TCP connections from the remote BMP Collector router.
+          type: integer
+          format: uint32
+          default: 11019
+          maximum: 65535
+          x-field-uid: 1
+    Device.BmpMonitor.ActiveConnection:
+      description: "Container of information when BMP Monitor is configured in active\
+        \ mode. This means that BMP Monitor will initiate the TCP connection to the\
+        \ remote BMP Collector it is configured to initiate connection to.       \
+        \  Note that in this case it is required to configure the BMP Collector in\
+        \ passive mode for the BMP session to not be rejected from both ends. "
+      type: object
+      properties:
+        remote_port:
+          description: |-
+            The TCP port number on which to initiate BMP connection to the remote BMP Collector router.
+          type: integer
+          format: uint32
+          default: 11019
+          maximum: 65535
+          x-field-uid: 1
     Flow:
       description: |-
         A high level data plane traffic flow.
@@ -18921,7 +18960,7 @@ components:
               x-field-uid: 21
             egress_only_tracking:
               x-field-uid: 22
-            bmp_server:
+            bmp_monitor:
               x-field-uid: 23
           enum:
           - port
@@ -18946,7 +18985,7 @@ components:
           - rocev2_ipv6
           - rocev2_flow
           - egress_only_tracking
-          - bmp_server
+          - bmp_monitor
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
           x-field-uid: 2
@@ -19013,8 +19052,8 @@ components:
         egress_only_tracking:
           $ref: '#/components/schemas/EgressOnlyTracking.Metrics.Request'
           x-field-uid: 23
-        bmp_server:
-          $ref: '#/components/schemas/BmpServer.Metrics.Request'
+        bmp_monitor:
+          $ref: '#/components/schemas/BmpMonitor.Metrics.Request'
           x-field-uid: 24
     Metrics.Response:
       description: |-
@@ -19070,7 +19109,7 @@ components:
               x-field-uid: 21
             egress_only_tracking_metrics:
               x-field-uid: 22
-            bmp_server_metrics:
+            bmp_monitor_metrics:
               x-field-uid: 23
           enum:
           - flow_metrics
@@ -19095,7 +19134,7 @@ components:
           - rocev2_ipv6_per_peer_metrics
           - rocev2_flow_per_qp_metrics
           - egress_only_tracking_metrics
-          - bmp_server_metrics
+          - bmp_monitor_metrics
         port_metrics:
           type: array
           items:
@@ -19206,10 +19245,10 @@ components:
           items:
             $ref: '#/components/schemas/EgressOnlyTracking.Metric'
           x-field-uid: 23
-        bmp_server_metrics:
+        bmp_monitor_metrics:
           type: array
           items:
-            $ref: '#/components/schemas/BmpServer.Metric'
+            $ref: '#/components/schemas/BmpMonitor.Metric'
           x-field-uid: 24
     Port.Metrics.Request:
       description: |-
@@ -23936,14 +23975,14 @@ components:
             The transmission rate in Megabits per second.
           type: number
           x-field-uid: 10
-    BmpServer.Metrics.Request:
+    BmpMonitor.Metrics.Request:
       description: |-
-        The request to retrieve BMP per server metrics/statistics.
+        The request to retrieve per BMP Monitor metrics/statistics.
       type: object
       properties:
         server_names:
           description: |
-            The names of BMP servers to return results for. An empty list will return results for all BMP servers.
+            The names of BMP Monitors to return results for. An empty list will return results for all BMP Monitors.
 
             x-constraint:
             - /components/schemas/Device.Bmp.ServerV4/properties/name
@@ -23957,83 +23996,53 @@ components:
           x-field-uid: 1
         column_names:
           description: |-
-            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the BMP server cannot be excluded.
+            The list of column names that the returned result set will contain. If the list is empty then all columns will be returned except for any result_groups. The name of the BMP Monitor cannot be excluded.
           type: array
           items:
             type: string
             x-enum:
               session_state:
                 x-field-uid: 1
-              peer_type:
+              flap_count:
                 x-field-uid: 2
-              peer_distinguisher:
+              route_monitoring_messages_received:
                 x-field-uid: 3
-              peer_address_type:
+              statistics_messages_received:
                 x-field-uid: 4
-              peer_address:
+              peer_down_messages_received:
                 x-field-uid: 5
-              peer_as:
+              peer_up_messages_received:
                 x-field-uid: 6
-              peer_bgp_id:
+              initiation_messages_received:
                 x-field-uid: 7
-              rejected_prefixes:
+              route_mirroring_messages_received:
                 x-field-uid: 8
-              duplicate_prefixes:
+              termination_messages_received:
                 x-field-uid: 9
-              duplicate_withdraws:
-                x-field-uid: 10
-              cluster_list_invalidated_updates:
-                x-field-uid: 11
-              as_path_invalidated_updates:
-                x-field-uid: 12
-              originator_id_invalidated_updates:
-                x-field-uid: 13
-              as_confed_invalidated_updates:
-                x-field-uid: 14
-              adj_rib_routes:
-                x-field-uid: 15
-              local_rib_routes:
-                x-field-uid: 16
-              withdraw_updates_received:
-                x-field-uid: 17
-              withdraw_prefixes_received:
-                x-field-uid: 18
-              duplicate_updates:
-                x-field-uid: 19
             enum:
             - session_state
-            - peer_type
-            - peer_distinguisher
-            - peer_address_type
-            - peer_address
-            - peer_as
-            - peer_bgp_id
-            - rejected_prefixes
-            - duplicate_prefixes
-            - duplicate_withdraws
-            - cluster_list_invalidated_updates
-            - as_path_invalidated_updates
-            - originator_id_invalidated_updates
-            - as_confed_invalidated_updates
-            - adj_rib_routes
-            - local_rib_routes
-            - withdraw_updates_received
-            - withdraw_prefixes_received
-            - duplicate_updates
+            - flap_count
+            - route_monitoring_messages_received
+            - statistics_messages_received
+            - peer_down_messages_received
+            - peer_up_messages_received
+            - initiation_messages_received
+            - route_mirroring_messages_received
+            - termination_messages_received
           x-field-uid: 2
-    BmpServer.Metric:
+    BmpMonitor.Metric:
       description: |-
-        BMP server statistics information.
+        BMP Monitor statistics information.
       type: object
       properties:
         name:
           description: |-
-            The name of a configured BMP server.
+            The name of the configured BMP server.
           type: string
           x-field-uid: 1
         session_state:
           description: |-
-            Session state as up or down. Up happens when a BMP monitored router sends a Initiation message to the BMP server and Down  happens when a BMP monitored router sends a Termination message to the BMP server.
+            Session state as up or down. The session goes to 'up' state when a BMP monitored router sends a Initiation message to the BMP Monitor. The session goes to 'down' state when a BMP monitored router sends a Termination message to the BMP server or the TCP connection is lost. On initial start, the state as reported as 'down'.
           type: string
           x-field-uid: 2
           x-enum:
@@ -24044,54 +24053,54 @@ components:
           enum:
           - up
           - down
-        peer_type:
+        flap_count:
           description: |-
-            Identifies the type of BGP peer. There are three types of peer Global Instance Peer,RD Instance Peer and Local Instance Peer.
-          type: string
+            Number of times the BMP session with the BMP Collector went from Up to Down state.
+          type: integer
+          format: uint64
           x-field-uid: 3
-          x-enum:
-            global:
-              x-field-uid: 1
-            rd:
-              x-field-uid: 2
-            local:
-              x-field-uid: 3
-          enum:
-          - global
-          - rd
-          - local
-        peer_distinguisher:
+        route_monitoring_messages_received:
           description: |-
-            Distinguishes BGP peers that belong to one address domain from the other.
-          type: string
+            Number of BMP Route Monitoring Messages received from the BMP Collector from the time the BMP session last went to 'up' state.
+          type: integer
+          format: uint64
           x-field-uid: 4
-        peer_address_type:
-          description: "Identifies whether the BGP peer is IPv4 or IPv6. "
-          type: string
+        statistics_messages_received:
+          description: |-
+            Number of BMP Route Statistics Messages received from the BMP Collector from the time the BMP session last went to 'up' state.
+          type: integer
+          format: uint64
           x-field-uid: 5
-          x-enum:
-            ipv4:
-              x-field-uid: 1
-            ipv6:
-              x-field-uid: 2
-          enum:
-          - ipv4
-          - ipv6
-        peer_address:
+        peer_down_messages_received:
           description: |-
-            The IPv4 of IPv6 address of the BGP peer.
-          type: string
+            Number of BMP Peer Down Messages received from the BMP Collector from the time the BMP session last went to 'up' state.
+          type: integer
+          format: uint64
           x-field-uid: 6
-        peer_as:
+        peer_up_messages_received:
           description: |-
-            The Autonomous System number of the BGP peer.
-          type: string
+            Number of BMP Peer Up Messages received from the BMP Collector from the time the BMP session last went to 'up' state.
+          type: integer
+          format: uint64
           x-field-uid: 7
-        peer_bgp_id:
+        initiation_messages_received:
           description: |-
-            The BGP Identifier of the peer.
-          type: string
+            Number of BMP Initiation Messages received from the BMP Collector .
+          type: integer
+          format: uint64
           x-field-uid: 8
+        route_mirroring_messages_received:
+          description: |-
+            Number of BMP Route Mirroring Messages received from the BMP Collector from the time the BMP session last went to 'up' state.
+          type: integer
+          format: uint64
+          x-field-uid: 9
+        termination_messages_received:
+          description: |-
+            Number of BMP Termination Messages received from the BMP Collector .
+          type: integer
+          format: uint64
+          x-field-uid: 10
     States.Request:
       description: |-
         Request to traffic generator for states of choice
@@ -27790,38 +27799,40 @@ components:
         The information returned by a BMP Collector to the BMP Monitor related to a specific BGP session on the router.
       type: object
       properties:
-        local_address:
+        session_ip_type:
           description: |-
-            The IPv4 or IPv6 local address associated with the Bgp peer.
+            Whether the peer is of type BGPv4 or BGPv6. If the type is ipv4 the session_ipv4_information object should be included to convey the local and remote IPv4 address for the peer. If the type is ipv6 the session_ipv6_information object should be included to convey the local and remote IPv6 address for the peer.
           type: string
           x-field-uid: 1
-        remote_address:
-          description: |-
-            The IPv4 or IPv6 remote address associated with the Bgp peer.
-          type: string
+          x-enum:
+            ipv4:
+              x-field-uid: 1
+            ipv6:
+              x-field-uid: 2
+          enum:
+          - ipv4
+          - ipv6
+        session_ipv4_information:
+          description: "This object is included if session_ip_type is of type ipv4.\
+            \          "
           x-field-uid: 2
-        local_port:
+          $ref: '#/components/schemas/BmpServerPeer.SessionIpv4Information'
+        session_ipv6_information:
           description: |-
-            The local port number associated with the peering TCP session, or 0 if no TCP session actually exists.
-          type: integer
-          format: uint32
+            This object is included if session_ip_type is of type ipv6.
           x-field-uid: 3
-        remote_port:
-          description: |-
-            The remote port number associated with the peering TCP session, or 0 if no TCP session actually exists.
-          type: integer
-          format: uint32
-          x-field-uid: 4
+          $ref: '#/components/schemas/BmpServerPeer.SessionIpv6Information'
         peer_bgp_id:
           description: |-
             The BGP Identifier of the peer.
           type: string
-          x-field-uid: 5
+          format: ipv4
+          x-field-uid: 4
         status:
           description: |-
             The current state of the BGP session.  Note that per peer stats and rib information might be empty if the peer state is down.
           type: string
-          x-field-uid: 6
+          x-field-uid: 5
           x-enum:
             up:
               x-field-uid: 1
@@ -27834,12 +27845,12 @@ components:
           description: |-
             The last set of BMP stats sent by the BMP collector for this peer. The set of supported stats are available at https://www.rfc-editor.org/rfc/rfc7854.html#section-4.8. It might be empty if no stats have been received yet or peer is still in down state.
           $ref: '#/components/schemas/BmpServerPeer.Stats'
-          x-field-uid: 7
+          x-field-uid: 6
         pre_policy_in_rib:
           description: |-
             The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP Collector  which are part of the Adj-RIB-In database *before* inbound policies were applied. Note that routes which have been advertised initially and currently in withdrawn state can be included in the returned set of routes by setting the status of that specific route to 'withdrawn'. Routes which have been received from this peer and part of current Pre-Policy In-Rib DB should have the status set to 'advertised' Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib will not be present in the response.
           $ref: '#/components/schemas/BmpServerPeer.PrePolicyInRib'
-          x-field-uid: 8
+          x-field-uid: 7
         post_policy_in_rib:
           description: "The set of routes received from this peer as reported using\
             \ BMP Route Monitoring messages by the BMP Collector  which are part of\
@@ -27852,7 +27863,39 @@ components:
             \ set to true in BMP Monitor configuration, no BGP routes will be stored\
             \ and the pre_policy_in_rib will not be present in the response. "
           $ref: '#/components/schemas/BmpServerPeer.PostPolicyInRib'
-          x-field-uid: 9
+          x-field-uid: 8
+    BmpServerPeer.SessionIpv4Information:
+      description: |-
+        This object is included if session_ip_type is of type ipv4.
+      type: object
+      properties:
+        local_address:
+          description: |-
+            The local IPv4 address associated with the BGPv4 peer.
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        remote_address:
+          description: |-
+            The remote IPv4 address associated with the BGPv4 peer.
+          type: string
+          x-field-uid: 2
+    BmpServerPeer.SessionIpv6Information:
+      description: |-
+        This object is included if session_ip_type is of type ipv6.
+      type: object
+      properties:
+        local_address:
+          description: |-
+            The local IPv6 address associated with the BGPv6 peer.
+          type: string
+          format: ipv6
+          x-field-uid: 1
+        remote_address:
+          description: |-
+            The remote IPv6 address associated with the BGPv6 peer.
+          type: string
+          x-field-uid: 2
     BmpServerPeer.Stats:
       description: |-
         Container for periodic per peer stats sent by BMP Collector to a BMP Monitor
@@ -27932,7 +27975,7 @@ components:
           x-field-uid: 12
     BmpServerPeer.PrePolicyInRib:
       description: |-
-        Container for pre-policy In-RIB routes received from this peer by the BMP Monitor.
+        The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP Collector  which are part of the Adj-RIB-In database *before* inbound policies were applied. Note that routes which have been advertised initially and currently in withdrawn state can be included in the returned set of routes by setting the status of that specific route to 'withdrawn'. Routes which have been received from this peer and part of current Pre-Policy In-Rib DB should have the status set to 'advertised' Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib will not be present in the response.
       type: object
       properties:
         ipv4_unicast_prefixes:
@@ -27947,7 +27990,7 @@ components:
           x-field-uid: 2
     BmpServerPeer.PostPolicyInRib:
       description: |-
-        Container for post-policy In-RIB routes received from this peer by the BMP Monitor.
+        The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP Collector  which are part of the Adj-RIB-In database *after* inbound policies were applied. Note that routes which have been advertised initially and currently in withdrawn state can be included in the returned set of routes by setting the status of that specific route to 'withdrawn'. Routes which have been received from this peer and part of current Post-Policy In-Rib DB should have the status set to 'advertised' Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib will not be present in the response.
       type: object
       properties:
         ipv4_unicast_prefixes:
@@ -27969,6 +28012,7 @@ components:
           description: |-
             An IPv4 unicast address
           type: string
+          format: ipv4
           x-field-uid: 1
         prefix_length:
           x-field-uid: 2
@@ -27999,20 +28043,48 @@ components:
             The path id.
           type: integer
           format: uint32
-        ipv4_next_hop:
+        route_state:
           x-field-uid: 5
+          description: "The state of the route , either advertised or withdrawn. If\
+            \ route is in withdrawn state, only the prefix, prefix_length, origin\
+            \ and path_id (if present) may be present. "
+          type: string
+          x-enum:
+            advertised:
+              x-field-uid: 1
+            withdrawn:
+              x-field-uid: 2
+          enum:
+          - advertised
+          - withdrawn
+        next_hop_type:
+          x-field-uid: 6
+          description: "The next hop type , ipv4 or ipv6 .  If type is ipv4, then\
+            \ the ipv4_next_hop should be included. If type is ipv6, then the ipv6_next_hop\
+            \ should be included.             "
+          type: string
+          x-enum:
+            ipv4:
+              x-field-uid: 1
+            ipv6:
+              x-field-uid: 2
+          enum:
+          - ipv4
+          - ipv6
+        ipv4_next_hop:
+          x-field-uid: 7
           description: |-
             The IPv4 address of the egress interface.
           type: string
           format: ipv4
         ipv6_next_hop:
-          x-field-uid: 6
+          x-field-uid: 8
           description: |-
             The IPv6 address of the egress interface.
           type: string
           format: ipv6
         communities:
-          x-field-uid: 7
+          x-field-uid: 9
           description: |-
             Optional community attributes.
           type: array
@@ -28024,18 +28096,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Result.ExtendedCommunity'
-          x-field-uid: 11
+          x-field-uid: 10
         as_path:
-          x-field-uid: 8
+          x-field-uid: 11
           $ref: '#/components/schemas/Result.BgpAsPath'
         local_preference:
-          x-field-uid: 9
+          x-field-uid: 12
           description: |-
             The local preference is a well-known attribute and the value is used for route selection. The route with the highest local preference value is preferred.
           type: integer
           format: uint32
         multi_exit_discriminator:
-          x-field-uid: 10
+          x-field-uid: 13
           description: |-
             The multi exit discriminator (MED) is an optional non-transitive attribute and the value is used for route selection. The route with the lowest MED value is preferred.
           type: integer
@@ -28049,6 +28121,7 @@ components:
           description: |-
             An IPv6 unicast address
           type: string
+          format: ipv6
           x-field-uid: 1
         prefix_length:
           x-field-uid: 2
@@ -28079,20 +28152,48 @@ components:
             The path id.
           type: integer
           format: uint32
-        ipv4_next_hop:
+        route_state:
           x-field-uid: 5
+          description: "The state of the route , either advertised or withdrawn. If\
+            \ route is in withdrawn state, only the prefix, prefix_length, origin\
+            \ and path_id (if present) may be present. "
+          type: string
+          x-enum:
+            advertised:
+              x-field-uid: 1
+            withdrawn:
+              x-field-uid: 2
+          enum:
+          - advertised
+          - withdrawn
+        next_hop_type:
+          x-field-uid: 6
+          description: "The next hop type , ipv4 or ipv6 .  If type is ipv4, then\
+            \ the ipv4_next_hop should be included. If type is ipv6, then the ipv6_next_hop\
+            \ should be included.             "
+          type: string
+          x-enum:
+            ipv4:
+              x-field-uid: 1
+            ipv6:
+              x-field-uid: 2
+          enum:
+          - ipv4
+          - ipv6
+        ipv4_next_hop:
+          x-field-uid: 7
           description: |-
             The IPv4 address of the egress interface.
           type: string
           format: ipv4
         ipv6_next_hop:
-          x-field-uid: 6
+          x-field-uid: 8
           description: |-
             The IPv6 address of the egress interface.
           type: string
           format: ipv6
         communities:
-          x-field-uid: 7
+          x-field-uid: 9
           description: |-
             Optional community attributes.
           type: array
@@ -28104,18 +28205,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Result.ExtendedCommunity'
-          x-field-uid: 11
+          x-field-uid: 10
         as_path:
-          x-field-uid: 8
+          x-field-uid: 11
           $ref: '#/components/schemas/Result.BgpAsPath'
         local_preference:
-          x-field-uid: 9
+          x-field-uid: 12
           description: |-
             The local preference is a well-known attribute and the value is used for route selection. The route with the highest local preference value is preferred.
           type: integer
           format: uint32
         multi_exit_discriminator:
-          x-field-uid: 10
+          x-field-uid: 13
           description: |-
             The multi exit discriminator (MED) is an optional non-transitive attribute and the value is used for route selection. The route with the lowest MED value is preferred.
           type: integer

@@ -9437,27 +9437,27 @@ message Rocev2V6Peer {
 
 // Top-level container for BGP Monitoring Protocol (BMP) configuration. BMP, as defined
 // in RFC 7854, provides a mechanism to monitor BGP sessions. This configuration pertains
-// to the device when acting as a BMP collector/server, listening for connections from
+// to the device when acting as a BMP Monitor /server, listening for connections from
 // BGP speakers (routers) acting as BMP clients. BMP is unidirectional, meaning the
 // monitoring station only receives information; it doesn't send commands or control
 // the monitored router. .
 message DeviceBmp {
 
   // This contains an array of references to IPv4 interfaces, each of which will have
-  // one or more BMP servers  configured, each BMP server will have a connection to a
+  // one or more BMP Monitors configured, each BMP Monitor will have a connection to a
   // different monitored router.
   repeated DeviceBmpV4Interface ipv4_interfaces = 1;
 
   // This contains an array of references to IPv6 interfaces, each of which will have
-  // one or more BMP servers configured, each BMP server will have a connection to a different
-  // monitored router.
+  // one or more BMP Monitors configured, each BMP Monitor will have a connection to a
+  // different monitored router.
   repeated DeviceBmpV6Interface ipv6_interfaces = 2;
 }
 
-// Configuration for BMP servers on a single IPv4 interface.
+// Configuration for BMP Monitors on a single IPv4 interface.
 message DeviceBmpV4Interface {
 
-  // The unique name of the IPv4 interface used as the source IP for BMP server.
+  // The unique name of the IPv4 interface used as the source IP for the BMP Monitor.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv4/properties/name
@@ -9465,14 +9465,14 @@ message DeviceBmpV4Interface {
   // required = true
   optional string ipv4_name = 1;
 
-  // This contains the configuration of BMP servers configured on this IPv4 interface.
-  repeated DeviceBmpServerV4 servers = 2;
+  // This contains the configuration of BMP Monitors configured on this IPv4 interface.
+  repeated DeviceBmpMonitorV4 monitors = 2;
 }
 
-// Configuration for BMP servers on a single IPv6 interface.
+// Configuration for BMP Monitors on a single IPv6 interface.
 message DeviceBmpV6Interface {
 
-  // The unique name of the IPv6 interface used as the source IP for BMP server.
+  // The unique name of the IPv6 interface used as the source IP for BMP Monitor.
   // 
   // x-constraint:
   // - /components/schemas/Device.Ipv6/properties/name
@@ -9480,66 +9480,102 @@ message DeviceBmpV6Interface {
   // required = true
   optional string ipv6_name = 1;
 
-  // This contains the configuration of a BMP servers configured on this IPv6 interface.
-  repeated DeviceBmpServerV6 servers = 2;
+  // This contains the configuration of BMP Monitors configured on this IPv6 interface.
+  repeated DeviceBmpMonitorV6 monitors = 2;
 }
 
-// Configuration for a BMP server connected to a specific IPv4 BMP client.
-message DeviceBmpServerV4 {
+// Configuration for a BMP Monitor for a specific IPv4 BMP client.
+message DeviceBmpMonitorV4 {
 
-  // The IPv4 address of the BMP client from which connections will be accepted by this
-  // BMP server.
+  // The IPv4 address of the BMP client from which connections will be accepted from or
+  // initiated with by this BMP server.
   // required = true
   optional string client_ip = 1;
 
-  // The TCP port number on which to accept BMP connection from the remote monitored router.
-  // default = 11019
-  optional uint32 listen_port = 2;
+  // Optional object containing information about whether the BMP Monitor should operate
+  // in passive or active mode and corresponding information depending on the mode.
+  // 
+  DeviceBmpMonitorConnection connection = 2;
 
   // If enabled, discard the BGP prefix information sent by the remote BMP client.
   // default = False
   optional bool discard_adj_rib = 3;
 
-  // If set to true, the BMP server will wait for the remote BMP client to initiate the
-  // BMP session
-  // by establishing the TCP connection, rather than initiating the session from the BMP
-  // Server.
-  // default = True
-  optional bool passive_mode = 4;
-
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  optional string name = 5;
+  optional string name = 4;
 }
 
-// Configuration for a BMP server connected to a specific IPv6 BMP client.
-message DeviceBmpServerV6 {
+// Configuration for a BMP Monitor connected to a specific IPv6 BMP client.
+message DeviceBmpMonitorV6 {
 
   // The IPv6 address of the BMP client from which connections will be accepted by this
-  // BMP server.
+  // BMP Monitor.
   // required = true
   optional string client_ip = 1;
 
-  // The TCP port number on which to accept BMP connection from the remote monitored router.
-  // default = 11019
-  optional uint32 listen_port = 2;
+  // Optional object containing information about whether the BMP Monitor should operate
+  // in passive or active mode and corresponding information depending on the mode.
+  // 
+  DeviceBmpMonitorConnection connection = 2;
 
   // If enabled, discard the BGP prefix information sent by the remote BMP client.
   // default = False
   optional bool discard_adj_rib = 3;
 
-  // If set to true, the BMP server will wait for the remote BMP client to initiate the
-  // BMP session
-  // by establishing the TCP connection, rather than initiating the session from the BMP
-  // Server.
-  // default = True
-  optional bool passive_mode = 4;
-
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
-  optional string name = 5;
+  optional string name = 4;
+}
+
+// Container of information about whether the BMP Monitor should operate in passive
+// or active mode and corresponding information depending on the mode.
+message DeviceBmpMonitorConnection {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      passive = 1;
+      active = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.passive
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  DeviceBmpMonitorPassiveConnection passive = 2;
+
+  // Description missing in models
+  DeviceBmpMonitorActiveConnection active = 3;
+}
+
+// Container of information when BMP Monitor is configured in passive mode. This means
+// that BMP Monitor will not initiate the TCP connection but wait for the BMP Collector
+// it is configured to accept connection from  to initiate the connection.  Note that
+// in this case it is required to configure the BMP Collector in active mode otherwise
+// BMP connection will not be intiated by either end.
+message DeviceBmpMonitorPassiveConnection {
+
+  // The TCP port number on which to listen for TCP connections from the remote BMP Collector
+  // router.
+  // default = 11019
+  optional uint32 listen_port = 1;
+}
+
+// Container of information when BMP Monitor is configured in active mode. This means
+// that BMP Monitor will initiate the TCP connection to the remote BMP Collector it
+// is configured to initiate connection to.         Note that in this case it is required
+// to configure the BMP Collector in passive mode for the BMP session to not be rejected
+// from both ends.
+message DeviceBmpMonitorActiveConnection {
+
+  // The TCP port number on which to initiate BMP connection to the remote BMP Collector
+  // router.
+  // default = 11019
+  optional uint32 remote_port = 1;
 }
 
 // A high level data plane traffic flow.
@@ -14261,7 +14297,7 @@ message MetricsRequest {
       rocev2_ipv6 = 20;
       rocev2_flow = 21;
       egress_only_tracking = 22;
-      bmp_server = 23;
+      bmp_monitor = 23;
     }
   }
   // Description missing in models
@@ -14335,7 +14371,7 @@ message MetricsRequest {
   EgressOnlyTrackingMetricsRequest egress_only_tracking = 23;
 
   // Description missing in models
-  BmpServerMetricsRequest bmp_server = 24;
+  BmpMonitorMetricsRequest bmp_monitor = 24;
 }
 
 // Response containing chosen traffic generator metrics.
@@ -14366,7 +14402,7 @@ message MetricsResponse {
       rocev2_ipv6_per_peer_metrics = 20;
       rocev2_flow_per_qp_metrics = 21;
       egress_only_tracking_metrics = 22;
-      bmp_server_metrics = 23;
+      bmp_monitor_metrics = 23;
     }
   }
   // Description missing in models
@@ -14440,7 +14476,7 @@ message MetricsResponse {
   repeated EgressOnlyTrackingMetric egress_only_tracking_metrics = 23;
 
   // Description missing in models
-  repeated BmpServerMetric bmp_server_metrics = 24;
+  repeated BmpMonitorMetric bmp_monitor_metrics = 24;
 }
 
 // The port result request to the traffic generator
@@ -17102,11 +17138,11 @@ message EgressOnlyTrackingTxMetrics {
   optional float tx_rate_mbps = 10;
 }
 
-// The request to retrieve BMP per server metrics/statistics.
-message BmpServerMetricsRequest {
+// The request to retrieve per BMP Monitor metrics/statistics.
+message BmpMonitorMetricsRequest {
 
-  // The names of BMP servers to return results for. An empty list will return results
-  // for all BMP servers.
+  // The names of BMP Monitors to return results for. An empty list will return results
+  // for all BMP Monitors.
   // 
   // x-constraint:
   // - /components/schemas/Device.Bmp.ServerV4/properties/name
@@ -17118,36 +17154,26 @@ message BmpServerMetricsRequest {
     enum Enum {
       unspecified = 0;
       session_state = 1;
-      peer_type = 2;
-      peer_distinguisher = 3;
-      peer_address_type = 4;
-      peer_address = 5;
-      peer_as = 6;
-      peer_bgp_id = 7;
-      rejected_prefixes = 8;
-      duplicate_prefixes = 9;
-      duplicate_withdraws = 10;
-      cluster_list_invalidated_updates = 11;
-      as_path_invalidated_updates = 12;
-      originator_id_invalidated_updates = 13;
-      as_confed_invalidated_updates = 14;
-      adj_rib_routes = 15;
-      local_rib_routes = 16;
-      withdraw_updates_received = 17;
-      withdraw_prefixes_received = 18;
-      duplicate_updates = 19;
+      flap_count = 2;
+      route_monitoring_messages_received = 3;
+      statistics_messages_received = 4;
+      peer_down_messages_received = 5;
+      peer_up_messages_received = 6;
+      initiation_messages_received = 7;
+      route_mirroring_messages_received = 8;
+      termination_messages_received = 9;
     }
   }
   // The list of column names that the returned result set will contain. If the list is
   // empty then all columns will be returned except for any result_groups. The name of
-  // the BMP server cannot be excluded.
+  // the BMP Monitor cannot be excluded.
   repeated ColumnNames.Enum column_names = 2;
 }
 
-// BMP server statistics information.
-message BmpServerMetric {
+// BMP Monitor statistics information.
+message BmpMonitorMetric {
 
-  // The name of a configured BMP server.
+  // The name of the configured BMP server.
   optional string name = 1;
 
   message SessionState {
@@ -17157,44 +17183,40 @@ message BmpServerMetric {
       down = 2;
     }
   }
-  // Session state as up or down. Up happens when a BMP monitored router sends a Initiation
-  // message to the BMP server and Down  happens when a BMP monitored router sends a Termination
-  // message to the BMP server.
+  // Session state as up or down. The session goes to 'up' state when a BMP monitored
+  // router sends a Initiation message to the BMP Monitor. The session goes to 'down'
+  // state when a BMP monitored router sends a Termination message to the BMP server or
+  // the TCP connection is lost. On initial start, the state as reported as 'down'.
   optional SessionState.Enum session_state = 2;
 
-  message PeerType {
-    enum Enum {
-      unspecified = 0;
-      global = 1;
-      rd = 2;
-      local = 3;
-    }
-  }
-  // Identifies the type of BGP peer. There are three types of peer Global Instance Peer,RD
-  // Instance Peer and Local Instance Peer.
-  optional PeerType.Enum peer_type = 3;
+  // Number of times the BMP session with the BMP Collector went from Up to Down state.
+  optional uint64 flap_count = 3;
 
-  // Distinguishes BGP peers that belong to one address domain from the other.
-  optional string peer_distinguisher = 4;
+  // Number of BMP Route Monitoring Messages received from the BMP Collector from the
+  // time the BMP session last went to 'up' state.
+  optional uint64 route_monitoring_messages_received = 4;
 
-  message PeerAddressType {
-    enum Enum {
-      unspecified = 0;
-      ipv4 = 1;
-      ipv6 = 2;
-    }
-  }
-  // Identifies whether the BGP peer is IPv4 or IPv6.
-  optional PeerAddressType.Enum peer_address_type = 5;
+  // Number of BMP Route Statistics Messages received from the BMP Collector from the
+  // time the BMP session last went to 'up' state.
+  optional uint64 statistics_messages_received = 5;
 
-  // The IPv4 of IPv6 address of the BGP peer.
-  optional string peer_address = 6;
+  // Number of BMP Peer Down Messages received from the BMP Collector from the time the
+  // BMP session last went to 'up' state.
+  optional uint64 peer_down_messages_received = 6;
 
-  // The Autonomous System number of the BGP peer.
-  optional string peer_as = 7;
+  // Number of BMP Peer Up Messages received from the BMP Collector from the time the
+  // BMP session last went to 'up' state.
+  optional uint64 peer_up_messages_received = 7;
 
-  // The BGP Identifier of the peer.
-  optional string peer_bgp_id = 8;
+  // Number of BMP Initiation Messages received from the BMP Collector .
+  optional uint64 initiation_messages_received = 8;
+
+  // Number of BMP Route Mirroring Messages received from the BMP Collector from the time
+  // the BMP session last went to 'up' state.
+  optional uint64 route_mirroring_messages_received = 9;
+
+  // Number of BMP Termination Messages received from the BMP Collector .
+  optional uint64 termination_messages_received = 10;
 }
 
 // Request to traffic generator for states of choice
@@ -19700,22 +19722,27 @@ message BmpMonitorState {
 // BGP session on the router.
 message BmpServerPeerState {
 
-  // The IPv4 or IPv6 local address associated with the Bgp peer.
-  optional string local_address = 1;
+  message SessionIpType {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  // Whether the peer is of type BGPv4 or BGPv6. If the type is ipv4 the session_ipv4_information
+  // object should be included to convey the local and remote IPv4 address for the peer.
+  // If the type is ipv6 the session_ipv6_information object should be included to convey
+  // the local and remote IPv6 address for the peer.
+  optional SessionIpType.Enum session_ip_type = 1;
 
-  // The IPv4 or IPv6 remote address associated with the Bgp peer.
-  optional string remote_address = 2;
+  // This object is included if session_ip_type is of type ipv4.
+  BmpServerPeerSessionIpv4Information session_ipv4_information = 2;
 
-  // The local port number associated with the peering TCP session, or 0 if no TCP session
-  // actually exists.
-  optional uint32 local_port = 3;
-
-  // The remote port number associated with the peering TCP session, or 0 if no TCP session
-  // actually exists.
-  optional uint32 remote_port = 4;
+  // This object is included if session_ip_type is of type ipv6.
+  BmpServerPeerSessionIpv6Information session_ipv6_information = 3;
 
   // The BGP Identifier of the peer.
-  optional string peer_bgp_id = 5;
+  optional string peer_bgp_id = 4;
 
   message Status {
     enum Enum {
@@ -19726,12 +19753,12 @@ message BmpServerPeerState {
   }
   // The current state of the BGP session.  Note that per peer stats and rib information
   // might be empty if the peer state is down.
-  optional Status.Enum status = 6;
+  optional Status.Enum status = 5;
 
   // The last set of BMP stats sent by the BMP collector for this peer. The set of supported
   // stats are available at https://www.rfc-editor.org/rfc/rfc7854.html#section-4.8. It
   // might be empty if no stats have been received yet or peer is still in down state.
-  BmpServerPeerStats stats = 7;
+  BmpServerPeerStats stats = 6;
 
   // The set of routes received from this peer as reported using BMP Route Monitoring
   // messages by the BMP Collector  which are part of the Adj-RIB-In database *before*
@@ -19742,7 +19769,7 @@ message BmpServerPeerState {
   // status set to 'advertised' Note that if discard_adj_rib is explicitly set to true
   // in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib
   // will not be present in the response.
-  BmpServerPeerPrePolicyInRib pre_policy_in_rib = 8;
+  BmpServerPeerPrePolicyInRib pre_policy_in_rib = 7;
 
   // The set of routes received from this peer as reported using BMP Route Monitoring
   // messages by the BMP Collector  which are part of the Adj-RIB-In database *after*
@@ -19753,7 +19780,27 @@ message BmpServerPeerState {
   // status set to 'advertised' Note that if discard_adj_rib is explicitly set to true
   // in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib
   // will not be present in the response.
-  BmpServerPeerPostPolicyInRib post_policy_in_rib = 9;
+  BmpServerPeerPostPolicyInRib post_policy_in_rib = 8;
+}
+
+// This object is included if session_ip_type is of type ipv4.
+message BmpServerPeerSessionIpv4Information {
+
+  // The local IPv4 address associated with the BGPv4 peer.
+  optional string local_address = 1;
+
+  // The remote IPv4 address associated with the BGPv4 peer.
+  optional string remote_address = 2;
+}
+
+// This object is included if session_ip_type is of type ipv6.
+message BmpServerPeerSessionIpv6Information {
+
+  // The local IPv6 address associated with the BGPv6 peer.
+  optional string local_address = 1;
+
+  // The remote IPv6 address associated with the BGPv6 peer.
+  optional string remote_address = 2;
 }
 
 // Container for periodic per peer stats sent by BMP Collector to a BMP Monitor
@@ -19796,7 +19843,15 @@ message BmpServerPeerStats {
   optional uint32 duplicate_updates = 12;
 }
 
-// Container for pre-policy In-RIB routes received from this peer by the BMP Monitor.
+// The set of routes received from this peer as reported using BMP Route Monitoring
+// messages by the BMP Collector  which are part of the Adj-RIB-In database *before*
+// inbound policies were applied. Note that routes which have been advertised initially
+// and currently in withdrawn state can be included in the returned set of routes by
+// setting the status of that specific route to 'withdrawn'. Routes which have been
+// received from this peer and part of current Pre-Policy In-Rib DB should have the
+// status set to 'advertised' Note that if discard_adj_rib is explicitly set to true
+// in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib
+// will not be present in the response.
 message BmpServerPeerPrePolicyInRib {
 
   // Description missing in models
@@ -19806,7 +19861,15 @@ message BmpServerPeerPrePolicyInRib {
   repeated BmpPrefixIpv6UnicastState ipv6_unicast_prefixes = 2;
 }
 
-// Container for post-policy In-RIB routes received from this peer by the BMP Monitor.
+// The set of routes received from this peer as reported using BMP Route Monitoring
+// messages by the BMP Collector  which are part of the Adj-RIB-In database *after*
+// inbound policies were applied. Note that routes which have been advertised initially
+// and currently in withdrawn state can be included in the returned set of routes by
+// setting the status of that specific route to 'withdrawn'. Routes which have been
+// received from this peer and part of current Post-Policy In-Rib DB should have the
+// status set to 'advertised' Note that if discard_adj_rib is explicitly set to true
+// in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib
+// will not be present in the response.
 message BmpServerPeerPostPolicyInRib {
 
   // Description missing in models
@@ -19839,32 +19902,56 @@ message BmpPrefixIpv4UnicastState {
   // The path id.
   optional uint32 path_id = 4;
 
+  message RouteState {
+    enum Enum {
+      unspecified = 0;
+      advertised = 1;
+      withdrawn = 2;
+    }
+  }
+  // The state of the route , either advertised or withdrawn. If route is in withdrawn
+  // state, only the prefix, prefix_length, origin and path_id (if present) may be present.
+  // 
+  optional RouteState.Enum route_state = 5;
+
+  message NextHopType {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  // The next hop type , ipv4 or ipv6 .  If type is ipv4, then the ipv4_next_hop should
+  // be included. If type is ipv6, then the ipv6_next_hop should be included.
+  // 
+  optional NextHopType.Enum next_hop_type = 6;
+
   // The IPv4 address of the egress interface.
-  optional string ipv4_next_hop = 5;
+  optional string ipv4_next_hop = 7;
 
   // The IPv6 address of the egress interface.
-  optional string ipv6_next_hop = 6;
+  optional string ipv6_next_hop = 8;
 
   // Optional community attributes.
-  repeated ResultBgpCommunity communities = 7;
+  repeated ResultBgpCommunity communities = 9;
 
   // Optional received Extended Community attributes. Each received Extended Community
   // attribute is available for retrieval in two forms. Support of the 'raw' format in
   // which all 8 bytes (16 hex characters) is always present and available for use. In
   // addition, if supported by the implementation, the Extended Community attribute may
   // also be retrieved in the  'structured' format which is an optional field.
-  repeated ResultExtendedCommunity extended_communities = 11;
+  repeated ResultExtendedCommunity extended_communities = 10;
 
   // Description missing in models
-  ResultBgpAsPath as_path = 8;
+  ResultBgpAsPath as_path = 11;
 
   // The local preference is a well-known attribute and the value is used for route selection.
   // The route with the highest local preference value is preferred.
-  optional uint32 local_preference = 9;
+  optional uint32 local_preference = 12;
 
   // The multi exit discriminator (MED) is an optional non-transitive attribute and the
   // value is used for route selection. The route with the lowest MED value is preferred.
-  optional uint32 multi_exit_discriminator = 10;
+  optional uint32 multi_exit_discriminator = 13;
 }
 
 // IPv6 unicast prefix.
@@ -19890,32 +19977,56 @@ message BmpPrefixIpv6UnicastState {
   // The path id.
   optional uint32 path_id = 4;
 
+  message RouteState {
+    enum Enum {
+      unspecified = 0;
+      advertised = 1;
+      withdrawn = 2;
+    }
+  }
+  // The state of the route , either advertised or withdrawn. If route is in withdrawn
+  // state, only the prefix, prefix_length, origin and path_id (if present) may be present.
+  // 
+  optional RouteState.Enum route_state = 5;
+
+  message NextHopType {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  // The next hop type , ipv4 or ipv6 .  If type is ipv4, then the ipv4_next_hop should
+  // be included. If type is ipv6, then the ipv6_next_hop should be included.
+  // 
+  optional NextHopType.Enum next_hop_type = 6;
+
   // The IPv4 address of the egress interface.
-  optional string ipv4_next_hop = 5;
+  optional string ipv4_next_hop = 7;
 
   // The IPv6 address of the egress interface.
-  optional string ipv6_next_hop = 6;
+  optional string ipv6_next_hop = 8;
 
   // Optional community attributes.
-  repeated ResultBgpCommunity communities = 7;
+  repeated ResultBgpCommunity communities = 9;
 
   // Optional received Extended Community attributes. Each received Extended Community
   // attribute is available for retrieval in two forms. Support of the 'raw' format in
   // which all 8 bytes (16 hex characters) is always present and available for use. In
   // addition, if supported by the implementation, the Extended Community attribute may
   // also be retrieved in the  'structured' format which is an optional field.
-  repeated ResultExtendedCommunity extended_communities = 11;
+  repeated ResultExtendedCommunity extended_communities = 10;
 
   // Description missing in models
-  ResultBgpAsPath as_path = 8;
+  ResultBgpAsPath as_path = 11;
 
   // The local preference is a well-known attribute and the value is used for route selection.
   // The route with the highest local preference value is preferred.
-  optional uint32 local_preference = 9;
+  optional uint32 local_preference = 12;
 
   // The multi exit discriminator (MED) is an optional non-transitive attribute and the
   // value is used for route selection. The route with the lowest MED value is preferred.
-  optional uint32 multi_exit_discriminator = 10;
+  optional uint32 multi_exit_discriminator = 13;
 }
 
 // The capture result request to the traffic generator. Stops the port capture on the

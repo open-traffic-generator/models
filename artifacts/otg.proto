@@ -9439,8 +9439,8 @@ message Rocev2V6Peer {
 // in RFC 7854, provides a mechanism to monitor BGP sessions. This configuration pertains
 // to the device when acting as a BMP Monitor /server, listening for connections from
 // BGP speakers (routers) acting as BMP clients. BMP is unidirectional, meaning the
-// monitoring station only receives information; it doesn't send commands or control
-// the monitored router. .
+// monitoring station only receives information; it doesn't send commands to or control
+// the monitored router.
 message DeviceBmp {
 
   // This contains an array of references to IPv4 interfaces, each of which will have
@@ -9488,7 +9488,7 @@ message DeviceBmpV6Interface {
 message DeviceBmpMonitorV4 {
 
   // The IPv4 address of the BMP client from which connections will be accepted from or
-  // initiated with by this BMP server.
+  // initiated with by this BMP Monitor.
   // required = true
   optional string client_ip = 1;
 
@@ -9497,7 +9497,8 @@ message DeviceBmpMonitorV4 {
   // 
   DeviceBmpMonitorConnection connection = 2;
 
-  // If enabled, discard the BGP prefix information sent by the remote BMP client.
+  // If enabled, discard the BGP route information sent by the remote BMP client in BMP
+  // Monitoring messages.
   // default = False
   optional bool discard_adj_rib = 3;
 
@@ -9510,8 +9511,8 @@ message DeviceBmpMonitorV4 {
 // Configuration for a BMP Monitor connected to a specific IPv6 BMP client.
 message DeviceBmpMonitorV6 {
 
-  // The IPv6 address of the BMP client from which connections will be accepted by this
-  // BMP Monitor.
+  // The IPv6 address of the BMP client from which connections will be accepted from or
+  // initiated with by this BMP Monitor.
   // required = true
   optional string client_ip = 1;
 
@@ -9520,7 +9521,8 @@ message DeviceBmpMonitorV6 {
   // 
   DeviceBmpMonitorConnection connection = 2;
 
-  // If enabled, discard the BGP prefix information sent by the remote BMP client.
+  // If enabled, discard the BGP route information sent by the remote BMP client in BMP
+  // Monitoring messages.
   // default = False
   optional bool discard_adj_rib = 3;
 
@@ -9553,26 +9555,25 @@ message DeviceBmpMonitorConnection {
 }
 
 // Container of information when BMP Monitor is configured in passive mode. This means
-// that BMP Monitor will not initiate the TCP connection but wait for the BMP Collector
+// that BMP Monitor will not initiate the TCP connection but wait for the BMP client
 // it is configured to accept connection from  to initiate the connection.  Note that
-// in this case it is required to configure the BMP Collector in active mode otherwise
+// in this case it is required to configure the BMP client in active mode otherwise
 // BMP connection will not be intiated by either end.
 message DeviceBmpMonitorPassiveConnection {
 
-  // The TCP port number on which to listen for TCP connections from the remote BMP Collector
+  // The TCP port number on which to listen for TCP connections from the remote BMP client
   // router.
   // default = 11019
   optional uint32 listen_port = 1;
 }
 
 // Container of information when BMP Monitor is configured in active mode. This means
-// that BMP Monitor will initiate the TCP connection to the remote BMP Collector it
-// is configured to initiate connection to.         Note that in this case it is required
-// to configure the BMP Collector in passive mode for the BMP session to not be rejected
-// from both ends.
+// that BMP Monitor will initiate the TCP connection to the remote BMP client .
+// Note that in this case it is required to configure the BMP client in passive
+// mode for the BMP session to not be rejected from both ends.
 message DeviceBmpMonitorActiveConnection {
 
-  // The TCP port number on which to initiate BMP connection to the remote BMP Collector
+  // The TCP port number on which to initiate BMP connection to the remote BMP client
   // router.
   // default = 11019
   optional uint32 remote_port = 1;
@@ -17184,38 +17185,39 @@ message BmpMonitorMetric {
     }
   }
   // Session state as up or down. The session goes to 'up' state when a BMP monitored
-  // router sends a Initiation message to the BMP Monitor. The session goes to 'down'
-  // state when a BMP monitored router sends a Termination message to the BMP server or
-  // the TCP connection is lost. On initial start, the state as reported as 'down'.
+  // client router sends a Initiation message to the BMP Monitor. The session goes to
+  // 'down' state when a BMP monitored client router sends a Termination message to the
+  // BMP Monitor/server or the TCP connection is lost. On initial start, the state as
+  // reported as 'down'.
   optional SessionState.Enum session_state = 2;
 
-  // Number of times the BMP session with the BMP Collector went from Up to Down state.
+  // Number of times the BMP session with the BMP client went from Up to Down state.
   optional uint64 flap_count = 3;
 
-  // Number of BMP Route Monitoring Messages received from the BMP Collector from the
-  // time the BMP session last went to 'up' state.
+  // Number of BMP Route Monitoring Messages received from the BMP client from the time
+  // the BMP session last went to 'up' state.
   optional uint64 route_monitoring_messages_received = 4;
 
-  // Number of BMP Route Statistics Messages received from the BMP Collector from the
-  // time the BMP session last went to 'up' state.
+  // Number of BMP Route Statistics Messages received from the BMP client from the time
+  // the BMP session last went to 'up' state.
   optional uint64 statistics_messages_received = 5;
 
-  // Number of BMP Peer Down Messages received from the BMP Collector from the time the
-  // BMP session last went to 'up' state.
+  // Number of BMP Peer Down Messages received from the BMP client from the time the BMP
+  // session last went to 'up' state.
   optional uint64 peer_down_messages_received = 6;
 
-  // Number of BMP Peer Up Messages received from the BMP Collector from the time the
-  // BMP session last went to 'up' state.
+  // Number of BMP Peer Up Messages received from the BMP client from the time the BMP
+  // session last went to 'up' state.
   optional uint64 peer_up_messages_received = 7;
 
-  // Number of BMP Initiation Messages received from the BMP Collector .
+  // Number of BMP Initiation Messages received from the BMP client .
   optional uint64 initiation_messages_received = 8;
 
-  // Number of BMP Route Mirroring Messages received from the BMP Collector from the time
+  // Number of BMP Route Mirroring Messages received from the BMP client from the time
   // the BMP session last went to 'up' state.
   optional uint64 route_mirroring_messages_received = 9;
 
-  // Number of BMP Termination Messages received from the BMP Collector .
+  // Number of BMP Termination Messages received from the BMP client.
   optional uint64 termination_messages_received = 10;
 }
 
@@ -19704,21 +19706,21 @@ message BmpMonitorsStateRequest {
 // The information learned by a specific BMP Monitor or server.
 message BmpMonitorState {
 
-  // The name of the BMP Monitor configured for which the information is being returned..
+  // The name of the BMP Monitor configured for which the information is being returned.
   optional string bmp_monitor_name = 1;
 
-  // The IPv4 Router ID of the BMP collector or client to which this BMP Monitor is connected.
-  // Note that each BMP Monitor is connected to a single BMP Collector , though multiple
-  // BMP Monitors can be configured on the  same IPv4 or IPv6 interface , each connected
-  // to different BMP Collectors.  Each BMP collector can in turn report information about
-  // multiple BGP peer sessions on that router.
-  optional string collector_router_id = 2;
+  // The IPv4 Router ID of the BMP client to which this BMP Monitor is connected. Note
+  // that each BMP Monitor is connected to a single BMP client, though multiple BMP Monitors
+  // can be configured on the  same IPv4 or IPv6 interface , each connected to a different
+  // BMP client.  Each BMP client can in turn report information about multiple BGP sessions
+  // on that router.
+  optional string client_router_id = 2;
 
   // Description missing in models
   repeated BmpServerPeerState peers = 3;
 }
 
-// The information returned by a BMP Collector to the BMP Monitor related to a specific
+// The information returned by a BMP client to the BMP Monitor related to a specific
 // BGP session on the router.
 message BmpServerPeerState {
 
@@ -19755,31 +19757,38 @@ message BmpServerPeerState {
   // might be empty if the peer state is down.
   optional Status.Enum status = 5;
 
-  // The last set of BMP stats sent by the BMP collector for this peer. The set of supported
+  // The last set of BMP stats sent by the BMP client for this peer. The set of supported
   // stats are available at https://www.rfc-editor.org/rfc/rfc7854.html#section-4.8. It
-  // might be empty if no stats have been received yet or peer is still in down state.
+  // might be all zeroed or empty if no stats have been received yet or peer is still
+  // in down state.
   BmpServerPeerStats stats = 6;
 
   // The set of routes received from this peer as reported using BMP Route Monitoring
-  // messages by the BMP Collector  which are part of the Adj-RIB-In database *before*
-  // inbound policies were applied. Note that routes which have been advertised initially
-  // and currently in withdrawn state can be included in the returned set of routes by
-  // setting the status of that specific route to 'withdrawn'. Routes which have been
-  // received from this peer and part of current Pre-Policy In-Rib DB should have the
-  // status set to 'advertised' Note that if discard_adj_rib is explicitly set to true
-  // in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib
-  // will not be present in the response.
+  // messages by the BMP client  which are part of the Adj-RIB-In database *before* inbound
+  // policies were applied. This is determined by checking that the L flag is not set
+  // in the Per-Peer Header in the received Route Monitoring message. It should also be
+  // ensured that the O flag as defined in RFC8671 is not set in the flags. (indicates
+  // Adj-RIB-Out)  Note that routes which have been advertised initially and currently
+  // in withdrawn state can be included in the returned set of routes by setting the status
+  // of that specific route to 'withdrawn'. Routes which have been received from this
+  // peer and part of current Pre-Policy In-Rib DB should have the status set to 'advertised'.
+  // Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration,
+  // no BGP routes will be stored and the pre_policy_in_rib will not be present in the
+  // response.
   BmpServerPeerPrePolicyInRib pre_policy_in_rib = 7;
 
   // The set of routes received from this peer as reported using BMP Route Monitoring
-  // messages by the BMP Collector  which are part of the Adj-RIB-In database *after*
-  // inbound policies were applied. Note that routes which have been advertised initially
-  // and currently in withdrawn state can be included in the returned set of routes by
-  // setting the status of that specific route to 'withdrawn'. Routes which have been
-  // received from this peer and part of current Post-Policy In-Rib DB should have the
-  // status set to 'advertised' Note that if discard_adj_rib is explicitly set to true
-  // in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib
-  // will not be present in the response.
+  // messages by the BMP client  which are part of the Adj-RIB-In database *after* inbound
+  // policies were applied. This is determined by checking that the L flag is set in the
+  // Per-Peer Header in the received Route Monitoring message. It should also be ensured
+  // that the O flag as defined in RFC8671 is not set in the flags. (indicates Adj-RIB-Out)
+  // Note that routes which have been advertised initially and currently in withdrawn
+  // state can be included in the returned set of routes by setting the status of that
+  // specific route to 'withdrawn'. Routes which have been received from this peer and
+  // part of current Post-Policy In-Rib DB should have the status set to 'advertised'.
+  // Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration,
+  // no BGP routes will be stored and the pre_policy_in_rib will not be present in the
+  // response.
   BmpServerPeerPostPolicyInRib post_policy_in_rib = 8;
 }
 
@@ -19803,7 +19812,7 @@ message BmpServerPeerSessionIpv6Information {
   optional string remote_address = 2;
 }
 
-// Container for periodic per peer stats sent by BMP Collector to a BMP Monitor
+// Container for periodic per peer stats sent by BMP client to a BMP Monitor.
 message BmpServerPeerStats {
 
   // Number of prefixes rejected by inbound policy.
@@ -19844,14 +19853,17 @@ message BmpServerPeerStats {
 }
 
 // The set of routes received from this peer as reported using BMP Route Monitoring
-// messages by the BMP Collector  which are part of the Adj-RIB-In database *before*
-// inbound policies were applied. Note that routes which have been advertised initially
-// and currently in withdrawn state can be included in the returned set of routes by
-// setting the status of that specific route to 'withdrawn'. Routes which have been
-// received from this peer and part of current Pre-Policy In-Rib DB should have the
-// status set to 'advertised' Note that if discard_adj_rib is explicitly set to true
-// in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib
-// will not be present in the response.
+// messages by the BMP client  which are part of the Adj-RIB-In database *before* inbound
+// policies were applied. This is determined by checking that the L flag is not set
+// in the Per-Peer Header in the received Route Monitoring message. It should also be
+// ensured that the O flag as defined in RFC8671 is not set in the flags. (indicates
+// Adj-RIB-Out)  Note that routes which have been advertised initially and currently
+// in withdrawn state can be included in the returned set of routes by setting the status
+// of that specific route to 'withdrawn'. Routes which have been received from this
+// peer and part of current Pre-Policy In-Rib DB should have the status set to 'advertised'.
+// Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration,
+// no BGP routes will be stored and the pre_policy_in_rib will not be present in the
+// response.
 message BmpServerPeerPrePolicyInRib {
 
   // Description missing in models
@@ -19862,14 +19874,17 @@ message BmpServerPeerPrePolicyInRib {
 }
 
 // The set of routes received from this peer as reported using BMP Route Monitoring
-// messages by the BMP Collector  which are part of the Adj-RIB-In database *after*
-// inbound policies were applied. Note that routes which have been advertised initially
-// and currently in withdrawn state can be included in the returned set of routes by
-// setting the status of that specific route to 'withdrawn'. Routes which have been
-// received from this peer and part of current Post-Policy In-Rib DB should have the
-// status set to 'advertised' Note that if discard_adj_rib is explicitly set to true
-// in BMP Monitor configuration, no BGP routes will be stored and the pre_policy_in_rib
-// will not be present in the response.
+// messages by the BMP client  which are part of the Adj-RIB-In database *after* inbound
+// policies were applied. This is determined by checking that the L flag is set in the
+// Per-Peer Header in the received Route Monitoring message. It should also be ensured
+// that the O flag as defined in RFC8671 is not set in the flags. (indicates Adj-RIB-Out)
+// Note that routes which have been advertised initially and currently in withdrawn
+// state can be included in the returned set of routes by setting the status of that
+// specific route to 'withdrawn'. Routes which have been received from this peer and
+// part of current Post-Policy In-Rib DB should have the status set to 'advertised'.
+// Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration,
+// no BGP routes will be stored and the pre_policy_in_rib will not be present in the
+// response.
 message BmpServerPeerPostPolicyInRib {
 
   // Description missing in models
@@ -19882,10 +19897,10 @@ message BmpServerPeerPostPolicyInRib {
 // IPv4 unicast prefix.
 message BmpPrefixIpv4UnicastState {
 
-  // An IPv4 unicast address
+  // An IPv4 unicast address.
   optional string ipv4_address = 1;
 
-  // The length of the prefix.
+  // The length of the IPv4 prefix.
   optional uint32 prefix_length = 2;
 
   message Origin {
@@ -19910,8 +19925,8 @@ message BmpPrefixIpv4UnicastState {
     }
   }
   // The state of the route , either advertised or withdrawn. If route is in withdrawn
-  // state, only the prefix, prefix_length, origin and path_id (if present) may be present.
-  // 
+  // state, only the prefix, prefix_length, origin and path_id (if applicable) may be
+  // present.
   optional RouteState.Enum route_state = 5;
 
   message NextHopType {
@@ -19957,10 +19972,10 @@ message BmpPrefixIpv4UnicastState {
 // IPv6 unicast prefix.
 message BmpPrefixIpv6UnicastState {
 
-  // An IPv6 unicast address
+  // An IPv6 unicast address.
   optional string ipv6_address = 1;
 
-  // The length of the prefix.
+  // The length of the IPv6 prefix.
   optional uint32 prefix_length = 2;
 
   message Origin {
@@ -19985,8 +20000,8 @@ message BmpPrefixIpv6UnicastState {
     }
   }
   // The state of the route , either advertised or withdrawn. If route is in withdrawn
-  // state, only the prefix, prefix_length, origin and path_id (if present) may be present.
-  // 
+  // state, only the prefix, prefix_length, origin and path_id (if applicable) may be
+  // present.
   optional RouteState.Enum route_state = 5;
 
   message NextHopType {

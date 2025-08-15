@@ -23,15 +23,15 @@ components:
       properties:
         bmp_monitor_name:
           description: >-
-            The name of the BMP Monitor configured for which the information is being returned..
+            The name of the BMP Monitor configured for which the information is being returned.
           type: string
           x-field-uid: 1
-        collector_router_id:
+        client_router_id:
           description: >- 
-            The IPv4 Router ID of the BMP collector or client to which this BMP Monitor is connected.
-            Note that each BMP Monitor is connected to a single BMP Collector , though multiple BMP Monitors can be configured on the 
-            same IPv4 or IPv6 interface , each connected to different BMP Collectors. 
-            Each BMP collector can in turn report information about multiple BGP peer sessions on that router.
+            The IPv4 Router ID of the BMP client to which this BMP Monitor is connected.
+            Note that each BMP Monitor is connected to a single BMP client, though multiple BMP Monitors can be configured on the 
+            same IPv4 or IPv6 interface , each connected to a different BMP client. 
+            Each BMP client can in turn report information about multiple BGP sessions on that router.
           type: string
           format: ipv4
           x-field-uid: 2       
@@ -42,7 +42,7 @@ components:
           x-field-uid: 3
     BmpServerPeer.State:
       description: >-
-        The information returned by a BMP Collector to the BMP Monitor related to a specific BGP session on the router.
+        The information returned by a BMP client to the BMP Monitor related to a specific BGP session on the router.
       type: object
       properties:
         session_ip_type:
@@ -86,31 +86,35 @@ components:
               x-field-uid: 2
         stats:
           description: >-
-            The last set of BMP stats sent by the BMP collector for this peer.
+            The last set of BMP stats sent by the BMP client for this peer.
             The set of supported stats are available at https://www.rfc-editor.org/rfc/rfc7854.html#section-4.8.
-            It might be empty if no stats have been received yet or peer is still in down state.
+            It might be all zeroed or empty if no stats have been received yet or peer is still in down state.
           $ref: '#/components/schemas/BmpServerPeer.Stats'
           x-field-uid: 6   
         pre_policy_in_rib:
           description: >- 
-            The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP Collector 
+            The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP client 
             which are part of the Adj-RIB-In database *before* inbound policies were applied.
+            This is determined by checking that the L flag is not set in the Per-Peer Header in the received Route Monitoring message.
+            It should also be ensured that the O flag as defined in RFC8671 is not set in the flags. (indicates Adj-RIB-Out) 
             Note that routes which have been advertised initially and currently in withdrawn state can be included in the
             returned set of routes by setting the status of that specific route to 'withdrawn'.
             Routes which have been received from this peer and part of current Pre-Policy In-Rib DB should have the status
-            set to 'advertised'
+            set to 'advertised'.
             Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration, no BGP routes will be stored and the
             pre_policy_in_rib will not be present in the response.
           $ref: '#/components/schemas/BmpServerPeer.PrePolicyInRib'
           x-field-uid: 7
         post_policy_in_rib:
           description: >- 
-            The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP Collector 
+            The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP client 
             which are part of the Adj-RIB-In database *after* inbound policies were applied.
+            This is determined by checking that the L flag is set in the Per-Peer Header in the received Route Monitoring message.
+            It should also be ensured that the O flag as defined in RFC8671 is not set in the flags. (indicates Adj-RIB-Out) 
             Note that routes which have been advertised initially and currently in withdrawn state can be included in the
             returned set of routes by setting the status of that specific route to 'withdrawn'.
             Routes which have been received from this peer and part of current Post-Policy In-Rib DB should have the status
-            set to 'advertised'
+            set to 'advertised'.
             Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration, no BGP routes will be stored and the
             pre_policy_in_rib will not be present in the response. 
           $ref: '#/components/schemas/BmpServerPeer.PostPolicyInRib'
@@ -152,7 +156,7 @@ components:
 
     BmpServerPeer.Stats:
       description: >-
-        Container for periodic per peer stats sent by BMP Collector to a BMP Monitor
+        Container for periodic per peer stats sent by BMP client to a BMP Monitor.
       type: object
       properties:
         rejected_prefixes:
@@ -230,12 +234,14 @@ components:
 
     BmpServerPeer.PrePolicyInRib:
       description: >-        
-        The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP Collector 
+        The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP client 
         which are part of the Adj-RIB-In database *before* inbound policies were applied.
+        This is determined by checking that the L flag is not set in the Per-Peer Header in the received Route Monitoring message.
+        It should also be ensured that the O flag as defined in RFC8671 is not set in the flags. (indicates Adj-RIB-Out) 
         Note that routes which have been advertised initially and currently in withdrawn state can be included in the
         returned set of routes by setting the status of that specific route to 'withdrawn'.
         Routes which have been received from this peer and part of current Pre-Policy In-Rib DB should have the status
-        set to 'advertised'
+        set to 'advertised'.
         Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration, no BGP routes will be stored and the
         pre_policy_in_rib will not be present in the response.
       type: object
@@ -253,14 +259,16 @@ components:
 
     BmpServerPeer.PostPolicyInRib:
       description: >-
-        The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP Collector 
+        The set of routes received from this peer as reported using BMP Route Monitoring messages by the BMP client 
         which are part of the Adj-RIB-In database *after* inbound policies were applied.
+        This is determined by checking that the L flag is set in the Per-Peer Header in the received Route Monitoring message.
+        It should also be ensured that the O flag as defined in RFC8671 is not set in the flags. (indicates Adj-RIB-Out) 
         Note that routes which have been advertised initially and currently in withdrawn state can be included in the
         returned set of routes by setting the status of that specific route to 'withdrawn'.
         Routes which have been received from this peer and part of current Post-Policy In-Rib DB should have the status
-        set to 'advertised'
+        set to 'advertised'.
         Note that if discard_adj_rib is explicitly set to true in BMP Monitor configuration, no BGP routes will be stored and the
-        pre_policy_in_rib will not be present in the response.
+        pre_policy_in_rib will not be present in the response.         
       type: object
       properties:
         ipv4_unicast_prefixes:
@@ -281,12 +289,16 @@ components:
       properties:
         ipv4_address:
           description: >-
-            An IPv4 unicast address
+            An IPv4 unicast address.
           type: string
           format: ipv4
           x-field-uid: 1
-        prefix_length:
-          x-include: '#/components/schemas/BmpPrefix.State/properties/prefix_length'
+        prefix_length:                  
+          description: >-
+            The length of the IPv4 prefix.
+          type: integer
+          format: uint32
+          maximum: 32          
           x-field-uid: 2
         origin:
           x-include: '#/components/schemas/BmpPrefix.State/properties/origin'
@@ -337,12 +349,16 @@ components:
       properties:
         ipv6_address:
           description: >-
-            An IPv6 unicast address
+            An IPv6 unicast address.
           type: string
           format: ipv6
           x-field-uid: 1
         prefix_length:
-          x-include: '#/components/schemas/BmpPrefix.State/properties/prefix_length'
+          description: >-
+            The length of the IPv6 prefix.
+          type: integer
+          format: uint32
+          maximum: 128          
           x-field-uid: 2
         origin:
           x-include: '#/components/schemas/BmpPrefix.State/properties/origin'
@@ -419,7 +435,7 @@ components:
         route_state:
           description: >-
             The state of the route , either advertised or withdrawn.
-            If route is in withdrawn state, only the prefix, prefix_length, origin and path_id (if present) may be present. 
+            If route is in withdrawn state, only the prefix, prefix_length, origin and path_id (if applicable) may be present. 
           type: string
           x-field-uid: 4
           x-enum:

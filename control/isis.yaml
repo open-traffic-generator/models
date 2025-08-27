@@ -52,9 +52,15 @@ components:
           x-enum:
             unplanned:
               x-field-uid: 1
+            planned:
+              x-field-uid: 2
         unplanned:
           $ref: "#/components/schemas/Action.Protocol.Isis.UnplannedRestart"
           x-field-uid: 3
+        planned:
+          $ref: "#/components/schemas/Action.Protocol.Isis.PlannedRestart"
+          x-field-uid: 4
+
 
     Action.Protocol.Isis.UnplannedRestart:
       description: >-
@@ -90,3 +96,42 @@ components:
           default: 10
           minimum: 0
           x-field-uid: 2
+          
+    Action.Protocol.Isis.PlannedRestart:
+      description: >-
+        Initiates IS-IS Planned Graceful Restart process for the selected IS-IS routers.
+        If no name is specified then Graceful Restart will be sent to all configured IS-IS routers.
+        When an emulated IS-IS router is in the planned "Restarting" mode,
+        it sends an IIH PDU containing a Restart TLV with the PR (Planned Restart Request) bit set and
+        sets the Remaining Time with the restart_time greater than the expected control-plane restart time
+        that is the maximum time within which this router or routers will complete the graceful restart.
+        It waits for PA (Planned Restart Acknowledge) in an IIH PDU from Neighbor(s).
+        The use of the PR bit provides a means to safely support restart periods that are significantly longer than standard Holding Times.
+        The PR bit SHOULD remain set in IIHs until the restart is initiated.
+        Reference: https://datatracker.ietf.org/doc/html/rfc8706#section-3.2.3.
+        Once the Restarting Router receives the Restart Tlv with PA bit is set, it intiates the Restart Request with the RR bit is set.
+        The holding_time is set as the Remaining Time as received in Restart Tlv or by the remaining time of restart_time that was sent
+        in the Planned Restart Request Tlv. This is left to the choice of the implementation.
+      type: object
+      properties:
+        restart_time:
+          description: >-
+            This is the estimated duration (in seconds) it will take for the
+            IS-IS session to be re-established after a Planned Restart Request. The Remaining Time is set with the restart_time in the Restarting Tlv.
+          type: integer
+          format: uint32
+          maximum: 4096
+          default: 30
+          minimum: 1
+          x-field-uid: 1
+        restart_after:
+          description: >-
+            Once it receives Restarting TLV having PA bit set in a IIH PDU from a neighbor,
+            the time (in seconds), after which IIH PDU, having Restart Tlv with RA & RR bits unset, will be sent.
+            This should result in IIH to be transmitted indicating restart is Completed, and hold_timer is reset to normal.
+          type: integer
+          format: uint32
+          maximum: 4096
+          default: 10
+          minimum: 0
+          x-field-uid: 3

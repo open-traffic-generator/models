@@ -1,0 +1,657 @@
+components:
+  schemas:
+    Flow.Ipv6Routing:
+      description: Ipv6 Routing packet header
+      type: object
+      properties:
+        choice:
+          type: string
+          x-field-uid: 1
+          x-enum:
+            type_0:
+              x-field-uid: 1
+            type_4:
+              x-field-uid: 2
+        type_4:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRoutingType4'
+          x-field-uid: 2
+        type_0:
+          $ref: '#/components/schemas/Flow.Ipv6RoutingType0'
+          x-field-uid: 3
+
+    Flow.Ipv6RoutingType0:
+      description: 'IPv6 Routing Header Type 0, as defined in RFC 2460.
+            This extension header is used by an IPv6 source to list one or more intermediate
+            nodes to be "visited" on the way to a packet''s destination. The Type 0 Routing
+            Header is identified by a value of 43 in the Next Header field of the preceding header.
+            NOTE: This header type has been deprecated by RFC 5095 due to security concerns.'
+      type: object
+      properties:
+        next_header:
+          x-field-pattern:
+            x-constants:
+              tcp: 6
+              udp: 17
+              ipv6_route: 43
+              ipv6_frag: 44
+              esp: 50
+              ah: 51
+              ipv6_icmp: 58
+              ipv6_nonxt: 59
+              ipv6_opts: 60
+              mobility_header: 135
+            description: An 8-bit selector that identifies the type of header immediately
+              following this Routing header. It uses the same values as the IPv4 Protocol
+              field.
+            format: integer
+            length: 8
+            default: 59
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 1
+        hdr_ext_len:
+          x-field-pattern:
+            description: An 8-bit unsigned integer representing the length of the
+              Routing header in 8-octet units, not including the first 8 octets. For
+              the Type 0 Routing header, this value is dynamically calculated as two
+              times the number of addresses in the header (2 * n). Therefore, it must
+              always be an even number.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 2
+        routing_type:
+          x-field-pattern:
+            x-constants:
+              type_0: 0
+            description: An 8-bit identifier for the specific Routing header variant.
+              For this header, the value must be 0.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 3
+        segments_left:
+          x-field-pattern:
+            description: An 8-bit unsigned integer indicating the number of route
+              segments remaining, i.e., the number of intermediate nodes still to
+              be visited before reaching the final destination. This value is decremented
+              by each intermediate node upon processing. The value must not be greater
+              than the total number of addresses in the header.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 4
+        reserved:
+          x-field-pattern:
+            description: A 32-bit reserved field. It must be initialized to zero for
+              transmission and is ignored on reception.
+            format: integer
+            length: 32
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 5
+        addresses:
+          x-field-pattern:
+            description: A 128-bit IPv6 address for an intermediate node.
+            format: ipv6
+            default: '::'
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 6
+
+
+
+    Flow.Ipv6SegmentRoutingType4:
+      description: Defines the structure of the IPv6 Segment Routing Header (SRH)
+        with Routing Type 4. This header is an IPv6 Routing header used to specify
+        a source-routed path for a packet, guiding it through a sequence of Segment
+        IDs (SIDs), which are typically IPv6 addresses.
+      type: object
+      properties:
+        next_header:
+          x-field-pattern:
+            description: 8-bit selector that identifies the type of header immediately
+              following the SRH. It uses the same values as the IPv4 Protocol field.
+              The default value 59 indicates that there is no next header.
+            format: integer
+            length: 8
+            default: 59
+            x-constants:
+              tcp: 6
+              udp: 17
+              ipv6: 41
+              ipv6_route: 43
+              ipv6_frag: 44
+              esp: 50
+              ah: 51
+              ipv6_icmp: 58
+              ipv6_nonxt: 59
+              ipv6_opts: 60
+              mobility_header: 135
+              sctp: 132
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 1
+        hdr_ext_len:
+          x-field-pattern:
+            description: 8-bit unsigned integer specifying the length of the SRH in
+              8-octet units, not including the first 8 octets of the SRH itself.
+            format: integer
+            length: 8
+            default: 2
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 2
+        routing_type:
+          x-field-pattern:
+            description: 8-bit identifier for the Routing header variant. For the
+              Segment Routing Header, this value is always 4.
+            format: integer
+            length: 8
+            default: 4
+            x-constants:
+              srh: 4
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 3
+        segments_left:
+          x-field-pattern:
+            description: 8-bit unsigned integer containing the number of remaining
+              segments to be visited before the packet reaches its final destination.
+              It is decremented at each segment endpoint. It points to the current
+              active segment in the Segment List.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 4
+        last_entry:
+          x-field-pattern:
+            description: 8-bit unsigned integer that contains the zero-based index
+              of the last element in the Segment List array. For example, if the Segment
+              List contains 3 addresses (at indices 0, 1, 2), the value of Last Entry
+              is 2.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 5
+        flags:
+          $ref: '#/components/schemas/Type4.Flags'
+          x-field-uid: 6
+        tag:
+          x-field-pattern:
+            description: 16-bit field used to tag a packet as part of a class or group,
+              enabling shared properties or policy treatment. If not used, it MUST
+              be set to zero.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 7
+        segment_list:
+          x-field-pattern:
+            description: The second 128-bit IPv6 address in the Segment List (Segment
+              List[1]). This represents the penultimate segment of the path. The list
+              can contain multiple segments, each represented by a subsequent 'segment_list_n'
+              field.
+            format: ipv6
+            default: '::'
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 8
+        tlvs:
+          $ref: '#/components/schemas/Type4.Tlvs'
+          x-field-uid: 9
+    Type4.Tlvs:
+      description: A list of optional Type-Length-Value (TLV) objects that carry
+        metadata for segment processing. TLVs are only present if the Hdr Ext
+        Len is greater than what is required for the fixed header and the segment
+        list.
+      type: object
+      properties:
+        ingress_tlv:
+          $ref: '#/components/schemas/Srh.TlvIngressNode'
+          x-field-uid: 1
+        egress_tlv:
+          $ref: '#/components/schemas/Srh.TlvEgressNode'
+          x-field-uid: 2
+        opaque_tlv:
+          $ref: '#/components/schemas/Srh.TlvOpaqueContainer'
+          x-field-uid: 3
+        padding_tlv:
+          $ref: '#/components/schemas/Srh.TlvPad'
+          x-field-uid: 4
+        hmac_tlv:
+          $ref: '#/components/schemas/Srh.TlvHmac'
+          x-field-uid: 5
+        path_trace_tlv:
+          $ref: '#/components/schemas/Srh.TlvPathTrace'
+          x-field-uid: 6
+
+    Type4.Flags:
+      description: An 8-bit field containing flags. While RFC 8754 reserves all
+        bits as unused, earlier drafts defined specific flags for behavior such
+        as OAM, HMAC, and FRR protection.
+      type: object
+      properties:
+        u1_flag:
+          x-field-pattern:
+            description: Unused bit. Should be set to 0.
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 1
+        p_flag:
+          x-field-pattern:
+            description: Protected Flag. Indicates if the segment is protected
+              by a Fast Re-Route (FRR) mechanism.
+            format: integer
+            length: 1
+            default: 0
+            x-constants:
+              not_protected: 0
+              protected: 1
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 2
+        o_flag:
+          x-field-pattern:
+            description: OAM Flag. Indicates if the packet is an Operations, Administration,
+              and Maintenance (OAM) packet.
+            format: integer
+            length: 1
+            default: 0
+            x-constants:
+              not_oam: 0
+              oam: 1
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 3
+        a_flag:
+          x-field-pattern:
+            description: Alert Flag. Indicates the presence of important TLVs
+              that must be inspected.
+            format: integer
+            length: 1
+            default: 0
+            x-constants:
+              no_alert: 0
+              alert: 1
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 4
+        h_flag:
+          x-field-pattern:
+            description: HMAC Flag. Indicates the presence of the HMAC TLV for
+              verification.
+            format: integer
+            length: 1
+            default: 0
+            x-constants:
+              no_hmac: 0
+              hmac_present: 1
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 5
+        u2_flag:
+          x-field-pattern:
+            description: Unused 3 bits. Should be set to 0.
+            format: integer
+            length: 3
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 6
+
+    Srh.TlvPad:
+      description: Padding TLV used when more than one byte of padding is required
+        to align subsequent TLVs or pad the header to an 8-octet boundary.
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: Type identifier for PadN TLV. Always 4.
+            format: integer
+            length: 8
+            default: 4
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: The length of the Padding field in bytes. Can range from
+              0 to 5.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 2
+        padding:
+          description: Variable-length padding bytes. Must be set to 0 on transmission.
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 3
+    Srh.TlvHmac:
+      description: Keyed-Hash Message Authentication Code (HMAC) TLV used to verify
+        that the SRH was not modified en route and was generated by an authorized
+        source.
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: Type identifier for HMAC TLV. Always 5.
+            format: integer
+            length: 8
+            default: 5
+            x-constants:
+              hmac: 5
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: The length of the variable-length data (D-bit, Reserved,
+              Key ID, and HMAC) in bytes.
+            format: integer
+            length: 8
+            default: 38
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 2
+        d_bit:
+          x-field-pattern:
+            description: Destination Address verification disabled flag. If set to
+              1, verification of the destination address against the current segment
+              is disabled.
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 3
+        reserved:
+          x-field-pattern:
+            description: 15 reserved bits. Must be set to 0.
+            format: integer
+            length: 15
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 4
+        hmac_key_id:
+          x-field-pattern:
+            description: A 32-bit opaque identifier for the pre-shared key and algorithm
+              used to generate the HMAC.
+            format: integer
+            length: 32
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 5
+        hmac:
+          x-field-pattern:
+            description: The HMAC digest, truncated to 32 octets. Its length must
+              be a multiple of 8 octets.
+            format: mac
+            type: string
+            default: 00:00:00:00:00:00
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 6
+    Srh.TlvIngressNode:
+      description: A TLV that may be used to carry the IPv6 address of the ingress
+        node of the SR domain.
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: Type identifier for Ingress Node TLV.
+            format: integer
+            length: 8
+            default: 1
+            x-constants:
+              ingress_node: 1
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: Length of the TLV value in bytes.
+            format: integer
+            length: 8
+            default: 18
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 2
+        reserved:
+          x-field-pattern:
+            description: Reserved field. Must be 0.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 3
+        flags:
+          x-field-pattern:
+            description: 8-bit flags field for this TLV.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 4
+        value:
+          x-field-pattern:
+            description: The 128-bit IPv6 address of the ingress node.
+            format: ipv6
+            default: '::'
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 5
+    Srh.TlvEgressNode:
+      description: A TLV that identifies the egress node of the SR policy.
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: The type identifier for the Egress Node TLV.
+            format: integer
+            length: 8
+            default: 2
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: The length of the Egress Node TLV's value field,
+              in bytes.
+            format: integer
+            length: 8
+            default: 18
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 2
+        reserved:
+          x-field-pattern:
+            description: Reserved field. Must be 0.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 3
+        flags:
+          x-field-pattern:
+            description: 8-bit flags field for this TLV.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 4
+        value:
+          x-field-pattern:
+            description: The 128-bit IPv6 address of the egress node.
+            format: ipv6
+            default: '::'
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 5
+    Srh.TlvOpaqueContainer:
+      description: A TLV used to carry opaque data across the SR domain.
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: The type identifier for the Opaque Container TLV.
+            format: integer
+            length: 8
+            default: 3
+            features:
+            - count
+            - metric_tags
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: The length of the Opaque Container TLV's value field,
+              in bytes.
+            format: integer
+            length: 8
+            default: 18
+            features:
+            - count
+            - metric_tags
+          x-field-uid: 2
+        value:
+          description: The variable-length opaque data carried by the TLV.
+          format: hex
+          type: string
+          default: '00'
+          x-field-uid: 3
+    Srh.TlvPathTrace:
+      description: A TLV used for path tracing and performance monitoring
+        within the SR domain.
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: The type identifier for the Path Trace TLV.
+            format: integer
+            length: 8
+            default: 128
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: The length of the Path Trace TLV's value field, in
+              bytes.
+            format: integer
+            length: 8
+            default: 14
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 2
+        interface_id:
+          x-field-pattern:
+            description: Identifier of the interface where the measurement
+              was taken.
+            format: integer
+            length: 12
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 3
+        interface_load:
+          x-field-pattern:
+            description: Load on the interface at the time of measurement.
+            format: integer
+            length: 4
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 4
+        timestamp:
+          description: Timestamp indicating when the measurement was taken.
+          format: hex
+          type: string
+          default: '00'
+          x-field-uid: 5
+        session_id:
+          x-field-pattern:
+            description: Identifier for the monitoring session.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 6
+        sequence_number:
+          x-field-pattern:
+            description: Sequence number for the packet within the monitoring
+              session.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+              - metric_tags
+          x-field-uid: 7

@@ -2360,6 +2360,38 @@ message MACRouteAddress {
   optional uint32 step = 4;
 }
 
+// A container of MPLS Prefix Label Value in the address range.
+message RouteMplsLabelValue {
+
+  // The starting Label Value.
+  // default = 16
+  optional uint32 start = 1;
+
+  // The maximum numbers of Label Values in the range.
+  // default = 1048575
+  optional uint32 max = 2;
+
+  // Increments the Label Value within a route range where multiple routes are present.
+  // default = 1
+  optional uint32 step = 3;
+}
+
+// A container of MPLS Prefix Label Index in the address range.
+message RouteMplsLabelIndex {
+
+  // The starting Label Index.
+  // default = 0
+  optional uint32 start = 1;
+
+  // The maximum numbers of Label Index in the range.
+  // default = 1048575
+  optional uint32 max = 2;
+
+  // Increments the Label Index within a route range where multiple routes are present.
+  // default = 1
+  optional uint32 step = 3;
+}
+
 // This contains the properties of IS-IS Prefix-SID and its attributes for  the extended
 // Ipv4 and Ipv6 reachability. Reference: https://datatracker.ietf.org/doc/html/rfc8667#name-prefix-segment-identifier-p.
 message IsisSRPrefixSid {
@@ -2845,6 +2877,26 @@ message DeviceBgpCustomError {
   optional uint32 subcode = 2;
 }
 
+// This contains the propeties of Segment Routing Global Block (SRGB) Sub-Tlv (3) that
+// is advertised under PREFIX_SID Tlv (40). Although it is implementation depended,
+// however must be advertised in first Update message at least. SR Global Block (SRGB):
+// the set of global segments in the SR domain. If a node participates in multiple SR
+// domains, there is one SRGB for each SR domain.  In SR-MPLS, SRGB is a local property
+// of a node and identifies the set of local labels reserved for global segments.  In
+// SR-MPLS, using identical SRGBs on all nodes within the SR domain is strongly recommended.
+// Reference: https://datatracker.ietf.org/doc/html/rfc8402
+message DeviceBgpSrMplsSrgb {
+
+  // The first Prefix SID Label value of the SRGB while the range contains the number
+  // of SRGB elements.
+  // default = 16000
+  optional uint32 starting_label = 1;
+
+  // This represents the number of Prefix SID Label in a SRGB range.
+  // default = 8000
+  optional uint32 range = 2;
+}
+
 // Configuration for emulated BGPv4 peers and routes.
 message BgpV4Peer {
 
@@ -2943,6 +2995,9 @@ message BgpV4Peer {
   // BGP Updates to be sent to the peer as specified after the session is established.
   // 
   BgpUpdateReplay replay_updates = 15;
+
+  // This contains the list of SRGB that is advertised under PREFIX_SID Tlv 40.
+  repeated DeviceBgpSrMplsSrgb srgb_ranges = 16;
 }
 
 // Configuration for emulated BGPv4 peers and routes on a single IPv4 interface.
@@ -3636,6 +3691,50 @@ message BgpCapability {
   // Support for IPv6 Unicast Add Path Capability.
   // default = False
   optional bool ipv6_unicast_add_path = 25;
+
+  // For Single Label binding to the IPv4 address prefix, BGP speaker will advertise (AFI,
+  // SAFI) pair capability as (1, 4) in BGP Open Message under the Multiprotocol  extensions
+  // capability.
+  // default = False
+  optional bool ipv4_mpls = 26;
+
+  // For Single Label binding to the IPv4 address prefix, BGP speaker will advertise (AFI,
+  // SAFI) pair capability as (2, 4) in BGP Open Message under the Multiprotocol  extensions
+  // capability.
+  // default = False
+  optional bool ipv6_mpls = 27;
+
+  // The MPLS multiple Lable capability is advertised in Optional Capability under Multiple
+  // Label Capability (code 8). Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
+  // For Multiple Labels binding to the IPv4 address prefix, BGP speaker will advertise
+  // triple of the form <AFI=1, SAFI=4, Count=n> in BGP Open Message under the Multiprotocol
+  // extensions capability, where n = ipv4_mpls_multi, the numbers of labels.
+  // default = 2
+  optional uint32 ipv4_mpls_multi = 28;
+
+  // The MPLS multiple Lable capability is advertised in Optional Capability under Multiple
+  // Label Capability (code 8). Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
+  // For Multiple Labels binding to the IPv6 address prefix, BGP speaker will advertise
+  // triple of the form <AFI=2, SAFI=4, Count=n> in BGP Open Message under the Multiprotocol
+  // extensions capability, where n = ipv6_mpls_multi, the numbers of labels.
+  // default = 2
+  optional uint32 ipv6_mpls_multi = 29;
+
+  // The MPLS multiple Lable capability is advertised in Optional Capability under Multiple
+  // Label Capability (code 8). Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
+  // For Multiple Labels binding to the IPv4 address prefix, BGP speaker will advertise
+  // triple of the form <AFI=1, SAFI=128, Count=n> in BGP Open Message under the Multiprotocol
+  // extensions capability, where n = ipv4_mpls_multi, the numbers of labels.
+  // default = 2
+  optional uint32 ipv4_mpls_vpn_multi = 30;
+
+  // The MPLS multiple Lable capability is advertised in Optional Capability under Multiple
+  // Label Capability (code 8). Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
+  // For Multiple Labels binding to the IPv6 address prefix, BGP speaker will advertise
+  // triple of the form <AFI=2, SAFI=128, Count=n> in BGP Open Message under the Multiprotocol
+  // extensions capability, where n = ipv6_mpls_vpn_multi, the numbers of labels.
+  // default = 2
+  optional uint32 ipv6_mpls_vpn_multi = 31;
 }
 
 // Configuration for controlling storage of BGP learned information recieved from the
@@ -3754,6 +3853,10 @@ message BgpV4RouteRange {
   // defined by the type and sub-type field. Extended communities provide a larger range
   // for grouping or categorizing communities.
   repeated BgpExtendedCommunity extended_communities = 12;
+
+  // Optional configuration for a BGP speaker to Bind an Address Prefix to One or More
+  // MPLS Labels.
+  BgpMplsLabelBindings mpls_labels = 13;
 }
 
 // The BGP Additional Paths feature is a BGP extension that allows the  advertisement
@@ -4114,6 +4217,40 @@ message BgpExtendedCommunityCustomType {
   optional string value = 3;
 }
 
+// BGP may be used to advertise that a particular node (N) has bound a particular MPLS
+// label, or a particular sequence of MPLS labels,
+// to a particular address prefix.
+// This is done by sending a Multiprotocol BGP UPDATE message with with an MP_REACH_NLRI
+// attribute.
+// The Network Address of Next Hop field of that attribute contains an IP address of
+// node N.
+// References: https://datatracker.ietf.org/doc/html/rfc3107
+// & https://datatracker.ietf.org/doc/html/rfc8277.
+message BgpMplsLabelBindings {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      labels = 1;
+      sr_labels = 2;
+    }
+  }
+  // Bind one or more MPLS Labels or SR indices to Address Prefixes.
+  // To advertise multiple labels for an address prefix, the BGP capabilities device.bgp.capabliti.ipv4_mpls_multi/bgp.capabliti.ipv6_mpls_multi
+  // etc. to be configured first.
+  // - labels: One or more Label Values are to be configured here.
+  // - sr_labels: One or more SR indices are to be configured here. At least one SRGB
+  // range has been configured in device.bgp.mpls_srgb_ranges.
+  // default = Choice.Enum.labels
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  repeated RouteMplsLabelValue labels = 2;
+
+  // Description missing in models
+  repeated RouteMplsLabelIndex sr_labels = 3;
+}
+
 // Emulated BGPv6 route range.
 message BgpV6RouteRange {
 
@@ -4215,6 +4352,10 @@ message BgpV6RouteRange {
   // defined by the type and sub-type field. Extended communities provide a larger range
   // for grouping or categorizing communities.
   repeated BgpExtendedCommunity extended_communities = 12;
+
+  // Optional configuration for a BGP speaker to Bind an Address Prefix to One or More
+  // MPLS Labels.
+  BgpMplsLabelBindings mpls_labels = 13;
 }
 
 // Configuration for BGP Segment Routing Traffic Engineering(SRTE)
@@ -6524,6 +6665,9 @@ message BgpV6Peer {
   // BGP Updates to be sent to the peer as specified after the session is established.
   // 
   BgpUpdateReplay replay_updates = 16;
+
+  // This contains the list of SRGB that is advertised under PREFIX_SID Tlv 40.
+  repeated DeviceBgpSrMplsSrgb srgb_ranges = 17;
 }
 
 // Configuration for emulated BGPv6 peers and routes on a single IPv6 interface.

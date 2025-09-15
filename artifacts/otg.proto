@@ -2367,9 +2367,9 @@ message RouteMplsLabelValue {
   // default = 16
   optional uint32 start = 1;
 
-  // The total number of Label Values in the range.
+  // The maximum numbers of Label Values in the range.
   // default = 1048575
-  optional uint32 end = 2;
+  optional uint32 max = 2;
 
   // Increments the Label Value within a route range where multiple routes are present.
   // default = 1
@@ -2380,12 +2380,12 @@ message RouteMplsLabelValue {
 message RouteMplsLabelIndex {
 
   // The starting Label Index.
-  // default = 1
+  // default = 0
   optional uint32 start = 1;
 
-  // The total number of Label Index in the range.
+  // The maximum numbers of Label Index in the range.
   // default = 1048575
-  optional uint32 end = 2;
+  optional uint32 max = 2;
 
   // Increments the Label Index within a route range where multiple routes are present.
   // default = 1
@@ -2878,10 +2878,13 @@ message DeviceBgpCustomError {
 }
 
 // This contains the propeties of Segment Routing Global Block (SRGB) Sub-Tlv (3) that
-// is advertised under PREFIX_SID Tlv (40). The set of global segments in the SR domain.
-// If a node participates in multiple SR domains, there is one SRGB for each SR domain.
-// In SR-MPLS, SRGB is a local property of a node and identifies the set of local labels
-// reserved for global segments. Reference: https://datatracker.ietf.org/doc/html/rfc8402
+// is advertised under PREFIX_SID Tlv (40). Although it is implementation depended,
+// however must be advertised in first Update message at least. SR Global Block (SRGB):
+// the set of global segments in the SR domain. If a node participates in multiple SR
+// domains, there is one SRGB for each SR domain.  In SR-MPLS, SRGB is a local property
+// of a node and identifies the set of local labels reserved for global segments.  In
+// SR-MPLS, using identical SRGBs on all nodes within the SR domain is strongly recommended.
+// Reference: https://datatracker.ietf.org/doc/html/rfc8402
 message DeviceBgpSrMplsSrgb {
 
   // The first Prefix SID Label value of the SRGB while the range contains the number
@@ -2892,12 +2895,6 @@ message DeviceBgpSrMplsSrgb {
   // This represents the number of Prefix SID Label in a SRGB range.
   // default = 8000
   optional uint32 range = 2;
-
-  // If it is true the SRGB will be advertise only in the first route under that is advertised
-  // under PREFIX_SID Tlv 40. Otherwise SRGB Sub Tlv will be advertised with the advertisement
-  // of each prefix.
-  // default = True
-  optional bool advertise_once = 3;
 }
 
 // Configuration for emulated BGPv4 peers and routes.
@@ -3695,101 +3692,49 @@ message BgpCapability {
   // default = False
   optional bool ipv6_unicast_add_path = 25;
 
-  // Description missing in models
-  BgpMPlsLabelBindingsCapabilities mpls_lebels = 26;
-}
+  // For Single Label binding to the IPv4 address prefix, BGP speaker will advertise (AFI,
+  // SAFI) pair capability as (1, 4) in BGP Open Message under the Multiprotocol  extensions
+  // capability.
+  // default = False
+  optional bool ipv4_mpls = 26;
 
-// Container for configuring capabilities for carrying Label Information in BGP Open
-// Message for RFC3107 and RFC8277 for MPLS label bindings.
-message BgpMPlsLabelBindingsCapabilities {
+  // For Single Label binding to the IPv4 address prefix, BGP speaker will advertise (AFI,
+  // SAFI) pair capability as (2, 4) in BGP Open Message under the Multiprotocol  extensions
+  // capability.
+  // default = False
+  optional bool ipv6_mpls = 27;
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      single_label = 1;
-      multiple_labels = 2;
-    }
-  }
-  // BGP to Bind MPLS Labels to Address Prefixes as per RFC3107 or RFC8277. - single_label:
-  // A BGP speaker that uses Multiprotocol Extensions to carry label
-  // mapping information should use the Capabilities Optional Parameter,
-  // as defined in Capabilities Advertisement in RFC2842, to inform its peers about
-  // this capability.
-  // The MP_EXT Capability Code, as defined in Multiprotocol Extensions RFC2858, is
-  // used to
-  // advertise the (AFI, SAFI) pairs available on a particular connection.
-  // Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1 &
-  // https://datatracker.ietf.org/doc/html/rfc3107#section-5.
-  // - multiple_labels: As RFC8277 is known as Multiple Labels Capability - A BGP
-  // speaker can include a Capabilities Optional Parameter in a BGP OPEN
-  // message. The Capabilities Optional Parameter is a triple that
-  // includes a one-octet Capability Code, a one-octet Capability length,
-  // and a variable-length Capability Value.
-  // Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
-  // default = Choice.Enum.single_label
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  BgpCapabilitiesMplsSingleLabel single_label = 2;
-
-  // Description missing in models
-  BgpCapabilitiesMplsMultipleLabels multiple_labels = 3;
-}
-
-// Container for configuring capabilities for carrying single Label Information. The
-// Capabilities Optional Parameter is a triple that includes a one-octet Capability
-// Code,  a one-octet Capability length, and a variable-length Capability Value.
-message BgpCapabilitiesMplsSingleLabel {
-
-  // For the IPv4 address prefix, BGP speaker will advertise (AFI, SAFI) pair capability
-  // as (1, 4) in BGP Open Message under the Multiprotocol  extensions capability.
-  // default = True
-  optional bool ipv4 = 1;
-
-  // For the IPv6 address prefix, BGP speaker will advertise (AFI, SAFI) pair capability
-  // as (2, 4) in BGP Open Message under the Multiprotocol  extensions capability.
-  // default = True
-  optional bool ipv6 = 2;
-
-  // For the VPN-IPv4 address prefix, BGP speaker will advertise (AFI, SAFI) pair capability
-  // as (1, 128) in BGP Open Message under the Multiprotocol  extensions capability.
-  // default = True
-  optional bool vpn_ipv4 = 3;
-
-  // For the VPN-IPv6 address prefix, BGP speak will advertise (AFI, SAFI) pair capability
-  // as (2, 128) in BGP Open Messag under the Multiprotocol  extensions capability.
-  // default = True
-  optional bool vpn_ipv6 = 4;
-}
-
-// Container for configuring capabilities for multiple carrying Labels Information as
-// per RFC8277. The MPLS multiple Lable capability is advertised in Optional Capability
-// under Multiple Label Capability (code 8). Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
-message BgpCapabilitiesMplsMultipleLabels {
-
-  // For the IPv4 address prefix, BGP speak will advertise triple of the form <AFI=1,
-  // SAFI=4, Count=n> in BGP Open Message under the Multiprotocol  extensions capability.
-  // where n = ipv4_mpls_count.
+  // The MPLS multiple Lable capability is advertised in Optional Capability under Multiple
+  // Label Capability (code 8). Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
+  // For Multiple Labels binding to the IPv4 address prefix, BGP speaker will advertise
+  // triple of the form <AFI=1, SAFI=4, Count=n> in BGP Open Message under the Multiprotocol
+  // extensions capability, where n = ipv4_mpls_multi, the numbers of labels.
   // default = 2
-  optional uint32 ipv4_label_count = 1;
+  optional uint32 ipv4_mpls_multi = 28;
 
-  // For the IPv6 address prefix, BGP speak will advertise triple of the form <AFI=2,
-  // SAFI=4, Count=n> in BGP Open Message under the Multiprotocol  extensions capability,
-  // where n = ipv6_mpls_count.
+  // The MPLS multiple Lable capability is advertised in Optional Capability under Multiple
+  // Label Capability (code 8). Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
+  // For Multiple Labels binding to the IPv6 address prefix, BGP speaker will advertise
+  // triple of the form <AFI=2, SAFI=4, Count=n> in BGP Open Message under the Multiprotocol
+  // extensions capability, where n = ipv6_mpls_multi, the numbers of labels.
   // default = 2
-  optional uint32 ipv6_label_count = 2;
+  optional uint32 ipv6_mpls_multi = 29;
 
-  // For the VPN-IPv4 address prefix, BGP speak will advertise triple of the form <AFI=1,
-  // SAFI=128, Count=n> in BGP Open Message under the Multiprotocol  extensions capability,
-  // where n = vpn_ipv4_mpls_count.
+  // The MPLS multiple Lable capability is advertised in Optional Capability under Multiple
+  // Label Capability (code 8). Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
+  // For Multiple Labels binding to the IPv4 address prefix, BGP speaker will advertise
+  // triple of the form <AFI=1, SAFI=128, Count=n> in BGP Open Message under the Multiprotocol
+  // extensions capability, where n = ipv4_mpls_multi, the numbers of labels.
   // default = 2
-  optional uint32 vpn_ipv4_label_count = 3;
+  optional uint32 ipv4_mpls_vpn_multi = 30;
 
-  // For the VPN-IPv4 address prefix, BGP speak will advertise triple of the form <AFI=2,
-  // SAFI=128, Count=n> in BGP Open Message under the Multiprotocol  extensions capability,
-  // where n = vpn_ipv6_mpls_count.
+  // The MPLS multiple Lable capability is advertised in Optional Capability under Multiple
+  // Label Capability (code 8). Reference: https://datatracker.ietf.org/doc/html/rfc8277#section-2.1.
+  // For Multiple Labels binding to the IPv6 address prefix, BGP speaker will advertise
+  // triple of the form <AFI=2, SAFI=128, Count=n> in BGP Open Message under the Multiprotocol
+  // extensions capability, where n = ipv6_mpls_vpn_multi, the numbers of labels.
   // default = 2
-  optional uint32 vpn_ipv6_label_count = 4;
+  optional uint32 ipv6_mpls_vpn_multi = 31;
 }
 
 // Configuration for controlling storage of BGP learned information recieved from the
@@ -3911,11 +3856,7 @@ message BgpV4RouteRange {
 
   // Optional configuration for a BGP speaker to Bind an Address Prefix to One or More
   // MPLS Labels.
-  // For creating single Label, mpls_lebels under BGP capability is chosen as single_label.
-  // Single Label pattern for this route range is to be configure here.
-  // The mpls_lebels under BGP capability is chosen as multiple_labels. Multiple Label
-  // patterns for this route range are to be configure here.
-  repeated BgpMplsLabelBindings mpls_labels = 13;
+  BgpMplsLabelBindings mpls_labels = 13;
 }
 
 // The BGP Additional Paths feature is a BGP extension that allows the  advertisement
@@ -4290,36 +4231,24 @@ message BgpMplsLabelBindings {
   message Choice {
     enum Enum {
       unspecified = 0;
-      label = 1;
-      sr_label = 2;
+      labels = 1;
+      sr_labels = 2;
     }
   }
-  // Bind one or more MPLS Labels to Address Prefixes.
-  // - label: Label Value is to be configure here.
-  // - sr_label: The mpls_lebel_capability under BGP capability is chosen as single_label.
-  // At least one SRGB range has been configured in mpls_srgb_ranges under device/bgp.
-  // default = Choice.Enum.label
+  // Bind one or more MPLS Labels or SR indices to Address Prefixes.
+  // To advertise multiple labels for an address prefix, the BGP capabilities device.bgp.capabliti.ipv4_mpls_multi/bgp.capabliti.ipv6_mpls_multi
+  // etc. to be configured first.
+  // - labels: One or more Label Values are to be configured here.
+  // - sr_labels: One or more SR indices are to be configured here. At least one SRGB
+  // range has been configured in device.bgp.mpls_srgb_ranges.
+  // default = Choice.Enum.labels
   optional Choice.Enum choice = 1;
 
-  // Group of MPLS Label value bind to a prefix
-  BgpMplsLabelBindingsSingleLabelValue label = 2;
-
-  // Group of MPLS SR Label Index bind to a prefix
-  BgpMplsLabelBindingsSingleLabelIndex sr_label = 3;
-}
-
-// Container for Single MPLS Value.
-message BgpMplsLabelBindingsSingleLabelValue {
+  // Description missing in models
+  repeated RouteMplsLabelValue labels = 2;
 
   // Description missing in models
-  RouteMplsLabelValue value = 1;
-}
-
-// Container for Single MPLS SR Index.
-message BgpMplsLabelBindingsSingleLabelIndex {
-
-  // Description missing in models
-  RouteMplsLabelIndex index = 1;
+  repeated RouteMplsLabelIndex sr_labels = 3;
 }
 
 // Emulated BGPv6 route range.
@@ -4426,11 +4355,7 @@ message BgpV6RouteRange {
 
   // Optional configuration for a BGP speaker to Bind an Address Prefix to One or More
   // MPLS Labels.
-  // For creating single Label, mpls_lebels under BGP capability is chosen as single_label.
-  // Single Label pattern for this route range is to be configure here.
-  // The mpls_lebels under BGP capability is chosen as multiple_labels. Multiple Label
-  // patterns for this route range are to be configure here.
-  repeated BgpMplsLabelBindings mpls_labels = 13;
+  BgpMplsLabelBindings mpls_labels = 13;
 }
 
 // Configuration for BGP Segment Routing Traffic Engineering(SRTE)

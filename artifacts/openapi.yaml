@@ -13338,8 +13338,10 @@ components:
         macsec:
           $ref: '#/components/schemas/Flow.Macsec'
           x-field-uid: 23
-        ipv6_routing_extension:
-          $ref: '#/components/schemas/Flow.Ipv6Routing'
+        ipv6_extension_headers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Ipv6ExtHeaders'
           x-field-uid: 24
     Flow.Custom:
       type: object
@@ -15625,9 +15627,9 @@ components:
               x-field-uid: 1
           enum:
           - auto
-    Flow.Ipv6Routing:
+    Flow.Ipv6ExtHeaders:
       description: |-
-        Ipv6 Routing extension packet header
+        Ipv6 routing extension packet headers
       type: object
       properties:
         choice:
@@ -15639,9 +15641,12 @@ components:
               x-field-uid: 1
           enum:
           - segment_routing
+        routing_type:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6ExtHeaders.RoutingType'
         segment_routing:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting'
-          x-field-uid: 2
+          x-field-uid: 3
     Flow.Ipv6SegmentRouting:
       description: |-
         Defines the structure of the IPv6 Segment Routing Header (SRH) with Routing Type 4. This header is an IPv6 Routing header used to specify a source-routed path for a packet, guiding it through a sequence of Segment IDs (SIDs), which are typically IPv6 addresses.
@@ -15653,20 +15658,17 @@ components:
         hdr_ext_len:
           x-field-uid: 2
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.HdrExtLen'
-        routing_type:
-          x-field-uid: 3
-          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.RoutingType'
         segments_left:
-          x-field-uid: 4
+          x-field-uid: 3
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.SegmentsLeft'
         last_entry:
-          x-field-uid: 5
+          x-field-uid: 4
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.LastEntry'
         flags:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.Flags'
-          x-field-uid: 6
+          x-field-uid: 5
         tag:
-          x-field-uid: 7
+          x-field-uid: 6
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Tag'
         segment_list:
           description: |-
@@ -15675,10 +15677,10 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.Segment'
-          x-field-uid: 8
+          x-field-uid: 7
         tlvs:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.Tlvs'
-          x-field-uid: 9
+          x-field-uid: 8
     Flow.Ipv6SegmentRouting.Segment:
       type: object
       properties:
@@ -46076,6 +46078,53 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.RSVP.PathObjectsCustom.Type.Counter'
           x-field-uid: 6
+    Pattern.Flow.Ipv6ExtHeaders.RoutingType:
+      description: |-
+        8-bit identifier for the Routing header variant. For the Segment Routing Header, this value is always 4.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            auto:
+              x-field-uid: 1
+          default: auto
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - auto
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 4
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 4
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          x-field-uid: 4
+          default: 4
+          format: uint32
+          maximum: 255
+      x-constants:
+        segment_routing: 4
     Pattern.Flow.Ipv6SegmentRouting.NextHeader.Counter:
       description: |-
         integer counter pattern
@@ -46249,77 +46298,6 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.HdrExtLen.Counter'
           x-field-uid: 6
-    Pattern.Flow.Ipv6SegmentRouting.RoutingType.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 4
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 255
-      x-constants:
-        srh: 4
-    Pattern.Flow.Ipv6SegmentRouting.RoutingType:
-      description: |-
-        8-bit identifier for the Routing header variant. For the Segment Routing Header, this value is always 4.
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 4
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 4
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.RoutingType.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.RoutingType.Counter'
-          x-field-uid: 6
-      x-constants:
-        srh: 4
     Pattern.Flow.Ipv6SegmentRouting.SegmentsLeft.Counter:
       description: |-
         integer counter pattern

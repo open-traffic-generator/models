@@ -12,7 +12,7 @@ components:
           x-enum:
             routing:
               x-field-uid: 1
-        segment_routing:
+        routing:
           $ref: '#/components/schemas/Flow.Ipv6Routing'
           x-field-uid: 2
     Flow.Ipv6Routing:
@@ -55,6 +55,7 @@ components:
           x-field-pattern:
             description: 8-bit unsigned integer specifying the length of the SRH in
               8-octet units, not including the first 8 octets of the SRH itself.
+              When AUTO is assigned it is set to the correct value.
             format: integer
             length: 8
             default: 0
@@ -143,21 +144,53 @@ components:
         list.
       type: object
       properties:
+        choice:
+          type: string
+          default: ingress
+          x-field-uid: 1
+          x-enum:
+            ingress:
+              x-field-uid: 1
+            egress:
+              x-field-uid: 2
+            opaque:
+              x-field-uid: 3
+            padding:
+              x-field-uid: 4
+            path_trace:
+              x-field-uid: 5
+        type:
+          x-field-pattern:
+            description: Type identifier for the TLV. AUTO will set it to correct value
+              based on choice.
+            format: integer
+            length: 8
+            default: 0
+            features: [auto, count]
+          x-field-uid: 2
+        length:
+          x-field-pattern:
+            description: The length of the TLV value in bytes.
+            format: integer
+            length: 8
+            default: 0
+            features: [auto, count]
+          x-field-uid: 3
         ingress:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvIngressNode'
-          x-field-uid: 1
+          x-field-uid: 4
         egress:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvEgressNode'
-          x-field-uid: 2
+          x-field-uid: 5
         opaque:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvOpaqueContainer'
-          x-field-uid: 3
+          x-field-uid: 6
         padding:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvPad'
-          x-field-uid: 4
+          x-field-uid: 7
         path_trace:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvPathTrace'
-          x-field-uid: 5
+          x-field-uid: 8
     Flow.Ipv6SegmentRouting.Flags:
       description: An 8-bit field containing flags. While RFC 8754 reserves all
         bits as unused, earlier drafts defined specific flags for behavior such
@@ -239,56 +272,17 @@ components:
         to align subsequent TLVs or pad the header to an 8-octet boundary.
       type: object
       properties:
-        type:
-          x-field-pattern:
-            description: Type identifier for PadN TLV. Always 4.
-            format: integer
-            length: 8
-            default: 4
-            features:
-              - count
-          x-field-uid: 1
-        length:
-          x-field-pattern:
-            description: The length of the Padding field in bytes. Can range from
-              0 to 5.
-            format: integer
-            length: 8
-            default: 0
-            features:
-              - count
-          x-field-uid: 2
         padding:
           description: Variable-length padding bytes. Must be set to 0 on transmission.
           type: string
           format: hex
           default: '00'
-          x-field-uid: 3
+          x-field-uid: 1
     Flow.Ipv6SegmentRouting.TlvIngressNode:
       description: A TLV that may be used to carry the IPv6 address of the ingress
         node of the SR domain.
       type: object
       properties:
-        type:
-          x-field-pattern:
-            description: Type identifier for Ingress Node TLV.
-            format: integer
-            length: 8
-            default: 1
-            x-constants:
-              ingress_node: 1
-            features:
-              - count
-          x-field-uid: 1
-        length:
-          x-field-pattern:
-            description: Length of the TLV value in bytes.
-            format: integer
-            length: 8
-            default: 18
-            features:
-              - count
-          x-field-uid: 2
         reserved:
           x-field-pattern:
             description: Reserved field. Must be 0.
@@ -297,7 +291,7 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 3
+          x-field-uid: 1
         flags:
           x-field-pattern:
             description: 8-bit flags field for this TLV.
@@ -306,7 +300,7 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 4
+          x-field-uid: 2
         value:
           x-field-pattern:
             description: The 128-bit IPv6 address of the ingress node.
@@ -314,30 +308,11 @@ components:
             default: '::'
             features:
               - count
-          x-field-uid: 5
+          x-field-uid: 3
     Flow.Ipv6SegmentRouting.TlvEgressNode:
       description: A TLV that identifies the egress node of the SR policy.
       type: object
       properties:
-        type:
-          x-field-pattern:
-            description: The type identifier for the Egress Node TLV.
-            format: integer
-            length: 8
-            default: 2
-            features:
-              - count
-          x-field-uid: 1
-        length:
-          x-field-pattern:
-            description: The length of the Egress Node TLV's value field,
-              in bytes.
-            format: integer
-            length: 8
-            default: 18
-            features:
-              - count
-          x-field-uid: 2
         reserved:
           x-field-pattern:
             description: Reserved field. Must be 0.
@@ -346,7 +321,7 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 3
+          x-field-uid: 1
         flags:
           x-field-pattern:
             description: 8-bit flags field for this TLV.
@@ -355,7 +330,7 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 4
+          x-field-uid: 2
         value:
           x-field-pattern:
             description: The 128-bit IPv6 address of the egress node.
@@ -363,60 +338,22 @@ components:
             default: '::'
             features:
               - count
-          x-field-uid: 5
+          x-field-uid: 3
     Flow.Ipv6SegmentRouting.TlvOpaqueContainer:
       description: A TLV used to carry opaque data across the SR domain.
       type: object
       properties:
-        type:
-          x-field-pattern:
-            description: The type identifier for the Opaque Container TLV.
-            format: integer
-            length: 8
-            default: 3
-            features:
-            - count
-          x-field-uid: 1
-        length:
-          x-field-pattern:
-            description: The length of the Opaque Container TLV's value field,
-              in bytes.
-            format: integer
-            length: 8
-            default: 18
-            features:
-            - count
-          x-field-uid: 2
         value:
           description: The variable-length opaque data carried by the TLV.
           format: hex
           type: string
           default: '00'
-          x-field-uid: 3
+          x-field-uid: 1
     Flow.Ipv6SegmentRouting.TlvPathTrace:
       description: A TLV used for path tracing and performance monitoring
         within the SR domain.
       type: object
       properties:
-        type:
-          x-field-pattern:
-            description: The type identifier for the Path Trace TLV.
-            format: integer
-            length: 8
-            default: 128
-            features:
-              - count
-          x-field-uid: 1
-        length:
-          x-field-pattern:
-            description: The length of the Path Trace TLV's value field, in
-              bytes.
-            format: integer
-            length: 8
-            default: 14
-            features:
-              - count
-          x-field-uid: 2
         interface_id:
           x-field-pattern:
             description: Identifier of the interface where the measurement
@@ -426,7 +363,7 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 3
+          x-field-uid: 1
         interface_load:
           x-field-pattern:
             description: Load on the interface at the time of measurement.
@@ -435,13 +372,13 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 4
+          x-field-uid: 2
         timestamp:
           description: Timestamp indicating when the measurement was taken.
           format: hex
           type: string
           default: '00'
-          x-field-uid: 5
+          x-field-uid: 3
         session_id:
           x-field-pattern:
             description: Identifier for the monitoring session.
@@ -450,7 +387,7 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 6
+          x-field-uid: 4
         sequence_number:
           x-field-pattern:
             description: Sequence number for the packet within the monitoring
@@ -460,4 +397,4 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 7
+          x-field-uid: 5

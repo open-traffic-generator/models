@@ -1,0 +1,469 @@
+components:
+  schemas:
+    Flow.Lacp:
+      description: Defines the fields of a Link Aggregation Control Protocol (LACP)
+        Data Unit (PDU) as specified by IEEE 802.3ad.
+        The ethernet ether type, if set to auto, will be updated to '0x8809' and 
+        the destination address, if set to auto, will be updated to "01:80:C2:00:00:02" 
+        for LACP. Flows[i].metrics.enable should be set to false to avoid insertion of 
+        additional instrumentation bytes in the generated packets.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: lacpdu
+          x-field-uid: 1
+          x-enum:
+            lacpdu:
+              x-field-uid: 1
+        version:
+          x-field-pattern:
+            description: The LACP version number.
+            format: integer
+            length: 8
+            default: 1
+            features:
+              - count
+          x-field-uid: 2
+        lacpdu:
+          $ref: '#/components/schemas/Flow.Lacp.Lacpdu'
+          x-field-uid: 3
+    Flow.Lacp.Lacpdu:
+      description: |-
+        Defines the TLV fields of a Link Aggregation Control Protocol (LACP)
+        Data Unit (PDU) as specified by IEEE 802.3ad.
+      type: object
+      properties:
+        actor:
+          $ref: '#/components/schemas/Flow.Lacpdu.Actor'
+          x-field-uid: 1
+        partner:
+          $ref: '#/components/schemas/Flow.Lacpdu.Partner'
+          x-field-uid: 2
+        collector:
+          $ref: '#/components/schemas/Flow.Lacpdu.Collector'
+          x-field-uid: 3
+        terminator:
+          $ref: '#/components/schemas/Flow.Lacpdu.Terminator'
+          x-field-uid: 4
+    Flow.Lacpdu.Actor:
+      description: |-
+        Information about the local (actor) system.
+      type: object
+      properties:                       
+        type:
+          x-field-pattern:
+            description: TLV Type for Actor Information. The value 0x01 identifies
+              this TLV as containing information about the sending device (the Actor).
+            format: integer
+            length: 8
+            default: 1
+            features:
+              - count
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: The length of the Actor Information TLV payload in bytes.
+            format: integer
+            length: 8
+            default: 20
+            features:
+              - count
+          x-field-uid: 2
+        system_priority:
+          x-field-pattern:
+            description: The priority assigned to the Actor's system for use in aggregation.
+              A lower numerical value indicates a higher priority. Used to select
+              the active System ID when forming an aggregator.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 3
+        system_id:
+          x-field-pattern:
+            description: The Actor's System ID, which is a globally unique MAC address
+              assigned to the system containing the Actor.
+            format: mac
+            default: 00:00:00:00:00:00
+            features:
+              - count
+          x-field-uid: 4
+        key:
+          x-field-pattern:
+            description: The operational Key value assigned to the Actor's port. The
+              key is generated based on port configuration (e.g., speed, duplex, trunk
+              ID) and is used to identify potential aggregation groups. Only links
+              with the same key can be aggregated together.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 5
+        port_priority:
+          x-field-pattern:
+            description: The priority assigned to the Actor's port. A lower numerical
+              value indicates a higher priority. Used to prioritize ports for inclusion
+              in a Link Aggregation Group (LAG) when the group is full.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 6
+        port_number:
+          x-field-pattern:
+            description: The port number assigned to the Actor's port. It is a unique
+              identifier for the port within the system.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 7
+        actor_state:
+          $ref: '#/components/schemas/Flow.Lacpdu.Actor.State'
+          x-field-uid: 8
+        reserved:
+          x-field-pattern:
+            description: Reserved field for future use in the Actor TLV. Should be
+              set to all zeros.
+            format: integer
+            length: 24
+            default: 0
+            features:
+                - count
+          x-field-uid: 9
+    Flow.Lacpdu.Partner:
+      description: |-
+        Information about the remote (partner) system.
+      type: object
+      properties:          
+        type:
+          x-field-pattern:
+            description: TLV Type for Partner Information. The value 0x02 identifies
+              this TLV as containing information about the remote device (the Partner),
+              as understood by the Actor.
+            format: integer
+            length: 8
+            default: 2
+            features:
+              - count
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: The length of the Partner Information TLV payload in bytes.
+            format: integer
+            length: 8
+            default: 20
+            features:
+              - count
+          x-field-uid: 2
+        system_priority:
+          x-field-pattern:
+            description: The priority of the Partner's system, as received by the
+              Actor.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 3
+        system_id:
+          x-field-pattern:
+            description: The Partner's System ID (MAC address), as received by the
+              Actor.
+            format: mac
+            default: 00:00:00:00:00:00
+            features:
+              - count
+          x-field-uid: 4
+        key:
+          x-field-pattern:
+            description: The operational Key value of the Partner's port, as received
+              by the Actor.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 5
+        port_priority:
+          x-field-pattern:
+            description: The priority of the Partner's port, as received by the Actor.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 6
+        port_number:
+          x-field-pattern:
+            description: The port number of the Partner's port, as received by the
+              Actor.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 7
+        partner_state:
+          $ref: '#/components/schemas/Flow.Lacpdu.Partner.State'
+          x-field-uid: 8
+        reserved:
+          x-field-pattern:
+            description: Reserved field for future use in the Partner TLV. Should
+              be set to all zeros.
+            format: integer
+            length: 24
+            default: 0
+            features:
+                - count
+          x-field-uid: 9
+    Flow.Lacpdu.Collector:
+      description: |-
+        Information about frame collection parameters.
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: TLV Type for Collector Information. The value 0x03 identifies
+              this TLV.
+            format: integer
+            length: 8
+            default: 3
+            features:
+              - count
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: The length of the Collector Information TLV payload in bytes.
+              The value must be 16 (0x10).
+            format: integer
+            length: 8
+            default: 16
+            features:
+              - count
+          x-field-uid: 2
+        max_delay:
+          x-field-pattern:
+            description: Indicates the maximum delay, in units of 10 microseconds,
+              that the transmitting system's aggregator will take to buffer frames
+              from its collector before emitting a frame.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 3
+        reserved:
+          description: Reserved field for future use in the Collector TLV. 12 bytes
+            long and should be set to all zeros.
+          type: string
+          format: hex
+          default: '000000000000000000000000'
+          x-field-uid: 4
+    Flow.Lacpdu.Terminator:
+      description: |-
+        Marks the end of the LACPDU message.
+      type: object
+      properties:          
+        type:
+          x-field-pattern:
+            description: TLV Type for Terminator Information. The value 0x00 indicates
+              the end of the TLV list.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+          x-field-uid: 1
+        length:
+          x-field-pattern:
+            description: The length of the Terminator TLV payload. The value must
+              be 0.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+          x-field-uid: 2
+        reserved:
+          description: Final block of reserved bytes to pad the PDU. It is 50 bytes
+            long.
+          type: string
+          format: hex
+          default: '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+          x-field-uid: 3
+    Flow.Lacpdu.Actor.State:
+      description: |-
+        This field indicates the Actor's state.
+      type: object
+      properties:
+        activity:
+          x-field-pattern:
+            description: >-
+              LACP Activity (1=Active, 0=Passive)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 1
+        timeout:
+          x-field-pattern:
+            description: >-
+              LACP Timeout (1=Fast timeout, 0=Slow timeout)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 2
+        aggregation:
+          x-field-pattern:
+            description: >-
+              Aggregation (1=Aggregatable, 0=Individual)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 3
+        synchronization:
+          x-field-pattern:
+            description: >-
+              Synchronization (1=In Sync, 0=Out of Sync)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 4
+        collecting:
+          x-field-pattern:
+            description: >-
+              Collecting (1=Enabled, 0=Disabled)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 5
+        distributing:
+          x-field-pattern:
+            description: >-
+              Distributing (1=Enabled, 0=Disabled)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 6
+        defaulted:
+          x-field-pattern:
+            description: >-
+              Defaulted (1=Using defaulted partner info, 0=Using received partner info)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 7
+        expired:
+          x-field-pattern:
+            description: >-
+              Expired (1=Expired, 0=Not Expired)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 8
+    Flow.Lacpdu.Partner.State:
+      description: |-
+        This field indicates the Partner's state.
+      type: object
+      properties:
+        activity:
+          x-field-pattern:
+            description: >-
+              LACP Activity (1=Active, 0=Passive)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 1
+        timeout:
+          x-field-pattern:
+            description: >-
+              LACP Timeout (1=Fast timeout, 0=Slow timeout)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 2
+        aggregation:
+          x-field-pattern:
+            description: >-
+              Aggregation (1=Aggregatable, 0=Individual)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 3
+        synchronization:
+          x-field-pattern:
+            description: >-
+              Synchronization (1=In Sync, 0=Out of Sync)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 4
+        collecting:
+          x-field-pattern:
+            description: >-
+              Collecting (1=Enabled, 0=Disabled)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 5
+        distributing:
+          x-field-pattern:
+            description: >-
+              Distributing (1=Enabled, 0=Disabled)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 6
+        defaulted:
+          x-field-pattern:
+            description: >-
+              Defaulted (1=Using defaulted partner info, 0=Using received partner info)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 7
+        expired:
+          x-field-pattern:
+            description: >-
+              Expired (1=Expired, 0=Not Expired)
+            format: integer
+            length: 1
+            default: 0
+            features:
+              - count
+          x-field-uid: 8

@@ -1,6 +1,6 @@
 components:
   schemas:
-    Flow.Ipv6ExtHeaders:
+    Flow.Ipv6ExtHeader:
       description: Ipv6 extension packet headers.
       type: object
       properties:
@@ -10,20 +10,6 @@ components:
           x-field-uid: 1
           x-enum:
             routing:
-              x-field-uid: 1
-        routing:
-          $ref: '#/components/schemas/Flow.Ipv6Routing'
-          x-field-uid: 2
-    Flow.Ipv6Routing:
-      description: Ipv6 routing packet headers.
-      type: object
-      properties:
-        choice:
-          type: string
-          default: segment_routing
-          x-field-uid: 1
-          x-enum:
-            segment_routing:
               x-field-uid: 1
         next_header:
           x-field-pattern:
@@ -58,9 +44,23 @@ components:
             default: 0
             features: [auto, count]
           x-field-uid: 3
+        routing:
+          $ref: '#/components/schemas/Flow.Ipv6Routing'
+          x-field-uid: 4
+    Flow.Ipv6Routing:
+      description: Ipv6 routing packet headers.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: segment_routing
+          x-field-uid: 1
+          x-enum:
+            segment_routing:
+              x-field-uid: 1
         segment_routing:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting'
-          x-field-uid: 4
+          x-field-uid: 2
     Flow.Ipv6SegmentRouting:
       description: Defines the structure of the IPv6 Segment Routing Header (SRH)
         with Routing Type 4. This header is an IPv6 Routing header used to specify
@@ -156,15 +156,6 @@ components:
               x-field-uid: 4
             path_trace:
               x-field-uid: 5
-        type:
-          x-field-pattern:
-            description: Type identifier for the TLV. AUTO will set it to correct value
-              based on choice.
-            format: integer
-            length: 8
-            default: 0
-            features: [auto, count]
-          x-field-uid: 2
         length:
           x-field-pattern:
             description: The length of the TLV value in bytes.
@@ -172,38 +163,29 @@ components:
             length: 8
             default: 0
             features: [auto, count]
-          x-field-uid: 3
+          x-field-uid: 2
         ingress:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvIngressNode'
-          x-field-uid: 4
+          x-field-uid: 3
         egress:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvEgressNode'
-          x-field-uid: 5
+          x-field-uid: 4
         opaque:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvOpaqueContainer'
-          x-field-uid: 6
+          x-field-uid: 5
         padding:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvPad'
-          x-field-uid: 7
+          x-field-uid: 6
         path_trace:
           $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvPathTrace'
-          x-field-uid: 8
+          x-field-uid: 7
     Flow.Ipv6SegmentRouting.Flags:
       description: An 8-bit field containing flags. While RFC 8754 reserves all
         bits as unused, earlier drafts defined specific flags for behavior such
         as OAM, HMAC, and FRR protection.
       type: object
       properties:
-        u1_flag:
-          x-field-pattern:
-            description: Unused bit. Should be set to 0.
-            format: integer
-            length: 1
-            default: 0
-            features:
-              - count
-          x-field-uid: 1
-        p_flag:
+        protected:
           x-field-pattern:
             description: Protected Flag. Indicates if the segment is protected
               by a Fast Re-Route (FRR) mechanism.
@@ -215,8 +197,8 @@ components:
               protected: 1
             features:
               - count
-          x-field-uid: 2
-        o_flag:
+          x-field-uid: 1
+        oam:
           x-field-pattern:
             description: OAM Flag. Indicates if the packet is an Operations, Administration,
               and Maintenance (OAM) packet.
@@ -228,8 +210,8 @@ components:
               oam: 1
             features:
               - count
-          x-field-uid: 3
-        a_flag:
+          x-field-uid: 2
+        alert:
           x-field-pattern:
             description: Alert Flag. Indicates the presence of important TLVs
               that must be inspected.
@@ -241,8 +223,8 @@ components:
               alert: 1
             features:
               - count
-          x-field-uid: 4
-        h_flag:
+          x-field-uid: 3
+        hmac:
           x-field-pattern:
             description: HMAC Flag. Indicates the presence of the HMAC TLV for
               verification.
@@ -254,16 +236,7 @@ components:
               hmac_present: 1
             features:
               - count
-          x-field-uid: 5
-        u2_flag:
-          x-field-pattern:
-            description: Unused 3 bits. Should be set to 0.
-            format: integer
-            length: 3
-            default: 0
-            features:
-              - count
-          x-field-uid: 6
+          x-field-uid: 4
     Flow.Ipv6SegmentRouting.TlvPad:
       description: Padding TLV used when more than one byte of padding is required
         to align subsequent TLVs or pad the header to an 8-octet boundary.

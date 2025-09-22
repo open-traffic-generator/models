@@ -13202,6 +13202,8 @@ components:
               x-field-uid: 22
             lacp:
               x-field-uid: 23
+            ipv6_extension_header:
+              x-field-uid: 24
           enum:
           - custom
           - ethernet
@@ -13226,6 +13228,7 @@ components:
           - rsvp
           - macsec
           - lacp
+          - ipv6_extension_header
         custom:
           $ref: '#/components/schemas/Flow.Custom'
           x-field-uid: 2
@@ -13295,6 +13298,9 @@ components:
         lacp:
           $ref: '#/components/schemas/Flow.Lacp'
           x-field-uid: 24
+        ipv6_extension_header:
+          $ref: '#/components/schemas/Flow.Ipv6ExtHeader'
+          x-field-uid: 25
     Flow.Custom:
       type: object
       description: |-
@@ -15777,6 +15783,219 @@ components:
         expired:
           x-field-uid: 8
           $ref: '#/components/schemas/Pattern.Flow.Lacpdu.Partner.State.Expired'
+    Flow.Ipv6ExtHeader:
+      description: |-
+        IPv6 Extension header should be preceded either by IPv6 header or other IPv6 Extension headers and the next_header in that preceding header should be set to the correct value depending on the type of extension header configured. This will be autometically handled by implementation if next_header choice is set to auto. For Routing Extension header this value is 43.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: routing
+          x-field-uid: 1
+          x-enum:
+            routing:
+              x-field-uid: 1
+          enum:
+          - routing
+        next_header:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6ExtHeader.NextHeader'
+        hdr_ext_len:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6ExtHeader.HdrExtLen'
+        routing:
+          $ref: '#/components/schemas/Flow.Ipv6Routing'
+          x-field-uid: 4
+    Flow.Ipv6Routing:
+      description: |-
+        IPv6 routing packet headers.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: segment_routing
+          x-field-uid: 1
+          x-enum:
+            segment_routing:
+              x-field-uid: 1
+          enum:
+          - segment_routing
+        segment_routing:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting'
+          x-field-uid: 2
+    Flow.Ipv6SegmentRouting:
+      description: |-
+        Defines the structure of the IPv6 Segment Routing Header (SRH) with Routing Type 4. This header is an IPv6 Routing header used to specify a source-routed path for a packet, guiding it through a sequence of Segment IDs (SIDs), which are typically IPv6 addresses.
+      type: object
+      properties:
+        segments_left:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.SegmentsLeft'
+        last_entry:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.LastEntry'
+        flags:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.Flags'
+          x-field-uid: 3
+        tag:
+          x-field-uid: 4
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Tag'
+        segment_list:
+          description: |-
+            128-bit IPv6 addresses representing the nth segment in the Segment List. The Segment List is encoded starting from the last segment of the SR Policy. That is, the first element of the Segment List (Segment List[0]) contains the last segment of the SR Policy, the second element contains the penultimate segment of the SR Policy, and so on.
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.Segment'
+          x-field-uid: 5
+        tlvs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.Tlv'
+          x-field-uid: 6
+    Flow.Ipv6SegmentRouting.Segment:
+      type: object
+      properties:
+        segment:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Segment.Segment'
+    Flow.Ipv6SegmentRouting.Tlv:
+      description: |-
+        A list of optional Type-Length-Value (TLV) objects that carry metadata for segment processing. TLVs are only present if the Hdr Ext Len is greater than what is required for the fixed header and the segment list.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: ingress
+          x-field-uid: 1
+          x-enum:
+            ingress:
+              x-field-uid: 1
+            egress:
+              x-field-uid: 2
+            opaque:
+              x-field-uid: 3
+            padding:
+              x-field-uid: 4
+            path_trace:
+              x-field-uid: 5
+          enum:
+          - ingress
+          - egress
+          - opaque
+          - padding
+          - path_trace
+        length:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Tlv.Length'
+        ingress:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvIngressNode'
+          x-field-uid: 3
+        egress:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvEgressNode'
+          x-field-uid: 4
+        opaque:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvOpaqueContainer'
+          x-field-uid: 5
+        padding:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvPad'
+          x-field-uid: 6
+        path_trace:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvPathTrace'
+          x-field-uid: 7
+    Flow.Ipv6SegmentRouting.Flags:
+      description: |-
+        An 8-bit field containing flags. While RFC 8754 reserves all bits as unused, earlier drafts defined specific flags for behavior such as OAM, HMAC, and FRR protection.
+      type: object
+      properties:
+        protected:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Protected'
+        oam:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Oam'
+        alert:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Alert'
+        hmac:
+          x-field-uid: 4
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Hmac'
+    Flow.Ipv6SegmentRouting.TlvPad:
+      description: |-
+        Padding TLV used when more than one byte of padding is required to align subsequent TLVs or pad the header to an 8-octet boundary.
+      type: object
+      properties:
+        padding:
+          description: |-
+            Variable-length padding bytes. Must be set to 0 on transmission.
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 1
+    Flow.Ipv6SegmentRouting.TlvIngressNode:
+      description: |-
+        A TLV that may be used to carry the IPv6 address of the ingress node of the SR domain.
+      type: object
+      properties:
+        reserved:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Reserved'
+        flags:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Flags'
+        value:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Value'
+    Flow.Ipv6SegmentRouting.TlvEgressNode:
+      description: |-
+        A TLV that identifies the egress node of the SR policy.
+      type: object
+      properties:
+        reserved:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Reserved'
+        flags:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Flags'
+        value:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Value'
+    Flow.Ipv6SegmentRouting.TlvOpaqueContainer:
+      description: |-
+        A TLV used to carry opaque data across the SR domain.
+      type: object
+      properties:
+        value:
+          description: |-
+            The variable-length opaque data carried by the TLV.
+          format: hex
+          type: string
+          default: '00'
+          x-field-uid: 1
+    Flow.Ipv6SegmentRouting.TlvPathTrace:
+      description: |-
+        A TLV used for path tracing and performance monitoring within the SR domain.
+      type: object
+      properties:
+        interface_id:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceId'
+        interface_load:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceLoad'
+        timestamp:
+          description: |-
+            Timestamp indicating when the measurement was taken.
+          format: hex
+          type: string
+          default: '00'
+          x-field-uid: 3
+        session_id:
+          x-field-uid: 4
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SessionId'
+        sequence_number:
+          x-field-uid: 5
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SequenceNumber'
     Flow.Size:
       description: |-
         The frame size which overrides the total length of the packet
@@ -48496,6 +48715,1513 @@ components:
           x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Lacpdu.Partner.State.Expired.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6ExtHeader.NextHeader.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 59
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 255
+      x-constants:
+        tcp: 6
+        udp: 17
+        ipv6: 41
+        ipv6_route: 43
+        ipv6_frag: 44
+        esp: 50
+        ah: 51
+        ipv6_icmp: 58
+        ipv6_nonxt: 59
+        ipv6_opts: 60
+        mobility_header: 135
+        sctp: 132
+    Pattern.Flow.Ipv6ExtHeader.NextHeader:
+      description: |-
+        The next header that identifies the type of header immediately following this IPv6 Extension header. For TCP and UDP the values are 6 and 17 respectively. A value of 59 indicates that there are no further IPv6 Extension headers and that the payload will be appended after this header. The available defined values are listed in https://www.iana.org/assignments/ipv6-parameters/ipv6-parameters.xhtml#extension-header
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            auto:
+              x-field-uid: 1
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: auto
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - auto
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 59
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 59
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          x-field-uid: 4
+          default: 59
+          format: uint32
+          maximum: 255
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6ExtHeader.NextHeader.Counter'
+          x-field-uid: 6
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6ExtHeader.NextHeader.Counter'
+          x-field-uid: 7
+      x-constants:
+        tcp: 6
+        udp: 17
+        ipv6: 41
+        ipv6_route: 43
+        ipv6_frag: 44
+        esp: 50
+        ah: 51
+        ipv6_icmp: 58
+        ipv6_nonxt: 59
+        ipv6_opts: 60
+        mobility_header: 135
+        sctp: 132
+    Pattern.Flow.Ipv6ExtHeader.HdrExtLen.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 255
+    Pattern.Flow.Ipv6ExtHeader.HdrExtLen:
+      description: |-
+        The length of the IPv6 Extension header in 8 octet units, not including the first 8 octets of the Extension Header itself ( refer RFC 8200 ). When auto is assigned it is set to the correct value.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            auto:
+              x-field-uid: 1
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: auto
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - auto
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 0
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          x-field-uid: 4
+          default: 0
+          format: uint32
+          maximum: 255
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6ExtHeader.HdrExtLen.Counter'
+          x-field-uid: 6
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6ExtHeader.HdrExtLen.Counter'
+          x-field-uid: 7
+    Pattern.Flow.Ipv6SegmentRouting.SegmentsLeft.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 255
+    Pattern.Flow.Ipv6SegmentRouting.SegmentsLeft:
+      description: |-
+        8-bit unsigned integer containing the number of remaining segments to be visited before the packet reaches its final destination. It is decremented at each segment endpoint. It points to the current active segment in the Segment List. This should not be more than the number of segment specified in the segment list. When auto is assigned the value is set to the number of segment specified.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            auto:
+              x-field-uid: 1
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: auto
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - auto
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 0
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          x-field-uid: 4
+          default: 0
+          format: uint32
+          maximum: 255
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.SegmentsLeft.Counter'
+          x-field-uid: 6
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.SegmentsLeft.Counter'
+          x-field-uid: 7
+    Pattern.Flow.Ipv6SegmentRouting.LastEntry.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 255
+    Pattern.Flow.Ipv6SegmentRouting.LastEntry:
+      description: |-
+        8-bit unsigned integer that contains the zero-based index of the last element in the Segment List array. For example, if the Segment List contains 3 addresses (at indices 0, 1, 2), the value of Last Entry is 2. When auto is assigned the value is set to one less than the number of segment specified.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            auto:
+              x-field-uid: 1
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: auto
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - auto
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 0
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          x-field-uid: 4
+          default: 0
+          format: uint32
+          maximum: 255
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.LastEntry.Counter'
+          x-field-uid: 6
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.LastEntry.Counter'
+          x-field-uid: 7
+    Pattern.Flow.Ipv6SegmentRouting.Tag.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 65535
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 65535
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 65535
+    Pattern.Flow.Ipv6SegmentRouting.Tag:
+      description: |-
+        16-bit field used to tag a packet as part of a class or group, enabling shared properties or policy treatment. If not used, it MUST be set to zero.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 65535
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 65535
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Tag.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Tag.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.Segment.Segment.Counter:
+      description: |-
+        ipv6 counter pattern
+      type: object
+      properties:
+        start:
+          type: string
+          x-field-uid: 1
+          default: ::0
+          format: ipv6
+        step:
+          type: string
+          x-field-uid: 2
+          default: ::1
+          format: ipv6
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+    Pattern.Flow.Ipv6SegmentRouting.Segment.Segment:
+      description: |-
+        A 128-bit IPv6 address segment.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: string
+          x-field-uid: 2
+          default: ::0
+          format: ipv6
+        values:
+          type: array
+          items:
+            type: string
+            format: ipv6
+          x-field-uid: 3
+          default:
+          - ::0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Segment.Segment.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Segment.Segment.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.Tlv.Length.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 255
+    Pattern.Flow.Ipv6SegmentRouting.Tlv.Length:
+      description: |-
+        The length of the TLV value in bytes. If auto is selected the implementation should automatically set the length field to the correct value as per the selected TLV and attributes.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            auto:
+              x-field-uid: 1
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: auto
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - auto
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 0
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          x-field-uid: 4
+          default: 0
+          format: uint32
+          maximum: 255
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Tlv.Length.Counter'
+          x-field-uid: 6
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Tlv.Length.Counter'
+          x-field-uid: 7
+    Pattern.Flow.Ipv6SegmentRouting.Flags.Protected.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 1
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 1
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 1
+      x-constants:
+        not_protected: 0
+        protected: 1
+    Pattern.Flow.Ipv6SegmentRouting.Flags.Protected:
+      description: |-
+        Protected Flag. Indicates if the segment is protected by a Fast Re-Route (FRR) mechanism.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 1
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 1
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Protected.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Protected.Counter'
+          x-field-uid: 6
+      x-constants:
+        not_protected: 0
+        protected: 1
+    Pattern.Flow.Ipv6SegmentRouting.Flags.Oam.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 1
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 1
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 1
+      x-constants:
+        not_oam: 0
+        oam: 1
+    Pattern.Flow.Ipv6SegmentRouting.Flags.Oam:
+      description: |-
+        OAM Flag. Indicates if the packet is an Operations, Administration, and Maintenance (OAM) packet.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 1
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 1
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Oam.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Oam.Counter'
+          x-field-uid: 6
+      x-constants:
+        not_oam: 0
+        oam: 1
+    Pattern.Flow.Ipv6SegmentRouting.Flags.Alert.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 1
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 1
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 1
+      x-constants:
+        no_alert: 0
+        alert: 1
+    Pattern.Flow.Ipv6SegmentRouting.Flags.Alert:
+      description: |-
+        Alert Flag. Indicates the presence of important TLVs that must be inspected.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 1
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 1
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Alert.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Alert.Counter'
+          x-field-uid: 6
+      x-constants:
+        no_alert: 0
+        alert: 1
+    Pattern.Flow.Ipv6SegmentRouting.Flags.Hmac.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 1
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 1
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 1
+      x-constants:
+        no_hmac: 0
+        hmac_present: 1
+    Pattern.Flow.Ipv6SegmentRouting.Flags.Hmac:
+      description: |-
+        HMAC Flag. Indicates the presence of the HMAC TLV for verification.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 1
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 1
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Hmac.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Hmac.Counter'
+          x-field-uid: 6
+      x-constants:
+        no_hmac: 0
+        hmac_present: 1
+    Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Reserved.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 255
+    Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Reserved:
+      description: |-
+        Reserved field. Must be 0.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Reserved.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Reserved.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Flags.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 255
+    Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Flags:
+      description: |-
+        8-bit flags field for this TLV.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Flags.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Flags.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Value.Counter:
+      description: |-
+        ipv6 counter pattern
+      type: object
+      properties:
+        start:
+          type: string
+          x-field-uid: 1
+          default: '::'
+          format: ipv6
+        step:
+          type: string
+          x-field-uid: 2
+          default: ::1
+          format: ipv6
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+    Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Value:
+      description: |-
+        The 128-bit IPv6 address of the ingress node.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: string
+          x-field-uid: 2
+          default: '::'
+          format: ipv6
+        values:
+          type: array
+          items:
+            type: string
+            format: ipv6
+          x-field-uid: 3
+          default:
+          - '::'
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Value.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvIngressNode.Value.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Reserved.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 255
+    Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Reserved:
+      description: |-
+        Reserved field. Must be 0.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Reserved.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Reserved.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Flags.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 255
+    Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Flags:
+      description: |-
+        8-bit flags field for this TLV.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Flags.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Flags.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Value.Counter:
+      description: |-
+        ipv6 counter pattern
+      type: object
+      properties:
+        start:
+          type: string
+          x-field-uid: 1
+          default: '::'
+          format: ipv6
+        step:
+          type: string
+          x-field-uid: 2
+          default: ::1
+          format: ipv6
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+    Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Value:
+      description: |-
+        The 128-bit IPv6 address of the egress node.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: string
+          x-field-uid: 2
+          default: '::'
+          format: ipv6
+        values:
+          type: array
+          items:
+            type: string
+            format: ipv6
+          x-field-uid: 3
+          default:
+          - '::'
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Value.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvEgressNode.Value.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceId.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 4095
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 4095
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 4095
+    Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceId:
+      description: |-
+        Identifier of the interface where the measurement was taken.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 4095
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 4095
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceId.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceId.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceLoad.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 15
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 15
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 15
+    Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceLoad:
+      description: |-
+        Load on the interface at the time of measurement.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 15
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 15
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceLoad.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.InterfaceLoad.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SessionId.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 65535
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 65535
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 65535
+    Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SessionId:
+      description: |-
+        Identifier for the monitoring session.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 65535
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 65535
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SessionId.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SessionId.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SequenceNumber.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 65535
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 65535
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 65535
+    Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SequenceNumber:
+      description: |-
+        Sequence number for the packet within the monitoring session.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 65535
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 65535
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SequenceNumber.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.TlvPathTrace.SequenceNumber.Counter'
           x-field-uid: 6
     Version:
       description: |-

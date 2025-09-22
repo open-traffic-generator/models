@@ -1,0 +1,377 @@
+components:
+  schemas:
+    Flow.Ipv6ExtHeader:
+      description: IPv6 Extension header should be preceded either by IPv6 header or other
+        IPv6 Extension headers and the next_header in that preceding header should be set
+        to the correct value depending on the type of extension header configured. This will
+        be autometically handled by implementation if next_header choice is set to auto.
+        For Routing Extension header this value is 43.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: routing
+          x-field-uid: 1
+          x-enum:
+            routing:
+              x-field-uid: 1
+        next_header:
+          x-field-pattern:
+            description: The next header that identifies the type of header immediately
+              following this IPv6 Extension header. For TCP and UDP the values are 6 and 17 respectively.
+              A value of 59 indicates that there are no further IPv6 Extension headers and that the
+              payload will be appended after this header. The available defined values are listed in
+              https://www.iana.org/assignments/ipv6-parameters/ipv6-parameters.xhtml#extension-header
+            format: integer
+            length: 8
+            default: 59
+            x-constants:
+              tcp: 6
+              udp: 17
+              ipv6: 41
+              ipv6_route: 43
+              ipv6_frag: 44
+              esp: 50
+              ah: 51
+              ipv6_icmp: 58
+              ipv6_nonxt: 59
+              ipv6_opts: 60
+              mobility_header: 135
+              sctp: 132
+            features: [auto, count]
+          x-field-uid: 2
+        hdr_ext_len:
+          x-field-pattern:
+            description: The length of the IPv6 Extension header in 8 octet units, not including the first 8 octets
+              of the Extension Header itself ( refer RFC 8200 ). When auto is assigned it is set to the correct value.
+            format: integer
+            length: 8
+            default: 0
+            features: [auto, count]
+          x-field-uid: 3
+        routing:
+          $ref: '#/components/schemas/Flow.Ipv6Routing'
+          x-field-uid: 4
+    Flow.Ipv6Routing:
+      description: IPv6 routing packet headers.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: segment_routing
+          x-field-uid: 1
+          x-enum:
+            segment_routing:
+              x-field-uid: 1
+        segment_routing:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting'
+          x-field-uid: 2
+    Flow.Ipv6SegmentRouting:
+      description: Defines the structure of the IPv6 Segment Routing Header (SRH)
+        with Routing Type 4. This header is an IPv6 Routing header used to specify
+        a source-routed path for a packet, guiding it through a sequence of Segment
+        IDs (SIDs), which are typically IPv6 addresses.
+      type: object
+      properties:
+        segments_left:
+          x-field-pattern:
+            description: 8-bit unsigned integer containing the number of remaining
+              segments to be visited before the packet reaches its final destination.
+              It is decremented at each segment endpoint. It points to the current
+              active segment in the Segment List. This should not be more than the
+              number of segment specified in the segment list. When auto is assigned 
+              the value is set to the number of segment specified.
+            format: integer
+            length: 8
+            default: 0
+            features: [auto, count]
+          x-field-uid: 1
+        last_entry:
+          x-field-pattern:
+            description: 8-bit unsigned integer that contains the zero-based index
+              of the last element in the Segment List array. For example, if the Segment
+              List contains 3 addresses (at indices 0, 1, 2), the value of Last Entry
+              is 2. When auto is assigned the value is set to one less than the number 
+              of segment specified.
+            format: integer
+            length: 8
+            default: 0
+            features: [auto, count]
+          x-field-uid: 2
+        flags:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.Flags'
+          x-field-uid: 3
+        tag:
+          x-field-pattern:
+            description: 16-bit field used to tag a packet as part of a class or group,
+              enabling shared properties or policy treatment. If not used, it MUST
+              be set to zero.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 4
+        segment_list:
+          description: 128-bit IPv6 addresses representing the nth segment in the
+            Segment List. The Segment List is encoded starting from the last segment
+            of the SR Policy. That is, the first element of the Segment List (Segment List[0])
+            contains the last segment of the SR Policy, the second element contains
+            the penultimate segment of the SR Policy, and so on.
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.Segment'
+          x-field-uid: 5
+        tlvs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.Tlv'
+          x-field-uid: 6
+    Flow.Ipv6SegmentRouting.Segment:
+      type: object
+      properties:
+        segment:
+          x-field-pattern:
+            description: A 128-bit IPv6 address segment.
+            format: ipv6
+            default: ::0
+            features:
+              - count
+          x-field-uid: 1
+    Flow.Ipv6SegmentRouting.Tlv:
+      description: A list of optional Type-Length-Value (TLV) objects that carry
+        metadata for segment processing. TLVs are only present if the Hdr Ext
+        Len is greater than what is required for the fixed header and the segment
+        list.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: ingress
+          x-field-uid: 1
+          x-enum:
+            ingress:
+              x-field-uid: 1
+            egress:
+              x-field-uid: 2
+            opaque:
+              x-field-uid: 3
+            padding:
+              x-field-uid: 4
+            path_trace:
+              x-field-uid: 5
+        length:
+          x-field-pattern:
+            description: The length of the TLV value in bytes. If auto is selected the
+              implementation should automatically set the length field to the correct
+              value as per the selected TLV and attributes.
+            format: integer
+            length: 8
+            default: 0
+            features: [auto, count]
+          x-field-uid: 2
+        ingress:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvIngressNode'
+          x-field-uid: 3
+        egress:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvEgressNode'
+          x-field-uid: 4
+        opaque:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvOpaqueContainer'
+          x-field-uid: 5
+        padding:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvPad'
+          x-field-uid: 6
+        path_trace:
+          $ref: '#/components/schemas/Flow.Ipv6SegmentRouting.TlvPathTrace'
+          x-field-uid: 7
+    Flow.Ipv6SegmentRouting.Flags:
+      description: An 8-bit field containing flags. While RFC 8754 reserves all
+        bits as unused, earlier drafts defined specific flags for behavior such
+        as OAM, HMAC, and FRR protection.
+      type: object
+      properties:
+        protected:
+          x-field-pattern:
+            description: Protected Flag. Indicates if the segment is protected
+              by a Fast Re-Route (FRR) mechanism.
+            format: integer
+            length: 1
+            default: 0
+            x-constants:
+              not_protected: 0
+              protected: 1
+            features:
+              - count
+          x-field-uid: 1
+        oam:
+          x-field-pattern:
+            description: OAM Flag. Indicates if the packet is an Operations, Administration,
+              and Maintenance (OAM) packet.
+            format: integer
+            length: 1
+            default: 0
+            x-constants:
+              not_oam: 0
+              oam: 1
+            features:
+              - count
+          x-field-uid: 2
+        alert:
+          x-field-pattern:
+            description: Alert Flag. Indicates the presence of important TLVs
+              that must be inspected.
+            format: integer
+            length: 1
+            default: 0
+            x-constants:
+              no_alert: 0
+              alert: 1
+            features:
+              - count
+          x-field-uid: 3
+        hmac:
+          x-field-pattern:
+            description: HMAC Flag. Indicates the presence of the HMAC TLV for
+              verification.
+            format: integer
+            length: 1
+            default: 0
+            x-constants:
+              no_hmac: 0
+              hmac_present: 1
+            features:
+              - count
+          x-field-uid: 4
+    Flow.Ipv6SegmentRouting.TlvPad:
+      description: Padding TLV used when more than one byte of padding is required
+        to align subsequent TLVs or pad the header to an 8-octet boundary.
+      type: object
+      properties:
+        padding:
+          description: Variable-length padding bytes. Must be set to 0 on transmission.
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 1
+    Flow.Ipv6SegmentRouting.TlvIngressNode:
+      description: A TLV that may be used to carry the IPv6 address of the ingress
+        node of the SR domain.
+      type: object
+      properties:
+        reserved:
+          x-field-pattern:
+            description: Reserved field. Must be 0.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+          x-field-uid: 1
+        flags:
+          x-field-pattern:
+            description: 8-bit flags field for this TLV.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+          x-field-uid: 2
+        value:
+          x-field-pattern:
+            description: The 128-bit IPv6 address of the ingress node.
+            format: ipv6
+            default: '::'
+            features:
+              - count
+          x-field-uid: 3
+    Flow.Ipv6SegmentRouting.TlvEgressNode:
+      description: A TLV that identifies the egress node of the SR policy.
+      type: object
+      properties:
+        reserved:
+          x-field-pattern:
+            description: Reserved field. Must be 0.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+          x-field-uid: 1
+        flags:
+          x-field-pattern:
+            description: 8-bit flags field for this TLV.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+          x-field-uid: 2
+        value:
+          x-field-pattern:
+            description: The 128-bit IPv6 address of the egress node.
+            format: ipv6
+            default: '::'
+            features:
+              - count
+          x-field-uid: 3
+    Flow.Ipv6SegmentRouting.TlvOpaqueContainer:
+      description: A TLV used to carry opaque data across the SR domain.
+      type: object
+      properties:
+        value:
+          description: The variable-length opaque data carried by the TLV.
+          format: hex
+          type: string
+          default: '00'
+          x-field-uid: 1
+    Flow.Ipv6SegmentRouting.TlvPathTrace:
+      description: A TLV used for path tracing and performance monitoring
+        within the SR domain.
+      type: object
+      properties:
+        interface_id:
+          x-field-pattern:
+            description: Identifier of the interface where the measurement
+              was taken.
+            format: integer
+            length: 12
+            default: 0
+            features:
+              - count
+          x-field-uid: 1
+        interface_load:
+          x-field-pattern:
+            description: Load on the interface at the time of measurement.
+            format: integer
+            length: 4
+            default: 0
+            features:
+              - count
+          x-field-uid: 2
+        timestamp:
+          description: Timestamp indicating when the measurement was taken.
+          format: hex
+          type: string
+          default: '00'
+          x-field-uid: 3
+        session_id:
+          x-field-pattern:
+            description: Identifier for the monitoring session.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 4
+        sequence_number:
+          x-field-pattern:
+            description: Sequence number for the packet within the monitoring
+              session.
+            format: integer
+            length: 16
+            default: 0
+            features:
+              - count
+          x-field-uid: 5

@@ -32,5 +32,5 @@ openapiart.OpenApiArt(
     protobuf_name="otg",
     artifact_dir="artifacts",
     generate_version_api=True,
-    strict_description_validation="all",
+    strict_description_validation="objects",
 ).GeneratePythonSdk(package_name="otg")

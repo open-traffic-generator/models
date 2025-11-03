@@ -8,7 +8,7 @@
 ### Feature Details
  - [Redocly docs for this feature/branch](<url>)
 - **New Locations/Nomenclature:**  
-  Specify where new attributes/nodes have been added in the models hierarchy to allow viewers to quickly navigate, to the correct areas in the generated Redocly view corresponding to the model change.
+  Specify where new attributes/nodes have been added in the models hierarchy to allow viewers to quickly navigate to the correct areas in the generated Redocly view corresponding to the model change.
 
 - [Dev-Snappi branch reference](<url>)
 - Example command to fetch the dev-snappi branch:

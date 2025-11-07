@@ -72,26 +72,30 @@ components:
       type: object
       required: [name,client_ip]
       properties:
+        name:
+          x-include: ../../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 1
         client_ip:
           description: |- 
             The IPv4 address of the BMP client from which connections will be accepted from or initiated with by this BMP Server.
           type: string
           format: ipv4
-          x-field-uid: 1
+          x-field-uid: 2
         connection:
           description: >-
             Optional object containing information about whether the BMP Server should operate in passive or active mode and corresponding information depending on the mode.           
           $ref: '#/components/schemas/Device.BmpServer.Connection'
-          x-field-uid: 2            
-        discard_adj_rib:
-          description: |-
-            If enabled, discard the BGP route information sent by the remote BMP client in BMP Monitoring messages.
-          type: boolean
-          default: false
-          x-field-uid: 3        
-        name:
-          x-include: ../../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 3            
+        prefix_storage:
+          description: >-
+            Optional object containing information about whether IPv4 and IPv6 unicast prefixes learned from the BMP client should be stored or not for future retrieval using get_states and 
+            exceptions to the configured choice for the same. 
+            If the object is not included, by default IPv4 and IPv6 unicast prefixes are not stored by the BMP server and only received metrics are incremented on receipt of IPv4 / IPv6 unicast prefixes within 
+            BMP Monitor messages.
+          $ref: '#/components/schemas/Device.BmpServer.PrefixStorage'
           x-field-uid: 4
+        
+
 
     Device.Bmp.ServerV6:
       description: >-
@@ -99,25 +103,27 @@ components:
       type: object
       required: [name,client_ip]
       properties:
+        name:
+          x-include: ../../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 1
         client_ip:
           description: |- 
             The IPv6 address of the BMP client from which connections will be accepted from or initiated with by this BMP Server.
           type: string
           format: ipv6
-          x-field-uid: 1
+          x-field-uid: 2
         connection:
           description: >-
             Optional object containing information about whether the BMP Server should operate in passive or active mode and corresponding information depending on the mode.           
-          x-field-uid: 2  
-          $ref: '#/components/schemas/Device.BmpServer.Connection'                   
-        discard_adj_rib:
-          description: |-
-            If enabled, discard the BGP route information sent by the remote BMP client in BMP Monitoring messages.
-          type: boolean
-          default: false
-          x-field-uid: 3         
-        name:
-          x-include: ../../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 3  
+          $ref: '#/components/schemas/Device.BmpServer.Connection'
+        prefix_storage:
+          description: >-
+            Optional object containing information about whether IPv4 and IPv6 unicast prefixes learned from the BMP client should be stored or not for future retrieval using get_states and 
+            exceptions to the configured choice for the same. 
+            If the object is not included, by default IPv4 and IPv6 unicast prefixes are not stored by the BMP server and only received metrics are incremented on receipt of IPv4 / IPv6 unicast prefixes within 
+            BMP Monitor messages.
+          $ref: '#/components/schemas/Device.BmpServer.PrefixStorage'
           x-field-uid: 4
 
     Device.BmpServer.Connection:
@@ -174,4 +180,196 @@ components:
           maximum: 65535
           x-field-uid: 1
    
+    Device.BmpServer.PrefixStorage:
+      description: >-
+        Optional object containing information about whether IPv4 and IPv6 unicast prefixes learned from the BMP client should be stored or not for future retrieval using get_states and 
+        exceptions to the configured choice for the same. If the object is not included, by default IPv4 and IPv6 Unicast Prefixes are not stored by the BMP server and only received metrics 
+        are incremented on receipt of IPv4 / IPv6 Unicast routes via BMP Monitor messages.
+      type: object
+      properties: 
+        ipv4_unicast:
+          description: >-
+            Optional object containing information about whether IPv4 unicast prefixes learned from the BMP client should be stored or not for future retrieval using get_states and 
+            exceptions to the configured choice for the same. If the object is not included, by default IPv4 unicast prefixes are not stored by the BMP server.
+          x-field-uid: 1  
+          $ref: '#/components/schemas/Device.BmpServer.Ipv4UnicastPrefixStorage'
+        ipv6_unicast:
+          description: >-
+            Optional object containing information about whether IPv6 unicast prefixes learned from the BMP client should be stored or not for future retrieval using get_states and 
+            exceptions to the configured choice for the same. If the object is not included, by default IPv6 unicast prefixes are not stored by the BMP server.            
+          x-field-uid: 2 
+          $ref: '#/components/schemas/Device.BmpServer.Ipv6UnicastPrefixStorage'
+
+    Device.BmpServer.Ipv4UnicastPrefixStorage:
+      description: >-
+        Optional object containing information about whether IPv4 unicast prefixes learned from the BMP client should be stored or not for future retrieval using get_states and 
+        exceptions to the configured choice for the same. If the object is not included, by default IPv4 unicast prefixes are not stored by the BMP server.
+      type: object
+      properties: 
+        choice:
+          type: string 
+          default: discard 
+          x-enum:
+            discard:
+              x-field-uid: 1
+            store:
+              x-field-uid: 2            
+          x-field-uid: 1
+        discard:
+          description: >-
+            If this option is chosen, IPv4 unicast prefixes learned from the BMP client will not be stored by the BMP server.
+            Exception list can be used to create exceptions to allow only some subset of the learned Ipv4 unicast prefixes to be stored while the remaining learned prefixes are discarded.
+            This can be useful when only some prefixes need to be verified amongst a large number of learned prefixes.            
+          x-field-uid: 2 
+          $ref: '#/components/schemas/Device.BmpServer.Ipv4UnicastPrefixDiscard'
+        store:
+          description: >-
+            If this option is chosen, IPv4 unicast prefixes learned from the BMP client will be stored by the BMP server.
+            Exception list can be used to create exceptions to store all the learned Ipv4 unicast prefixes except some subset of the learned IPv4 unicast prefixes.
+            This can be useful when only some prefixes need to be verified amongst a large number of learned prefixes.            
+          x-field-uid: 3  
+          $ref: '#/components/schemas/Device.BmpServer.Ipv4UnicastPrefixStore'
+
+    Device.BmpServer.Ipv4UnicastPrefixDiscard:
+      description: >-
+        The exception list can be used to specify exceptions to the specification to discard all IPv4 unicast prefixes.
+        It is expected that when required, there would normally be a limited number of exceptions.    
+      type: object
+      properties:
+        exceptions:
+          description: >-
+            This contains an array of exceptions to the discard IPv4 unicast prefixes specification i.e. prefixes matching the exceptions would be stored instead.
+            One exception to the specification is specified by a combination of an IPv4 prefix and a prefix length. 
+            If the received prefix masked upto the exception's prefix length matches the prefix specified in the exception, the received prefix is deemed as having matched the specified exception
+            e.g. received prefix 172.16.1.0/24 and 172.16.2.0/24 would match specified exception of 172.16.0.0/16 but 172.0.0.0/8 or 192.16.2.0/24 would not.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.BmpServer.Ipv4UnicastPrefixException'
+          x-field-uid: 1 
+    
+    Device.BmpServer.Ipv4UnicastPrefixStore:
+      description: >-
+        The exception list can be used to specify exceptions to the specification to store all IPv4 unicast prefixes.
+        It is expected that when required, there would normally be a limited number of exceptions.    
+      type: object
+      properties:
+        exceptions:
+          description: >-
+            This contains an array of exceptions to the store IPv4 unicast prefixes specification i.e. prefixes matching the exceptions would be discarded instead.
+            One exception to the specification is specified by a combination of an IPv4 prefix and a prefix length. 
+            If the received prefix masked upto the exception's prefix length matches the prefix specified in the exception, the received prefix is deemed as having matched the specified exception
+            e.g. received prefix 172.16.1.0/24 and 172.16.2.0/24 would match specified exception of 172.16.0.0/16 but 172.0.0.0/8 or 192.16.2.0/24 would not.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.BmpServer.Ipv4UnicastPrefixException'
+          x-field-uid: 1 
    
+    Device.BmpServer.Ipv4UnicastPrefixException:
+      description: >-
+        One exception to the specification is specified by a combination of an IPv4 prefix and a prefix length. 
+        If the received prefix masked upto the exception's prefix length matches the prefix specified in the exception, the received prefix is deemed as having matched the specified exception
+        e.g. received prefix 172.16.1.0/24 and 172.16.2.0/24 would match specified exception of 172.16.0.0/16 but 172.0.0.0/8 or 192.16.2.0/24 would not. 
+      type: object
+      properties:
+        ipv4_prefix:
+          description: >-
+            The IPv4 prefix which, combined with the prefix_length, is used to determine if received IPv4 unicast prefix matches this exception or not. 
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+          x-field-uid: 1
+        prefix_length:
+          description: >-
+            The prefix length which, combined with the ipv4_prefix, is used to determine if received IPv4 unicast prefix matches this exception or not. 
+          type: integer
+          format: uint32
+          default: 16
+          maximum: 32
+          x-field-uid: 2
+
+    Device.BmpServer.Ipv6UnicastPrefixStorage:
+      description: >-
+        Optional object containing information about whether IPv6 unicast prefixes learned from the BMP client should be stored or not for future retrieval using get_states and 
+        exceptions to the configured choice for the same. If the object is not included, by default IPv6 unicast prefixes are not stored by the BMP server.
+      type: object
+      properties: 
+        choice:
+          type: string 
+          default: discard 
+          x-enum:
+            discard:
+              x-field-uid: 1
+            store:
+              x-field-uid: 2            
+          x-field-uid: 1
+        discard:
+          description: >-
+            If this option is chosen, IPv6 unicast prefixes learned from the BMP client will not be stored by the BMP server.
+            Exception list can be used to create exceptions to allow only some subset of the learned IPv6 unicast prefixes to be stored while the remaining learned prefixes are discarded.
+            This can be useful when only some prefixes need to be verified amongst a large number of learned prefixes.            
+          x-field-uid: 2 
+          $ref: '#/components/schemas/Device.BmpServer.Ipv6UnicastPrefixDiscard'
+        store:
+          description: >-
+            If this option is chosen, IPv6 unicast prefixes learned from the BMP client will be stored by the BMP server.
+            Exception list can be used to create exceptions to store all the learned Ipv6 unicast prefixes except some subset of the learned IPv6 unicast prefixes.
+            This can be useful when only some prefixes need to be verified amongst a large number of learned prefixes.            
+          x-field-uid: 3  
+          $ref: '#/components/schemas/Device.BmpServer.Ipv6UnicastPrefixStore'
+
+    Device.BmpServer.Ipv6UnicastPrefixDiscard:
+      description: >-
+        The exception list can be used to specify exceptions to the specification to discard all IPv6 unicast prefixes.
+        It is expected that when required, there would normally be a limited number of exceptions.    
+      type: object
+      properties:
+        exceptions:
+          description: >-
+            This contains an array of exceptions to the discard IPv6 unicast prefixes specification i.e. prefixes matching the exceptions would be stored instead.
+            One exception to the specification is specified by a combination of an IPv6 prefix and a prefix length. 
+            If the received prefix masked upto the exception's prefix length matches the prefix specified in the exception, the received prefix is deemed as having matched the specified exception
+            e.g. received prefix 1:1:1:1::/64  and 1:1:1:2::/64 would match specified exception of 1:1:1::/48 but 1:1::/16 or 2:2:2:2::/64 would not.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.BmpServer.Ipv6UnicastPrefixException'
+          x-field-uid: 1   
+    
+    Device.BmpServer.Ipv6UnicastPrefixStore:
+      description: >-
+        The exception list can be used to specify exceptions to the specification to store all IPv6 unicast prefixes.
+        It is expected that when required, there would normally be a limited number of exceptions.    
+      type: object
+      properties:
+        exceptions:
+          description: >-
+            This contains an array of exceptions to the store IPv6 unicast prefixes specification i.e. prefixes matching the exceptions would be discarded instead.
+            One exception to the specification is specified by a combination of an IPv6 prefix and a prefix length. 
+            If the received prefix masked upto the exception's prefix length matches the prefix specified in the exception, the received prefix is deemed as having matched the specified exception
+            e.g. received prefix 1:1:1:1::/64  and 1:1:1:2::/64 would match specified exception of 1:1:1::/48 but 1:1::/16 or 2:2:2:2::/64 would not.
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.BmpServer.Ipv6UnicastPrefixException'
+          x-field-uid: 1
+        
+    Device.BmpServer.Ipv6UnicastPrefixException:
+      description: >-
+        One exception to the specification is specified by a combination of an IPv6 prefix and a prefix length. 
+        If the received prefix masked upto the exception's prefix length matches the prefix specified in the exception, the received prefix is deemed as having matched the specified exception
+        e.g. received prefix 1:1:1:1::/64  and 1:1:1:2::/64 would match specified exception of 1:1:1::/48 but 1:1::/16 or 2:2:2:2::/64 would not.
+      type: object
+      properties:
+        ipv6_prefix:
+          description: >-
+            The IPv6 prefix which, combined with the prefix_length, is used to determine if received IPv6 unicast prefix matches this exception or not. 
+          type: string
+          format: ipv6
+          default: "::"
+          x-field-uid: 1
+        prefix_length:
+          description: >-
+            The prefix length which, combined with the ipv6_prefix, is used to determine if received IPv6 unicast prefix matches this exception or not. 
+          type: integer
+          format: uint32
+          default: 48
+          maximum: 128
+          x-field-uid: 2

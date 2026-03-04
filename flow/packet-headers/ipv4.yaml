@@ -144,7 +144,7 @@ components:
         Currently IP options supported are:
         1. router_alert option allows devices to intercept packets not addressed to them directly as defined in RFC2113.
         2. custom option is provided to configure user defined IP options as needed.
-        3. timestamp option allows devices to record their local time and IP address for latency measurement and path diagnostics as defined in RFC791. 
+        3. timestamp option allows routers to record their local timestamp and IP address for latency measurement and path diagnostics as defined in RFC791. 
       type: object
       properties:
         choice:
@@ -161,6 +161,9 @@ components:
         custom:
           $ref: '#/components/schemas/Flow.Ipv4Options.Custom'
           x-field-uid: 2
+        timestamp:
+          $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp'
+          x-field-uid: 3
     Flow.Ipv4Options.Custom:
       description: >-
         User defined IP options to be appended to the IPv4 header.
@@ -251,6 +254,118 @@ components:
           format: uint32
           default: 0
           x-field-uid: 3
+    Flow.Ipv4Options.Timestamp:
+      description: |-
+        IPv4 timestamp option to be appended to the IPv4 header.
+      type: object
+      properties:
+        pointer:
+          $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Pointer'
+          x-field-uid: 1
+        overflow:
+          description: |-
+              A counter that indicates the number of intermediate nodes that were unable to record a timestamp because the options data area was full.
+          x-field-pattern:
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        format:
+          $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Format'
+          x-field-uid: 3
+    Flow.Ipv4Options.Timestamp.Pointer:
+      description: |-
+        The attribute pointer indicates the octet offset where the next router should begin recording its data.
+        Choices of input are,
+        1. auto : The OTG implementation can provide a system generated value for this property. If the implementation is unable to generate a value, the default value must be used.
+        2. value: User can configure the pointer value.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          default: 5
+          minimum: 5
+          maximum: 40
+          x-field-uid: 2
+    Flow.Ipv4Options.Timestamp.Format:
+      description: |-
+        The format field defines the structural layout of the options data area and the specific recording logic routers must follow when appending timestamps and IP addresses.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            timestamps:
+              x-field-uid: 1
+            address_and_timestamps:
+              x-field-uid: 2
+            prespecified_address_and_timestamps:
+              x-field-uid: 3
+          x-field-uid: 1
+        timestamps:
+          description: |-
+            A recording mode where routers append only their 32-bit universal timestamps sequentially into the options data area.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Format.Timestamp'
+          x-field-uid: 2
+        address_and_timestamps:
+          description: |-
+            A recording mode where each router appends its 32-bit IPv4 address followed immediately by its 32-bit universal timestamp into the options data area.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamp'
+          x-field-uid: 3
+        prespecified_address_and_timestamps:
+          description: |-
+            A selective recording mode where only routers whose IPv4 addresses match the pre-listed entries in the header record their 32-bit universal timestamps into the options data area.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamp'
+          x-field-uid: 4
+    Flow.Ipv4Options.Timestamp.Format.Timestamp:
+      type: object
+      properties:
+        timestamp:
+          x-field-pattern:
+            description: |-
+              A 32-bit value representing the time of packet processing, recorded as the number of milliseconds elapsed since midnight Universal Time (UT).
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 1
+    Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamp:
+      type: object
+      properties:
+        address:
+          x-field-pattern:
+            description: |-
+              IPv4 address of the router interface that handled the packet, serving as a network identifier for the corresponding timestamp entry.
+            format: ipv4
+            default: 0.0.0.0
+            features: [count]
+          x-field-uid: 1
+        timestamp:
+          x-field-pattern:
+            description: |-
+              A 32-bit value representing the time of packet processing, recorded as the number of milliseconds elapsed since midnight Universal Time (UT).
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 2
     Flow.Ipv4.Priority:
       description: >-
         A container for ipv4 raw, tos, dscp ip priorities.

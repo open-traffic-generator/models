@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 1.46.0
+/* Open Traffic Generator API 1.51.0
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -2941,6 +2941,14 @@ message BgpV4Peer {
   // Description missing in models
   BgpLearnedInformationFilter learned_information_filter = 8;
 
+  // If set to false, all IPv4 routes are advertised using MP_REACH NLRI and withdrawn
+  // using MP_UNREACH NLRI  as defined in https://datatracker.ietf.org/doc/html/rfc4760#section-3.
+  // By default ( when set to true) , all IPv4 routes are advertised using traditional
+  // or REACH_NLRI and withdrawn  using UNREACH_NLRI as defined in https://datatracker.ietf.org/doc/html/rfc4271#section-4.3
+  // .  This is applicable only for BGPv4 peers.
+  // default = True
+  optional bool traditional_nlri_for_ipv4_routes = 16;
+
   // Emulated BGPv4 route ranges.
   repeated BgpV4RouteRange v4_routes = 9;
 
@@ -3718,6 +3726,16 @@ message BgpLearnedInformationFilter {
   // from the peer.
   // default = False
   optional bool unicast_ipv6_prefix = 2;
+
+  // If enabled, will store the information related to MPLS Unicast IPv4 Prefixes recieved
+  // from the peer.
+  // default = False
+  optional bool ipv4_mpls_unicast_prefix = 3;
+
+  // If enabled, will store the information related to MPLS Unicast IPv6 Prefixes recieved
+  // from the peer.
+  // default = False
+  optional bool ipv6_mpls_unicast_prefix = 4;
 }
 
 // Emulated BGPv4 route range.
@@ -10332,21 +10350,26 @@ message FlowIpv4 {
   // Description missing in models
   PatternFlowIpv4Dst dst = 14;
 
-  // Description missing in models
+  // IPv4 options are optional extensions for the IPv4 header that can be utilised to
+  // provide additional information about the IPv4 datagram.  It is encoded as a series
+  // of type, length and value attributes.  The IP header length MUST be increased to
+  // accommodate the extra bytes needed to encode the IP options. The length of the all
+  // options included to a IPv4 header should not exceed 40 bytes since IPv4 Header length
+  // (4 bits) can at max specify 15 4-word octets for a total of 60 bytes which includes
+  // 20 bytes needed for mandatory attributes of the IPv4 header. If the user adds multiples
+  // IPv4 options that exceeds 40 bytes and specify header length as auto, implementation
+  // should throw error. Currently IP options supported are: 1. router_alert option allows
+  // devices to intercept packets not addressed to them directly as defined in RFC2113.
+  // 2. custom option is provided to configure user defined IP options as needed. 3. timestamp
+  // option allows routers to record their local timestamp and IP address for latency
+  // measurement and path diagnostics as defined in RFC791.  4. end_of_options option
+  // allows routers to specify the end of options list. This may only be used if the end
+  // of the options does not coincide with the end of the IP header. It is a single octet
+  // value and padding is implicitly added to conform to a work boundary.
   repeated FlowIpv4Options options = 15;
 }
 
-// IPv4 options are optional extensions for the IPv4 header that can be utilised to
-// provide additional information about the IPv4 datagram.  It is encoded as a series
-// of type, length and value attributes.  The IP header length MUST be increased to
-// accommodate the extra bytes needed to encode the IP options. The length of the all
-// options included to a IPv4 header should not exceed 40 bytes since IPv4 Header length
-// (4 bits) can at max specify 15 4-word octets for a total of 60 bytes which includes
-// 20 bytes needed for mandatory attributes of the IPv4 header. If the user adds multiples
-// IPv4 options that exceeds 40 bytes and specify header length as auto, implementation
-// should throw error. Currently IP options supported are: 1. router_alert option allows
-// devices to intercept packets not addressed to them directly as defined in RFC2113.
-// 2. custom option is provided to configure user defined IP options as needed.
+// IPv4 options are optional extensions for the IPv4 header
 message FlowIpv4Options {
 
   message Choice {
@@ -10354,6 +10377,8 @@ message FlowIpv4Options {
       unspecified = 0;
       router_alert = 1;
       custom = 2;
+      timestamp = 3;
+      end_of_options = 4;
     }
   }
   // Description missing in models
@@ -10362,6 +10387,9 @@ message FlowIpv4Options {
 
   // Description missing in models
   FlowIpv4OptionsCustom custom = 2;
+
+  // Description missing in models
+  FlowIpv4OptionsTimestamp timestamp = 3;
 }
 
 // User defined IP options to be appended to the IPv4 header.
@@ -10416,6 +10444,90 @@ message FlowIpv4OptionsCustomLength {
   // Description missing in models
   // default = 0
   optional uint32 value = 3;
+}
+
+// IPv4 timestamp option to be appended to the IPv4 header.
+message FlowIpv4OptionsTimestamp {
+
+  // Description missing in models
+  FlowIpv4OptionsTimestampPointer pointer = 1;
+
+  // A counter that indicates the number of intermediate nodes that were unable to record
+  // a timestamp because the options data area was full.
+  PatternFlowIpv4OptionsTimestampOverflow overflow = 2;
+
+  // Description missing in models
+  FlowIpv4OptionsTimestampFormat format = 3;
+}
+
+// The attribute pointer indicates the octet offset where the next router should begin
+// recording its data.
+// Choices of input are,
+// 1. auto : The OTG implementation can provide a system generated value for this property.
+// If the implementation is unable to generate a value, the default value must be used.
+// 2. value: User can configure the pointer value.
+message FlowIpv4OptionsTimestampPointer {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 5
+  optional uint32 value = 2;
+}
+
+// The format field defines the structural layout of the options data area and the specific
+// recording logic routers must follow when appending timestamps and IP addresses.
+message FlowIpv4OptionsTimestampFormat {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      timestamps = 1;
+      address_and_timestamps = 2;
+      prespecified_address_and_timestamps = 3;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // A recording mode where routers append only their 32-bit universal timestamps sequentially
+  // into the options data area.
+  repeated FlowIpv4OptionsTimestampFormatTimestamps timestamps = 2;
+
+  // A recording mode where each router appends its 32-bit IPv4 address followed immediately
+  // by its 32-bit universal timestamp into the options data area.
+  repeated FlowIpv4OptionsTimestampFormatAddressAndTimestamps address_and_timestamps = 3;
+
+  // A selective recording mode where only routers whose IPv4 addresses match the pre-listed
+  // entries in the header record their 32-bit universal timestamps into the options data
+  // area.
+  repeated FlowIpv4OptionsTimestampFormatAddressAndTimestamps prespecified_address_and_timestamps = 4;
+}
+
+// Description missing in models
+message FlowIpv4OptionsTimestampFormatTimestamps {
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampFormatTimestampsTimestamp timestamp = 1;
+}
+
+// Description missing in models
+message FlowIpv4OptionsTimestampFormatAddressAndTimestamps {
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsAddress address = 1;
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsTimestamp timestamp = 2;
 }
 
 // A container for ipv4 raw, tos, dscp ip priorities.
@@ -13836,9 +13948,6 @@ message ConfigUpdate {
 
   // Description missing in models
   FlowsUpdate flows = 2;
-
-  // Description missing in models
-  ProtocolsUpdate protocols = 3;
 }
 
 // A container of flows with associated properties to be updated without affecting the
@@ -13857,39 +13966,6 @@ message FlowsUpdate {
 
   // The list of configured flows for which given property will be updated.
   repeated Flow flows = 2;
-}
-
-// A container of Protocols with associated properties to be updated that may or may
-// not able to maintain the current Protocols session in Up state always.
-message ProtocolsUpdate {
-
-  // Description missing in models
-  UpdateProtocolConfigIsis isis = 1;
-}
-
-// A container of IS-IS with associated properties to be updated that may or may not
-// able to maintain the current IS-IS Up session state always.
-message UpdateProtocolConfigIsis {
-
-  // The flows that will be added to existing configuration on the traffic generator.
-  // The flow name must not already be used in existing configuration.
-  repeated UpdateProtocolConfigIsisLink links = 1;
-}
-
-// A container of IS-IS with associated properties to be updated that may or may not
-// able to maintain the current IS-IS Up session state always.
-message UpdateProtocolConfigIsisLink {
-
-  // The name of an IS-IS emulated or simulated interface.
-  // 
-  // x-constraint:
-  // - /components/schemas/Isis.Interface/properties/name
-  // 
-  optional string interface_name = 1;
-
-  // The default metric cost for the interface.
-  // default = 10
-  optional uint32 metric = 2;
 }
 
 // A container for all configuration resources of various types to be appended.
@@ -14307,13 +14383,14 @@ message StateProtocolBgpPeers {
   optional State.Enum state = 2;
 }
 
-// Sets state of configured ISIS routers.
+// Sets state of configured ISIS routers and Links.
 message StateProtocolIsis {
 
   message Choice {
     enum Enum {
       unspecified = 0;
       routers = 1;
+      simulated_links = 2;
     }
   }
   // Description missing in models
@@ -14322,6 +14399,9 @@ message StateProtocolIsis {
 
   // Description missing in models
   StateProtocolIsisRouters routers = 2;
+
+  // Description missing in models
+  StateProtocolIsisSimLinks simulated_links = 3;
 }
 
 // Sets state of configured ISIS routers.
@@ -14478,6 +14558,56 @@ message StateProtocolRocev2Peers {
   // If the desired state is 'down', RoCEv2 session(s) would be brought down.
   // required = true
   optional State.Enum state = 2;
+}
+
+// Sets the state of configured one or more Simulated Links (Interfaces)
+message StateProtocolIsisSimLinks {
+
+  // The names of ISIS Simulated Links to control. If no names are specified then all
+  // ISIS Simulated Links in the configuration will be affected..
+  // 
+  // x-constraint:
+  // - /components/schemas/Isis.Interface/properties/name
+  // 
+  repeated string names = 1;
+
+  // Set up to true or false to interface state in UP or DOWN state respectively in both
+  // direction. Thats is the UP/DOWN state is applied for a simulated link,
+  // connecting, say, a Node A to Node B and Node B to Node A in both directions.
+  // Setting to false will result in the selected set of Simulated Links to be set in
+  // disconnected state. This should result in the link to be removed from the
+  // Extended IS Reachability TLV in subsequent LSP transmitted ( with incremented Sequence
+  // Number ) from both the Simulated or Emulated Router on which this link is
+  // located as well the Simulated or Emulated Router at the other end of the link i.e.
+  // this will bring down the Simulated Links on both ends.
+  // Similarly, setting to true should result in the neighbor information to be re-introduced
+  // in Extended IS Reachability sent in subsequent LSP Update by the
+  // Router containing the Simulated Link and the neighboring Router at the other end
+  // of the link. Note that if the link is already in 'up' state and the value is set
+  // 
+  // to 'true' or it is in 'down' state and the value is set to 'false', those links in
+  // the request should be ignored.
+  // 
+  // Example:
+  // Suppose Emulated Router ER (680000000003) is connected to Simulated Routers:  ST1('770000000001'),
+  // ST2('770000000002') and ST3('770000000003') in a ring topology.
+  // ER <--> ST1 <--> ST2
+  // ^	            (A) ^
+  // |		              |
+  // v 	          (B) v
+  // -------ST3-------
+  // 
+  // Before the AB Link Down operation between ST2 & ST3  the neighbors of ST2 & ST3 will
+  // be seen as in ISIS Link State PDU (LSP) information in Get State
+  // LSP-ID of ST2: 770000000002-00-00: IS-Reachability Neighbors : ['770000000001', '770000000003']
+  // LSP-ID of ST3: 770000000003-00-00: IS-Reachability Neighbors : ['770000000002', '770000000001']
+  // 
+  // After the AB Link Down operation between ST2 & ST3  the neighbors of ST2 & ST3 will
+  // be seen as in ISIS Link State PDU (LSP) information in Get State
+  // LSP-ID of ST2: 770000000002-00-00: IS-Reachability Neighbors : ['770000000001']
+  // LSP-ID of ST3: 770000000003-00-00: IS-Reachability Neighbors : ['770000000001']
+  // default = False
+  optional bool up = 2;
 }
 
 // Request for triggering action against configured resources.
@@ -14862,6 +14992,14 @@ message ActionProtocolBgpNotification {
 
   // Description missing in models
   DeviceBgpCustomError custom = 9;
+
+  // Delay (in milliseconds) between generation of the Notification and transmission of
+  // FIN to close the
+  // TCP socket by the implementation. This is useful to ensure that the remote end has
+  // received and processed
+  // the Notification before closing the BGP session.
+  // default = 0
+  optional uint32 fin_delay = 10;
 }
 
 // Initiates BGP Graceful Restart process for the selected BGP peers. If no name is
@@ -18252,6 +18390,8 @@ message BgpPrefixStateRequest {
       unspecified = 0;
       ipv4_unicast = 1;
       ipv6_unicast = 2;
+      ipv4_mpls_unicast = 3;
+      ipv6_mpls_unicast = 4;
     }
   }
   // Specify which prefixes to return. If the list is empty or missing then all prefixes
@@ -18332,6 +18472,12 @@ message BgpPrefixesState {
 
   // Description missing in models
   repeated BgpPrefixIpv6UnicastState ipv6_unicast_prefixes = 3;
+
+  // Description missing in models
+  repeated BgpPrefixIpv4MplsUnicastState ipv4_mpls_unicast_prefixes = 4;
+
+  // Description missing in models
+  repeated BgpPrefixIpv6MplsUnicastState ipv6_mpls_unicast_prefixes = 5;
 }
 
 // IPv4 unicast prefix.
@@ -18740,6 +18886,114 @@ message ResultExtendedCommunityNonTransitive2OctetAsType {
 
   // Description missing in models
   ResultExtendedCommunityNonTransitive2OctetAsTypeLinkBandwidth link_bandwidth_subtype = 2;
+}
+
+// IPv4 MPLS unicast prefix.
+message BgpPrefixIpv4MplsUnicastState {
+
+  // An IPv4 unicast address
+  optional string ipv4_address = 1;
+
+  // Description missing in models
+  optional uint32 prefix_length = 2;
+
+  message Origin {
+    enum Enum {
+      unspecified = 0;
+      igp = 1;
+      egp = 2;
+      incomplete = 3;
+    }
+  }
+  // The origin of the prefix.
+  optional Origin.Enum origin = 3;
+
+  // The path id.
+  optional uint32 path_id = 4;
+
+  // The IPv4 address of the egress interface.
+  optional string ipv4_next_hop = 5;
+
+  // The IPv6 address of the egress interface.
+  optional string ipv6_next_hop = 6;
+
+  // One or more MPLS Label 24 bit values bound to this address prefix.
+  repeated uint32 labels = 7;
+
+  // Optional community attributes.
+  repeated ResultBgpCommunity communities = 8;
+
+  // Optional received Extended Community attributes. Each received Extended Community
+  // attribute is available for retrieval in two forms. Support of the 'raw' format in
+  // which all 8 bytes (16 hex characters) is always present and available for use. In
+  // addition, if supported by the implementation, the Extended Community attribute may
+  // also be retrieved in the  'structured' format which is an optional field.
+  repeated ResultExtendedCommunity extended_communities = 9;
+
+  // Description missing in models
+  ResultBgpAsPath as_path = 10;
+
+  // The local preference is a well-known attribute and the value is used for route selection.
+  // The route with the highest local preference value is preferred.
+  optional uint32 local_preference = 11;
+
+  // The multi exit discriminator (MED) is an optional non-transitive attribute and the
+  // value is used for route selection. The route with the lowest MED value is preferred.
+  optional uint32 multi_exit_discriminator = 12;
+}
+
+// IPv6 MPLS unicast prefix.
+message BgpPrefixIpv6MplsUnicastState {
+
+  // An IPv6 unicast address
+  optional string ipv6_address = 1;
+
+  // Description missing in models
+  optional uint32 prefix_length = 2;
+
+  message Origin {
+    enum Enum {
+      unspecified = 0;
+      igp = 1;
+      egp = 2;
+      incomplete = 3;
+    }
+  }
+  // The origin of the prefix.
+  optional Origin.Enum origin = 3;
+
+  // The path id.
+  optional uint32 path_id = 4;
+
+  // The IPv4 address of the egress interface.
+  optional string ipv4_next_hop = 5;
+
+  // The IPv6 address of the egress interface.
+  optional string ipv6_next_hop = 6;
+
+  // One or more MPLS Label 24 bit values bound to this address prefix.
+  repeated uint32 labels = 7;
+
+  // Optional community attributes.
+  repeated ResultBgpCommunity communities = 8;
+
+  // Optional received Extended Community attributes. Each received Extended Community
+  // attribute is available for retrieval in two forms. Support of the 'raw' format in
+  // which all 8 bytes (16 hex characters) is always present and available for use. In
+  // addition, if supported by the implementation, the Extended Community attribute may
+  // also be retrieved in the  'structured' format which is an optional field.
+  repeated ResultExtendedCommunity extended_communities = 9;
+
+  // Description missing in models
+  ResultBgpAsPath as_path = 10;
+
+  // The local preference is a well-known attribute and the value is used for route selection.
+  // The route with the highest local preference value is preferred.
+  optional uint32 local_preference = 11;
+
+  // The multi exit discriminator (MED) is an optional non-transitive attribute and the
+  // value is used for route selection. The route with the lowest MED value is preferred.
+  optional uint32 multi_exit_discriminator = 12;
 }
 
 // BGP communities provide additional capability for tagging routes and  for modifying
@@ -22962,6 +23216,198 @@ message PatternFlowIpv4OptionsCustomTypeOptionNumber {
 
   // Description missing in models
   PatternFlowIpv4OptionsCustomTypeOptionNumberCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowIpv4OptionsTimestampOverflowCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// A counter that indicates the number of intermediate nodes that were unable to record
+// a timestamp because the options data area was full.
+message PatternFlowIpv4OptionsTimestampOverflow {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampOverflowCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampOverflowCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowIpv4OptionsTimestampFormatTimestampsTimestampCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// A 32-bit value representing the time of packet processing, recorded as the number
+// of milliseconds elapsed since midnight Universal Time (UT).
+message PatternFlowIpv4OptionsTimestampFormatTimestampsTimestamp {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampFormatTimestampsTimestampCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampFormatTimestampsTimestampCounter decrement = 6;
+}
+
+// ipv4 counter pattern
+message PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsAddressCounter {
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string start = 1;
+
+  // Description missing in models
+  // default = 0.0.0.1
+  optional string step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// IPv4 address of the router interface that handled the packet, serving as a network
+// identifier for the corresponding timestamp entry.
+message PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsAddress {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['0.0.0.0']
+  repeated string values = 3;
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsAddressCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsAddressCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsTimestampCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// A 32-bit value representing the time of packet processing, recorded as the number
+// of milliseconds elapsed since midnight Universal Time (UT).
+message PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsTimestamp {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsTimestampCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowIpv4OptionsTimestampFormatAddressAndTimestampsTimestampCounter decrement = 6;
 }
 
 // integer counter pattern

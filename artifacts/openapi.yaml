@@ -7,7 +7,7 @@ info:
     \ issue](https://github.com/open-traffic-generator/models/issues) in the models\
     \ repository\n- [fork the models repository](https://github.com/open-traffic-generator/models)\
     \ and submit a PR"
-  version: 1.46.0
+  version: 1.51.0
   contact:
     url: https://github.com/open-traffic-generator/models
   license:
@@ -1983,7 +1983,7 @@ components:
           type: integer
           format: uint32
           minimum: 64
-          maximum: 9000
+          maximum: 14000
           default: 1500
           x-field-uid: 5
         ieee_media_defaults:
@@ -4244,6 +4244,16 @@ components:
         learned_information_filter:
           x-field-uid: 8
           $ref: '#/components/schemas/Bgp.LearnedInformationFilter'
+        traditional_nlri_for_ipv4_routes:
+          description: "If set to false, all IPv4 routes are advertised using MP_REACH\
+            \ NLRI and withdrawn using MP_UNREACH NLRI  as defined in https://datatracker.ietf.org/doc/html/rfc4760#section-3.\
+            \  By default ( when set to true) , all IPv4 routes are advertised using\
+            \ traditional or REACH_NLRI and withdrawn  using UNREACH_NLRI as defined\
+            \ in https://datatracker.ietf.org/doc/html/rfc4271#section-4.3 .  This\
+            \ is applicable only for BGPv4 peers.            "
+          type: boolean
+          default: true
+          x-field-uid: 16
         v4_routes:
           x-field-uid: 9
           description: |-
@@ -5201,6 +5211,18 @@ components:
           type: boolean
           default: false
           x-field-uid: 2
+        ipv4_mpls_unicast_prefix:
+          description: |-
+            If enabled, will store the information related to MPLS Unicast IPv4 Prefixes recieved from the peer.
+          type: boolean
+          default: false
+          x-field-uid: 3
+        ipv6_mpls_unicast_prefix:
+          description: |-
+            If enabled, will store the information related to MPLS Unicast IPv6 Prefixes recieved from the peer.
+          type: boolean
+          default: false
+          x-field-uid: 4
     Bgp.V4RouteRange:
       description: |-
         Emulated BGPv4 route range.
@@ -13969,25 +13991,16 @@ components:
           x-field-uid: 14
           $ref: '#/components/schemas/Pattern.Flow.Ipv4.Dst'
         options:
+          description: |-
+            IPv4 options are optional extensions for the IPv4 header that can be utilised to provide additional information about the IPv4 datagram.  It is encoded as a series of type, length and value attributes.  The IP header length MUST be increased to accommodate the extra bytes needed to encode the IP options. The length of the all options included to a IPv4 header should not exceed 40 bytes since IPv4 Header length (4 bits) can at max specify 15 4-word octets for a total of 60 bytes which includes 20 bytes needed for mandatory attributes of the IPv4 header. If the user adds multiples IPv4 options that exceeds 40 bytes and specify header length as "auto", implementation should throw error. Currently IP options supported are: 1. router_alert option allows devices to intercept packets not addressed to them directly as defined in RFC2113. 2. custom option is provided to configure user defined IP options as needed. 3. timestamp option allows routers to record their local timestamp and IP address for latency measurement and path diagnostics as defined in RFC791.  4. end_of_options option allows routers to specify the end of options list. This may only be used if the end of the options does not coincide with the end of the IP header. It is a single octet value and padding is implicitly added to conform to a work boundary.
           type: array
           minItems: 0
           items:
             $ref: '#/components/schemas/Flow.Ipv4.Options'
           x-field-uid: 15
     Flow.Ipv4.Options:
-      description: "IPv4 options are optional extensions for the IPv4 header that\
-        \ can be utilised to provide additional information about the IPv4 datagram.\
-        \  It is encoded as a series of type, length and value attributes.  The IP\
-        \ header length MUST be increased to accommodate the extra bytes needed to\
-        \ encode the IP options. The length of the all options included to a IPv4\
-        \ header should not exceed 40 bytes since IPv4 Header length (4 bits) can\
-        \ at max specify 15 4-word octets for a total of 60 bytes which includes 20\
-        \ bytes needed for mandatory attributes of the IPv4 header. If the user adds\
-        \ multiples IPv4 options that exceeds 40 bytes and specify header length as\
-        \ \"auto\", implementation should throw error. Currently IP options supported\
-        \ are: 1. router_alert option allows devices to intercept packets not addressed\
-        \ to them directly as defined in RFC2113. 2. custom option is provided to\
-        \ configure user defined IP options as needed. "
+      description: |-
+        IPv4 options are optional extensions for the IPv4 header
       type: object
       properties:
         choice:
@@ -13999,12 +14012,21 @@ components:
               x-field-uid: 1
             custom:
               x-field-uid: 2
+            timestamp:
+              x-field-uid: 3
+            end_of_options:
+              x-field-uid: 4
           enum:
           - router_alert
           - custom
+          - timestamp
+          - end_of_options
         custom:
           $ref: '#/components/schemas/Flow.Ipv4Options.Custom'
           x-field-uid: 2
+        timestamp:
+          $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp'
+          x-field-uid: 3
     Flow.Ipv4Options.Custom:
       description: |-
         User defined IP options to be appended to the IPv4 header.
@@ -14070,6 +14092,107 @@ components:
           format: uint32
           default: 0
           x-field-uid: 3
+    Flow.Ipv4Options.Timestamp:
+      description: |-
+        IPv4 timestamp option to be appended to the IPv4 header.
+      type: object
+      properties:
+        pointer:
+          $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Pointer'
+          x-field-uid: 1
+        overflow:
+          description: |-
+            A counter that indicates the number of intermediate nodes that were unable to record a timestamp because the options data area was full.
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Overflow'
+        format:
+          $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Format'
+          x-field-uid: 3
+    Flow.Ipv4Options.Timestamp.Pointer:
+      description: |-
+        The attribute pointer indicates the octet offset where the next router should begin recording its data.
+        Choices of input are,
+        1. auto : The OTG implementation can provide a system generated value for this property. If the implementation is unable to generate a value, the default value must be used.
+        2. value: User can configure the pointer value.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+          enum:
+          - auto
+          - value
+        value:
+          type: integer
+          format: uint32
+          default: 5
+          minimum: 5
+          maximum: 40
+          x-field-uid: 2
+    Flow.Ipv4Options.Timestamp.Format:
+      description: |-
+        The format field defines the structural layout of the options data area and the specific recording logic routers must follow when appending timestamps and IP addresses.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            timestamps:
+              x-field-uid: 1
+            address_and_timestamps:
+              x-field-uid: 2
+            prespecified_address_and_timestamps:
+              x-field-uid: 3
+          x-field-uid: 1
+          enum:
+          - timestamps
+          - address_and_timestamps
+          - prespecified_address_and_timestamps
+        timestamps:
+          description: |-
+            A recording mode where routers append only their 32-bit universal timestamps sequentially into the options data area.
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Format.Timestamps'
+          x-field-uid: 2
+        address_and_timestamps:
+          description: |-
+            A recording mode where each router appends its 32-bit IPv4 address followed immediately by its 32-bit universal timestamp into the options data area.
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps'
+          x-field-uid: 3
+        prespecified_address_and_timestamps:
+          description: |-
+            A selective recording mode where only routers whose IPv4 addresses match the pre-listed entries in the header record their 32-bit universal timestamps into the options data area.
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps'
+          x-field-uid: 4
+    Flow.Ipv4Options.Timestamp.Format.Timestamps:
+      type: object
+      properties:
+        timestamp:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Format.Timestamps.Timestamp'
+    Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps:
+      type: object
+      properties:
+        address:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Address'
+        timestamp:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Timestamp'
     Flow.Ipv4.Priority:
       description: |-
         A container for ipv4 raw, tos, dscp ip priorities.
@@ -18188,9 +18311,6 @@ components:
         flows:
           $ref: '#/components/schemas/Flows.Update'
           x-field-uid: 2
-        protocols:
-          $ref: '#/components/schemas/Protocols.Update'
-          x-field-uid: 3
     Flows.Update:
       description: |-
         A container of flows with associated properties to be updated without affecting the flows current transmit state.
@@ -18220,50 +18340,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Flow'
-          x-field-uid: 2
-    Protocols.Update:
-      description: |-
-        A container of Protocols with associated properties to be updated that may or may not able to maintain the current Protocols session in Up state always.
-      type: object
-      properties:
-        isis:
-          $ref: '#/components/schemas/UpdateProtocol.Config.Isis'
-          x-field-uid: 1
-    UpdateProtocol.Config.Isis:
-      description: |-
-        A container of IS-IS with associated properties to be updated that may or may not able to maintain the current IS-IS Up session state always.
-      type: object
-      properties:
-        links:
-          description: |-
-            The flows that will be added to existing configuration on the traffic generator.
-            The flow name must not already be used in existing configuration.
-          type: array
-          items:
-            $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Link'
-          x-field-uid: 1
-    UpdateProtocol.Config.Isis.Link:
-      description: |-
-        A container of IS-IS with associated properties to be updated that may or may not able to maintain the current IS-IS Up session state always.
-      type: object
-      properties:
-        interface_name:
-          description: |
-            The name of an IS-IS emulated or simulated interface.
-
-            x-constraint:
-            - /components/schemas/Isis.Interface/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Isis.Interface/properties/name
-          x-field-uid: 1
-        metric:
-          description: |-
-            The default metric cost for the interface.
-          type: integer
-          format: uint32
-          maximum: 16777215
-          default: 10
           x-field-uid: 2
     Config.Append:
       description: |-
@@ -18788,7 +18864,7 @@ components:
           - down
     State.Protocol.Isis:
       description: |-
-        Sets state of configured ISIS routers.
+        Sets state of configured ISIS routers and Links.
       type: object
       required:
       - choice
@@ -18798,12 +18874,18 @@ components:
           x-enum:
             routers:
               x-field-uid: 1
+            simulated_links:
+              x-field-uid: 2
           x-field-uid: 1
           enum:
           - routers
+          - simulated_links
         routers:
           $ref: '#/components/schemas/State.Protocol.Isis.Routers'
           x-field-uid: 2
+        simulated_links:
+          $ref: '#/components/schemas/State.Protocol.Isis.SimLinks'
+          x-field-uid: 3
     State.Protocol.Isis.Routers:
       description: |-
         Sets state of configured ISIS routers.
@@ -18992,6 +19074,56 @@ components:
           enum:
           - up
           - down
+    State.Protocol.Isis.SimLinks:
+      description: |-
+        Sets the state of configured one or more Simulated Links (Interfaces)
+      type: object
+      properties:
+        names:
+          description: |
+            The names of ISIS Simulated Links to control. If no names are specified then all ISIS Simulated Links in the configuration will be affected..
+
+            x-constraint:
+            - /components/schemas/Isis.Interface/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Isis.Interface/properties/name
+          x-field-uid: 1
+        up:
+          description: "Set up to true or false to interface state in UP or DOWN state\
+            \ respectively in both direction. Thats is the UP/DOWN state is applied\
+            \ for a simulated link,\nconnecting, say, a Node A to Node B and Node\
+            \ B to Node A in both directions.\nSetting to false will result in the\
+            \ selected set of Simulated Links to be set in disconnected state. This\
+            \ should result in the link to be removed from the \nExtended IS Reachability\
+            \ TLV in subsequent LSP transmitted ( with incremented Sequence Number\
+            \ ) from both the Simulated or Emulated Router on which this link is \n\
+            located as well the Simulated or Emulated Router at the other end of the\
+            \ link i.e. this will bring down the Simulated Links on both ends.\nSimilarly,\
+            \ setting to true should result in the neighbor information to be re-introduced\
+            \ in Extended IS Reachability sent in subsequent LSP Update by the \n\
+            Router containing the Simulated Link and the neighboring Router at the\
+            \ other end of the link. Note that if the link is already in 'up' state\
+            \ and the value is set \nto 'true' or it is in 'down' state and the value\
+            \ is set to 'false', those links in the request should be ignored.\n\n\
+            Example:\nSuppose Emulated Router ER (680000000003) is connected to Simulated\
+            \ Routers:  ST1('770000000001'), ST2('770000000002') and ST3('770000000003')\
+            \ in a ring topology.\nER <--> ST1 <--> ST2\n^\t            (A) ^\n|\t\
+            \t              |\nv \t          (B) v\n-------ST3-------\n\nBefore the\
+            \ AB Link Down operation between ST2 & ST3  the neighbors of ST2 & ST3\
+            \ will be seen as in ISIS Link State PDU (LSP) information in Get State\n\
+            LSP-ID of ST2: 770000000002-00-00: IS-Reachability Neighbors : ['770000000001',\
+            \ '770000000003']\nLSP-ID of ST3: 770000000003-00-00: IS-Reachability\
+            \ Neighbors : ['770000000002', '770000000001']\n\nAfter the AB Link Down\
+            \ operation between ST2 & ST3  the neighbors of ST2 & ST3 will be seen\
+            \ as in ISIS Link State PDU (LSP) information in Get State\nLSP-ID of\
+            \ ST2: 770000000002-00-00: IS-Reachability Neighbors : ['770000000001']\n\
+            LSP-ID of ST3: 770000000003-00-00: IS-Reachability Neighbors : ['770000000001']"
+          type: boolean
+          default: false
+          x-field-uid: 2
     Control.Action:
       description: |-
         Request for triggering action against configured resources.
@@ -19473,6 +19605,16 @@ components:
         custom:
           $ref: '#/components/schemas/Device.Bgp.CustomError'
           x-field-uid: 9
+        fin_delay:
+          description: "Delay (in milliseconds) between generation of the Notification\
+            \ and transmission of FIN to close the \nTCP socket by the implementation.\
+            \ This is useful to ensure that the remote end has received and processed\n\
+            the Notification before closing the BGP session.            "
+          type: integer
+          format: uint32
+          maximum: 10000
+          default: 0
+          x-field-uid: 10
     Action.Protocol.Bgp.InitiateGracefulRestart:
       description: |-
         Initiates BGP Graceful Restart process for the selected BGP peers. If no name is specified then Graceful Restart will be sent to all configured BGP peers. To emulate scenarios where a peer sends a Notification and stops the session, an optional Notification object is included. If the remote peer and the local peer are both configured to perform Graceful Restart for Notification triggered session , this will result in  Graceful Restart scenario to be triggered as per RFC8538.
@@ -25248,9 +25390,15 @@ components:
                 x-field-uid: 1
               ipv6_unicast:
                 x-field-uid: 2
+              ipv4_mpls_unicast:
+                x-field-uid: 3
+              ipv6_mpls_unicast:
+                x-field-uid: 4
             enum:
             - ipv4_unicast
             - ipv6_unicast
+            - ipv4_mpls_unicast
+            - ipv6_mpls_unicast
           x-field-uid: 2
         ipv4_unicast_filters:
           description: |-
@@ -25366,6 +25514,16 @@ components:
           items:
             $ref: '#/components/schemas/BgpPrefixIpv6Unicast.State'
           x-field-uid: 3
+        ipv4_mpls_unicast_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpPrefixIpv4MplsUnicast.State'
+          x-field-uid: 4
+        ipv6_mpls_unicast_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BgpPrefixIpv6MplsUnicast.State'
+          x-field-uid: 5
     BgpPrefixIpv4Unicast.State:
       description: |-
         IPv4 unicast prefix.
@@ -25888,6 +26046,178 @@ components:
         link_bandwidth_subtype:
           x-field-uid: 2
           $ref: '#/components/schemas/Result.ExtendedCommunity.NonTransitive2OctetAsType.LinkBandwidth'
+    BgpPrefixIpv4MplsUnicast.State:
+      description: |-
+        IPv4 MPLS unicast prefix.
+      type: object
+      properties:
+        ipv4_address:
+          description: |-
+            An IPv4 unicast address
+          type: string
+          x-field-uid: 1
+        prefix_length:
+          type: integer
+          format: uint32
+          maximum: 32
+          x-field-uid: 2
+        origin:
+          x-field-uid: 3
+          description: |-
+            The origin of the prefix.
+          type: string
+          x-enum:
+            igp:
+              x-field-uid: 1
+            egp:
+              x-field-uid: 2
+            incomplete:
+              x-field-uid: 3
+          enum:
+          - igp
+          - egp
+          - incomplete
+        path_id:
+          x-field-uid: 4
+          description: |-
+            The path id.
+          type: integer
+          format: uint32
+        ipv4_next_hop:
+          x-field-uid: 5
+          description: |-
+            The IPv4 address of the egress interface.
+          type: string
+          format: ipv4
+        ipv6_next_hop:
+          x-field-uid: 6
+          description: |-
+            The IPv6 address of the egress interface.
+          type: string
+          format: ipv6
+        labels:
+          description: |-
+            One or more MPLS Label 24 bit values bound to this address prefix.
+          type: array
+          items:
+            type: integer
+            format: uint32
+          x-field-uid: 7
+        communities:
+          x-field-uid: 8
+          description: |-
+            Optional community attributes.
+          type: array
+          items:
+            $ref: '#/components/schemas/Result.BgpCommunity'
+        extended_communities:
+          description: |-
+            Optional received Extended Community attributes. Each received Extended Community attribute is available for retrieval in two forms. Support of the 'raw' format in which all 8 bytes (16 hex characters) is always present and available for use. In addition, if supported by the implementation, the Extended Community attribute may also be retrieved in the  'structured' format which is an optional field.
+          type: array
+          items:
+            $ref: '#/components/schemas/Result.ExtendedCommunity'
+          x-field-uid: 9
+        as_path:
+          x-field-uid: 10
+          $ref: '#/components/schemas/Result.BgpAsPath'
+        local_preference:
+          x-field-uid: 11
+          description: |-
+            The local preference is a well-known attribute and the value is used for route selection. The route with the highest local preference value is preferred.
+          type: integer
+          format: uint32
+        multi_exit_discriminator:
+          x-field-uid: 12
+          description: |-
+            The multi exit discriminator (MED) is an optional non-transitive attribute and the value is used for route selection. The route with the lowest MED value is preferred.
+          type: integer
+          format: uint32
+    BgpPrefixIpv6MplsUnicast.State:
+      description: |-
+        IPv6 MPLS unicast prefix.
+      type: object
+      properties:
+        ipv6_address:
+          description: |-
+            An IPv6 unicast address
+          type: string
+          x-field-uid: 1
+        prefix_length:
+          type: integer
+          format: uint32
+          maximum: 128
+          x-field-uid: 2
+        origin:
+          x-field-uid: 3
+          description: |-
+            The origin of the prefix.
+          type: string
+          x-enum:
+            igp:
+              x-field-uid: 1
+            egp:
+              x-field-uid: 2
+            incomplete:
+              x-field-uid: 3
+          enum:
+          - igp
+          - egp
+          - incomplete
+        path_id:
+          x-field-uid: 4
+          description: |-
+            The path id.
+          type: integer
+          format: uint32
+        ipv4_next_hop:
+          x-field-uid: 5
+          description: |-
+            The IPv4 address of the egress interface.
+          type: string
+          format: ipv4
+        ipv6_next_hop:
+          x-field-uid: 6
+          description: |-
+            The IPv6 address of the egress interface.
+          type: string
+          format: ipv6
+        labels:
+          description: |-
+            One or more MPLS Label 24 bit values bound to this address prefix.
+          type: array
+          items:
+            type: integer
+            format: uint32
+          x-field-uid: 7
+        communities:
+          x-field-uid: 8
+          description: |-
+            Optional community attributes.
+          type: array
+          items:
+            $ref: '#/components/schemas/Result.BgpCommunity'
+        extended_communities:
+          description: |-
+            Optional received Extended Community attributes. Each received Extended Community attribute is available for retrieval in two forms. Support of the 'raw' format in which all 8 bytes (16 hex characters) is always present and available for use. In addition, if supported by the implementation, the Extended Community attribute may also be retrieved in the  'structured' format which is an optional field.
+          type: array
+          items:
+            $ref: '#/components/schemas/Result.ExtendedCommunity'
+          x-field-uid: 9
+        as_path:
+          x-field-uid: 10
+          $ref: '#/components/schemas/Result.BgpAsPath'
+        local_preference:
+          x-field-uid: 11
+          description: |-
+            The local preference is a well-known attribute and the value is used for route selection. The route with the highest local preference value is preferred.
+          type: integer
+          format: uint32
+        multi_exit_discriminator:
+          x-field-uid: 12
+          description: |-
+            The multi exit discriminator (MED) is an optional non-transitive attribute and the value is used for route selection. The route with the lowest MED value is preferred.
+          type: integer
+          format: uint32
     Result.BgpCommunity:
       description: |-
         BGP communities provide additional capability for tagging routes and  for modifying BGP routing policy on upstream and downstream routers. BGP community is a 32-bit number which is broken into 16-bit AS number and  a 16-bit custom value.
@@ -32081,6 +32411,259 @@ components:
           x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Custom.Type.OptionNumber.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv4Options.Timestamp.Overflow.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 15
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 15
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 16
+    Pattern.Flow.Ipv4Options.Timestamp.Overflow:
+      description: |-
+        A counter that indicates the number of intermediate nodes that were unable to record a timestamp because the options data area was full.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 15
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 15
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Overflow.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Overflow.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv4Options.Timestamp.Format.Timestamps.Timestamp.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+    Pattern.Flow.Ipv4Options.Timestamp.Format.Timestamps.Timestamp:
+      description: |-
+        A 32-bit value representing the time of packet processing, recorded as the number of milliseconds elapsed since midnight Universal Time (UT).
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Format.Timestamps.Timestamp.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Format.Timestamps.Timestamp.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Address.Counter:
+      description: |-
+        ipv4 counter pattern
+      type: object
+      properties:
+        start:
+          type: string
+          x-field-uid: 1
+          default: 0.0.0.0
+          format: ipv4
+        step:
+          type: string
+          x-field-uid: 2
+          default: 0.0.0.1
+          format: ipv4
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+    Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Address:
+      description: |-
+        IPv4 address of the router interface that handled the packet, serving as a network identifier for the corresponding timestamp entry.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: string
+          x-field-uid: 2
+          default: 0.0.0.0
+          format: ipv4
+        values:
+          type: array
+          items:
+            type: string
+            format: ipv4
+          x-field-uid: 3
+          default:
+          - 0.0.0.0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Address.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Address.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Timestamp.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+    Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Timestamp:
+      description: |-
+        A 32-bit value representing the time of packet processing, recorded as the number of milliseconds elapsed since midnight Universal Time (UT).
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Timestamp.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Ipv4Options.Timestamp.Format.AddressAndTimestamps.Timestamp.Counter'
           x-field-uid: 6
     Pattern.Flow.Ipv4.Priority.Raw.Counter:
       description: |-

@@ -13980,32 +13980,67 @@ message ProtocolsUpdate {
   UpdateProtocolConfigIsis isis = 1;
 }
 
-// A container of IS-IS with associated properties to be updated that may or may not
-// able to maintain the current IS-IS Up session state always.
+// A container for IS-IS properties to be updated. Presence of this object indicates
+// that one or more IS-IS properties require updating.
 message UpdateProtocolConfigIsis {
 
-  // The list of IS-IS emulated or simulated interfaces with associated properties to
-  // be updated.
-  repeated UpdateProtocolConfigIsisLink links = 1;
+  // Router-level IS-IS properties to be updated.
+  UpdateProtocolConfigIsisRouter router = 1;
 }
 
-// A container of IS-IS with associated properties to be updated that may or may not
-// able to maintain the current IS-IS Up session state always.
-message UpdateProtocolConfigIsisLink {
+// Router-level IS-IS properties to be updated.
+message UpdateProtocolConfigIsisRouter {
 
-  // The name of an IS-IS emulated or simulated interface.
+  // The name of the IS-IS router to be updated.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.IsisRouter/properties/name
+  // 
+  // required = true
+  optional string name = 1;
+
+  // List of IS-IS interface attribute updates. Each entry specifies a single attribute
+  // to update on a given interface via a choice. To update multiple attributes on the
+  // same interface, include multiple entries with the same interface_name and different
+  // choices.
+  repeated UpdateProtocolConfigIsisInterface interfaces = 2;
+}
+
+// An IS-IS interface entry specifying a single attribute to be updated. Multiple entries
+// with the same interface_name but different choices can be used to update more than
+// one attribute on the same interface.
+message UpdateProtocolConfigIsisInterface {
+
+  // The name of the IS-IS emulated or simulated interface to be updated.
   // 
   // x-constraint:
   // - /components/schemas/Isis.Interface/properties/name
   // 
+  // required = true
   optional string interface_name = 1;
 
-  // If IS-IS session will be flapped if the link metric is updated on a emullated interface.
-  // However, if the link metric is updated on a simulated interface then IS-IS session
-  // will be maintained in Up state. There will be LSP update with new metric value sent
-  // to the neighbors.
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      metric = 1;
+    }
+  }
+  // The attribute to be updated on this interface.
+  optional Choice.Enum choice = 2;
+
+  // The metric value to be updated on this IS-IS interface. Updating the metric on an
+  // emulated interface will flap the IS-IS session. Updating the metric on a simulated
+  // interface will maintain the IS-IS session in Up state and trigger an LSP update with
+  // the new metric value sent to neighbors.
+  UpdateProtocolConfigIsisInterfaceMetric metric = 3;
+}
+
+// The metric cost to be applied to the IS-IS interface.
+message UpdateProtocolConfigIsisInterfaceMetric {
+
+  // The metric cost for the interface.
   // default = 10
-  optional uint32 metric = 2;
+  optional uint32 value = 1;
 }
 
 // A container for all configuration resources of various types to be appended.

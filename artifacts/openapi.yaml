@@ -18357,24 +18357,48 @@ components:
           x-field-uid: 1
     UpdateProtocol.Config.Isis:
       description: |-
-        A container of IS-IS with associated properties to be updated that may or may not able to maintain the current IS-IS Up session state always.
+        A container for IS-IS properties to be updated. Presence of this object indicates that one or more IS-IS properties require updating.
       type: object
       properties:
-        links:
+        router:
           description: |-
-            The list of IS-IS emulated or simulated interfaces with associated properties to be updated.
+            Router-level IS-IS properties to be updated.
+          $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Router'
+          x-field-uid: 1
+    UpdateProtocol.Config.Isis.Router:
+      description: |-
+        Router-level IS-IS properties to be updated.
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          description: |
+            The name of the IS-IS router to be updated.
+
+            x-constraint:
+            - /components/schemas/Device.IsisRouter/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.IsisRouter/properties/name
+          x-field-uid: 1
+        interfaces:
+          description: |-
+            List of IS-IS interface attribute updates. Each entry specifies a single attribute to update on a given interface via a choice. To update multiple attributes on the same interface, include multiple entries with the same interface_name and different choices.
           type: array
           items:
-            $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Link'
-          x-field-uid: 1
-    UpdateProtocol.Config.Isis.Link:
+            $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Interface'
+          x-field-uid: 2
+    UpdateProtocol.Config.Isis.Interface:
       description: |-
-        A container of IS-IS with associated properties to be updated that may or may not able to maintain the current IS-IS Up session state always.
+        An IS-IS interface entry specifying a single attribute to be updated. Multiple entries with the same interface_name but different choices can be used to update more than one attribute on the same interface.
       type: object
+      required:
+      - interface_name
       properties:
         interface_name:
           description: |
-            The name of an IS-IS emulated or simulated interface.
+            The name of the IS-IS emulated or simulated interface to be updated.
 
             x-constraint:
             - /components/schemas/Isis.Interface/properties/name
@@ -18382,14 +18406,34 @@ components:
           x-constraint:
           - /components/schemas/Isis.Interface/properties/name
           x-field-uid: 1
+        choice:
+          description: |-
+            The attribute to be updated on this interface.
+          type: string
+          x-enum:
+            metric:
+              x-field-uid: 1
+          x-field-uid: 2
+          enum:
+          - metric
         metric:
           description: |-
-            If IS-IS session will be flapped if the link metric is updated on a emullated interface.  However, if the link metric is updated on a simulated interface then IS-IS session will be maintained in Up state. There will be LSP update with new metric value sent to the neighbors.
+            The metric value to be updated on this IS-IS interface. Updating the metric on an emulated interface will flap the IS-IS session. Updating the metric on a simulated interface will maintain the IS-IS session in Up state and trigger an LSP update with the new metric value sent to neighbors.
+          $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Interface.Metric'
+          x-field-uid: 3
+    UpdateProtocol.Config.Isis.Interface.Metric:
+      description: |-
+        The metric cost to be applied to the IS-IS interface.
+      type: object
+      properties:
+        value:
+          description: |-
+            The metric cost for the interface.
           type: integer
           format: uint32
           maximum: 16777215
           default: 10
-          x-field-uid: 2
+          x-field-uid: 1
     Config.Append:
       description: |-
         A container for all configuration resources of various types to be appended.

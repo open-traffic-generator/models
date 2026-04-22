@@ -16525,26 +16525,11 @@ components:
           x-field-uid: 2
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Version'
         op_code:
+          $ref: '#/components/schemas/Flow.Cfm.SelectOpCode'
           x-field-uid: 3
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.OpCode'
-        flags:
-          x-field-uid: 4
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Flags'
-        first_tlv_offset:
-          x-field-uid: 5
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.FirstTlvOffset'
-        select_packet_header:
-          $ref: '#/components/schemas/Flow.Cfm.SelectPktHdr'
-          x-field-uid: 6
-        tlvs:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
-          x-field-uid: 7
-    Flow.Cfm.SelectPktHdr:
+    Flow.Cfm.SelectOpCode:
       description: |-
-        Select message header. Currently only Continuity Check Message (CCM) is supported.
+        Select message header. Currently only Continuity Check Message (CCM) and Loobback Reply (LBR) are supported.
       type: object
       properties:
         choice:
@@ -16554,8 +16539,11 @@ components:
           x-enum:
             ccm:
               x-field-uid: 1
+            lbr:
+              x-field-uid: 2
           enum:
           - ccm
+          - lbr
         ccm:
           $ref: '#/components/schemas/Flow.Cfm.Ccm'
           x-field-uid: 2
@@ -16564,15 +16552,24 @@ components:
         CCM is used to monitor connectivity and configuration errors. Each CCM message has a unique sequence number (Session ID) and unique flow-identifier.
       type: object
       properties:
-        sequence_number:
+        flags:
           x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags'
+        sequence_number:
+          x-field-uid: 2
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.SequenceNumber'
         ma_endpoint_identifier:
-          x-field-uid: 2
+          x-field-uid: 3
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier'
         ethernet_oam_type:
           $ref: '#/components/schemas/Flow.Cfm.OamType'
-          x-field-uid: 3
+          x-field-uid: 4
+        tlvs:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
+          x-field-uid: 5
     Flow.Cfm.OamType:
       description: |-
         Ethernet OAM standard. Currently only Connectivity Fault Management (CFM) is supported.
@@ -16595,27 +16592,62 @@ components:
         Connectivity Fault Management
       type: object
       properties:
+        md_name:
+          $ref: '#/components/schemas/Flow.Cfm.MDName'
+          x-field-uid: 1
+        short_ma_name_format:
+          description: |-
+            Short MA name format
+          type: string
+          default: char_str
+          x-enum:
+            primary_vid:
+              x-field-uid: 1
+            char_str:
+              x-field-uid: 2
+            two_oct_int:
+              x-field-uid: 3
+            rfc_2685_vpn_id:
+              x-field-uid: 4
+          x-field-uid: 2
+          enum:
+          - primary_vid
+          - char_str
+          - two_oct_int
+          - rfc_2685_vpn_id
+        short_ma_name_length:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Cfm.ShortMaNameLength'
+        short_ma_name:
+          description: |-
+            Short MA name
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 4
+    Flow.Cfm.MDName:
+      description: |-
+        Maintenance domain name, can be auto or specified
+      type: object
+      properties:
         choice:
           type: string
-          default: maid_present
-          x-field-uid: 1
+          default: auto
           x-enum:
-            maid_present:
+            auto:
               x-field-uid: 1
-            maid_not_present:
+            specified:
               x-field-uid: 2
+          x-field-uid: 1
           enum:
-          - maid_present
-          - maid_not_present
-        maid_present:
-          $ref: '#/components/schemas/Flow.Cfm.MAIDPresent'
+          - auto
+          - specified
+        specified:
+          $ref: '#/components/schemas/Flow.Cfm.MDNameSpecified'
           x-field-uid: 2
-        maid_not_present:
-          $ref: '#/components/schemas/Flow.Cfm.MAIDNotPresent'
-          x-field-uid: 3
-    Flow.Cfm.MAIDPresent:
+    Flow.Cfm.MDNameSpecified:
       description: |-
-        Maintenance domain present
+        Maintenance domain name
       type: object
       properties:
         md_name_format:
@@ -16637,7 +16669,7 @@ components:
           - char_str
         md_name_length:
           x-field-uid: 2
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDPresent.MdNameLength'
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.MDNameSpecified.MdNameLength'
         md_name:
           description: |-
             Maintenance domain name
@@ -16645,74 +16677,6 @@ components:
           format: hex
           default: '00'
           x-field-uid: 3
-        short_ma_name_format:
-          description: |-
-            Short MA name format
-          type: string
-          default: char_str
-          x-enum:
-            primary_vid:
-              x-field-uid: 1
-            char_str:
-              x-field-uid: 2
-            two_oct_int:
-              x-field-uid: 3
-            rfc_2685_vpn_id:
-              x-field-uid: 4
-          x-field-uid: 4
-          enum:
-          - primary_vid
-          - char_str
-          - two_oct_int
-          - rfc_2685_vpn_id
-        short_ma_name_length:
-          x-field-uid: 5
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDPresent.ShortMaNameLength'
-        short_ma_name:
-          description: |-
-            Short MA name
-          type: string
-          format: hex
-          default: '00'
-          x-field-uid: 6
-    Flow.Cfm.MAIDNotPresent:
-      description: |-
-        Maintenance domain not present
-      type: object
-      properties:
-        md_name_format:
-          x-field-uid: 1
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDNotPresent.MdNameFormat'
-        short_ma_name_format:
-          description: |-
-            Short MA name format
-          type: string
-          default: char_str
-          x-enum:
-            primary_vid:
-              x-field-uid: 1
-            char_str:
-              x-field-uid: 2
-            two_oct_int:
-              x-field-uid: 3
-            rfc_2685_vpn_id:
-              x-field-uid: 4
-          x-field-uid: 2
-          enum:
-          - primary_vid
-          - char_str
-          - two_oct_int
-          - rfc_2685_vpn_id
-        short_ma_name_length:
-          x-field-uid: 3
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDNotPresent.ShortMaNameLength'
-        short_ma_name:
-          description: |-
-            Short MA name
-          type: string
-          format: hex
-          default: '00'
-          x-field-uid: 4
     Flow.Cfm.Tlvs:
       description: |-
         The CFM TLV format is defined in 8021Q. Common fields are Type (1 octet) defined by choice below, Length (2 octet) and Value (variable) defined for each tlv type.
@@ -51620,89 +51584,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Version.Counter'
           x-field-uid: 6
-    Pattern.Flow.Cfm.OpCode.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 1
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.OpCode:
-      description: |-
-        Specifies the operation performed by the message. The following  TRILL-specific CFM OpCodes are defined. Each of the OpCodes indicates a separate type of TRILL OAM message.
-          1: Continuity Check Message (CCM)
-          2: Loopback Reply (LBR)
-          3" Loopback Message (LBM)
-          4: Linktrace Reply (LTR)
-          5: Linktrace Message (LTM)
-          32: Generic Notification Message (GNM)
-          33: Alarm Indication Signal (AIS)
-          35: Locked Signal (LCK)
-          37: Test Signal (TST)
-          39: Automatic Protection Switching_Linear (APS)
-          40: Automatic Protection Switching_Ring (APS)
-          42: Loss Measurement Reply (LMR)
-          43: Loss Measurement Message (LMM)
-          46: Delay Measurement Reply (DMR)
-          47: Delay Measurement Message (DMM)
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.OpCode.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.OpCode.Counter'
-          x-field-uid: 6
-    Pattern.Flow.Cfm.Flags.Counter:
+    Pattern.Flow.Cfm.Ccm.Flags.Counter:
       description: |-
         integer counter pattern
       type: object
@@ -51725,9 +51607,9 @@ components:
           default: 1
           format: uint32
           maximum: 256
-    Pattern.Flow.Cfm.Flags:
+    Pattern.Flow.Cfm.Ccm.Flags:
       description: |-
-        Defines operational flags and is OpCode-specific.
+        Defines operational flags for CCM.
       type: object
       properties:
         choice:
@@ -51764,77 +51646,10 @@ components:
           default:
           - 0
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Flags.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Flags.Counter'
-          x-field-uid: 6
-    Pattern.Flow.Cfm.FirstTlvOffset.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 70
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.FirstTlvOffset:
-      description: |-
-        Defines the location of the first TLV, in bytes, starting from  the end of the FirstTLVOffset field (1 byte).
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 70
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 70
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.FirstTlvOffset.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.FirstTlvOffset.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.Counter'
           x-field-uid: 6
     Pattern.Flow.Cfm.Ccm.SequenceNumber.Counter:
       description: |-
@@ -51965,7 +51780,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier.Counter'
           x-field-uid: 6
-    Pattern.Flow.Cfm.MAIDPresent.MdNameLength.Counter:
+    Pattern.Flow.Cfm.Cfm.ShortMaNameLength.Counter:
       description: |-
         integer counter pattern
       type: object
@@ -51988,7 +51803,74 @@ components:
           default: 1
           format: uint32
           maximum: 256
-    Pattern.Flow.Cfm.MAIDPresent.MdNameLength:
+    Pattern.Flow.Cfm.Cfm.ShortMaNameLength:
+      description: |-
+        Short MA name length
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 1
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Cfm.ShortMaNameLength.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Cfm.ShortMaNameLength.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Cfm.MDNameSpecified.MdNameLength.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 1
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 256
+    Pattern.Flow.Cfm.MDNameSpecified.MdNameLength:
       description: |-
         Maintenance domain name length
       type: object
@@ -52027,189 +51909,10 @@ components:
           default:
           - 1
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDPresent.MdNameLength.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.MDNameSpecified.MdNameLength.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDPresent.MdNameLength.Counter'
-          x-field-uid: 6
-    Pattern.Flow.Cfm.MAIDPresent.ShortMaNameLength.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 1
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.MAIDPresent.ShortMaNameLength:
-      description: |-
-        Short MA name length
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDPresent.ShortMaNameLength.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDPresent.ShortMaNameLength.Counter'
-          x-field-uid: 6
-    Pattern.Flow.Cfm.MAIDNotPresent.MdNameFormat:
-      description: |-
-        Maintenance domain name format
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            auto:
-              x-field-uid: 1
-          default: auto
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - auto
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: integer
-          x-field-uid: 4
-          default: 1
-          format: uint32
-          maximum: 255
-    Pattern.Flow.Cfm.MAIDNotPresent.ShortMaNameLength.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 1
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.MAIDNotPresent.ShortMaNameLength:
-      description: |-
-        Short MA name length
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDNotPresent.ShortMaNameLength.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MAIDNotPresent.ShortMaNameLength.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.MDNameSpecified.MdNameLength.Counter'
           x-field-uid: 6
     Pattern.Flow.Cfm.Tlvs.Length.Counter:
       description: |-

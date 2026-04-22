@@ -2760,7 +2760,7 @@ components:
           items:
             $ref: '#/components/schemas/IsisInterface.AdjacencySid'
           x-field-uid: 14
-        srv6_adj_sids:
+        srv6_adjacency_sids:
           description: |-
             List of SRv6 Adjacency SID Sub-TLVs (End.X SID) for this interface. Point-to-point interfaces advertise End.X SID Sub-TLV (sub-TLV type 43); broadcast interfaces advertise LAN End.X SID Sub-TLV (sub-TLV type 44). Each entry binds a 128-bit SRv6 SID to this specific outgoing adjacency and advertises the associated endpoint behavior. Reference: RFC 9352 Sections 8.1-8.2.
           type: array
@@ -3331,21 +3331,25 @@ components:
           x-field-uid: 9
         advertise_locator_as_prefix:
           description: |-
-            When true, the locator prefix is also advertised as an IS-IS IPv6 Reachability prefix (TLV 236/237) in addition to the SRv6 Locator TLV (type 27). This enables non-SRv6-capable routers to route toward the locator as an ordinary IPv6 prefix. Typically suppressed automatically when algorithm is a Flex-Algo value (128-255).
-          type: boolean
-          default: true
+            When present, the locator prefix is also advertised as an IS-IS IPv6 Reachability prefix (TLV 236/237) in addition to the SRv6 Locator TLV (type 27). This enables non-SRv6-capable routers to route toward the locator as an ordinary IPv6 prefix. Absence of this object suppresses the secondary prefix advertisement.
+          $ref: '#/components/schemas/IsisSRv6.AdvertiseLocatorAsPrefix'
           x-field-uid: 10
+    IsisSRv6.AdvertiseLocatorAsPrefix:
+      description: |-
+        Controls advertisement of the SRv6 locator prefix as an IS-IS IPv6 Reachability prefix (TLV 236/237) alongside the SRv6 Locator TLV (type 27). When this object is present the secondary prefix advertisement is enabled; when absent it is suppressed. Reference: RFC 9352 Section 7.1.
+      type: object
+      properties:
         route_metric:
           description: |-
-            Metric value used when advertising the locator prefix in the IPv6 Reachability TLV (TLV 236/237). Applies only when advertise_locator_as_prefix is true.
+            Metric value used when advertising the locator prefix in the IPv6 Reachability TLV (TLV 236/237).
           type: integer
           format: uint32
           maximum: 16777215
           default: 0
-          x-field-uid: 11
+          x-field-uid: 1
         route_origin:
           description: |-
-            Origin type for the locator prefix when advertised in the IPv6 Reachability TLV (TLV 236/237). 'internal' = intra-area prefix (default); 'external' = redistributed from another protocol. Applies only when advertise_locator_as_prefix is true.
+            Origin type for the locator prefix in the IPv6 Reachability TLV (TLV 236/237). 'internal' = intra-area prefix (default); 'external' = redistributed from another protocol.
           type: string
           default: internal
           x-enum:
@@ -3353,15 +3357,15 @@ components:
               x-field-uid: 1
             external:
               x-field-uid: 2
-          x-field-uid: 12
+          x-field-uid: 2
           enum:
           - internal
           - external
         prefix_attributes:
           description: |-
-            When present, the Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) is included in the locator's IPv6 Reachability advertisement (TLV 236/237). Carries the X, R, N, and A flags for this locator prefix. Applies only when advertise_locator_as_prefix is true. Absence of this object means the sub-TLV is not advertised.
+            When present, the Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) is included in this prefix advertisement, carrying the X, R, N, and A flags. Absence suppresses the sub-TLV.
           $ref: '#/components/schemas/IsisSRv6.PrefixAttributes'
-          x-field-uid: 13
+          x-field-uid: 3
     IsisSRv6.PrefixAttributes:
       description: |-
         Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) for an SRv6 locator prefix advertisement. Carried within the IS-IS IPv6 Reachability TLV (TLV 236/237) when the locator is also advertised as a prefix. Presence of this object causes the sub-TLV to be included; absence suppresses it. Reference: RFC 7794.
@@ -27840,26 +27844,46 @@ components:
           items:
             $ref: '#/components/schemas/IsisLsp.SRv6EndSid'
           x-field-uid: 8
+        advertise_locator_as_prefix:
+          description: |-
+            Present when the originating router also advertised this locator as an IS-IS IPv6 Reachability prefix (TLV 236/237). Carries the prefix attribute flags received in that advertisement.
+          $ref: '#/components/schemas/IsisLsp.SRv6AdvertisedLocatorAsPrefix'
+          x-field-uid: 9
+    IsisLsp.SRv6AdvertisedLocatorAsPrefix:
+      description: |-
+        Learned state for the secondary IPv6 Reachability prefix advertisement (TLV 236/237) of an SRv6 locator. Present only when the originating router advertised the locator prefix alongside the SRv6 Locator TLV. Reference: RFC 9352 Section 7.1.
+      type: object
+      properties:
+        prefix_attributes:
+          description: |-
+            Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) received in the locator's IPv6 Reachability advertisement. Present only if the originating router included this sub-TLV.
+          $ref: '#/components/schemas/IsisLsp.SRv6PrefixAttributes'
+          x-field-uid: 1
+    IsisLsp.SRv6PrefixAttributes:
+      description: |-
+        Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) learned from the IPv6 Reachability advertisement of an SRv6 locator prefix. Reference: RFC 7794.
+      type: object
+      properties:
         x_flag:
           description: |-
-            External prefix flag from the Prefix Attribute Flags Sub-TLV (RFC 7794, sub-TLV type 4). Present in the locator's IPv6 Reachability advertisement when advertised by the originating router. Set if the locator prefix was redistributed from another protocol.
+            External prefix flag (bit 0, RFC 7794). Set if the locator prefix was redistributed from another protocol.
           type: boolean
-          x-field-uid: 9
+          x-field-uid: 1
         r_flag:
           description: |-
-            Re-advertisement flag from the Prefix Attribute Flags Sub-TLV (RFC 7794, sub-TLV type 4). Set if present and indicates the locator prefix was leaked between IS-IS levels.
+            Re-advertisement flag (bit 1, RFC 7794). Set if the locator prefix was leaked between IS-IS levels.
           type: boolean
-          x-field-uid: 10
+          x-field-uid: 2
         n_flag:
           description: |-
-            Node flag from the Prefix Attribute Flags Sub-TLV (RFC 7794, sub-TLV type 4). Set if present and indicates this locator prefix identifies the advertising router.
+            Node flag (bit 2, RFC 7794). Set if this prefix identifies the advertising router.
           type: boolean
-          x-field-uid: 11
+          x-field-uid: 3
         a_flag:
           description: |-
-            Anycast flag from the Prefix Attribute Flags Sub-TLV (RFC 7794, sub-TLV type 4). Set if present and indicates this locator is an anycast prefix shared across multiple routers.
+            Anycast flag (bit 5, RFC 7794). Set if this locator is an anycast prefix shared across multiple routers.
           type: boolean
-          x-field-uid: 12
+          x-field-uid: 4
     IsisLsp.SRv6EndSid:
       description: |-
         SRv6 End SID Sub-TLV (sub-TLV type 5) learned from an SRv6 Locator TLV (type 27) in a received LSP. Describes a node-local SRv6 SID, its endpoint behavior, and optional SID structure information. Reference: RFC 9352 Section 7.2, RFC 8986.

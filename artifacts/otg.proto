@@ -1858,7 +1858,7 @@ message IsisInterface {
   // LAN End.X SID Sub-TLV (sub-TLV type 44). Each entry binds a 128-bit SRv6 SID to this
   // specific outgoing adjacency and advertises the associated endpoint behavior. Reference:
   // RFC 9352 Sections 8.1-8.2.
-  repeated IsisSRv6AdjSid srv6_adj_sids = 15;
+  repeated IsisSRv6AdjSid srv6_adjacency_sids = 15;
 
   // Link-level SRv6 Maximum SID Depth (MSD) capabilities for this interface. Advertised
   // as MSD sub-TLVs within the neighbor TLVs (Extended IS Reachability TLV 22 / MT-ISN
@@ -2297,17 +2297,23 @@ message IsisSRv6Locator {
   // information (RFC 9352 Section 7.2).
   repeated IsisSRv6EndSid end_sids = 9;
 
-  // When true, the locator prefix is also advertised as an IS-IS IPv6 Reachability prefix
-  // (TLV 236/237) in addition to the SRv6 Locator TLV (type 27). This enables non-SRv6-capable
-  // routers to route toward the locator as an ordinary IPv6 prefix. Typically suppressed
-  // automatically when algorithm is a Flex-Algo value (128-255).
-  // default = True
-  optional bool advertise_locator_as_prefix = 10;
+  // When present, the locator prefix is also advertised as an IS-IS IPv6 Reachability
+  // prefix (TLV 236/237) in addition to the SRv6 Locator TLV (type 27). This enables
+  // non-SRv6-capable routers to route toward the locator as an ordinary IPv6 prefix.
+  // Absence of this object suppresses the secondary prefix advertisement.
+  IsisSRv6AdvertiseLocatorAsPrefix advertise_locator_as_prefix = 10;
+}
+
+// Controls advertisement of the SRv6 locator prefix as an IS-IS IPv6 Reachability prefix
+// (TLV 236/237) alongside the SRv6 Locator TLV (type 27). When this object is present
+// the secondary prefix advertisement is enabled; when absent it is suppressed. Reference:
+// RFC 9352 Section 7.1.
+message IsisSRv6AdvertiseLocatorAsPrefix {
 
   // Metric value used when advertising the locator prefix in the IPv6 Reachability TLV
-  // (TLV 236/237). Applies only when advertise_locator_as_prefix is true.
+  // (TLV 236/237).
   // default = 0
-  optional uint32 route_metric = 11;
+  optional uint32 route_metric = 1;
 
   message RouteOrigin {
     enum Enum {
@@ -2316,17 +2322,15 @@ message IsisSRv6Locator {
       external = 2;
     }
   }
-  // Origin type for the locator prefix when advertised in the IPv6 Reachability TLV (TLV
-  // 236/237). 'internal' = intra-area prefix (default); 'external' = redistributed from
-  // another protocol. Applies only when advertise_locator_as_prefix is true.
+  // Origin type for the locator prefix in the IPv6 Reachability TLV (TLV 236/237). 'internal'
+  // = intra-area prefix (default); 'external' = redistributed from another protocol.
   // default = RouteOrigin.Enum.internal
-  optional RouteOrigin.Enum route_origin = 12;
+  optional RouteOrigin.Enum route_origin = 2;
 
   // When present, the Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) is included
-  // in the locator's IPv6 Reachability advertisement (TLV 236/237). Carries the X, R,
-  // N, and A flags for this locator prefix. Applies only when advertise_locator_as_prefix
-  // is true. Absence of this object means the sub-TLV is not advertised.
-  IsisSRv6PrefixAttributes prefix_attributes = 13;
+  // in this prefix advertisement, carrying the X, R, N, and A flags. Absence suppresses
+  // the sub-TLV.
+  IsisSRv6PrefixAttributes prefix_attributes = 3;
 }
 
 // Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) for an SRv6 locator prefix
@@ -20187,24 +20191,41 @@ message IsisLspSRv6LocatorTlv {
   // Section 7.2.
   repeated IsisLspSRv6EndSid end_sids = 8;
 
-  // External prefix flag from the Prefix Attribute Flags Sub-TLV (RFC 7794, sub-TLV type
-  // 4). Present in the locator's IPv6 Reachability advertisement when advertised by the
-  // originating router. Set if the locator prefix was redistributed from another protocol.
-  optional bool x_flag = 9;
+  // Present when the originating router also advertised this locator as an IS-IS IPv6
+  // Reachability prefix (TLV 236/237). Carries the prefix attribute flags received in
+  // that advertisement.
+  IsisLspSRv6AdvertisedLocatorAsPrefix advertise_locator_as_prefix = 9;
+}
 
-  // Re-advertisement flag from the Prefix Attribute Flags Sub-TLV (RFC 7794, sub-TLV
-  // type 4). Set if present and indicates the locator prefix was leaked between IS-IS
-  // levels.
-  optional bool r_flag = 10;
+// Learned state for the secondary IPv6 Reachability prefix advertisement (TLV 236/237)
+// of an SRv6 locator. Present only when the originating router advertised the locator
+// prefix alongside the SRv6 Locator TLV. Reference: RFC 9352 Section 7.1.
+message IsisLspSRv6AdvertisedLocatorAsPrefix {
 
-  // Node flag from the Prefix Attribute Flags Sub-TLV (RFC 7794, sub-TLV type 4). Set
-  // if present and indicates this locator prefix identifies the advertising router.
-  optional bool n_flag = 11;
+  // Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) received in the locator's
+  // IPv6 Reachability advertisement. Present only if the originating router included
+  // this sub-TLV.
+  IsisLspSRv6PrefixAttributes prefix_attributes = 1;
+}
 
-  // Anycast flag from the Prefix Attribute Flags Sub-TLV (RFC 7794, sub-TLV type 4).
-  // Set if present and indicates this locator is an anycast prefix shared across multiple
-  // routers.
-  optional bool a_flag = 12;
+// Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) learned from the IPv6 Reachability
+// advertisement of an SRv6 locator prefix. Reference: RFC 7794.
+message IsisLspSRv6PrefixAttributes {
+
+  // External prefix flag (bit 0, RFC 7794). Set if the locator prefix was redistributed
+  // from another protocol.
+  optional bool x_flag = 1;
+
+  // Re-advertisement flag (bit 1, RFC 7794). Set if the locator prefix was leaked between
+  // IS-IS levels.
+  optional bool r_flag = 2;
+
+  // Node flag (bit 2, RFC 7794). Set if this prefix identifies the advertising router.
+  optional bool n_flag = 3;
+
+  // Anycast flag (bit 5, RFC 7794). Set if this locator is an anycast prefix shared across
+  // multiple routers.
+  optional bool a_flag = 4;
 }
 
 // SRv6 End SID Sub-TLV (sub-TLV type 5) learned from an SRv6 Locator TLV (type 27)

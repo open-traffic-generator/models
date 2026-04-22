@@ -26,65 +26,11 @@ components:
               - count
           x-field-uid: 2
         op_code:
-          x-field-pattern:
-            description: >-
-              Specifies the operation performed by the message. The following 
-              TRILL-specific CFM OpCodes are defined. Each of the OpCodes
-              indicates a separate type of TRILL OAM message.
-                1: Continuity Check Message (CCM)
-                2: Loopback Reply (LBR)
-                3" Loopback Message (LBM)
-                4: Linktrace Reply (LTR)
-                5: Linktrace Message (LTM)
-                32: Generic Notification Message (GNM)
-                33: Alarm Indication Signal (AIS)
-                35: Locked Signal (LCK)
-                37: Test Signal (TST)
-                39: Automatic Protection Switching_Linear (APS)
-                40: Automatic Protection Switching_Ring (APS)
-                42: Loss Measurement Reply (LMR)
-                43: Loss Measurement Message (LMM)
-                46: Delay Measurement Reply (DMR)
-                47: Delay Measurement Message (DMM)
-            format: integer
-            length: 8
-            default: 1
-            features:
-              - count
+          $ref: '#/components/schemas/Flow.Cfm.SelectOpCode'
           x-field-uid: 3
-        flags:
-          x-field-pattern:
-            description: >-
-              Defines operational flags and is OpCode-specific.
-            format: integer
-            length: 8
-            default: 0
-            features:
-              - count
-          x-field-uid: 4
-        first_tlv_offset:
-          x-field-pattern:
-            description: >-
-              Defines the location of the first TLV, in bytes, starting from 
-              the end of the FirstTLVOffset field (1 byte).
-            format: integer
-            length: 8
-            default: 70
-            features:
-              - count
-          x-field-uid: 5
-        select_packet_header:
-          $ref: '#/components/schemas/Flow.Cfm.SelectPktHdr'
-          x-field-uid: 6
-        tlvs:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
-          x-field-uid: 7
-    Flow.Cfm.SelectPktHdr:
+    Flow.Cfm.SelectOpCode:
       description: Select message header. Currently only Continuity Check Message 
-        (CCM) is supported.
+        (CCM) and Loobback Reply (LBR) are supported.
       type: object
       properties:
         choice:
@@ -94,6 +40,8 @@ components:
           x-enum:
             ccm:
               x-field-uid: 1
+            lbr:
+              x-field-uid: 2
         ccm:
           $ref: '#/components/schemas/Flow.Cfm.Ccm'
           x-field-uid: 2
@@ -103,6 +51,16 @@ components:
         flow-identifier.
       type: object
       properties:
+        flags:
+          x-field-pattern:
+            description: >-
+              Defines operational flags for CCM.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+          x-field-uid: 1
         sequence_number:
           x-field-pattern:
             description: >-
@@ -112,7 +70,7 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 1
+          x-field-uid: 2
         ma_endpoint_identifier:
           x-field-pattern:
             description: >-
@@ -122,10 +80,16 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 2
+          x-field-uid: 3
         ethernet_oam_type:
           $ref: '#/components/schemas/Flow.Cfm.OamType'
-          x-field-uid: 3
+          x-field-uid: 4
+        tlvs:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
+          x-field-uid: 5
     Flow.Cfm.OamType:
       description: Ethernet OAM standard. Currently only Connectivity Fault Management
         (CFM) is supported.
@@ -145,23 +109,61 @@ components:
       description: Connectivity Fault Management
       type: object
       properties:
-        choice:
-            type: string
-            default: maid_present
-            x-field-uid: 1
-            x-enum:
-              maid_present:
-                x-field-uid: 1
-              maid_not_present:
-                x-field-uid: 2
-        maid_present:
-          $ref: '#/components/schemas/Flow.Cfm.MAIDPresent'
+        md_name:
+          $ref: '#/components/schemas/Flow.Cfm.MDName'
+          x-field-uid: 1
+        short_ma_name_format:
+          description: >-
+            Short MA name format
+          type: string
+          default: char_str
+          x-enum:
+            primary_vid:
+              x-field-uid: 1
+            char_str:
+              x-field-uid: 2
+            two_oct_int:
+              x-field-uid: 3
+            rfc_2685_vpn_id:
+              x-field-uid: 4
           x-field-uid: 2
-        maid_not_present:
-          $ref: '#/components/schemas/Flow.Cfm.MAIDNotPresent'
+        short_ma_name_length:
+          x-field-pattern:
+            description: >-
+              Short MA name length
+            format: integer
+            length: 8
+            default: 1
+            features:
+              - count
           x-field-uid: 3
-    Flow.Cfm.MAIDPresent:
-      description: Maintenance domain present
+        short_ma_name:
+          description: >-
+            Short MA name
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 4
+    Flow.Cfm.MDName:
+      description: >-
+        Maintenance domain name, can be auto or specified
+      type: object
+      properties:
+        choice:
+          type: string
+          default: auto
+          x-enum:
+            auto:
+              x-field-uid: 1
+            specified:
+              x-field-uid: 2
+          x-field-uid: 1
+        specified:
+          $ref: '#/components/schemas/Flow.Cfm.MDNameSpecified'
+          x-field-uid: 2
+    Flow.Cfm.MDNameSpecified:
+      description: >-
+        Maintenance domain name
       type: object
       properties:
         md_name_format:
@@ -184,8 +186,7 @@ components:
             format: integer
             length: 8
             default: 1
-            features:
-              - count
+            features: [count]
           x-field-uid: 2
         md_name:
           description: >-
@@ -194,84 +195,6 @@ components:
           format: hex
           default: '00'
           x-field-uid: 3
-        short_ma_name_format:
-          description: >-
-            Short MA name format
-          type: string
-          default: char_str
-          x-enum:
-            primary_vid:
-              x-field-uid: 1
-            char_str:
-              x-field-uid: 2
-            two_oct_int:
-              x-field-uid: 3
-            rfc_2685_vpn_id:
-              x-field-uid: 4
-          x-field-uid: 4
-        short_ma_name_length:
-          x-field-pattern:
-            description: >-
-              Short MA name length
-            format: integer
-            length: 8
-            default: 1
-            features:
-              - count
-          x-field-uid: 5
-        short_ma_name:
-          description: >-
-            Short MA name
-          type: string
-          format: hex
-          default: '00'
-          x-field-uid: 6
-    Flow.Cfm.MAIDNotPresent:
-      description: Maintenance domain not present
-      type: object
-      properties:
-        md_name_format:
-          x-field-pattern:
-            description: >-
-              Maintenance domain name format
-            format: integer
-            length: 8
-            default: 1
-            features:
-              - auto
-          x-field-uid: 1
-        short_ma_name_format:
-          description: >-
-            Short MA name format
-          type: string
-          default: char_str
-          x-enum:
-            primary_vid:
-              x-field-uid: 1
-            char_str:
-              x-field-uid: 2
-            two_oct_int:
-              x-field-uid: 3
-            rfc_2685_vpn_id:
-              x-field-uid: 4
-          x-field-uid: 2
-        short_ma_name_length:
-          x-field-pattern:
-            description: >-
-              Short MA name length
-            format: integer
-            length: 8
-            default: 1
-            features:
-              - count
-          x-field-uid: 3
-        short_ma_name:
-          description: >-
-            Short MA name
-          type: string
-          format: hex
-          default: '00'
-          x-field-uid: 4
     Flow.Cfm.Tlvs:
       description: The CFM TLV format is defined in 8021Q. Common fields are
         Type (1 octet) defined by choice below, Length (2 octet) and Value (variable)

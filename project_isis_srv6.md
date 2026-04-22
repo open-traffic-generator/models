@@ -286,7 +286,7 @@ Note: `IsisLsp.SRv6NodeMsd` omits `include_*` flags (unlike the config counterpa
 
 10. **Prefix Attribute Flags on the locator.** `prefix_attr_enabled` (default false) gates emission of the Prefix Attribute Flags Sub-TLV (RFC 7794, sub-TLV type 4) in the locator's TLV 236/237 advertisement. `x_flag`, `r_flag`, `n_flag`, `a_flag` are only meaningful when `prefix_attr_enabled` is true. The A-flag (anycast, bit 5) was previously in the "Not Yet Modelled" list.
 
-11. **Source Router ID sub-TLVs.** `include_source_router_id` (enum) controls whether IPv4 Source Router ID (type 11) and/or IPv6 Source Router ID (type 12) sub-TLVs are included in the locator's TLV 236/237 advertisement (RFC 9350 Section 5). Used primarily with Flex-Algo (algorithm 128-255) to unambiguously identify the originating router. Both sub-TLVs were previously in the "Not Yet Modelled" list.
+11. **Source Router ID sub-TLVs — removed (Flex-Algo phase).** `include_source_router_id` (uid 18), `ipv4_source_router_id` (uid 19), `ipv6_source_router_id` (uid 20) were briefly added to `IsisSRv6.Locator` and mirrored in `IsisLsp.SRv6LocatorTlv` (uids 13-14), but were removed because they are RFC 9350 Flex-Algo specific and not in scope for this delivery phase.
 
 12. **T.Insert MSD (type 43) on both node and link.** MSD-Type 43 (Max T.Insert) signals the maximum number of SIDs a router/link can insert as a new SRH via the transit T.Insert headend behavior. Added as `include_max_t_insert`/`max_t_insert` pair (uids 9/10) to both `IsisSRv6.NodeMsd` and `IsisSRv6.LinkMsd`. Mirrored as `max_t_insert` (uid 5) in `IsisLsp.SRv6NodeMsd`. Was previously missing from the model (gap found in IxNetwork docs review).
 
@@ -296,7 +296,7 @@ Note: `IsisLsp.SRv6NodeMsd` omits `include_*` flags (unlike the config counterpa
 
 ## What Is NOT Yet Modelled
 
-- **SRv6 Flex-Algo Definition (FAD) sub-TLV** (sub-TLV 26 in TLV 242, RFC 9350): Flex-Algo definitions with metric-type, calc-type, priority, and admin-group constraints. Flex-Algo participation is currently expressed only through the `algorithm` field on the locator. IxNetwork exposes this via `IsisFlexAlgorithmList` — a separate OTG Flex-Algo schema would be needed.
+- **All Flex-Algo (RFC 9350) features** are out of scope for this phase. This includes: FAD sub-TLV (sub-TLV 26 in TLV 242) with metric-type, calc-type, priority, admin-group constraints; Source Router ID sub-TLVs (type 11/12 in locator's TLV 236/237 advertisement). The `algorithm` field on locators and adj-SIDs is kept — it is a mandatory SRv6 locator wire-format field (RFC 9352), used for standard SPF (0) as well.
 - **SRv6 per-prefix SIDs on route ranges — NOT APPLICABLE for IS-IS.** RFC 9352 does not define SRv6 sub-TLVs within TLV 135 or TLV 236/237. In IS-IS SRv6, SIDs are bound to a locator via the dedicated SRv6 Locator TLV (TLV 27), not to prefix reachability entries. IxNetwork confirms this — no SRv6 attributes exist on ISIS route range objects. `Isis.V4RouteRange` and `Isis.V6RouteRange` are complete as-is for SRv6.
 - **SRv6 Micro-Loop Avoidance** (`srv6-rib-update-delay` from IETF YANG draft).
 - **SRv6 TI-LFA** fast-reroute configuration.

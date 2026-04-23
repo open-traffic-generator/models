@@ -13978,22 +13978,20 @@ message ProtocolsUpdate {
 
   // Description missing in models
   UpdateProtocolConfigIsis isis = 1;
+
+  // Description missing in models
+  UpdateProtocolConfigBgp bgp = 2;
 }
 
 // A container for IS-IS properties to be updated. Presence of this object indicates
-// that one or more IS-IS properties require updating.
-// The choice field selects the category of attributes to be updated. Router-level and
-// interface-level updates are controlled independently.
+// that one or more IS-IS properties require updating. The choice field selects the
+// category of attributes to be updated. Router-level and interface-level updates are
+// controlled independently.
 message UpdateProtocolConfigIsis {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      interfaces = 1;
-    }
-  }
-  // The category of IS-IS attributes to be updated.
-  optional Choice.Enum choice = 1;
+  // List of IS-IS router-level update entries. Populate this field to update router-level
+  // attributes independently of interface-level attributes.
+  repeated UpdateProtocolConfigIsisRouterUpdateGroup routers = 2;
 
   // List of IS-IS interface update groups. IS-IS interface names are globally unique
   // across all routers so no parent router name is required. Each update group applies
@@ -14003,59 +14001,230 @@ message UpdateProtocolConfigIsis {
 }
 
 // An update group that applies a common set of property updates to one or more IS-IS
-// interfaces. All interfaces listed in names receive the same property updates defined
-// in properties. Use multiple update groups in a single request to apply different
-// property values to different subsets of interfaces (asymmetric updates).
-// A property must not appear more than once within the properties list of a single
-// update group.
-// The warnings field in the response is populated in the following cases:
-// a) Session started but not yet up: the updates are accepted and will be
-// applied when the session comes up.
-// 
-// b) Session is up but true on-the-fly update is not supported for the
-// attribute (e.g. metric change on an emulated interface): a warning is
-// returned indicating that the session will be disabled and re-enabled,
-// and the updated attribute will be reflected once the session comes back up.
-// 
-// An error is returned in the following cases:
-// a) The protocol or session is not in a started state.
-// b) A referenced interface name does not exist in the configuration.
-message UpdateProtocolConfigIsisInterfaceUpdateGroup {
+// routers. All routers listed in names receive the same property updates defined in
+// properties. Use multiple update groups in a single request to apply different property
+// values to different subsets of routers (asymmetric updates).
+message UpdateProtocolConfigIsisRouterUpdateGroup {
 
-  // The names of the IS-IS interfaces to which all property updates in this group will
-  // be applied.
+  // The names of the IS-IS routers to which all property updates in this group will be
+  // applied.
   repeated string names = 1;
 
-  // The list of property updates to apply to all named interfaces. Each property may
-  // appear at most once within this list.
-  repeated UpdateProtocolConfigIsisInterfaceProperty properties = 2;
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      basic = 1;
+      advanced = 2;
+      instance = 3;
+    }
+  }
+  // The category of router attributes to be updated. The properties field contains the
+  // actual attribute updates.
+  optional Choice.Enum choice = 2;
+
+  // The rate at which LSPs are re-sent in seconds.
+  UpdateProtocolConfigIsisRouterBasicAttribute basic = 3;
+
+  // The advanced properties of an ISIS Router to be updated.
+  UpdateProtocolConfigIsisRouterAdvancedAttribute advanced = 4;
+
+  // The instance properties for this emulated ISIS router.
+  // default = 1
+  optional uint32 instance_id = 5;
 }
 
-// A single IS-IS interface property update selected by choice.
-message UpdateProtocolConfigIsisInterfaceProperty {
+// The basic properties of an ISIS Router to be updated.
+message UpdateProtocolConfigIsisRouterBasicAttribute {
+
+  // Configuration for controlling storage of ISIS learned LSPs are received from the
+  // neighbors.
+  // default = False
+  optional bool learned_lsp_filter = 1;
+
+  // When set to true, it allows sending of more detailed metric information  for the
+  // routes using 32-bit wide values using TLV 135 IP reachability and more detailed reachability
+  // information for IS reachability by using TLV 22.  The detailed usage is described
+  // in RFC3784.
+  // default = True
+  optional bool enable_wide_metric = 2;
+}
+
+// The advanced properties of an ISIS Router to be updated.
+message UpdateProtocolConfigIsisRouterAdvancedAttribute {
+
+  // It enables the attached bit in IIH PDUs to indicate that the router is attached to
+  // other areas. This property is only applicable to level-1 and level-1-2 routers. Enabling
+  // this property on a level-2 router will result in an error.
+  // default = False
+  optional bool enable_attached_bit = 1;
+}
+
+// An update group that applies a single attribute update to one or more IS-IS interfaces.
+// All interfaces listed in names receive the same update selected by choice. Use multiple
+// update groups in a single request to apply different attribute updates or different
+// values to different subsets of interfaces.
+// If the session is up but true on-the-fly update is not supported for the attribute
+// (e.g. metric change on an emulated interface): a warning is returned indicating that
+// the session will be disabled and re-enabled, and the updated attribute will be reflected
+// once the session comes back up.
+message UpdateProtocolConfigIsisInterfaceUpdateGroup {
+
+  // The names of the IS-IS interfaces to which the attribute update will be applied.
+  repeated string names = 1;
 
   message Choice {
     enum Enum {
       unspecified = 0;
       metric = 1;
+      priority = 2;
+      traffic_engineering_metrics = 3;
     }
   }
   // The attribute to be updated on the interface.
-  optional Choice.Enum choice = 1;
+  optional Choice.Enum choice = 2;
 
   // The metric value to be updated on the IS-IS interface. Updating the metric on an
   // emulated interface will flap the IS-IS session. Updating the metric on a simulated
   // interface will maintain the IS-IS session in Up state and trigger an LSP update with
   // the new metric value sent to neighbors.
-  UpdateProtocolConfigIsisInterfaceMetric metric = 2;
+  // default = 10
+  optional uint32 metric = 3;
+
+  // The priority value to be updated on the IS-IS interface.
+  // default = 64
+  optional uint32 priority = 4;
+
+  // The traffic engineering metric values to be updated on the IS-IS interface.
+  UpdateProtocolConfigIsisInterfaceTrafficEngineeringMetrics traffic_engineering_metrics = 5;
 }
 
-// The metric cost to be applied to the IS-IS interface.
-message UpdateProtocolConfigIsisInterfaceMetric {
+// The traffic engineering metric values to be updated on the IS-IS interface.
+message UpdateProtocolConfigIsisInterfaceTrafficEngineeringMetrics {
 
-  // The metric cost for the interface.
-  // default = 10
-  optional uint32 value = 1;
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      administrative_group = 1;
+      metric_level = 2;
+      max_bandwidth = 3;
+    }
+  }
+  // The traffic engineering metric to be updated on the IS-IS interface.
+  optional Choice.Enum choice = 1;
+
+  // TThe Administrative group sub-TLV (sub-TLV 3). It is a 4-octet  user-defined bit
+  // mask used to update administrative group numbers  to the interface.
+  // default = 0000000
+  optional string administrative_group = 2;
+
+  // The user-assigned link metric to update for Traffic Engineering.
+  // default = 0
+  optional uint32 metric_level = 3;
+
+  // The maximum link bandwidth (sub-TLV 9) in bytes/sec to update for this link for a
+  // direction.
+  // default = 125000000
+  optional uint32 max_bandwidth = 4;
+}
+
+// A container for BGP properties to be updated. Presence of this object indicates that
+// one or more BGP properties require updating. The choice field selects the category
+// of attributes to be updated. Router-level and interface-level updates are controlled
+// independently.
+message UpdateProtocolConfigBgp {
+
+  // List of BGP router-level update entries. Populate this field to update router-level
+  // attributes independently of interface-level attributes.
+  repeated UpdateProtocolConfigBgpRouterUpdateGroup routers = 1;
+
+  // List of BGP IPv4 route range update entries. Populate this field to update route
+  // range attributes independently of router-level attributes.
+  repeated UpdateProtocolConfigBgpV4RouteRangeUpdateGroup v4route_ranges = 2;
+
+  // List of BGP IPv6 route range update entries. Populate this field to update route
+  // range attributes independently of router-level attributes.
+  repeated UpdateProtocolConfigBgpV6RouteRangeUpdateGroup v6route_ranges = 3;
+}
+
+// A BGP router entry for router-level attribute updates.
+message UpdateProtocolConfigBgpRouterUpdateGroup {
+
+  // Names of the BGP router to be updated.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.BgpRouter/properties/name
+  // 
+  repeated string names = 1;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      local_as = 1;
+      router_id = 2;
+      hold_time = 3;
+      keepalive_time = 4;
+      advanced = 5;
+    }
+  }
+  // The category of router attributes to be updated. The properties field contains the
+  // actual attribute updates.
+  optional Choice.Enum choice = 2;
+
+  // The local AS number to be updated on the BGP router.
+  // default = 65000
+  optional uint32 local_as = 3;
+
+  // The router ID to be updated on the BGP router.
+  optional string router_id = 4;
+
+  // The hold time in seconds to be updated on the BGP router.
+  // default = 90
+  optional uint32 hold_time = 5;
+
+  // The keepalive time in seconds to be updated on the BGP router.
+  // default = 30
+  optional uint32 keepalive_time = 6;
+
+  // The advanced properties of a BGP Router to be updated.
+  UpdateProtocolConfigBgpRouterAdvancedAttribute advanced = 7;
+}
+
+// The advanced properties of a BGP router to be updated.
+message UpdateProtocolConfigBgpRouterAdvancedAttribute {
+
+  // The MD5 authentication key to be updated on the BGP router. If not configured, MD5
+  // authentication will not be enabled.
+  optional string md5_key = 1;
+
+  // If set to true, the local BGP peer will wait for the remote peer to initiate the
+  // BGP session by establishing the TCP connection, rather than initiating sessions from
+  // the local peer.
+  // default = False
+  optional bool passive_mode = 2;
+}
+
+// A BGP router entry for route range-level attribute updates. Router-level and interface-level
+// updates are controlled independently.
+message UpdateProtocolConfigBgpV4RouteRangeUpdateGroup {
+
+  // Names of the BGP IPv4 route ranges to be updated.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.BgpRouter/properties/name
+  // 
+  repeated string names = 1;
+}
+
+// A BGP router entry for router-level attribute updates. Router-level and interface-level
+// updates are controlled independently.
+message UpdateProtocolConfigBgpV6RouteRangeUpdateGroup {
+
+  // The names of the BGP IPv6 route ranges to be updated.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.BgpRouter/properties/name
+  // 
+  repeated string names = 1;
 }
 
 // A container for all configuration resources of various types to be appended.

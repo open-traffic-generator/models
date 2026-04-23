@@ -45,6 +45,9 @@ components:
         ccm:
           $ref: '#/components/schemas/Flow.Cfm.Ccm'
           x-field-uid: 2
+        lbr:
+          $ref: '#/components/schemas/Flow.Cfm.Lbr'
+          x-field-uid: 3
     Flow.Cfm.Ccm:
       description: CCM is used to monitor connectivity and configuration errors.
         Each CCM message has a unique sequence number (Session ID) and unique 
@@ -81,8 +84,8 @@ components:
             features:
               - count
           x-field-uid: 3
-        ethernet_oam_type:
-          $ref: '#/components/schemas/Flow.Cfm.OamType'
+        ethernet_oam_protocol:
+          $ref: '#/components/schemas/Flow.Cfm.OamProtocol'
           x-field-uid: 4
         tlvs:
           type: array
@@ -90,7 +93,7 @@ components:
           items:
             $ref: '#/components/schemas/Flow.Cfm.Tlvs'
           x-field-uid: 5
-    Flow.Cfm.OamType:
+    Flow.Cfm.OamProtocol:
       description: Ethernet OAM standard. Currently only Connectivity Fault Management
         (CFM) is supported.
       type: object
@@ -195,6 +198,37 @@ components:
           format: hex
           default: '00'
           x-field-uid: 3
+    Flow.Cfm.Lbr:
+      description: Loopback Reply (LBR) messages are unicast frames sent by a Maintenance Association
+        End Point (MEP) or Intermediate Point (MIP) to a source MEP in response to a Loopback Message (LBM).
+      type: object
+      properties:
+        flags:
+          x-field-pattern:
+            description: >-
+              Defines operational flags for LBR.
+            format: integer
+            length: 8
+            default: 0
+            features:
+              - count
+          x-field-uid: 1
+        transaction_id:
+          x-field-pattern:
+            description: >-
+              Transaction id or sequence number copied from the LBM to match the reply to the specific request.
+            format: integer
+            length: 32
+            default: 0
+            features:
+              - count
+          x-field-uid: 2
+        tlvs:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
+          x-field-uid: 3
     Flow.Cfm.Tlvs:
       description: The CFM TLV format is defined in 8021Q. Common fields are
         Type (1 octet) defined by choice below, Length (2 octet) and Value (variable)
@@ -208,10 +242,14 @@ components:
           x-enum:
             end:
               x-field-uid: 1
-            port_status:
+            sender_id:
               x-field-uid: 2
-            interface_status:
+            port_status:
               x-field-uid: 3
+            interface_status:
+              x-field-uid: 4
+            data:
+              x-field-uid: 5
         length:
           x-field-pattern:
             description: Specifies the length of the tlv data in octets.
@@ -220,12 +258,72 @@ components:
             default: 0
             features: [auto, count]
           x-field-uid: 2
+        sender_id:
+          $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv'
+          x-field-uid: 3
         port_status:
           $ref: '#/components/schemas/Flow.Cfm.PortStatusTlv'
-          x-field-uid: 3
+          x-field-uid: 4
         interface_status:
           $ref: '#/components/schemas/Flow.Cfm.InterfaceStatusTlv'
+          x-field-uid: 5
+        data:
+          $ref: '#/components/schemas/Flow.Cfm.DataTlv'
+          x-field-uid: 6
+    Flow.Cfm.SenderIdTlv:
+      description: Sender id
+      type: object
+      properties:
+        chassis_id_length:
+          x-field-pattern:
+            description: Specifies the length of the chassis ID field.
+            format: integer
+            length: 8
+            default: 1
+            features: [count]
+          x-field-uid: 1
+        chassis_id_subtype:
+          description: Specifies the Type of chassis ID.
+          type: string
+          default: mac_address
+          x-enum:
+            chassis_component:
+              x-field-uid: 1
+            interface_alias:
+              x-field-uid: 2
+            port_component:
+              x-field-uid: 3
+            mac_address:
+              x-field-uid: 4
+            network_address:
+              x-field-uid: 5
+            interface_name:
+              x-field-uid: 6
+            locally_assigned:
+              x-field-uid: 7
+          x-field-uid: 2
+        chassis_id:
+          description: >-
+            Chassis ID
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 3
+        management_address_length:
+          x-field-pattern:
+            description: Specifies the length of the management address.
+            format: integer
+            length: 8
+            default: 1
+            features: [count]
           x-field-uid: 4
+        management_address:
+          description: >-
+            Management address
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 5
     Flow.Cfm.PortStatusTlv:
       description: Port status
       type: object
@@ -263,4 +361,14 @@ components:
               x-field-uid: 6
             lower_layer_down:
               x-field-uid: 7
+          x-field-uid: 1
+    Flow.Cfm.DataTlv:
+      description: Data tlv
+      type: object
+      properties:
+        data:
+          description: String data for the tlv
+          type: string
+          format: hex
+          default: '00'
           x-field-uid: 1

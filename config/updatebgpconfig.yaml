@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: Update BGP protocol Config
+  description: >-
+    Update BGP protocol Config for BGP control protocol schema.
+  version: ^0.0.0
+components:
+  schemas:
+    UpdateProtocol.Config.Bgp:
+      description: >-
+        A container for BGP properties to be updated. Presence of this object
+        indicates that one or more BGP properties require updating.
+      type: object
+      properties:
+        routers:
+          description: >-
+            List of BGP router-level update groups. Populate this field to
+            update router-level attributes independently of other attributes.
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateProtocol.Config.Bgp.Router.UpdateGroup'
+          x-field-uid: 1
+
+    UpdateProtocol.Config.Bgp.Router.UpdateGroup:
+      description: >-
+        An update group targeting one or more BGP routers. All routers listed in
+        names receive every attribute update specified in the attributes list.
+        Use multiple update groups to apply different updates to different subsets
+        of routers (asymmetric updates).
+      type: object
+      properties:
+        names:
+          description: >-
+            Names of the BGP routers to be updated.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - "/components/schemas/Device.BgpRouter/properties/name"
+          x-field-uid: 1
+        attributes:
+          description: >-
+            The list of router attribute updates to apply. Each entry selects one
+            attribute via the choice discriminator. Multiple attributes can be updated
+            in a single group without repeating the names list.
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateProtocol.Config.Bgp.Router.Attribute'
+          x-field-uid: 2
+
+    UpdateProtocol.Config.Bgp.Router.Attribute:
+      description: >-
+        A single BGP router attribute update. The choice field identifies which
+        attribute is being changed.
+      type: object
+      properties:
+        choice:
+          description: >-
+            The router attribute to be updated.
+          type: string
+          x-enum:
+            local_as:
+              x-field-uid: 1
+            router_id:
+              x-field-uid: 2
+            hold_time:
+              x-field-uid: 3
+            keepalive_time:
+              x-field-uid: 4
+            md5_key:
+              x-field-uid: 5
+            passive_mode:
+              x-field-uid: 6
+          x-field-uid: 1
+        local_as:
+          description: >-
+            The local Autonomous System (AS) number to be updated on the BGP router
+            (RFC 4271 Section 4.2). Supports 4-byte AS numbers (RFC 6793).
+            Valid range is 1-4294967295; AS 0 is reserved and must not be used.
+            Updating this attribute requires the BGP session to restart.
+          type: integer
+          format: uint32
+          maximum: 4294967295
+          default: 65000
+          x-field-uid: 2
+        router_id:
+          description: >-
+            The BGP router identifier to be updated (RFC 4271 Section 1.1).
+            A 4-octet unsigned integer uniquely identifying the BGP router; typically
+            set to an IPv4 address assigned to the router such as a loopback address.
+            Updating this attribute requires the BGP session to restart.
+          type: string
+          format: ipv4
+          x-field-uid: 3
+        hold_time:
+          description: >-
+            The hold time in seconds to be updated on the BGP router (RFC 4271
+            Section 4.2). If non-zero, the minimum permitted value is 3 seconds;
+            a value of 0 disables the hold timer and keepalive messages entirely.
+            The negotiated hold time is the minimum of the locally configured value
+            and the peer's advertised value.
+            Updating this attribute requires the BGP session to restart; the new
+            hold time takes effect when the session re-establishes.
+          type: integer
+          format: uint32
+          maximum: 65535
+          default: 90
+          x-field-uid: 4
+        keepalive_time:
+          description: >-
+            The interval in seconds between keepalive messages sent to the BGP peer
+            (RFC 4271 Section 4.4). Typically set to one-third of the hold time.
+            A value of 0 disables keepalive messages; this is only valid when
+            hold_time is also 0.
+            Updating this attribute requires the BGP session to restart; the new
+            interval takes effect when the session re-establishes.
+          type: integer
+          format: uint32
+          maximum: 65535
+          default: 30
+          x-field-uid: 5
+        md5_key:
+          description: >-
+            The MD5 authentication key for TCP MD5 Signature (RFC 2385) to be
+            updated on the BGP router. An empty string disables MD5 authentication.
+            Both peers must be configured with the same key for the session to
+            establish.
+            Updating this attribute requires the BGP session to restart; the TCP
+            connection must be re-established with the new authentication key.
+          type: string
+          x-field-uid: 6
+        passive_mode:
+          description: >-
+            Controls the TCP connection initiation direction for the BGP session.
+            When set to true, the local peer waits for the remote peer to initiate
+            the TCP connection. When set to false (default), the local peer actively
+            initiates the TCP connection to the remote peer.
+            Updating this attribute requires the BGP session to restart.
+          type: boolean
+          default: false
+          x-field-uid: 7

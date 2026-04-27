@@ -13941,6 +13941,7 @@ message ConfigUpdate {
     enum Enum {
       unspecified = 0;
       flows = 1;
+      protocols = 2;
     }
   }
   // Description missing in models
@@ -13948,6 +13949,9 @@ message ConfigUpdate {
 
   // Description missing in models
   FlowsUpdate flows = 2;
+
+  // Description missing in models
+  ProtocolsUpdate protocols = 3;
 }
 
 // A container of flows with associated properties to be updated without affecting the
@@ -13966,6 +13970,280 @@ message FlowsUpdate {
 
   // The list of configured flows for which given property will be updated.
   repeated Flow flows = 2;
+}
+
+// A container of Protocols with associated properties to be updated that may or may
+// not able to maintain the current Protocols session in Up state always.
+message ProtocolsUpdate {
+
+  // Description missing in models
+  UpdateProtocolConfigIsis isis = 1;
+
+  // Description missing in models
+  UpdateProtocolConfigBgp bgp = 2;
+}
+
+// A container for IS-IS properties to be updated. Presence of this object indicates
+// that one or more IS-IS properties require updating. Router-level and interface-level
+// updates are controlled independently.
+message UpdateProtocolConfigIsis {
+
+  // List of IS-IS router-level update groups. Populate this field to update router-level
+  // attributes independently of interface-level attributes.
+  repeated UpdateProtocolConfigIsisRouterUpdateGroup routers = 2;
+
+  // List of IS-IS interface update groups. IS-IS interface names are globally unique
+  // across all routers so no parent router name is required. Each update group applies
+  // attribute updates to one or more interfaces simultaneously. Use multiple update groups
+  // to handle asymmetric changes across different subsets of interfaces.
+  repeated UpdateProtocolConfigIsisInterfaceUpdateGroup interfaces = 3;
+}
+
+// An update group targeting one or more IS-IS routers. All routers listed in names
+// receive every attribute update specified in the attributes list. Use multiple update
+// groups to apply different updates to different subsets of routers (asymmetric updates).
+message UpdateProtocolConfigIsisRouterUpdateGroup {
+
+  // The names of the IS-IS routers to which all attribute updates in this group will
+  // be applied.
+  repeated string names = 1;
+
+  // The list of router attribute updates to apply. Each entry selects one attribute via
+  // the choice discriminator. Multiple attributes can be updated in a single group without
+  // repeating the names list.
+  repeated UpdateProtocolConfigIsisRouterAttribute attributes = 2;
+}
+
+// A single IS-IS router attribute update. The choice field identifies which attribute
+// is being changed.
+message UpdateProtocolConfigIsisRouterAttribute {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      learned_lsp_filter = 1;
+      enable_wide_metric = 2;
+      enable_attached_bit = 3;
+      instance = 4;
+    }
+  }
+  // The router attribute to be updated.
+  optional Choice.Enum choice = 1;
+
+  // When set to true, IS-IS LSPs received from neighbors are stored locally. When set
+  // to false, received LSPs are not stored. This is an on-the-fly (OTF) update; the IS-IS
+  // adjacency will remain up.
+  // default = False
+  optional bool learned_lsp_filter = 2;
+
+  // When set to true, enables 32-bit wide metric encoding using TLV 135 (Extended IP
+  // Reachability) and TLV 22 (Extended IS Reachability) as defined in RFC 5305. When
+  // set to false, the router uses narrow 6-bit metrics (TLV 128 and TLV 2). Updating
+  // this attribute will cause the IS-IS session to restart.
+  // default = True
+  optional bool enable_wide_metric = 3;
+
+  // When set to true, sets the attached bit in Level 1 LSPs to indicate that this router
+  // is connected to other areas (Level 2 domain), allowing Level 1 only routers to use
+  // it as a default gateway to reach destinations outside the area. When set to false,
+  // the attached bit is cleared. Only applicable to level-1 and level-1-2 routers; setting
+  // this on a level-2 only router will result in an error. This is an on-the-fly (OTF)
+  // update; the updated bit is re-advertised in the next L1 LSP without flapping the
+  // IS-IS adjacency.
+  // default = False
+  optional bool enable_attached_bit = 4;
+
+  // The IS-IS instance identifier for this emulated IS-IS router (RFC 6822 Section 3).
+  // Used to distinguish multiple IS-IS instances running on the same device. A value
+  // of 0 refers to the default IS-IS instance. Updating this attribute requires the IS-IS
+  // session to restart.
+  // default = 1
+  optional uint32 instance = 5;
+}
+
+// An update group targeting one or more IS-IS interfaces. All interfaces listed in
+// names receive every attribute update specified in the attributes list. Use multiple
+// update groups to apply different updates to different subsets of interfaces (asymmetric
+// updates).
+// If the session is up but true on-the-fly update is not supported for an attribute
+// (e.g. metric change on an emulated interface): a warning is returned indicating that
+// the session will be disabled and re-enabled, and the updated attribute will be reflected
+// once the session comes back up.
+message UpdateProtocolConfigIsisInterfaceUpdateGroup {
+
+  // The names of the IS-IS interfaces to which all attribute updates in this group will
+  // be applied.
+  repeated string names = 1;
+
+  // The list of interface attribute updates to apply. Each entry selects one attribute
+  // via the choice discriminator. Multiple attributes can be updated in a single group
+  // without repeating the names list.
+  repeated UpdateProtocolConfigIsisInterfaceAttribute attributes = 2;
+}
+
+// A single IS-IS interface attribute update. The choice field identifies which attribute
+// is being changed.
+message UpdateProtocolConfigIsisInterfaceAttribute {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      metric = 1;
+      priority = 2;
+      traffic_engineering_metrics = 3;
+    }
+  }
+  // The interface attribute to be updated.
+  optional Choice.Enum choice = 1;
+
+  // The metric value to be updated on the IS-IS interface. The maximum value of 16777215
+  // (2^24-1) applies only when wide metric is enabled (RFC 3784). With narrow metrics
+  // the maximum is 63; values above 63 will be rejected. Updating the metric on an emulated
+  // interface will flap the IS-IS session. Updating the metric on a simulated interface
+  // will maintain the IS-IS session in Up state and trigger an LSP update with the new
+  // metric value sent to neighbors.
+  // default = 10
+  optional uint32 metric = 2;
+
+  // The IS-IS DIS (Designated Intermediate System) election priority to be updated on
+  // the interface. A higher value indicates a higher preference for being elected DIS.
+  // A value of 0 prevents the router from being elected as DIS on this interface (ISO
+  // 10589 Section 8.4.2). Valid range is 0-127 (7-bit field). This is an on-the-fly (OTF)
+  // update; the updated priority is re-advertised in IIH PDUs without flapping the IS-IS
+  // adjacency.
+  // default = 64
+  optional uint32 priority = 3;
+
+  // The traffic engineering metric values to be updated on the IS-IS interface. Traffic
+  // engineering metric updates are on-the-fly (OTF); the updated values are re-advertised
+  // in the next LSP without flapping the IS-IS adjacency.
+  UpdateProtocolConfigIsisInterfaceTrafficEngineeringMetrics traffic_engineering_metrics = 4;
+}
+
+// The traffic engineering metric values to be updated on the IS-IS interface.
+message UpdateProtocolConfigIsisInterfaceTrafficEngineeringMetrics {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      administrative_group = 1;
+      metric_level = 2;
+      max_bandwidth = 3;
+    }
+  }
+  // The traffic engineering metric to be updated on the IS-IS interface.
+  optional Choice.Enum choice = 1;
+
+  // The Administrative group sub-TLV (sub-TLV 3, RFC 5305 Section 3.1). It is a 4-octet
+  // (32-bit) user-defined bit mask used to update administrative group numbers assigned
+  // to the interface. This is an on-the-fly (OTF) update; the updated value is re-advertised
+  // in the next LSP without flapping the IS-IS adjacency.
+  // default = 00000000
+  optional string administrative_group = 2;
+
+  // The user-assigned TE link metric to update (sub-TLV 18, RFC 5305 Section 3.7). A
+  // value of 0 indicates the minimum link cost. This is an on-the-fly (OTF) update; the
+  // updated value is re-advertised in the next LSP without flapping the IS-IS adjacency.
+  // default = 0
+  optional uint32 metric_level = 3;
+
+  // The maximum link bandwidth (sub-TLV 9, RFC 5305 Section 3.4) in bytes/sec to update
+  // for this link in one direction. The value is encoded on the wire as an IEEE 754 single-precision
+  // (32-bit) float; the uint32 value here represents the same bit pattern. This is an
+  // on-the-fly (OTF) update; the updated value is re-advertised in the next LSP without
+  // flapping the IS-IS adjacency.
+  // default = 125000000
+  optional uint32 max_bandwidth = 4;
+}
+
+// A container for BGP properties to be updated. Presence of this object indicates that
+// one or more BGP properties require updating.
+message UpdateProtocolConfigBgp {
+
+  // List of BGP router-level update groups. Populate this field to update router-level
+  // attributes independently of other attributes.
+  repeated UpdateProtocolConfigBgpRouterUpdateGroup routers = 1;
+}
+
+// An update group targeting one or more BGP routers. All routers listed in names receive
+// every attribute update specified in the attributes list. Use multiple update groups
+// to apply different updates to different subsets of routers (asymmetric updates).
+message UpdateProtocolConfigBgpRouterUpdateGroup {
+
+  // Names of the BGP routers to be updated.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.BgpRouter/properties/name
+  // 
+  repeated string names = 1;
+
+  // The list of router attribute updates to apply. Each entry selects one attribute via
+  // the choice discriminator. Multiple attributes can be updated in a single group without
+  // repeating the names list.
+  repeated UpdateProtocolConfigBgpRouterAttribute attributes = 2;
+}
+
+// A single BGP router attribute update. The choice field identifies which attribute
+// is being changed.
+message UpdateProtocolConfigBgpRouterAttribute {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      local_as = 1;
+      router_id = 2;
+      hold_time = 3;
+      keepalive_time = 4;
+      md5_key = 5;
+      passive_mode = 6;
+    }
+  }
+  // The router attribute to be updated.
+  optional Choice.Enum choice = 1;
+
+  // The local Autonomous System (AS) number to be updated on the BGP router (RFC 4271
+  // Section 4.2). Supports 4-byte AS numbers (RFC 6793). Valid range is 1-4294967295;
+  // AS 0 is reserved and must not be used. Updating this attribute requires the BGP session
+  // to restart.
+  // default = 65000
+  optional uint32 local_as = 2;
+
+  // The BGP router identifier to be updated (RFC 4271 Section 1.1). A 4-octet unsigned
+  // integer uniquely identifying the BGP router; typically set to an IPv4 address assigned
+  // to the router such as a loopback address. Updating this attribute requires the BGP
+  // session to restart.
+  optional string router_id = 3;
+
+  // The hold time in seconds to be updated on the BGP router (RFC 4271 Section 4.2).
+  // If non-zero, the minimum permitted value is 3 seconds; a value of 0 disables the
+  // hold timer and keepalive messages entirely. The negotiated hold time is the minimum
+  // of the locally configured value and the peer's advertised value. Updating this attribute
+  // requires the BGP session to restart; the new hold time takes effect when the session
+  // re-establishes.
+  // default = 90
+  optional uint32 hold_time = 4;
+
+  // The interval in seconds between keepalive messages sent to the BGP peer (RFC 4271
+  // Section 4.4). Typically set to one-third of the hold time. A value of 0 disables
+  // keepalive messages; this is only valid when hold_time is also 0. Updating this attribute
+  // requires the BGP session to restart; the new interval takes effect when the session
+  // re-establishes.
+  // default = 30
+  optional uint32 keepalive_time = 5;
+
+  // The MD5 authentication key for TCP MD5 Signature (RFC 2385) to be updated on the
+  // BGP router. An empty string disables MD5 authentication. Both peers must be configured
+  // with the same key for the session to establish. Updating this attribute requires
+  // the BGP session to restart; the TCP connection must be re-established with the new
+  // authentication key.
+  optional string md5_key = 6;
+
+  // Controls the TCP connection initiation direction for the BGP session. When set to
+  // true, the local peer waits for the remote peer to initiate the TCP connection. When
+  // set to false (default), the local peer actively initiates the TCP connection to the
+  // remote peer. Updating this attribute requires the BGP session to restart.
+  // default = False
+  optional bool passive_mode = 7;
 }
 
 // A container for all configuration resources of various types to be appended.

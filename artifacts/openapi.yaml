@@ -18360,31 +18360,33 @@ components:
           x-field-uid: 2
     UpdateProtocol.Config.Isis:
       description: |-
-        A container for IS-IS properties to be updated. Presence of this object indicates that one or more IS-IS properties require updating. The choice field selects the category of attributes to be updated. Router-level and interface-level updates are controlled independently.
+        A container for IS-IS properties to be updated. Presence of this object indicates that one or more IS-IS properties require updating. Router-level and interface-level updates are controlled independently.
       type: object
       properties:
         routers:
           description: |-
-            List of IS-IS router-level update entries. Populate this field to update router-level attributes independently of interface-level attributes.
+            List of IS-IS router-level update groups. Populate this field to update router-level attributes independently of interface-level attributes.
           type: array
           items:
             $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Router.UpdateGroup'
           x-field-uid: 2
         interfaces:
           description: |-
-            List of IS-IS interface update groups. IS-IS interface names are globally unique across all routers so no parent router name is required. Each update group applies a common set of property updates to one or more interfaces simultaneously. Use multiple update groups to handle asymmetric changes across different subsets of interfaces.
+            List of IS-IS interface update groups. IS-IS interface names are globally unique across all routers so no parent router name is required. Each update group applies attribute updates to one or more interfaces simultaneously. Use multiple update groups to handle asymmetric changes across different subsets of interfaces.
           type: array
           items:
             $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Interface.UpdateGroup'
           x-field-uid: 3
+      x-reserved-field-uids:
+      - 1
     UpdateProtocol.Config.Isis.Router.UpdateGroup:
       description: |-
-        An update group that applies a common set of property updates to one or more IS-IS routers. All routers listed in names receive the same property updates defined in properties. Use multiple update groups in a single request to apply different property values to different subsets of routers (asymmetric updates).
+        An update group targeting one or more IS-IS routers. All routers listed in names receive every attribute update specified in the attributes list. Use multiple update groups to apply different updates to different subsets of routers (asymmetric updates).
       type: object
       properties:
         names:
           description: |-
-            The names of the IS-IS routers to which all property updates in this group will be applied.
+            The names of the IS-IS routers to which all attribute updates in this group will be applied.
           type: array
           items:
             type: string
@@ -18396,76 +18398,71 @@ components:
               x-constraint:
               - /components/schemas/Isis.Router/properties/name
           x-field-uid: 1
+        attributes:
+          description: |-
+            The list of router attribute updates to apply. Each entry selects one attribute via the choice discriminator. Multiple attributes can be updated in a single group without repeating the names list.
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Router.Attribute'
+          x-field-uid: 2
+    UpdateProtocol.Config.Isis.Router.Attribute:
+      description: |-
+        A single IS-IS router attribute update. The choice field identifies which attribute is being changed.
+      type: object
+      properties:
         choice:
           description: |-
-            The category of router attributes to be updated. The properties field contains the actual attribute updates.
+            The router attribute to be updated.
           type: string
           x-enum:
-            basic:
+            learned_lsp_filter:
               x-field-uid: 1
-            advanced:
+            enable_wide_metric:
               x-field-uid: 2
-            instance:
+            enable_attached_bit:
               x-field-uid: 3
-          x-field-uid: 2
+            instance:
+              x-field-uid: 4
+          x-field-uid: 1
           enum:
-          - basic
-          - advanced
+          - learned_lsp_filter
+          - enable_wide_metric
+          - enable_attached_bit
           - instance
-        basic:
+        learned_lsp_filter:
           description: |-
-            The rate at which LSPs are re-sent in seconds.
-          $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Router.Basic.Attribute'
+            When set to true, IS-IS LSPs received from neighbors are stored locally. When set to false, received LSPs are not stored. This is an on-the-fly (OTF) update; the IS-IS adjacency will remain up.
+          type: boolean
+          default: false
+          x-field-uid: 2
+        enable_wide_metric:
+          description: |-
+            When set to true, enables 32-bit wide metric encoding using TLV 135 (Extended IP Reachability) and TLV 22 (Extended IS Reachability) as defined in RFC 5305. When set to false, the router uses narrow 6-bit metrics (TLV 128 and TLV 2). Updating this attribute will cause the IS-IS session to restart.
+          type: boolean
+          default: true
           x-field-uid: 3
-        advanced:
+        enable_attached_bit:
           description: |-
-            The advanced properties of an ISIS Router to be updated.
-          $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Router.Advanced.Attribute'
+            When set to true, sets the attached bit in Level 1 LSPs to indicate that this router is connected to other areas (Level 2 domain), allowing Level 1 only routers to use it as a default gateway to reach destinations outside the area. When set to false, the attached bit is cleared. Only applicable to level-1 and level-1-2 routers; setting this on a level-2 only router will result in an error. This is an on-the-fly (OTF) update; the updated bit is re-advertised in the next L1 LSP without flapping the IS-IS adjacency.
+          type: boolean
+          default: false
           x-field-uid: 4
-        instance_id:
+        instance:
           description: |-
-            The instance properties for this emulated ISIS router.
+            The IS-IS instance identifier for this emulated IS-IS router (RFC 6822 Section 3). Used to distinguish multiple IS-IS instances running on the same device. A value of 0 refers to the default IS-IS instance. Updating this attribute requires the IS-IS session to restart.
           type: integer
           format: uint32
           default: 1
           x-field-uid: 5
-    UpdateProtocol.Config.Isis.Router.Basic.Attribute:
-      description: |-
-        The basic properties of an ISIS Router to be updated.
-      type: object
-      properties:
-        learned_lsp_filter:
-          description: |-
-            Configuration for controlling storage of ISIS learned LSPs are received from the neighbors.
-          type: boolean
-          default: false
-          x-field-uid: 1
-        enable_wide_metric:
-          description: |-
-            When set to true, it allows sending of more detailed metric information  for the routes using 32-bit wide values using TLV 135 IP reachability and more detailed reachability information for IS reachability by using TLV 22.  The detailed usage is described in RFC3784.
-          type: boolean
-          default: true
-          x-field-uid: 2
-    UpdateProtocol.Config.Isis.Router.Advanced.Attribute:
-      description: |-
-        The advanced properties of an ISIS Router to be updated.
-      type: object
-      properties:
-        enable_attached_bit:
-          description: |-
-            It enables the attached bit in IIH PDUs to indicate that the router is attached to other areas. This property is only applicable to level-1 and level-1-2 routers. Enabling this property on a level-2 router will result in an error.
-          type: boolean
-          default: false
-          x-field-uid: 1
     UpdateProtocol.Config.Isis.Interface.UpdateGroup:
       description: |-
-        An update group that applies a single attribute update to one or more IS-IS interfaces. All interfaces listed in names receive the same update selected by choice. Use multiple update groups in a single request to apply different attribute updates or different values to different subsets of interfaces.
-        If the session is up but true on-the-fly update is not supported for the attribute (e.g. metric change on an emulated interface): a warning is returned indicating that the session will be disabled and re-enabled, and the updated attribute will be reflected once the session comes back up.
+        An update group targeting one or more IS-IS interfaces. All interfaces listed in names receive every attribute update specified in the attributes list. Use multiple update groups to apply different updates to different subsets of interfaces (asymmetric updates).
+        If the session is up but true on-the-fly update is not supported for an attribute (e.g. metric change on an emulated interface): a warning is returned indicating that the session will be disabled and re-enabled, and the updated attribute will be reflected once the session comes back up.
       type: object
       properties:
         names:
           description: |-
-            The names of the IS-IS interfaces to which the attribute update will be applied.
+            The names of the IS-IS interfaces to which all attribute updates in this group will be applied.
           type: array
           items:
             type: string
@@ -18477,9 +18474,21 @@ components:
               x-constraint:
               - /components/schemas/Isis.Interface/properties/name
           x-field-uid: 1
+        attributes:
+          description: |-
+            The list of interface attribute updates to apply. Each entry selects one attribute via the choice discriminator. Multiple attributes can be updated in a single group without repeating the names list.
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Interface.Attribute'
+          x-field-uid: 2
+    UpdateProtocol.Config.Isis.Interface.Attribute:
+      description: |-
+        A single IS-IS interface attribute update. The choice field identifies which attribute is being changed.
+      type: object
+      properties:
         choice:
           description: |-
-            The attribute to be updated on the interface.
+            The interface attribute to be updated.
           type: string
           x-enum:
             metric:
@@ -18488,32 +18497,32 @@ components:
               x-field-uid: 2
             traffic_engineering_metrics:
               x-field-uid: 3
-          x-field-uid: 2
+          x-field-uid: 1
           enum:
           - metric
           - priority
           - traffic_engineering_metrics
         metric:
           description: |-
-            The metric value to be updated on the IS-IS interface. Updating the metric on an emulated interface will flap the IS-IS session. Updating the metric on a simulated interface will maintain the IS-IS session in Up state and trigger an LSP update with the new metric value sent to neighbors.
+            The metric value to be updated on the IS-IS interface. The maximum value of 16777215 (2^24-1) applies only when wide metric is enabled (RFC 3784). With narrow metrics the maximum is 63; values above 63 will be rejected. Updating the metric on an emulated interface will flap the IS-IS session. Updating the metric on a simulated interface will maintain the IS-IS session in Up state and trigger an LSP update with the new metric value sent to neighbors.
           type: integer
           format: uint32
           maximum: 16777215
           default: 10
-          x-field-uid: 3
+          x-field-uid: 2
         priority:
           description: |-
-            The priority value to be updated on the IS-IS interface.
+            The IS-IS DIS (Designated Intermediate System) election priority to be updated on the interface. A higher value indicates a higher preference for being elected DIS. A value of 0 prevents the router from being elected as DIS on this interface (ISO 10589 Section 8.4.2). Valid range is 0-127 (7-bit field). This is an on-the-fly (OTF) update; the updated priority is re-advertised in IIH PDUs without flapping the IS-IS adjacency.
           type: integer
           format: uint32
-          maximum: 255
+          maximum: 127
           default: 64
-          x-field-uid: 4
+          x-field-uid: 3
         traffic_engineering_metrics:
           description: |-
-            The traffic engineering metric values to be updated on the IS-IS interface.
+            The traffic engineering metric values to be updated on the IS-IS interface. Traffic engineering metric updates are on-the-fly (OTF); the updated values are re-advertised in the next LSP without flapping the IS-IS adjacency.
           $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Interface.TrafficEngineeringMetrics'
-          x-field-uid: 5
+          x-field-uid: 4
     UpdateProtocol.Config.Isis.Interface.TrafficEngineeringMetrics:
       description: |-
         The traffic engineering metric values to be updated on the IS-IS interface.
@@ -18537,59 +18546,45 @@ components:
           - max_bandwidth
         administrative_group:
           description: |-
-            TThe Administrative group sub-TLV (sub-TLV 3). It is a 4-octet  user-defined bit mask used to update administrative group numbers  to the interface.
+            The Administrative group sub-TLV (sub-TLV 3, RFC 5305 Section 3.1). It is a 4-octet (32-bit) user-defined bit mask used to update administrative group numbers assigned to the interface. This is an on-the-fly (OTF) update; the updated value is re-advertised in the next LSP without flapping the IS-IS adjacency.
           type: string
           format: hex
-          default: '0000000'
+          default: '00000000'
           x-field-uid: 2
         metric_level:
           description: |-
-            The user-assigned link metric to update for Traffic Engineering.
+            The user-assigned TE link metric to update (sub-TLV 18, RFC 5305 Section 3.7). A value of 0 indicates the minimum link cost. This is an on-the-fly (OTF) update; the updated value is re-advertised in the next LSP without flapping the IS-IS adjacency.
           type: integer
           format: uint32
           default: 0
           x-field-uid: 3
         max_bandwidth:
           description: |-
-            The maximum link bandwidth (sub-TLV 9) in bytes/sec to update for this link for a direction.
+            The maximum link bandwidth (sub-TLV 9, RFC 5305 Section 3.4) in bytes/sec to update for this link in one direction. The value is encoded on the wire as an IEEE 754 single-precision (32-bit) float; the uint32 value here represents the same bit pattern. This is an on-the-fly (OTF) update; the updated value is re-advertised in the next LSP without flapping the IS-IS adjacency.
           type: integer
           format: uint32
           default: 125000000
           x-field-uid: 4
     UpdateProtocol.Config.Bgp:
       description: |-
-        A container for BGP properties to be updated. Presence of this object indicates that one or more BGP properties require updating. The choice field selects the category of attributes to be updated. Router-level and interface-level updates are controlled independently.
+        A container for BGP properties to be updated. Presence of this object indicates that one or more BGP properties require updating.
       type: object
       properties:
         routers:
           description: |-
-            List of BGP router-level update entries. Populate this field to update router-level attributes independently of interface-level attributes.
+            List of BGP router-level update groups. Populate this field to update router-level attributes independently of other attributes.
           type: array
           items:
             $ref: '#/components/schemas/UpdateProtocol.Config.Bgp.Router.UpdateGroup'
           x-field-uid: 1
-        v4route_ranges:
-          description: |-
-            List of BGP IPv4 route range update entries. Populate this field to update route range attributes independently of router-level attributes.
-          type: array
-          items:
-            $ref: '#/components/schemas/UpdateProtocol.Config.Bgp.V4RouteRange.UpdateGroup'
-          x-field-uid: 2
-        v6route_ranges:
-          description: |-
-            List of BGP IPv6 route range update entries. Populate this field to update route range attributes independently of router-level attributes.
-          type: array
-          items:
-            $ref: '#/components/schemas/UpdateProtocol.Config.Bgp.V6RouteRange.UpdateGroup'
-          x-field-uid: 3
     UpdateProtocol.Config.Bgp.Router.UpdateGroup:
       description: |-
-        A BGP router entry for router-level attribute updates.
+        An update group targeting one or more BGP routers. All routers listed in names receive every attribute update specified in the attributes list. Use multiple update groups to apply different updates to different subsets of routers (asymmetric updates).
       type: object
       properties:
         names:
           description: |
-            Names of the BGP router to be updated.
+            Names of the BGP routers to be updated.
 
             x-constraint:
             - /components/schemas/Device.BgpRouter/properties/name
@@ -18599,9 +18594,21 @@ components:
           x-constraint:
           - /components/schemas/Device.BgpRouter/properties/name
           x-field-uid: 1
+        attributes:
+          description: |-
+            The list of router attribute updates to apply. Each entry selects one attribute via the choice discriminator. Multiple attributes can be updated in a single group without repeating the names list.
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateProtocol.Config.Bgp.Router.Attribute'
+          x-field-uid: 2
+    UpdateProtocol.Config.Bgp.Router.Attribute:
+      description: |-
+        A single BGP router attribute update. The choice field identifies which attribute is being changed.
+      type: object
+      properties:
         choice:
           description: |-
-            The category of router attributes to be updated. The properties field contains the actual attribute updates.
+            The router attribute to be updated.
           type: string
           x-enum:
             local_as:
@@ -18612,100 +18619,59 @@ components:
               x-field-uid: 3
             keepalive_time:
               x-field-uid: 4
-            advanced:
+            md5_key:
               x-field-uid: 5
-          x-field-uid: 2
+            passive_mode:
+              x-field-uid: 6
+          x-field-uid: 1
           enum:
           - local_as
           - router_id
           - hold_time
           - keepalive_time
-          - advanced
+          - md5_key
+          - passive_mode
         local_as:
           description: |-
-            The local AS number to be updated on the BGP router.
+            The local Autonomous System (AS) number to be updated on the BGP router (RFC 4271 Section 4.2). Supports 4-byte AS numbers (RFC 6793). Valid range is 1-4294967295; AS 0 is reserved and must not be used. Updating this attribute requires the BGP session to restart.
           type: integer
           format: uint32
           maximum: 4294967295
           default: 65000
-          x-field-uid: 3
+          x-field-uid: 2
         router_id:
           description: |-
-            The router ID to be updated on the BGP router.
+            The BGP router identifier to be updated (RFC 4271 Section 1.1). A 4-octet unsigned integer uniquely identifying the BGP router; typically set to an IPv4 address assigned to the router such as a loopback address. Updating this attribute requires the BGP session to restart.
           type: string
           format: ipv4
-          x-field-uid: 4
+          x-field-uid: 3
         hold_time:
           description: |-
-            The hold time in seconds to be updated on the BGP router.
+            The hold time in seconds to be updated on the BGP router (RFC 4271 Section 4.2). If non-zero, the minimum permitted value is 3 seconds; a value of 0 disables the hold timer and keepalive messages entirely. The negotiated hold time is the minimum of the locally configured value and the peer's advertised value. Updating this attribute requires the BGP session to restart; the new hold time takes effect when the session re-establishes.
           type: integer
           format: uint32
           maximum: 65535
           default: 90
-          x-field-uid: 5
+          x-field-uid: 4
         keepalive_time:
           description: |-
-            The keepalive time in seconds to be updated on the BGP router.
+            The interval in seconds between keepalive messages sent to the BGP peer (RFC 4271 Section 4.4). Typically set to one-third of the hold time. A value of 0 disables keepalive messages; this is only valid when hold_time is also 0. Updating this attribute requires the BGP session to restart; the new interval takes effect when the session re-establishes.
           type: integer
           format: uint32
           maximum: 65535
           default: 30
-          x-field-uid: 6
-        advanced:
-          description: |-
-            The advanced properties of a BGP Router to be updated.
-          $ref: '#/components/schemas/UpdateProtocol.Config.Bgp.Router.Advanced.Attribute'
-          x-field-uid: 7
-    UpdateProtocol.Config.Bgp.Router.Advanced.Attribute:
-      description: |-
-        The advanced properties of a BGP router to be updated.
-      type: object
-      properties:
+          x-field-uid: 5
         md5_key:
           description: |-
-            The MD5 authentication key to be updated on the BGP router. If not configured, MD5 authentication will not be enabled.
+            The MD5 authentication key for TCP MD5 Signature (RFC 2385) to be updated on the BGP router. An empty string disables MD5 authentication. Both peers must be configured with the same key for the session to establish. Updating this attribute requires the BGP session to restart; the TCP connection must be re-established with the new authentication key.
           type: string
-          x-field-uid: 1
+          x-field-uid: 6
         passive_mode:
           description: |-
-            If set to true, the local BGP peer will wait for the remote peer to initiate the BGP session by establishing the TCP connection, rather than initiating sessions from the local peer.
+            Controls the TCP connection initiation direction for the BGP session. When set to true, the local peer waits for the remote peer to initiate the TCP connection. When set to false (default), the local peer actively initiates the TCP connection to the remote peer. Updating this attribute requires the BGP session to restart.
           type: boolean
           default: false
-          x-field-uid: 2
-    UpdateProtocol.Config.Bgp.V4RouteRange.UpdateGroup:
-      description: |-
-        A BGP router entry for route range-level attribute updates. Router-level and interface-level updates are controlled independently.
-      type: object
-      properties:
-        names:
-          description: |
-            Names of the BGP IPv4 route ranges to be updated.
-
-            x-constraint:
-            - /components/schemas/Device.BgpRouter/properties/name
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Device.BgpRouter/properties/name
-          x-field-uid: 1
-    UpdateProtocol.Config.Bgp.V6RouteRange.UpdateGroup:
-      description: |-
-        A BGP router entry for router-level attribute updates. Router-level and interface-level updates are controlled independently.
-      type: object
-      properties:
-        names:
-          description: |
-            The names of the BGP IPv6 route ranges to be updated.
-
-            x-constraint:
-            - /components/schemas/Device.BgpRouter/properties/name
-          type: array
-          items:
-            type: string
-          x-constraint:
-          - /components/schemas/Device.BgpRouter/properties/name
-          x-field-uid: 1
+          x-field-uid: 7
     Config.Append:
       description: |-
         A container for all configuration resources of various types to be appended.

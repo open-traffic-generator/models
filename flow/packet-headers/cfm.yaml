@@ -30,7 +30,7 @@ components:
           x-field-uid: 3
     Flow.Cfm.SelectOpCode:
       description: Select message header. Currently only Continuity Check Message 
-        (CCM) and Loobback Reply (LBR) are supported.
+        (CCM), Loopback Message (LBM) and Loopback Reply (LBR) are supported.
       type: object
       properties:
         choice:
@@ -40,14 +40,19 @@ components:
           x-enum:
             ccm:
               x-field-uid: 1
-            lbr:
+            lbm:
               x-field-uid: 2
+            lbr:
+              x-field-uid: 3
         ccm:
           $ref: '#/components/schemas/Flow.Cfm.Ccm'
           x-field-uid: 2
+        lbm:
+          $ref: '#/components/schemas/Flow.Cfm.Lbm'
+          x-field-uid: 3
         lbr:
           $ref: '#/components/schemas/Flow.Cfm.Lbr'
-          x-field-uid: 3
+          x-field-uid: 4
     Flow.Cfm.Ccm:
       description: CCM is used to monitor connectivity and configuration errors.
         Each CCM message has a unique sequence number (Session ID) and unique 
@@ -55,14 +60,7 @@ components:
       type: object
       properties:
         flags:
-          x-field-pattern:
-            description: >-
-              Defines operational flags for CCM.
-            format: integer
-            length: 8
-            default: 0
-            features:
-              - count
+          $ref: '#/components/schemas/Flow.Cfm.Ccm.Flags'
           x-field-uid: 1
         sequence_number:
           x-field-pattern:
@@ -93,6 +91,28 @@ components:
           items:
             $ref: '#/components/schemas/Flow.Cfm.Tlvs'
           x-field-uid: 5
+    Flow.Cfm.Ccm.Flags:
+      description: CCM flags are Remote Defect Indicator (RDI) and CCM Interval.
+      type: object
+      properties:
+        rdi:
+          x-field-pattern:
+            description: >-
+              Remote Defect Indicator (RDI) flag
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        ccm_interval:
+          x-field-pattern:
+            description: >-
+              CCM interval flag
+            format: integer
+            length: 3
+            default: 0
+            features: [count]
+          x-field-uid: 2
     Flow.Cfm.OamProtocol:
       description: Ethernet OAM standard. Currently only Connectivity Fault Management
         (CFM) is supported.
@@ -198,21 +218,34 @@ components:
           format: hex
           default: '00'
           x-field-uid: 3
-    Flow.Cfm.Lbr:
-      description: Loopback Reply (LBR) messages are unicast frames sent by a Maintenance Association
-        End Point (MEP) or Intermediate Point (MIP) to a source MEP in response to a Loopback Message (LBM).
+    Flow.Cfm.Lbm:
+      description: Loopback Message (LBM) is a diagnostic frame used to verify connectivity between
+        Maintenance End Points (MEPs) and Maintenance Intermediate Points (MIPs).
+        LBM flag bits are reserved and set to zero.
       type: object
       properties:
-        flags:
+        transaction_id:
           x-field-pattern:
             description: >-
-              Defines operational flags for LBR.
+              Transaction id or sequence number to detect out-of-order packets.
             format: integer
-            length: 8
+            length: 32
             default: 0
             features:
               - count
           x-field-uid: 1
+        tlvs:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
+          x-field-uid: 2
+    Flow.Cfm.Lbr:
+      description: Loopback Reply (LBR) messages are unicast frames sent by a Maintenance Association
+        End Point (MEP) or Intermediate Point (MIP) to a source MEP in response to a Loopback Message (LBM).
+        LBR flag bits are reserved and set to zero.
+      type: object
+      properties:
         transaction_id:
           x-field-pattern:
             description: >-
@@ -222,13 +255,13 @@ components:
             default: 0
             features:
               - count
-          x-field-uid: 2
+          x-field-uid: 1
         tlvs:
           type: array
           minItems: 1
           items:
             $ref: '#/components/schemas/Flow.Cfm.Tlvs'
-          x-field-uid: 3
+          x-field-uid: 2
     Flow.Cfm.Tlvs:
       description: The CFM TLV format is defined in 8021Q. Common fields are
         Type (1 octet) defined by choice below, Length (2 octet) and Value (variable)
@@ -240,16 +273,14 @@ components:
           default: end
           x-field-uid: 1
           x-enum:
-            end:
-              x-field-uid: 1
             sender_id:
-              x-field-uid: 2
+              x-field-uid: 1
             port_status:
-              x-field-uid: 3
+              x-field-uid: 2
             interface_status:
-              x-field-uid: 4
+              x-field-uid: 3
             data:
-              x-field-uid: 5
+              x-field-uid: 4
         length:
           x-field-pattern:
             description: Specifies the length of the tlv data in octets.
@@ -309,9 +340,9 @@ components:
           format: hex
           default: '00'
           x-field-uid: 3
-        management_address_length:
+        management_address_domain_length:
           x-field-pattern:
-            description: Specifies the length of the management address.
+            description: Specifies the length of the management address domain.
             format: integer
             length: 8
             default: 1
@@ -319,11 +350,26 @@ components:
           x-field-uid: 4
         management_address:
           description: >-
-            Management address
+            Management address domain
           type: string
           format: hex
           default: '00'
           x-field-uid: 5
+        management_address_length:
+          x-field-pattern:
+            description: Specifies the length of the management address.
+            format: integer
+            length: 8
+            default: 1
+            features: [count]
+          x-field-uid: 6
+        management_address:
+          description: >-
+            Management address
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 7
     Flow.Cfm.PortStatusTlv:
       description: Port status
       type: object

@@ -16529,7 +16529,7 @@ components:
           x-field-uid: 3
     Flow.Cfm.SelectOpCode:
       description: |-
-        Select message header. Currently only Continuity Check Message (CCM) and Loobback Reply (LBR) are supported.
+        Select message header. Currently only Continuity Check Message (CCM), Loopback Message (LBM) and Loopback Reply (LBR) are supported.
       type: object
       properties:
         choice:
@@ -16539,25 +16539,31 @@ components:
           x-enum:
             ccm:
               x-field-uid: 1
-            lbr:
+            lbm:
               x-field-uid: 2
+            lbr:
+              x-field-uid: 3
           enum:
           - ccm
+          - lbm
           - lbr
         ccm:
           $ref: '#/components/schemas/Flow.Cfm.Ccm'
           x-field-uid: 2
+        lbm:
+          $ref: '#/components/schemas/Flow.Cfm.Lbm'
+          x-field-uid: 3
         lbr:
           $ref: '#/components/schemas/Flow.Cfm.Lbr'
-          x-field-uid: 3
+          x-field-uid: 4
     Flow.Cfm.Ccm:
       description: |-
         CCM is used to monitor connectivity and configuration errors. Each CCM message has a unique sequence number (Session ID) and unique flow-identifier.
       type: object
       properties:
         flags:
+          $ref: '#/components/schemas/Flow.Cfm.Ccm.Flags'
           x-field-uid: 1
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags'
         sequence_number:
           x-field-uid: 2
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.SequenceNumber'
@@ -16573,6 +16579,17 @@ components:
           items:
             $ref: '#/components/schemas/Flow.Cfm.Tlvs'
           x-field-uid: 5
+    Flow.Cfm.Ccm.Flags:
+      description: |-
+        CCM flags are Remote Defect Indicator (RDI) and CCM Interval.
+      type: object
+      properties:
+        rdi:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.Rdi'
+        ccm_interval:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.CcmInterval'
     Flow.Cfm.OamProtocol:
       description: |-
         Ethernet OAM standard. Currently only Connectivity Fault Management (CFM) is supported.
@@ -16680,23 +16697,34 @@ components:
           format: hex
           default: '00'
           x-field-uid: 3
-    Flow.Cfm.Lbr:
+    Flow.Cfm.Lbm:
       description: |-
-        Loopback Reply (LBR) messages are unicast frames sent by a Maintenance Association End Point (MEP) or Intermediate Point (MIP) to a source MEP in response to a Loopback Message (LBM).
+        Loopback Message (LBM) is a diagnostic frame used to verify connectivity between Maintenance End Points (MEPs) and Maintenance Intermediate Points (MIPs). LBM flag bits are reserved and set to zero.
       type: object
       properties:
-        flags:
-          x-field-uid: 1
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbr.Flags'
         transaction_id:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbm.TransactionId'
+        tlvs:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
           x-field-uid: 2
+    Flow.Cfm.Lbr:
+      description: |-
+        Loopback Reply (LBR) messages are unicast frames sent by a Maintenance Association End Point (MEP) or Intermediate Point (MIP) to a source MEP in response to a Loopback Message (LBM). LBR flag bits are reserved and set to zero.
+      type: object
+      properties:
+        transaction_id:
+          x-field-uid: 1
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbr.TransactionId'
         tlvs:
           type: array
           minItems: 1
           items:
             $ref: '#/components/schemas/Flow.Cfm.Tlvs'
-          x-field-uid: 3
+          x-field-uid: 2
     Flow.Cfm.Tlvs:
       description: |-
         The CFM TLV format is defined in 8021Q. Common fields are Type (1 octet) defined by choice below, Length (2 octet) and Value (variable) defined for each tlv type.
@@ -16704,21 +16732,18 @@ components:
       properties:
         choice:
           type: string
-          default: end
+          default: sender_id
           x-field-uid: 1
           x-enum:
-            end:
-              x-field-uid: 1
             sender_id:
-              x-field-uid: 2
+              x-field-uid: 1
             port_status:
-              x-field-uid: 3
+              x-field-uid: 2
             interface_status:
-              x-field-uid: 4
+              x-field-uid: 3
             data:
-              x-field-uid: 5
+              x-field-uid: 4
           enum:
-          - end
           - sender_id
           - port_status
           - interface_status
@@ -16782,16 +16807,19 @@ components:
           format: hex
           default: '00'
           x-field-uid: 3
-        management_address_length:
+        management_address_domain_length:
           x-field-uid: 4
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.ManagementAddressLength'
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.ManagementAddressDomainLength'
         management_address:
           description: |-
             Management address
           type: string
           format: hex
           default: '00'
-          x-field-uid: 5
+          x-field-uid: 7
+        management_address_length:
+          x-field-uid: 6
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.ManagementAddressLength'
     Flow.Cfm.PortStatusTlv:
       description: |-
         Port status
@@ -51682,73 +51710,6 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Version.Counter'
           x-field-uid: 6
-    Pattern.Flow.Cfm.Ccm.Flags.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 0
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.Ccm.Flags:
-      description: |-
-        Defines operational flags for CCM.
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: value
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 0
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 0
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.Counter'
-          x-field-uid: 5
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.Counter'
-          x-field-uid: 6
     Pattern.Flow.Cfm.Ccm.SequenceNumber.Counter:
       description: |-
         integer counter pattern
@@ -51877,6 +51838,140 @@ components:
           x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Cfm.Ccm.Flags.Rdi.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 1
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 1
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 2
+    Pattern.Flow.Cfm.Ccm.Flags.Rdi:
+      description: |-
+        Remote Defect Indicator (RDI) flag
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 1
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 1
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.Rdi.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.Rdi.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Cfm.Ccm.Flags.CcmInterval.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 7
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 7
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 8
+    Pattern.Flow.Cfm.Ccm.Flags.CcmInterval:
+      description: |-
+        CCM interval flag
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 7
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 7
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.CcmInterval.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.CcmInterval.Counter'
           x-field-uid: 6
     Pattern.Flow.Cfm.Cfm.ShortMaNameLength.Counter:
       description: |-
@@ -52012,7 +52107,7 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.MDNameSpecified.MdNameLength.Counter'
           x-field-uid: 6
-    Pattern.Flow.Cfm.Lbr.Flags.Counter:
+    Pattern.Flow.Cfm.Lbm.TransactionId.Counter:
       description: |-
         integer counter pattern
       type: object
@@ -52022,22 +52117,19 @@ components:
           x-field-uid: 1
           default: 0
           format: uint32
-          maximum: 255
         step:
           type: integer
           x-field-uid: 2
           default: 1
           format: uint32
-          maximum: 255
         count:
           type: integer
           x-field-uid: 3
           default: 1
           format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.Lbr.Flags:
+    Pattern.Flow.Cfm.Lbm.TransactionId:
       description: |-
-        Defines operational flags for LBR.
+        Transaction id or sequence number to detect out-of-order packets.
       type: object
       properties:
         choice:
@@ -52063,21 +52155,19 @@ components:
           x-field-uid: 2
           default: 0
           format: uint32
-          maximum: 255
         values:
           type: array
           items:
             type: integer
             format: uint32
-            maximum: 255
           x-field-uid: 3
           default:
           - 0
         increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbr.Flags.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbm.TransactionId.Counter'
           x-field-uid: 5
         decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbr.Flags.Counter'
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbm.TransactionId.Counter'
           x-field-uid: 6
     Pattern.Flow.Cfm.Lbr.TransactionId.Counter:
       description: |-
@@ -52287,6 +52377,73 @@ components:
           x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.ChassisIdLength.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Cfm.SenderIdTlv.ManagementAddressDomainLength.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 1
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 256
+    Pattern.Flow.Cfm.SenderIdTlv.ManagementAddressDomainLength:
+      description: |-
+        Specifies the length of the management address domain.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 1
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.ManagementAddressDomainLength.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.ManagementAddressDomainLength.Counter'
           x-field-uid: 6
     Pattern.Flow.Cfm.SenderIdTlv.ManagementAddressLength.Counter:
       description: |-

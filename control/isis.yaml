@@ -18,12 +18,19 @@ components:
           x-enum:
             initiate_graceful_restart:
               x-field-uid: 1
+            srv6:
+              x-field-uid: 2
           x-field-uid: 1
         initiate_graceful_restart:
           description: >-
             Configuration for the initiation of the IS-IS Graceful Restart.
           $ref: "#/components/schemas/Action.Protocol.Isis.InitiateRestart"
           x-field-uid: 2
+        srv6:
+          description: >-
+            SRv6 control actions for IS-IS emulated routers.
+          $ref: "#/components/schemas/Action.Protocol.Isis.Srv6"
+          x-field-uid: 3
 
     Action.Protocol.Isis.InitiateRestart:
       description: |-
@@ -134,3 +141,212 @@ components:
           default: 10
           minimum: 0
           x-field-uid: 3
+
+    Action.Protocol.Isis.Srv6:
+      description: >-
+        SRv6 control actions for IS-IS emulated routers.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          x-enum:
+            my_local_sid:
+              x-field-uid: 1
+          x-field-uid: 1
+        my_local_sid:
+          $ref: '#/components/schemas/Action.Protocol.Isis.Srv6.MyLocalSid'
+          x-field-uid: 2
+
+    Action.Protocol.Isis.Srv6.MyLocalSid:
+      description: >-
+        Trigger a My Local SID lifecycle operation (add, modify, or delete) on
+        the specified IS-IS routers (RFC 8986 Section 4 Instantiation,
+        Re-instantiation, and Un-instantiation).
+        In IxNetwork, this operation manipulates isisSRv6EndSIDList entries
+        under the IS-IS router and triggers IS-IS LSP re-advertisement.
+      type: object
+      required: [choice]
+      properties:
+        router_names:
+          description: >-
+            Names of the IS-IS routers on which to perform the My Local SID
+            operation. An empty or null list applies the operation to all
+            configured IS-IS routers.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.IsisRouter/properties/name
+          x-field-uid: 1
+        choice:
+          type: string
+          x-enum:
+            add:
+              x-field-uid: 1
+            modify:
+              x-field-uid: 2
+            delete:
+              x-field-uid: 3
+          x-field-uid: 2
+        add:
+          $ref: '#/components/schemas/Action.Protocol.Isis.Srv6.MyLocalSid.Add'
+          x-field-uid: 3
+        modify:
+          $ref: '#/components/schemas/Action.Protocol.Isis.Srv6.MyLocalSid.Modify'
+          x-field-uid: 4
+        delete:
+          $ref: '#/components/schemas/Action.Protocol.Isis.Srv6.MyLocalSid.Delete'
+          x-field-uid: 5
+
+    Action.Protocol.Isis.Srv6.MyLocalSid.Add:
+      description: >-
+        Program new SRv6 My Local SID entries on the routers specified by
+        router_names. After this operation the router matches packets whose
+        DA falls within each SID prefix and applies the configured behavior.
+        Session impact: implementation-specific. In IxNetwork the IS-IS router
+        re-advertises its Locator TLV after the add.
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          description: List of My Local SID entries to add.
+          type: array
+          items:
+            $ref: '#/components/schemas/Action.Protocol.Isis.Srv6.MyLocalSid.Entry'
+          x-field-uid: 1
+
+    Action.Protocol.Isis.Srv6.MyLocalSid.Modify:
+      description: >-
+        Modify existing SRv6 My Local SID entries on the routers specified by
+        router_names. Each entry is matched by sid_prefix + prefix_length;
+        the remaining fields replace the existing values without a
+        delete-and-re-add cycle.
+        Session impact: implementation-specific. In IxNetwork IS-IS re-sends
+        its LSP with the updated SID set.
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          description: >-
+            List of My Local SID entries to modify. Each entry is matched by
+            sid_prefix + prefix_length; other fields are updated.
+          type: array
+          items:
+            $ref: '#/components/schemas/Action.Protocol.Isis.Srv6.MyLocalSid.Entry'
+          x-field-uid: 1
+
+    Action.Protocol.Isis.Srv6.MyLocalSid.Delete:
+      description: >-
+        Remove SRv6 My Local SID entries from the routers specified by
+        router_names. After deletion, packets whose DA matches these SID
+        prefixes are no longer forwarded (RFC 8986 Section 4 Un-instantiation).
+        Session impact: implementation-specific. In IxNetwork IS-IS withdraws
+        the affected SIDs from its Locator TLV.
+      type: object
+      required: [sid_refs]
+      properties:
+        sid_refs:
+          description: >-
+            List of My Local SID entries to delete, identified by prefix
+            and prefix length.
+          type: array
+          items:
+            $ref: '#/components/schemas/Action.Protocol.Isis.Srv6.MyLocalSid.SidRef'
+          x-field-uid: 1
+
+    Action.Protocol.Isis.Srv6.MyLocalSid.Entry:
+      description: >-
+        One SRv6 My Local SID entry. Corresponds to a single row in the
+        MY_LOCAL_SID table (RFC 8986 Section 3.3), indexed by (SID prefix,
+        behavior).
+      type: object
+      required: [sid_prefix]
+      properties:
+        sid_prefix:
+          description: >-
+            IPv6 address of this My Local SID (e.g., "fcbb:bbbb:1::" for a
+            SONiC uN node using the fcbb:bbbb::/32 locator block).
+          type: string
+          format: ipv6
+          x-field-uid: 1
+        prefix_length:
+          description: >-
+            Prefix length of the My Local SID in bits. Common values: 48 for
+            u_n with F3216 locator; 64 for end and DT behaviors.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 128
+          default: 48
+          x-field-uid: 2
+        behavior:
+          description: >-
+            SRv6 endpoint behavior applied when a packet's DA matches this
+            My Local SID (RFC 8986 Section 7.4 codepoints, RFC 9800).
+            'u_n' - Micro-SID node: shift active uSID out of DA and forward
+              (RFC 9800 Section 4).
+            'u_dt4' / 'u_dt6' / 'u_dt46' - Micro-SID decap + IPv4 / IPv6 /
+              dual-stack table lookup in the VRF given by vrf_name (RFC 9800).
+            'u_dx4' / 'u_dx6' - Micro-SID decap + L3 cross-connect to the
+              IPv4 / IPv6 next-hop given by next_hop (RFC 9800).
+            'end' / 'end_dt4' / 'end_dt6' / 'end_dt46' - Full-SID
+              equivalents (RFC 8986 Sections 4.1, 4.6, 4.7, 4.8).
+          type: string
+          default: u_n
+          x-enum:
+            u_n:
+              x-field-uid: 1
+            u_dt4:
+              x-field-uid: 2
+            u_dt6:
+              x-field-uid: 3
+            u_dt46:
+              x-field-uid: 4
+            u_dx4:
+              x-field-uid: 5
+            u_dx6:
+              x-field-uid: 6
+            end:
+              x-field-uid: 7
+            end_dt4:
+              x-field-uid: 8
+            end_dt6:
+              x-field-uid: 9
+            end_dt46:
+              x-field-uid: 10
+          x-field-uid: 3
+        vrf_name:
+          description: >-
+            VRF name for decapsulation behaviors (u_dt4, u_dt6, u_dt46,
+            u_dx4, u_dx6, end_dt4, end_dt6, end_dt46). Omit or leave empty
+            for the default VRF.
+          type: string
+          x-field-uid: 4
+        next_hop:
+          description: >-
+            Next-hop address for cross-connect behaviors: an IPv4 address for
+            u_dx4, an IPv6 address for u_dx6. Not applicable for DT or u_n
+            behaviors.
+          type: string
+          x-field-uid: 5
+
+    Action.Protocol.Isis.Srv6.MyLocalSid.SidRef:
+      description: >-
+        Identifies a My Local SID entry by its prefix and length, used in
+        delete operations.
+      type: object
+      required: [sid_prefix, prefix_length]
+      properties:
+        sid_prefix:
+          description: IPv6 address of the My Local SID entry to delete.
+          type: string
+          format: ipv6
+          x-field-uid: 1
+        prefix_length:
+          description: Prefix length of the My Local SID to delete, in bits.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 128
+          x-field-uid: 2

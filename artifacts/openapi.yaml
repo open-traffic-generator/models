@@ -16592,7 +16592,7 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.Flags.CcmInterval'
     Flow.Cfm.OamProtocol:
       description: |-
-        Ethernet OAM standard. Currently only Connectivity Fault Management (CFM) is supported.
+        Ethernet OAM standard used to encode the 48-byte identifier field in the CCM PDU. IEEE 802.1Q-2018 uses a MAID (MD Name + Short MA Name). ITU-T Y.1731 uses a MEG ID with a different fixed-format encoding.
       type: object
       properties:
         choice:
@@ -16602,11 +16602,17 @@ components:
           x-enum:
             cfm:
               x-field-uid: 1
+            y1731:
+              x-field-uid: 2
           enum:
           - cfm
+          - y1731
         cfm:
           $ref: '#/components/schemas/Flow.Cfm.Cfm'
           x-field-uid: 2
+        y1731:
+          $ref: '#/components/schemas/Flow.Cfm.Y1731'
+          x-field-uid: 3
     Flow.Cfm.Cfm:
       description: |-
         Connectivity Fault Management
@@ -16645,6 +16651,35 @@ components:
           format: hex
           default: '00'
           x-field-uid: 4
+    Flow.Cfm.Y1731:
+      description: |-
+        ITU-T Y.1731 MEG (Maintenance Entity Group) identifier used to encode the 48-byte identifier field in the CCM PDU, as defined in ITU-T Y.1731 Table A.1.
+      type: object
+      properties:
+        meg_id_format:
+          description: |-
+            MEG ID format as defined in ITU-T Y.1731 Table A.1. icc_based: ICC-based MEG ID format (13 octets: 6-octet ICC + 7-octet UMC). y1731_char_str: ITU-T Y.1731 character string format.
+          type: string
+          default: icc_based
+          x-enum:
+            icc_based:
+              x-field-uid: 1
+            y1731_char_str:
+              x-field-uid: 2
+          x-field-uid: 1
+          enum:
+          - icc_based
+          - y1731_char_str
+        meg_id_length:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Y1731.MegIdLength'
+        meg_id:
+          description: |-
+            MEG ID value encoded as a hex string.
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 3
     Flow.Cfm.MDName:
       description: |-
         Maintenance domain name, can be auto or specified
@@ -52046,6 +52081,73 @@ components:
           x-field-uid: 5
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Cfm.ShortMaNameLength.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Cfm.Y1731.MegIdLength.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 1
+          format: uint32
+          maximum: 255
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 256
+    Pattern.Flow.Cfm.Y1731.MegIdLength:
+      description: |-
+        Length of the MEG ID value in octets. Maximum 13 octets for icc_based format (6-octet ICC + 7-octet UMC). Maximum 45 octets for y1731_char_str format.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 255
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 255
+          x-field-uid: 3
+          default:
+          - 1
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Y1731.MegIdLength.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Y1731.MegIdLength.Counter'
           x-field-uid: 6
     Pattern.Flow.Cfm.MDNameSpecified.MdNameLength.Counter:
       description: |-

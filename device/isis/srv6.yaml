@@ -5,10 +5,10 @@ components:
         SRv6 Capabilities Sub-TLV (sub-TLV type 25) carried within the IS-IS
         Router CAPABILITY TLV (TLV 242, RFC 7981). Announces that this IS-IS
         router is an SRv6 Segment Endpoint Node and optionally supports the
-        O-bit for OAM operations. Node-level SRv6 Maximum SID Depth (MSD)
-        values are also advertised here per RFC 8491.
+        O-bit for OAM operations.
         Reference: RFC 9352 Section 2.
       type: object
+      x-reserved-field-uids: [2]
       properties:
         o_flag:
           description: >-
@@ -19,14 +19,6 @@ components:
           type: boolean
           default: false
           x-field-uid: 1
-        node_msds:
-          description: >-
-            Node-level SRv6 Maximum SID Depth (MSD) capabilities advertised as
-            MSD sub-TLVs within the Router Capability TLV per RFC 8491.
-            These signal the maximum SRH stack depth this router supports for
-            specific SRv6 forwarding behaviors (RFC 9352 Section 6).
-          $ref: '#/components/schemas/IsisSRv6.NodeMsd'
-          x-field-uid: 2
         c_flag:
           description: >-
             Compression (uSID) flag at the node level (RFC 9800). When set,
@@ -56,74 +48,6 @@ components:
           type: boolean
           default: false
           x-field-uid: 3
-
-    IsisSRv6.NodeMsd:
-      description: >-
-        Node-level SRv6 Maximum SID Depth (MSD) capabilities. A non-zero
-        value causes the corresponding MSD sub-TLV to be included in the
-        advertisement; a value of 0 (default) suppresses it. This follows
-        RFC 8491 where MSD is a list of (MSD-Type, MSD-Value) tuples.
-        Reference: RFC 8491, RFC 9352 Section 6.
-      type: object
-      properties:
-        max_sl:
-          description: >-
-            Maximum value of the Segments Left (SL) field in an SRH that
-            this router can process (MSD-Type 41, RFC 9352 Section 6).
-            A non-zero value is advertised as the Max SL MSD sub-TLV;
-            a value of 0 (default) suppresses the sub-TLV.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 1
-        max_end_pop_srh:
-          description: >-
-            Maximum number of SIDs in the top SRH that this router can pop
-            using PSP or USP End behaviors (MSD-Type 42, RFC 9352 Section 6).
-            A non-zero value is advertised as the Max-End-Pop-SRH MSD sub-TLV;
-            a value of 0 (default) suppresses the sub-TLV.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 2
-        max_t_insert:
-          description: >-
-            Maximum number of SIDs this router can insert using the T.Insert
-            behavior (MSD-Type 43, RFC 8491). A non-zero value is advertised
-            as the Maximum T.Insert MSD sub-TLV; a value of 0 (default)
-            suppresses the sub-TLV.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 3
-        max_h_encaps:
-          description: >-
-            Maximum number of SIDs this router can insert in the SRH using
-            the H.Encaps behavior (MSD-Type 44, RFC 9352 Section 6).
-            A non-zero value is advertised as the Max-H-Encaps MSD sub-TLV;
-            a value of 0 (default) suppresses the sub-TLV.
-            A value of 0 with E-flag set indicates IPinIP encapsulation
-            without SRH.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 4
-        max_end_d_srh:
-          description: >-
-            Maximum number of SIDs in the SRH that this router can handle
-            while applying decapsulation behaviors such as End.DT6, End.DT4
-            or End.DT46 (MSD-Type 45, RFC 9352 Section 6). A non-zero value
-            is advertised as the Max-End-D-SRH MSD sub-TLV; a value of 0
-            (default) suppresses the sub-TLV.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 5
 
     IsisSRv6.Locator:
       description: >-
@@ -199,12 +123,13 @@ components:
           description: >-
             List of Multi-Topology Identifiers (MT-IDs) for this locator
             advertisement. Specifies the IS-IS topologies this locator
-            belongs to. 0 = default topology. Valid range 0-255 (RFC 5120).
+            belongs to. 0 = default topology. Valid range 0-4095 per
+            RFC 5120 Section 2 (12-bit field).
           type: array
           items:
             type: integer
             format: uint32
-            maximum: 255
+            maximum: 4095
           x-field-uid: 7
         end_sids:
           description: >-
@@ -288,7 +213,7 @@ components:
           description: >-
             When present, the Prefix Attribute Flags Sub-TLV (sub-TLV type 4,
             RFC 7794) is included in this prefix advertisement, carrying the
-            X, R, N, and A flags. Absence suppresses the sub-TLV.
+            X, R, and N flags. Absence suppresses the sub-TLV.
           $ref: '#/components/schemas/IsisSRv6.PrefixAttributes'
           x-field-uid: 4
 
@@ -301,6 +226,7 @@ components:
         suppresses it.
         Reference: RFC 7794.
       type: object
+      x-reserved-field-uids: [4]
       properties:
         x_flag:
           description: >-
@@ -324,13 +250,6 @@ components:
           type: boolean
           default: false
           x-field-uid: 3
-        a_flag:
-          description: >-
-            Anycast flag (bit 5, RFC 7794). When set, indicates this prefix is
-            an anycast prefix shared across multiple routers.
-          type: boolean
-          default: false
-          x-field-uid: 4
 
     IsisSRv6.EndSid:
       description: >-
@@ -429,22 +348,22 @@ components:
             end_dt4:
               description: >-
                 End.DT4 decapsulation and IPv4 table lookup (RFC 8986
-                codepoint 19). Decapsulates the outer IPv6 header and
-                performs an IPv4 FIB lookup in a specific VRF table T.
+                codepoint 17, 0x0011). Decapsulates the outer IPv6 header
+                and performs an IPv4 FIB lookup in a specific VRF table T.
                 Used for IPv4 L3VPN services over SRv6.
               x-field-uid: 9
             end_dt6:
               description: >-
                 End.DT6 decapsulation and IPv6 table lookup (RFC 8986
-                codepoint 18). Decapsulates the outer IPv6 header and
-                performs an IPv6 FIB lookup in a specific VRF table T.
+                codepoint 16, 0x0010). Decapsulates the outer IPv6 header
+                and performs an IPv6 FIB lookup in a specific VRF table T.
                 Used for IPv6 L3VPN services over SRv6.
               x-field-uid: 10
             end_dt46:
               description: >-
                 End.DT46 decapsulation and dual-stack IP table lookup
-                (RFC 8986 codepoint 20). Decapsulates and performs FIB
-                lookup for both IPv4 and IPv6 inner packets in the
+                (RFC 8986 codepoint 18, 0x0012). Decapsulates and performs
+                FIB lookup for both IPv4 and IPv6 inner packets in the
                 appropriate VRF table. Used for dual-stack L3VPN over SRv6.
               x-field-uid: 11
           x-field-uid: 2
@@ -488,7 +407,12 @@ components:
         Valid behaviors include End.X variants (with PSP/USP/USD flavors) and
         cross-connect decapsulation behaviors (End.DX4, End.DX6).
         Reference: RFC 9352 Sections 8.1-8.2, RFC 8986 Section 4.3.
+        The SID bit-field structure (locator block, locator node, function,
+        and argument lengths) is inherited from IsisSRv6.Locator.sid_structure
+        of the selected locator per RFC 9352 Section 9. No per-adjacency
+        structure override is defined in the RFC.
       type: object
+      x-reserved-field-uids: [9]
       properties:
         locator:
           description: >-
@@ -588,16 +512,16 @@ components:
               x-field-uid: 8
             end_dx4:
               description: >-
-                End.DX4 per-CE IPv4 cross-connect (RFC 8986 codepoint 17).
-                Decapsulates the outer IPv6 header and forwards the inner
-                IPv4 packet to a CE peer over adjacency J. Used for
+                End.DX4 per-CE IPv4 cross-connect (RFC 8986 codepoint 15,
+                0x000F). Decapsulates the outer IPv6 header and forwards the
+                inner IPv4 packet to a CE peer over adjacency J. Used for
                 IPv4 VPWS and per-CE L3VPN services over SRv6.
               x-field-uid: 9
             end_dx6:
               description: >-
-                End.DX6 per-CE IPv6 cross-connect (RFC 8986 codepoint 16).
-                Decapsulates the outer IPv6 header and forwards the inner
-                IPv6 packet to a CE peer over adjacency J. Used for
+                End.DX6 per-CE IPv6 cross-connect (RFC 8986 codepoint 14,
+                0x000E). Decapsulates the outer IPv6 header and forwards the
+                inner IPv6 packet to a CE peer over adjacency J. Used for
                 IPv6 VPWS and per-CE L3VPN services over SRv6.
               x-field-uid: 10
           x-field-uid: 2
@@ -671,15 +595,6 @@ components:
           type: boolean
           default: false
           x-field-uid: 8
-        sid_structure:
-          description: >-
-            SRv6 SID Structure Sub-Sub-TLV (type 1) describing the internal
-            bit-field decomposition of this adjacency SID. Specifies the
-            Locator Block, Locator Node, Function, and Argument lengths in
-            bits. When present, the sub-sub-TLV is included in the advertisement.
-            Typically set when c_flag is true (RFC 9352 Section 9).
-          $ref: '#/components/schemas/IsisSRv6.SidStructure'
-          x-field-uid: 9
 
     IsisSRv6.SidStructure:
       description: >-
@@ -748,72 +663,3 @@ components:
           default: 0
           x-field-uid: 4
 
-    IsisSRv6.LinkMsd:
-      description: >-
-        Link-level SRv6 Maximum SID Depth (MSD) capabilities advertised per
-        IS-IS interface. Signals the SRv6 SRH processing capacity specific
-        to this link, which may differ from the node-level MSD values.
-        A non-zero value causes the corresponding MSD sub-TLV to be included
-        in the neighbor TLV advertisement; a value of 0 (default) suppresses
-        it. This follows RFC 8491 where MSD is a list of (MSD-Type,
-        MSD-Value) tuples.
-        Reference: RFC 8491, RFC 9352 Section 6.
-      type: object
-      properties:
-        max_sl:
-          description: >-
-            Maximum value of the Segments Left (SL) field in an SRH that
-            this interface can process (MSD-Type 41). A non-zero value is
-            advertised as the Max SL MSD sub-TLV at the link level; a value
-            of 0 (default) suppresses the sub-TLV.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 1
-        max_end_pop_srh:
-          description: >-
-            Maximum number of SIDs in the top SRH for PSP or USP End
-            behaviors on this interface (MSD-Type 42). A non-zero value is
-            advertised as the Max-End-Pop-SRH MSD sub-TLV at the link level;
-            a value of 0 (default) suppresses the sub-TLV.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 2
-        max_t_insert:
-          description: >-
-            Maximum number of SIDs insertable via T.Insert behavior on this
-            interface (MSD-Type 43, RFC 8491). A non-zero value is advertised
-            as the Maximum T.Insert MSD sub-TLV at the link level; a value of
-            0 (default) suppresses the sub-TLV.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 3
-        max_h_encaps:
-          description: >-
-            Maximum number of SIDs for H.Encaps behavior on this interface
-            (MSD-Type 44). A non-zero value is advertised as the Max-H-Encaps
-            MSD sub-TLV at the link level; a value of 0 (default) suppresses
-            the sub-TLV.
-            A value of 0 with E-flag set indicates IPinIP encapsulation
-            without SRH.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 4
-        max_end_d_srh:
-          description: >-
-            Maximum number of SIDs in the SRH for decapsulation behaviors
-            (End.DT4/DT6/DT46/DX4/DX6) on this interface (MSD-Type 45).
-            A non-zero value is advertised as the Max-End-D-SRH MSD sub-TLV
-            at the link level; a value of 0 (default) suppresses the sub-TLV.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
-          x-field-uid: 5

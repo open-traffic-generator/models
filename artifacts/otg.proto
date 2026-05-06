@@ -15092,7 +15092,7 @@ message StateProtocolIsisSimLinks {
     }
   }
   // Sets the Control State of one or more Simulated Links to UP or DOWN.
-  // The state change is applied bidirectionally â€” a link between IS-IS Routers A and
+  // The state change is applied bidirectionally — a link between IS-IS Routers A and
   // B is affected
   // in both directions simultaneously.
   // Setting Control State to DOWN transitions the selected Simulated Links to a disconnected
@@ -15602,7 +15602,6 @@ message ActionProtocolIsis {
     enum Enum {
       unspecified = 0;
       initiate_graceful_restart = 1;
-      srv6 = 2;
     }
   }
   // Description missing in models
@@ -15611,9 +15610,6 @@ message ActionProtocolIsis {
 
   // Configuration for the initiation of the IS-IS Graceful Restart.
   ActionProtocolIsisInitiateRestart initiate_graceful_restart = 2;
-
-  // SRv6 control actions for IS-IS emulated routers.
-  ActionProtocolIsisSrv6 srv6 = 3;
 }
 
 // Timers T1 and T2 are used both by a restarting router and a starting router. Timer
@@ -15708,153 +15704,6 @@ message ActionProtocolIsisPlannedRestart {
   // and hold_timer is reset to normal.
   // default = 10
   optional uint32 restart_after = 3;
-}
-
-// SRv6 control actions for IS-IS emulated routers.
-message ActionProtocolIsisSrv6 {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      my_local_sid = 1;
-    }
-  }
-  // Description missing in models
-  // required = true
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  ActionProtocolIsisSrv6MyLocalSid my_local_sid = 2;
-}
-
-// Trigger a My Local SID lifecycle operation (add, modify, or delete) on the specified
-// IS-IS routers (RFC 8986 Section 4 Instantiation, Re-instantiation, and Un-instantiation).
-// In IxNetwork, this operation manipulates isisSRv6EndSIDList entries under the IS-IS
-// router and triggers IS-IS LSP re-advertisement.
-message ActionProtocolIsisSrv6MyLocalSid {
-
-  // Names of the IS-IS routers on which to perform the My Local SID operation. An empty
-  // or null list applies the operation to all configured IS-IS routers.
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.IsisRouter/properties/name
-  // 
-  repeated string router_names = 1;
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      add = 1;
-      modify = 2;
-      delete = 3;
-    }
-  }
-  // Description missing in models
-  // required = true
-  optional Choice.Enum choice = 2;
-
-  // Description missing in models
-  ActionProtocolIsisSrv6MyLocalSidAdd add = 3;
-
-  // Description missing in models
-  ActionProtocolIsisSrv6MyLocalSidModify modify = 4;
-
-  // Description missing in models
-  ActionProtocolIsisSrv6MyLocalSidDelete delete = 5;
-}
-
-// Program new SRv6 My Local SID entries on the routers specified by router_names. After
-// this operation the router matches packets whose DA falls within each SID prefix and
-// applies the configured behavior. Session impact: implementation-specific. In IxNetwork
-// the IS-IS router re-advertises its Locator TLV after the add.
-message ActionProtocolIsisSrv6MyLocalSidAdd {
-
-  // List of My Local SID entries to add.
-  repeated ActionProtocolIsisSrv6MyLocalSidEntry entries = 1;
-}
-
-// Modify existing SRv6 My Local SID entries on the routers specified by router_names.
-// Each entry is matched by sid_prefix + prefix_length; the remaining fields replace
-// the existing values without a delete-and-re-add cycle. Session impact: implementation-specific.
-// In IxNetwork IS-IS re-sends its LSP with the updated SID set.
-message ActionProtocolIsisSrv6MyLocalSidModify {
-
-  // List of My Local SID entries to modify. Each entry is matched by sid_prefix + prefix_length;
-  // other fields are updated.
-  repeated ActionProtocolIsisSrv6MyLocalSidEntry entries = 1;
-}
-
-// Remove SRv6 My Local SID entries from the routers specified by router_names. After
-// deletion, packets whose DA matches these SID prefixes are no longer forwarded (RFC
-// 8986 Section 4 Un-instantiation). Session impact: implementation-specific. In IxNetwork
-// IS-IS withdraws the affected SIDs from its Locator TLV.
-message ActionProtocolIsisSrv6MyLocalSidDelete {
-
-  // List of My Local SID entries to delete, identified by prefix and prefix length.
-  repeated ActionProtocolIsisSrv6MyLocalSidSidRef sid_refs = 1;
-}
-
-// One SRv6 My Local SID entry. Corresponds to a single row in the MY_LOCAL_SID table
-// (RFC 8986 Section 3.3), indexed by (SID prefix, behavior).
-message ActionProtocolIsisSrv6MyLocalSidEntry {
-
-  // IPv6 address of this My Local SID (e.g., fcbb:bbbb:1:: for a SONiC uN node using
-  // the fcbb:bbbb::/32 locator block).
-  // required = true
-  optional string sid_prefix = 1;
-
-  // Prefix length of the My Local SID in bits. Common values: 48 for u_n with F3216 locator;
-  // 64 for end and DT behaviors.
-  // default = 48
-  optional uint32 prefix_length = 2;
-
-  message Behavior {
-    enum Enum {
-      unspecified = 0;
-      u_n = 1;
-      u_dt4 = 2;
-      u_dt6 = 3;
-      u_dt46 = 4;
-      u_dx4 = 5;
-      u_dx6 = 6;
-      end = 7;
-      end_dt4 = 8;
-      end_dt6 = 9;
-      end_dt46 = 10;
-    }
-  }
-  // SRv6 endpoint behavior applied when a packet's DA matches this My Local SID (RFC
-  // 8986 Section 7.4 codepoints, RFC 9800). 'u_n' - Micro-SID node: shift active uSID
-  // out of DA and forward
-  // (RFC 9800 Section 4).
-  // 'u_dt4' / 'u_dt6' / 'u_dt46' - Micro-SID decap + IPv4 / IPv6 /
-  // dual-stack table lookup in the VRF given by vrf_name (RFC 9800).
-  // 'u_dx4' / 'u_dx6' - Micro-SID decap + L3 cross-connect to the
-  // IPv4 / IPv6 next-hop given by next_hop (RFC 9800).
-  // 'end' / 'end_dt4' / 'end_dt6' / 'end_dt46' - Full-SID
-  // equivalents (RFC 8986 Sections 4.1, 4.6, 4.7, 4.8).
-  // default = Behavior.Enum.u_n
-  optional Behavior.Enum behavior = 3;
-
-  // VRF name for decapsulation behaviors (u_dt4, u_dt6, u_dt46, u_dx4, u_dx6, end_dt4,
-  // end_dt6, end_dt46). Omit or leave empty for the default VRF.
-  optional string vrf_name = 4;
-
-  // Next-hop address for cross-connect behaviors: an IPv4 address for u_dx4, an IPv6
-  // address for u_dx6. Not applicable for DT or u_n behaviors.
-  optional string next_hop = 5;
-}
-
-// Identifies a My Local SID entry by its prefix and length, used in delete operations.
-message ActionProtocolIsisSrv6MyLocalSidSidRef {
-
-  // IPv6 address of the My Local SID entry to delete.
-  // required = true
-  optional string sid_prefix = 1;
-
-  // Prefix length of the My Local SID to delete, in bits.
-  // required = true
-  optional uint32 prefix_length = 2;
 }
 
 // Request to traffic generator for metrics of choice.

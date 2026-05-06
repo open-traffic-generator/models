@@ -9,14 +9,10 @@ This document describes the philosophy and the best practices to be followed whi
 * [Modeling Best Practices](#modeling-best-practices)
   * [Adding New APIs](#adding-new-apis)
   * [Properties](#properties)
-    * [Object Presence vs. Enable Booleans](#object-presence-vs-enable-booleans)
-    * [Config Schemas vs. State/Result Schemas](#config-schemas-vs-stateresult-schemas)
   * [Naming](#naming)
-    * [Cross-File References](#cross-file-references)
   * [Keyword Limitations](#keyword-limitations)
   * [Keyword Extensions](#keyword-extensions)
   * [Descriptions](#descriptions)
-* [Building & Validating](#building--validating)
 * [Pull Requests](#pull-requests)
 
 ## Philosophy
@@ -51,80 +47,12 @@ This document describes the philosophy and the best practices to be followed whi
 
 ### Properties
 
-* Don’t expose a property if it must always be a particular value (eg. prefix length for loopback IP addresses).
+* Don't expose a property if it must always be a particular value (eg. prefix length for loopback IP addresses).
 * Give descriptive names to properties, so that it’s apparent what value it is supposed to hold. e.g. `port_names` vs `port`
 * Choose sensible values for default, min and max.
 * Do not assign defaults to properties for which holding a null value has a meaning.
 * Do not mark properties are required if they can hold sensible default values.
-* A property MUST NOT be both `required` AND have a `default` value. The build will reject it with a `TypeError`. If a default exists, the field is optional by definition.
 * Use proper `x-status`.
-
-#### Object Presence vs. Enable Booleans
-
-* Do NOT add an `active`, `enable`, or `include_*` boolean alongside a `$ref` (object) field to control whether it is included. Object presence is self-describing: setting the field means "include it", omitting it means "do not include it". The boolean is redundant and adds API noise.
-
-  ```yaml
-  # WRONG — include_sid_structure is redundant for a $ref field
-  include_sid_structure:
-    type: boolean
-    default: false
-    x-field-uid: 4
-  sid_structure:
-    $ref: ‘#/components/schemas/Foo.SidStructure’
-    x-field-uid: 5
-
-  # CORRECT — object presence is the gate
-  sid_structure:
-    $ref: ‘#/components/schemas/Foo.SidStructure’
-    x-field-uid: 4
-  ```
-
-* DO use an `include_*` boolean alongside a scalar field (integer, boolean, string) when the difference between "not advertised" and "advertised with value 0 / false" is meaningful. In these cases, the scalar’s default alone cannot communicate intent.
-
-  ```yaml
-  # Correct — include boolean needed: max_sl=0 means "advertised as 0",
-  # while include_max_sl=false means "do not advertise this MSD type at all"
-  include_max_sl:
-    type: boolean
-    default: false
-    x-field-uid: 1
-  max_sl:
-    type: integer
-    format: uint32
-    default: 0
-    x-field-uid: 2
-  ```
-
-#### Config Schemas vs. State/Result Schemas
-
-* **Config schemas** (under `device/` and related) represent configuration intent. They SHOULD have sensible `default` values on optional fields.
-
-* **State/Result schemas** (under `result/`) represent values received or learned from the network. They MUST NOT have `default` values — absence of a field means it was not present in the received message; presence means it was received with that value.
-
-* State schemas MUST NOT include `include_*` boolean controls. The presence of a field IS the indicator that it was received.
-
-  ```yaml
-  # Config schema — include flags control advertisement; defaults set baseline
-  IsisFoo.NodeMsd:
-    properties:
-      include_max_sl:
-        type: boolean
-        default: false
-        x-field-uid: 1
-      max_sl:
-        type: integer
-        format: uint32
-        default: 0
-        x-field-uid: 2
-
-  # State schema — no include flags, no defaults; presence = received
-  IsisLsp.NodeMsd:
-    properties:
-      max_sl:
-        type: integer
-        format: uint32
-        x-field-uid: 1
-  ```
 
 ### Naming
 
@@ -145,21 +73,6 @@ This document describes the philosophy and the best practices to be followed whi
 
 * `schema`
   * top level `schema objects` should avoid properties as simple data types and strive to encapsulate those properties in an object to allow for future extensibility.
-  * Config schemas use `Protocol.Feature` namespace (e.g., `Isis.SegmentRouting`, `Bgp.V4Peer`).
-  * State/result schemas that represent received protocol data typically use a `ProtocolLsp.Feature` or `ProtocolState.Feature` namespace (e.g., `IsisLsp.SRv6Capability`, `BgpPeer.State`) to make the config vs. state distinction explicit.
-
-#### Cross-File References
-
-* When a schema in one YAML file references a schema defined in another YAML file within the same model, use a relative path `$ref`:
-
-  ```yaml
-  srv6_locators:
-    type: array
-    items:
-      $ref: './srv6.yaml#/components/schemas/IsisSRv6.Locator'
-  ```
-
-* Within the same file, use the local `#/components/schemas/SchemaName` form.
 
 ### Keyword Limitations
 
@@ -488,8 +401,6 @@ The build script will enforce the following keyword conventions:
   * They need to be unique (within the object), and once assigned can never be changed/re-used, even if the field itself is deprecated and eventually removed.  
   * They are required for maintaining protobuff backwards compatibility.  
   * Should follow protobuff [Assigning Field Numbers](https://developers.google.com/protocol-buffers/docs/proto3#assigning_field_numbers) conventions.
-  * On a development branch that has not yet been published/merged, UIDs may be renumbered when fields are added or removed during the design phase. Once a schema is published (merged to the main branch and released), UIDs are permanently frozen and renumbering is forbidden even on a new branch.
-  * When adding new fields to an existing published schema, always assign the next available UID — never fill gaps left by deprecated/removed fields.
 
   * Use-Case : Adding a New Property to an Existing Object
     * Adding a new property 'peer_name' to an existing object.
@@ -568,31 +479,6 @@ The build script will enforce the following keyword conventions:
     * _"Number of times `session_state` changed from `up` to `down`"_ instead of
     * _"Number of times the session went from Up to Down state"_
 
-
-## Building & Validating
-
-* Always run the build after any YAML change to catch structural errors early.
-* The build must be run with the virtual environment activated so that the code generator (`openapiart`) and the formatter (`black`) use the correct Python:
-
-  ```bash
-  source .venv/Scripts/activate && python build.py   # Windows (Git Bash / bash shell)
-  source .venv/bin/activate && python build.py        # Linux / macOS
-  ```
-
-  Running `python build.py` without activating the venv, or calling the venv Python directly (`.venv/Scripts/python.exe build.py`), can cause the `black` subprocess launched by `openapiart` to use a different Python installation and fail.
-
-* A successful build produces updated artifacts under `artifacts/`. The following files from that directory are intentionally committed to git as part of a PR (they are the published API contract):
-  * `artifacts/openapi.yaml` — merged OpenAPI specification
-  * `artifacts/openapi.html` — rendered API documentation
-  * `artifacts/otg.proto` — protobuf service definition
-
-* The following generated files under `artifacts/` MUST NOT be committed to git. They are large machine-generated outputs that are re-created locally by each developer on build:
-  * `artifacts/otg/otg.py` — generated Python SDK
-  * `artifacts/otg/otg_pb2.py` — generated protobuf Python bindings
-  * `artifacts/otg/otg_pb2_grpc.py` — generated gRPC Python bindings
-  * `artifacts/otg/__init__.py`
-
-  These files should be listed in `.gitignore` (or the equivalent) to prevent accidental commits.
 
 ## Pull Requests
 

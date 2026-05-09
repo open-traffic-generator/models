@@ -18,31 +18,22 @@ components:
           type: boolean
           default: false
           x-field-uid: 1
+        node_msds:
+          description: >-
+            When present, advertises SRv6 Maximum SID Depth (MSD) sub-TLVs
+            within the IS-IS Router CAPABILITY TLV (TLV 242, RFC 7981). Each
+            non-zero field causes the corresponding MSD sub-TLV to be included;
+            a value of 0 suppresses that sub-TLV.
+            Reference: RFC 9352 Section 6.
+          $ref: '#/components/schemas/IsisSRv6.Msd'
+          x-field-uid: 2
         c_flag:
           description: >-
-            Compression (uSID) flag at the node level (RFC 9800). When set,
-            announces that this IS-IS router supports Micro-SID (uSID)
-            compressed SRv6 encoding. This flag is the prerequisite: it must
-            be set before individual End SIDs or Adj SIDs are marked as uSIDs
-            via their own c_flag fields. It is carried in the SRv6 Capabilities
-            Sub-TLV (sub-TLV type 25) Flags field.
-            To advertise a uSID-capable node using the F3216 format
-            (uSID block fc00::/32, node locator fc00:0:1:: /48):
-              Step 1 - Set this c_flag = true.
-              Step 2 - Configure IsisSRv6.Locator with:
-                locator "fc00:0:1::", prefix_length 48,
-                sid_structure: lb=32, ln=16, fn=16, arg=0.
-              Step 3 - Add End SIDs under the locator (c_flag=true per SID):
-                function "0001" => uSID fc00:0:1:1::  (End)
-                function "0002" => uSID fc00:0:1:2::  (End.DT46)
-              Step 4 - Add Adj SIDs on the interface (c_flag=true per SID):
-                function "00c8" => uSID fc00:0:1:c8::  (End.X)
-            A headend can then pack uSIDs from the same /32 block into a
-            single 128-bit container - no SRH required. With three nodes
-            (fc00:0:1::, fc00:0:2::, fc00:0:3::) each advertising End
-            function "0001", the headend constructs destination address
-            fc00:0:1:1:2:1:3:1 to steer traffic over the 3-hop path in one
-            128-bit address.
+            Compression (uSID) flag (RFC 9800). When set, announces that this
+            IS-IS router supports Micro-SID (uSID) compressed SRv6 encoding.
+            Acts as a node-level prerequisite; individual End SIDs and Adj SIDs
+            must also set their own c_flag to be treated as uSIDs.
+            Carried in the SRv6 Capabilities Sub-TLV (sub-TLV type 25) Flags field.
             Reference: RFC 9352 Section 2, RFC 9800.
           type: boolean
           default: false
@@ -591,6 +582,83 @@ components:
           type: boolean
           default: false
           x-field-uid: 8
+
+    IsisSRv6.Msd:
+      description: >-
+        SRv6 Maximum SID Depth (MSD) sub-TLV values, used for both node-level
+        advertisement (carried in IS-IS Router CAPABILITY TLV 242 via Node MSD
+        sub-TLV type 23) and link-level advertisement (carried in Extended IS
+        Reachability TLV via Link MSD sub-TLV type 15).
+        A field value of 0 suppresses advertisement of that sub-TLV.
+        Reference: RFC 9352 Section 6.
+      type: object
+      properties:
+        max_sl:
+          description: >-
+            Maximum Segments Left (Max-SL). Maximum value of the Segments Left
+            field in an SRH that this node can correctly process.
+            A value of 0 suppresses advertisement of this sub-TLV.
+            Reference: RFC 9352 Section 6.
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 0
+          x-field-uid: 1
+        max_end_pop_srh:
+          description: >-
+            Maximum End Pop SRH (Max-End-Pop). Maximum size of the SRH this
+            node can remove when processing an End.Pop operation.
+            A value of 0 suppresses advertisement of this sub-TLV.
+            Reference: RFC 9352 Section 6.
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 0
+          x-field-uid: 2
+        max_h_encaps:
+          description: >-
+            Maximum H.Encaps (Max-H.Encaps). Maximum number of SRv6 SID
+            encapsulations this node can perform as a headend.
+            A value of 0 suppresses advertisement of this sub-TLV.
+            Reference: RFC 9352 Section 6.
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 0
+          x-field-uid: 3
+        max_end_d_srh:
+          description: >-
+            Maximum End.D SRH (Max-End-D). Maximum size of the SRH this node
+            can process when performing an End.D (decapsulation) function.
+            A value of 0 suppresses advertisement of this sub-TLV.
+            Reference: RFC 9352 Section 6.
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 0
+          x-field-uid: 4
+        max_t_insert:
+          description: >-
+            Maximum T.Insert (Max-T.Insert). Maximum size of the SRH this node
+            can insert using a T.Insert operation.
+            A value of 0 suppresses advertisement of this sub-TLV.
+            Reference: RFC 9352 Section 6.
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 0
+          x-field-uid: 5
+        max_t_encaps:
+          description: >-
+            Maximum T.Encaps (Max-T.Encaps). Maximum size of the SRH this node
+            can insert using a T.Encaps operation.
+            A value of 0 suppresses advertisement of this sub-TLV.
+            Reference: RFC 9352 Section 6.
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 0
+          x-field-uid: 6
 
     IsisSRv6.SidStructure:
       description: >-

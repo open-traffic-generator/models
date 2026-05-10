@@ -145,12 +145,12 @@ components:
             y1731:
               x-field-uid: 2
         cfm:
-          $ref: '#/components/schemas/Flow.Cfm.Cfm'
+          $ref: '#/components/schemas/Flow.Cfm.MaidCfm'
           x-field-uid: 2
         y1731:
           $ref: '#/components/schemas/Flow.Cfm.Y1731'
           x-field-uid: 3
-    Flow.Cfm.Cfm:
+    Flow.Cfm.MaidCfm:
       description: Connectivity Fault Management
       type: object
       properties:
@@ -183,7 +183,7 @@ components:
             format: integer
             length: 8
             default: 1
-            features: [count]
+            features: [auto, count]
           x-field-uid: 3
         short_ma_name:
           description: >-
@@ -219,7 +219,7 @@ components:
             format: integer
             length: 8
             default: 13
-            features: [count]
+            features: [auto, count]
           x-field-uid: 2
         meg_id:
           description: >-
@@ -230,7 +230,8 @@ components:
           x-field-uid: 3
     Flow.Cfm.MDName:
       description: >-
-        Maintenance domain name, can be auto or specified
+        Maintenance domain name. May be absent or specified. When absent, MD Name Format
+        is set to 1 (no MD name) per IEEE 802.1Q-2018.
       type: object
       properties:
         choice:
@@ -270,7 +271,7 @@ components:
             format: integer
             length: 8
             default: 1
-            features: [count]
+            features: [auto, count]
           x-field-uid: 2
         md_name:
           description: >-
@@ -364,13 +365,30 @@ components:
       description: Sender ID TLV is used to help identify the sender's hardware and management address.
       type: object
       properties:
-        chassis_id_length:
-          x-field-pattern:
-            description: Specifies the length of the chassis ID field.
-            format: integer
-            length: 8
-            default: 1
-            features: [count]
+        choice:
+          type: string
+          default: no_chassis_id
+          x-enum:
+            no_chassis_id:
+              x-field-uid: 1
+            chassis_id_present:
+              x-field-uid: 2
+          x-field-uid: 1
+        chassis_id_present:
+          $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv.ChassisId'
+          x-field-uid: 2
+    Flow.Cfm.SenderIdTlv.ChassisId:
+      description: Sender ID TLV with chassis id
+      type: object
+      properties:
+        choice:
+          type: string
+          default: no_management_address_domain
+          x-enum:
+            no_management_address_domain:
+              x-field-uid: 1
+            management_address_domain:
+              x-field-uid: 2
           x-field-uid: 1
         chassis_id_subtype:
           description: Specifies the LLDP Chassis ID Subtype (IEEE 802.1AB-2016 Table 8-3).
@@ -392,43 +410,74 @@ components:
             locally_assigned:
               x-field-uid: 7
           x-field-uid: 2
+        chassis_id_length:
+          x-field-pattern:
+            description: Specifies the length of the chassis ID field.
+            format: integer
+            length: 8
+            default: 1
+            features: [auto, count]
+          x-field-uid: 3
         chassis_id:
           description: >-
             Chassis ID
           type: string
           format: hex
           default: '00'
-          x-field-uid: 3
+          x-field-uid: 4
+        management_address_domain:
+          $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv.MADomain'
+          x-field-uid: 5
+    Flow.Cfm.SenderIdTlv.MADomain:
+      description: Sender ID TLV with management address domain
+      type: object
+      properties:
+        choice:
+          type: string
+          default: no_management_address
+          x-enum:
+            no_management_address:
+              x-field-uid: 1
+            management_address:
+              x-field-uid: 2
+          x-field-uid: 1
         management_address_domain_length:
           x-field-pattern:
             description: Specifies the length of the management address domain.
             format: integer
             length: 8
             default: 1
-            features: [count]
-          x-field-uid: 4
+            features: [auto, count]
+          x-field-uid: 2
         management_address_domain:
           description: >-
             Management address domain
           type: string
           format: hex
           default: '00'
-          x-field-uid: 5
+          x-field-uid: 3
+        management_address:
+          $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv.MgmtAddress'
+          x-field-uid: 4
+    Flow.Cfm.SenderIdTlv.MgmtAddress:
+      description: Sender ID TLV with management address
+      type: object
+      properties:
         management_address_length:
           x-field-pattern:
             description: Specifies the length of the management address.
             format: integer
             length: 8
             default: 1
-            features: [count]
-          x-field-uid: 6
+            features: [auto, count]
+          x-field-uid: 1
         management_address:
           description: >-
             Management address
           type: string
           format: hex
           default: '00'
-          x-field-uid: 7
+          x-field-uid: 2
     Flow.Cfm.PortStatusTlv:
       description: Port status TLV indicates the ability of the Bridge Port to pass ordinary data traffic,
         as defined in IEEE 802.1Q-2018 §12.14.3.3.

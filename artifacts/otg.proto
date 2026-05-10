@@ -12669,14 +12669,14 @@ message FlowCfmOamProtocol {
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  FlowCfmCfm cfm = 2;
+  FlowCfmMaidCfm cfm = 2;
 
   // Description missing in models
   FlowCfmY1731 y1731 = 3;
 }
 
 // Connectivity Fault Management
-message FlowCfmCfm {
+message FlowCfmMaidCfm {
 
   // Description missing in models
   FlowCfmMDName md_name = 1;
@@ -12698,7 +12698,7 @@ message FlowCfmCfm {
   optional ShortMaNameFormat.Enum short_ma_name_format = 2;
 
   // Description missing in models
-  PatternFlowCfmCfmShortMaNameLength short_ma_name_length = 3;
+  PatternFlowCfmMaidCfmShortMaNameLength short_ma_name_length = 3;
 
   // Short MA name
   // default = 00
@@ -12730,7 +12730,8 @@ message FlowCfmY1731 {
   optional string meg_id = 3;
 }
 
-// Maintenance domain name, can be auto or specified
+// Maintenance domain name. May be absent or specified. When absent, MD Name Format
+// is set to 1 (no MD name) per IEEE 802.1Q-2018.
 message FlowCfmMDName {
 
   message Choice {
@@ -12831,8 +12832,34 @@ message FlowCfmTlvs {
 // Sender ID TLV is used to help identify the sender's hardware and management address.
 message FlowCfmSenderIdTlv {
 
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      no_chassis_id = 1;
+      chassis_id_present = 2;
+    }
+  }
   // Description missing in models
-  PatternFlowCfmSenderIdTlvChassisIdLength chassis_id_length = 1;
+  // default = Choice.Enum.no_chassis_id
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowCfmSenderIdTlvChassisId chassis_id_present = 2;
+}
+
+// Sender ID TLV with chassis id
+message FlowCfmSenderIdTlvChassisId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      no_management_address_domain = 1;
+      management_address_domain = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.no_management_address_domain
+  optional Choice.Enum choice = 1;
 
   message ChassisIdSubtype {
     enum Enum {
@@ -12850,23 +12877,51 @@ message FlowCfmSenderIdTlv {
   // default = ChassisIdSubtype.Enum.mac_address
   optional ChassisIdSubtype.Enum chassis_id_subtype = 2;
 
+  // Description missing in models
+  PatternFlowCfmSenderIdTlvChassisIdChassisIdLength chassis_id_length = 3;
+
   // Chassis ID
   // default = 00
-  optional string chassis_id = 3;
+  optional string chassis_id = 4;
 
   // Description missing in models
-  PatternFlowCfmSenderIdTlvManagementAddressDomainLength management_address_domain_length = 4;
+  FlowCfmSenderIdTlvMADomain management_address_domain = 5;
+}
+
+// Sender ID TLV with management address domain
+message FlowCfmSenderIdTlvMADomain {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      no_management_address = 1;
+      management_address = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.no_management_address
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  PatternFlowCfmSenderIdTlvMADomainManagementAddressDomainLength management_address_domain_length = 2;
 
   // Management address domain
   // default = 00
-  optional string management_address_domain = 5;
+  optional string management_address_domain = 3;
 
   // Description missing in models
-  PatternFlowCfmSenderIdTlvManagementAddressLength management_address_length = 6;
+  FlowCfmSenderIdTlvMgmtAddress management_address = 4;
+}
+
+// Sender ID TLV with management address
+message FlowCfmSenderIdTlvMgmtAddress {
+
+  // Description missing in models
+  PatternFlowCfmSenderIdTlvMgmtAddressManagementAddressLength management_address_length = 1;
 
   // Management address
   // default = 00
-  optional string management_address = 7;
+  optional string management_address = 2;
 }
 
 // Port status TLV indicates the ability of the Bridge Port to pass ordinary data traffic,
@@ -37114,7 +37169,7 @@ message PatternFlowCfmCcmFlagsCcmInterval {
 }
 
 // integer counter pattern
-message PatternFlowCfmCfmShortMaNameLengthCounter {
+message PatternFlowCfmMaidCfmShortMaNameLengthCounter {
 
   // Description missing in models
   // default = 1
@@ -37130,19 +37185,20 @@ message PatternFlowCfmCfmShortMaNameLengthCounter {
 }
 
 // Short MA name length
-message PatternFlowCfmCfmShortMaNameLength {
+message PatternFlowCfmMaidCfmShortMaNameLength {
 
   message Choice {
     enum Enum {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -37153,11 +37209,17 @@ message PatternFlowCfmCfmShortMaNameLength {
   // default = [1]
   repeated uint32 values = 3;
 
-  // Description missing in models
-  PatternFlowCfmCfmShortMaNameLengthCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 1
+  optional uint32 auto = 4;
 
   // Description missing in models
-  PatternFlowCfmCfmShortMaNameLengthCounter decrement = 6;
+  PatternFlowCfmMaidCfmShortMaNameLengthCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowCfmMaidCfmShortMaNameLengthCounter decrement = 7;
 }
 
 // integer counter pattern
@@ -37185,12 +37247,13 @@ message PatternFlowCfmY1731MegIdLength {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -37201,11 +37264,17 @@ message PatternFlowCfmY1731MegIdLength {
   // default = [13]
   repeated uint32 values = 3;
 
-  // Description missing in models
-  PatternFlowCfmY1731MegIdLengthCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 13
+  optional uint32 auto = 4;
 
   // Description missing in models
-  PatternFlowCfmY1731MegIdLengthCounter decrement = 6;
+  PatternFlowCfmY1731MegIdLengthCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowCfmY1731MegIdLengthCounter decrement = 7;
 }
 
 // integer counter pattern
@@ -37232,12 +37301,13 @@ message PatternFlowCfmMDNamePresentMdNameLength {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -37248,11 +37318,17 @@ message PatternFlowCfmMDNamePresentMdNameLength {
   // default = [1]
   repeated uint32 values = 3;
 
-  // Description missing in models
-  PatternFlowCfmMDNamePresentMdNameLengthCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 1
+  optional uint32 auto = 4;
 
   // Description missing in models
-  PatternFlowCfmMDNamePresentMdNameLengthCounter decrement = 6;
+  PatternFlowCfmMDNamePresentMdNameLengthCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowCfmMDNamePresentMdNameLengthCounter decrement = 7;
 }
 
 // integer counter pattern
@@ -37405,7 +37481,7 @@ message PatternFlowCfmTlvsLength {
 }
 
 // integer counter pattern
-message PatternFlowCfmSenderIdTlvChassisIdLengthCounter {
+message PatternFlowCfmSenderIdTlvChassisIdChassisIdLengthCounter {
 
   // Description missing in models
   // default = 1
@@ -37421,19 +37497,20 @@ message PatternFlowCfmSenderIdTlvChassisIdLengthCounter {
 }
 
 // Specifies the length of the chassis ID field.
-message PatternFlowCfmSenderIdTlvChassisIdLength {
+message PatternFlowCfmSenderIdTlvChassisIdChassisIdLength {
 
   message Choice {
     enum Enum {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -37444,15 +37521,21 @@ message PatternFlowCfmSenderIdTlvChassisIdLength {
   // default = [1]
   repeated uint32 values = 3;
 
-  // Description missing in models
-  PatternFlowCfmSenderIdTlvChassisIdLengthCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 1
+  optional uint32 auto = 4;
 
   // Description missing in models
-  PatternFlowCfmSenderIdTlvChassisIdLengthCounter decrement = 6;
+  PatternFlowCfmSenderIdTlvChassisIdChassisIdLengthCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowCfmSenderIdTlvChassisIdChassisIdLengthCounter decrement = 7;
 }
 
 // integer counter pattern
-message PatternFlowCfmSenderIdTlvManagementAddressDomainLengthCounter {
+message PatternFlowCfmSenderIdTlvMADomainManagementAddressDomainLengthCounter {
 
   // Description missing in models
   // default = 1
@@ -37468,19 +37551,20 @@ message PatternFlowCfmSenderIdTlvManagementAddressDomainLengthCounter {
 }
 
 // Specifies the length of the management address domain.
-message PatternFlowCfmSenderIdTlvManagementAddressDomainLength {
+message PatternFlowCfmSenderIdTlvMADomainManagementAddressDomainLength {
 
   message Choice {
     enum Enum {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -37491,15 +37575,21 @@ message PatternFlowCfmSenderIdTlvManagementAddressDomainLength {
   // default = [1]
   repeated uint32 values = 3;
 
-  // Description missing in models
-  PatternFlowCfmSenderIdTlvManagementAddressDomainLengthCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 1
+  optional uint32 auto = 4;
 
   // Description missing in models
-  PatternFlowCfmSenderIdTlvManagementAddressDomainLengthCounter decrement = 6;
+  PatternFlowCfmSenderIdTlvMADomainManagementAddressDomainLengthCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowCfmSenderIdTlvMADomainManagementAddressDomainLengthCounter decrement = 7;
 }
 
 // integer counter pattern
-message PatternFlowCfmSenderIdTlvManagementAddressLengthCounter {
+message PatternFlowCfmSenderIdTlvMgmtAddressManagementAddressLengthCounter {
 
   // Description missing in models
   // default = 1
@@ -37515,19 +37605,20 @@ message PatternFlowCfmSenderIdTlvManagementAddressLengthCounter {
 }
 
 // Specifies the length of the management address.
-message PatternFlowCfmSenderIdTlvManagementAddressLength {
+message PatternFlowCfmSenderIdTlvMgmtAddressManagementAddressLength {
 
   message Choice {
     enum Enum {
       unspecified = 0;
       value = 2;
       values = 3;
+      auto = 1;
       increment = 4;
       decrement = 5;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.value
+  // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -37538,11 +37629,17 @@ message PatternFlowCfmSenderIdTlvManagementAddressLength {
   // default = [1]
   repeated uint32 values = 3;
 
-  // Description missing in models
-  PatternFlowCfmSenderIdTlvManagementAddressLengthCounter increment = 5;
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 1
+  optional uint32 auto = 4;
 
   // Description missing in models
-  PatternFlowCfmSenderIdTlvManagementAddressLengthCounter decrement = 6;
+  PatternFlowCfmSenderIdTlvMgmtAddressManagementAddressLengthCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowCfmSenderIdTlvMgmtAddressManagementAddressLengthCounter decrement = 7;
 }
 
 // Version details

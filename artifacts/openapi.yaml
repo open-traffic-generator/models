@@ -2762,16 +2762,9 @@ components:
           x-field-uid: 14
         srv6_adjacency_sids:
           description: |-
-            List of SRv6 Adjacency SID Sub-TLVs (End.X SID) for this interface. Point-to-point interfaces advertise End.X SID Sub-TLV (sub-TLV type 43); broadcast interfaces advertise LAN End.X SID Sub-TLV (sub-TLV type 44). Each entry binds a 128-bit SRv6 SID to this specific outgoing adjacency and advertises the associated endpoint behavior. Reference: RFC 9352 Sections 8.1-8.2.
-          type: array
-          items:
-            $ref: '#/components/schemas/IsisSRv6.AdjSid'
+            When present, advertises SRv6 adjacency SID sub-TLVs and per-link MSD sub-TLVs for this interface. Reference: RFC 9352 Sections 6, 8.1-8.2.
+          $ref: '#/components/schemas/IsisSRv6.AdjSidContainer'
           x-field-uid: 15
-        srv6_link_msd:
-          description: |-
-            When present, advertises per-link SRv6 Maximum SID Depth (MSD) sub-TLVs within the IS-IS Extended IS Reachability TLV for this interface. Each non-zero field causes the corresponding link MSD sub-TLV to be included; a value of 0 suppresses that sub-TLV. Reference: RFC 9352 Section 6.
-          $ref: '#/components/schemas/IsisSRv6.Msd'
-          x-field-uid: 16
     IsisInterface.Level:
       description: |-
         Configuration for the properties of Level 1 Hello.
@@ -3164,7 +3157,7 @@ components:
           x-field-uid: 1
         node_msds:
           description: |-
-            When present, advertises SRv6 Maximum SID Depth (MSD) sub-TLVs within the IS-IS Router CAPABILITY TLV (TLV 242, RFC 7981). Each non-zero field causes the corresponding MSD sub-TLV to be included; a value of 0 suppresses that sub-TLV. Reference: RFC 9352 Section 6.
+            When present, advertises SRv6 Maximum SID Depth (MSD) sub-TLVs within the IS-IS Router CAPABILITY TLV (TLV 242, RFC 7981). Each populated child object causes the corresponding MSD sub-TLV to be advertised; omit a child object to suppress that MSD type. Reference: RFC 9352 Section 6.
           $ref: '#/components/schemas/IsisSRv6.Msd'
           x-field-uid: 2
         c_flag:
@@ -3415,6 +3408,23 @@ components:
           type: boolean
           default: false
           x-field-uid: 3
+    IsisSRv6.AdjSidContainer:
+      description: |-
+        Container for SRv6 adjacency-related sub-TLVs advertised on an IS-IS interface. Groups the list of End.X SID sub-TLVs (RFC 9352 Sections 8.1-8.2) with the per-link Maximum SID Depth (MSD) sub-TLVs (RFC 9352 Section 6) that are advertised together in the Extended IS Reachability TLV for this interface.
+      type: object
+      properties:
+        sids:
+          description: |-
+            List of SRv6 Adjacency SID sub-TLVs (End.X SID) for this interface. Point-to-point interfaces advertise End.X SID sub-TLV (sub-TLV type 43); broadcast interfaces advertise LAN End.X SID sub-TLV (sub-TLV type 44). Each entry binds a 128-bit SRv6 SID to this specific outgoing adjacency and advertises the associated endpoint behavior. Reference: RFC 9352 Sections 8.1-8.2.
+          type: array
+          items:
+            $ref: '#/components/schemas/IsisSRv6.AdjSid'
+          x-field-uid: 1
+        srv6_link_msd:
+          description: |-
+            When present, advertises per-link SRv6 Maximum SID Depth (MSD) sub-TLVs within the IS-IS Extended IS Reachability TLV for this interface. Each populated child object causes the corresponding link MSD sub-TLV to be advertised; omit a child object to suppress that MSD type. Reference: RFC 9352 Section 6.
+          $ref: '#/components/schemas/IsisSRv6.Msd'
+          x-field-uid: 2
     IsisSRv6.AdjSid:
       description: |-
         SRv6 Adjacency SID Sub-TLV for IS-IS interfaces. Point-to-point adjacencies use End.X SID Sub-TLV (sub-TLV type 43); LAN adjacencies use LAN End.X SID Sub-TLV (sub-TLV type 44). The End.X SID binds a 128-bit SRv6 SID to a specific outgoing interface and next-hop, enabling traffic steering across a specific L3 adjacency. The full 128-bit SID is assembled as:
@@ -3562,57 +3572,51 @@ components:
           x-field-uid: 8
     IsisSRv6.Msd:
       description: |-
-        SRv6 Maximum SID Depth (MSD) sub-TLV values, used for both node-level advertisement (carried in IS-IS Router CAPABILITY TLV 242 via Node MSD sub-TLV type 23) and link-level advertisement (carried in Extended IS Reachability TLV via Link MSD sub-TLV type 15). A field value of 0 suppresses advertisement of that sub-TLV. Reference: RFC 9352 Section 6.
+        SRv6 Maximum SID Depth (MSD) sub-TLV values, used for both node-level advertisement (carried in IS-IS Router CAPABILITY TLV 242 via Node MSD sub-TLV type 23, RFC 9352 Section 6) and link-level advertisement (carried in Extended IS Reachability TLV via Link MSD sub-TLV type 15, RFC 9352 Section 6). When a property is present, the corresponding MSD sub-TLV is advertised with the configured value. Omit a property to suppress advertisement of that MSD type. Reference: RFC 9352 Section 6.
       type: object
       properties:
         max_sl:
           description: |-
-            Maximum Segments Left (Max-SL). Maximum value of the Segments Left field in an SRH that this node can correctly process. A value of 0 suppresses advertisement of this sub-TLV. Reference: RFC 9352 Section 6.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
+            When present, advertises Maximum Segments Left (Max-SL, MSD type 41, RFC 9352 Section 6) - the maximum value of the Segments Left field in an SRH that this node can correctly process.
+          $ref: '#/components/schemas/IsisSRv6.MsdValue'
           x-field-uid: 1
         max_end_pop_srh:
           description: |-
-            Maximum End Pop SRH (Max-End-Pop). Maximum size of the SRH this node can remove when processing an End.Pop operation. A value of 0 suppresses advertisement of this sub-TLV. Reference: RFC 9352 Section 6.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
+            When present, advertises Maximum End Pop SRH (Max-End-Pop, MSD type 42, RFC 9352 Section 6) - the maximum size of the SRH this node can remove when processing an End.Pop operation.
+          $ref: '#/components/schemas/IsisSRv6.MsdValue'
           x-field-uid: 2
         max_h_encaps:
           description: |-
-            Maximum H.Encaps (Max-H.Encaps). Maximum number of SRv6 SID encapsulations this node can perform as a headend. A value of 0 suppresses advertisement of this sub-TLV. Reference: RFC 9352 Section 6.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
+            When present, advertises Maximum H.Encaps (Max-H.Encaps, MSD type 44, RFC 9352 Section 6) - the maximum number of SRv6 SID encapsulations this node can perform as a headend.
+          $ref: '#/components/schemas/IsisSRv6.MsdValue'
           x-field-uid: 3
         max_end_d_srh:
           description: |-
-            Maximum End.D SRH (Max-End-D). Maximum size of the SRH this node can process when performing an End.D (decapsulation) function. A value of 0 suppresses advertisement of this sub-TLV. Reference: RFC 9352 Section 6.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
+            When present, advertises Maximum End.D SRH (Max-End-D, MSD type 45, RFC 9352 Section 6) - the maximum size of the SRH this node can process when performing an End.D decapsulation function.
+          $ref: '#/components/schemas/IsisSRv6.MsdValue'
           x-field-uid: 4
         max_t_insert:
           description: |-
-            Maximum T.Insert (Max-T.Insert). Maximum size of the SRH this node can insert using a T.Insert operation. A value of 0 suppresses advertisement of this sub-TLV. Reference: RFC 9352 Section 6.
-          type: integer
-          format: uint32
-          maximum: 255
-          default: 0
+            When present, advertises Maximum T.Insert (Max-T.Insert, MSD type 46, RFC 9352 Section 6) - the maximum size of the SRH this node can insert using a T.Insert operation.
+          $ref: '#/components/schemas/IsisSRv6.MsdValue'
           x-field-uid: 5
         max_t_encaps:
           description: |-
-            Maximum T.Encaps (Max-T.Encaps). Maximum size of the SRH this node can insert using a T.Encaps operation. A value of 0 suppresses advertisement of this sub-TLV. Reference: RFC 9352 Section 6.
+            When present, advertises Maximum T.Encaps (Max-T.Encaps, MSD type 47, RFC 9352 Section 6) - the maximum size of the SRH this node can insert using a T.Encaps operation.
+          $ref: '#/components/schemas/IsisSRv6.MsdValue'
+          x-field-uid: 6
+    IsisSRv6.MsdValue:
+      description: |-
+        A single MSD (Maximum SID Depth) value entry (RFC 9352 Section 6). When this object is present, the parent MSD type is advertised with the configured value. Omit the object to suppress advertisement of that MSD type.
+      type: object
+      properties:
+        value:
+          description: |-
+            The MSD depth value (0-255, RFC 9352 Section 6). A value of 0 indicates that the node has no capability for the corresponding SRH operation but still causes the sub-TLV to be advertised. To suppress advertisement entirely, omit the parent object.
           type: integer
           format: uint32
           maximum: 255
-          default: 0
-          x-field-uid: 6
+          x-field-uid: 1
     IsisSRv6.SidStructure:
       description: |-
         SRv6 SID Structure Sub-Sub-TLV (type 1), carried within SRv6 SID Sub-TLVs (End SID type 5, End.X SID type 43/44). Describes the internal bit-field decomposition of the SRv6 SID value so that receiving routers can interpret each field independently. The four length fields (lb_length + ln_length + function_length + argument_length) MUST NOT exceed 128 bits. Required when advertising Micro-SID (uSID) SIDs to describe the compressed encoding. Example for common uSID F3216 format:
@@ -17126,13 +17130,13 @@ components:
             Alert (A) flag. Indicates the presence of important TLVs in the SRH that must be examined by the receiving endpoint (RFC 8754 Section 2.1).
           type: boolean
           default: false
-          x-field-uid: 2
-        o_flag:
+          x-field-uid: 3
+        oam:
           description: |-
             OAM (O) flag (RFC 9259 Section 2). When set, marks this packet as an active OAM probe. SRv6 endpoint nodes that process OAM packets inspect SRH TLVs such as the Ingress Node TLV (type 1) and Egress Node TLV (type 2) to perform path verification. Reference: RFC 8754 Section 2.1, RFC 9259 Section 2.
           type: boolean
           default: false
-          x-field-uid: 3
+          x-field-uid: 2
         h_flag:
           description: |-
             HMAC (H) flag (RFC 8754 Section 2.1). When set, indicates that this SRH includes an HMAC TLV (type 5) providing data integrity and source authentication for the segment routing path. Reference: RFC 8754 Section 2.1.
@@ -35292,7 +35296,13 @@ components:
           x-field-uid: 3
     Pattern.Flow.Ipv6.Dst:
       description: |-
-        Destination address
+        Destination address of the IPv6 packet.
+        For SRv6 uSID traffic with no Segment Routing Header (reduced encapsulation, RFC 9800 Section 4), set this field to the uSID container that encodes the entire SR path. A uSID container is a 128-bit IPv6 address that packs a sequence of Micro-SIDs consecutively after a common Locator Block (LB), with 0x0000 (End-of-Container marker) padding unused slots to fill 128 bits.
+        For the F3216 format (LB = 32 bits, uSID = 16 bits, RFC 9800 Section 3), up to 6 uSIDs fit in one container. The bit layout is: [32-bit LB][uSID-1 16-bit][uSID-2 16-bit]...[uSID-N 16-bit][zeros].
+        Example - path through 3 nodes, LB fc00::/32, uSIDs 0x0001 (node 1), 0x0002 (node 2), 0x0003 (node 3): dst = fc00:0:1:2:3:: where fc00:0 is the 32-bit LB, 0001/0002/0003 are the per-node uSIDs, and :: represents the zero-padded End-of-Container tail.
+        Each uN node on the path shifts out its own uSID and forwards to the next, updating the IPv6 DA in place (RFC 9800 Section 9.4): after node 1 - fc00:0:2:3:: after node 2 - fc00:0:3:: after node 3 - fc00:: (all uSIDs consumed, packet delivered).
+        No SRH is needed when all path hops fit within a single 128-bit container. For paths requiring more than 6 hops (F3216), use Flow.Ipv6Routing with segment_routing_usid and carry additional containers in the SRH segment list.
+        Reference: RFC 9800 Section 3 (F3216 format), RFC 9800 Section 9.4 (uN endpoint behavior).
       type: object
       properties:
         choice:

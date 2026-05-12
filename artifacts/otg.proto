@@ -13027,73 +13027,9 @@ message FlowIpv6SegmentRouting {
   // segment to visit.
   repeated FlowIpv6SegmentRoutingSegment segment_list = 5;
 
-  // When present, includes an Ingress Node TLV (type 1, RFC 9259 Section 3.1) in the
-  // SRH TLV section. Omit to suppress.
-  FlowIpv6SRHIngressNodeTlv ingress_node_tlv = 6;
-
-  // When present, includes an Egress Node TLV (type 2, RFC 9259 Section 3.2) in the SRH
-  // TLV section. Omit to suppress.
-  FlowIpv6SRHEgressNodeTlv egress_node_tlv = 7;
-
-  // When present, includes an Opaque Container TLV (type 3, RFC 8754 Section 2.1) in
-  // the SRH TLV section. Omit to suppress.
-  FlowIpv6SRHOpaqueContainerTlv opaque_tlv = 8;
-
   // When present, includes a Padding TLV (type 4, RFC 8754 Section 2.1) in the SRH TLV
   // section to align the TLV block to an 8-byte boundary. Omit to suppress.
-  FlowIpv6SRHPadTlv pad_tlv = 9;
-
-  // When present, includes a Path Trace TLV (type 128, draft-ietf-spring-srv6-path-tracing)
-  // in the SRH TLV section. Each SRv6 endpoint on the path appends an 8-byte block containing
-  // node identity, timestamp, and performance monitoring data. Omit to suppress.
-  FlowIpv6SRHPathTraceTlv path_trace_tlv = 10;
-}
-
-// IPv6 Segment Routing Header (SRH, Routing Type 4, RFC 8754 Section 2) carrying pre-computed
-// uSID containers (RFC 9800 Section 4). Each segment list entry is a 128-bit uSID container
-// value supplied as a plain IPv6 address. The user pre-computes the container outside
-// the schema; no decomposition fields appear on the wire. Segment list encoded in reverse
-// path order: Segment[0] is the last container, Segment[n-1] is the first (active,
-// placed in outer IPv6 dst).
-message FlowIpv6SegmentRoutingUsid {
-
-  // Description missing in models
-  PatternFlowIpv6SegmentRoutingUsidSegmentsLeft segments_left = 1;
-
-  // Description missing in models
-  PatternFlowIpv6SegmentRoutingUsidLastEntry last_entry = 2;
-
-  // Description missing in models
-  FlowIpv6SegmentRoutingFlags flags = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SegmentRoutingUsidTag tag = 4;
-
-  // List of pre-computed 128-bit uSID container values (RFC 9800 Section 4), encoded
-  // in reverse path order: Segment[0] is the last container, Segment[n-1] is the first
-  // container to visit.
-  repeated FlowIpv6SegmentRoutingUsidSegment segment_list = 5;
-
-  // When present, includes an Ingress Node TLV (type 1, RFC 9259 Section 3.1) in the
-  // SRH TLV section. Omit to suppress.
-  FlowIpv6SRHIngressNodeTlv ingress_node_tlv = 6;
-
-  // When present, includes an Egress Node TLV (type 2, RFC 9259 Section 3.2) in the SRH
-  // TLV section. Omit to suppress.
-  FlowIpv6SRHEgressNodeTlv egress_node_tlv = 7;
-
-  // When present, includes an Opaque Container TLV (type 3, RFC 8754 Section 2.1) in
-  // the SRH TLV section. Omit to suppress.
-  FlowIpv6SRHOpaqueContainerTlv opaque_tlv = 8;
-
-  // When present, includes a Padding TLV (type 4, RFC 8754 Section 2.1) in the SRH TLV
-  // section to align the TLV block to an 8-byte boundary. Omit to suppress.
-  FlowIpv6SRHPadTlv pad_tlv = 9;
-
-  // When present, includes a Path Trace TLV (type 128, draft-ietf-spring-srv6-path-tracing)
-  // in the SRH TLV section. Each SRv6 endpoint on the path appends an 8-byte block containing
-  // node identity, timestamp, and performance monitoring data. Omit to suppress.
-  FlowIpv6SRHPathTraceTlv path_trace_tlv = 10;
+  FlowIpv6SRHPadTlv pad_tlv = 6;
 }
 
 // One entry in the SRH Segment List (RFC 8754 Section 2.1). A single 128-bit SRv6 SID
@@ -13105,111 +13041,145 @@ message FlowIpv6SegmentRoutingSegment {
   PatternFlowIpv6SegmentRoutingSegmentSegment segment = 1;
 }
 
-// One pre-computed uSID container entry in the SRH Segment List (RFC 9800 Section 4,
-// RFC 8754 Section 2.1). Supplied as a plain 128-bit IPv6 address; no decomposition
-// metadata is carried on the wire.
+// IPv6 Segment Routing Header (SRH, Routing Type 4, RFC 8754 Section 2)
+// whose segment list carries uSID containers (RFC 9800 Section 4).
+// Each entry in segment_list represents one 128-bit uSID container.
+// The user supplies a structured locator prefix and a list of uSID values;
+// the implementation assembles the 128-bit wire value by packing them as:
+// LB (locator_length bits) || uSID-1 || uSID-2 || ... || EoC (zeros).
+// 
+// For F3216 format (RFC 9800 Section 3): LB = 32 bits, each uSID = 16 bits,
+// maximum 6 uSIDs per container.
+// Example - locator fc00::/32 with uSIDs 0x0001, 0x0002 assembles to
+// container fc00:0:1:2:: placed in the SRH segment list entry.
+// 
+// The segment list is encoded in reverse path order per RFC 8754 Section 2.1:
+// Segment[0] is the last container to visit, Segment[n-1] is the first
+// (active) container, whose value is also placed in the outer IPv6 dst.
+// 
+// Use this schema when the SR path requires more containers than fit in
+// the outer IPv6 dst alone. For single-container paths with no SRH, set
+// the outer ipv6.dst directly to the packed container value instead.
+// 
+// Reference: RFC 8754 Section 2 (SRH format), RFC 9800 Section 4
+// (uSID container encoding in SRH).
+message FlowIpv6SegmentRoutingUsid {
+
+  // Description missing in models
+  PatternFlowIpv6SegmentRoutingUsidSegmentsLeft segments_left = 1;
+
+  // Description missing in models
+  PatternFlowIpv6SegmentRoutingUsidLastEntry last_entry = 2;
+
+  // Description missing in models
+  FlowIpv6SegmentRoutinguSidFlags flags = 3;
+
+  // Description missing in models
+  PatternFlowIpv6SegmentRoutingUsidTag tag = 4;
+
+  // List of pre-computed 128-bit uSID container values (RFC 9800 Section 4), encoded
+  // in reverse path order: Segment[0] is the last container, Segment[n-1] is the first
+  // container to visit.
+  repeated FlowIpv6SegmentRoutingUsidSegment segment_list = 5;
+
+  // When present, includes a Padding TLV (type 4, RFC 8754 Section 2.1) in the SRH TLV
+  // section to align the TLV block to an 8-byte boundary. Omit to suppress.
+  FlowIpv6SRHPadTlv pad_tlv = 6;
+}
+
+// One uSID container entry in the SRH segment list (RFC 9800 Section 4,
+// RFC 8754 Section 2.1). The implementation assembles the 128-bit wire
+// value by packing the locator block followed by the uSID values in order,
+// zero-padding the remainder to 128 bits (End-of-Container marker).
+// 
+// For F3216 format (RFC 9800 Section 3): LB = 32 bits, each uSID = 16 bits,
+// up to 6 uSIDs per container.
+// Example - locator fc00::/32 (locator_length 32), usids [0001,0002,0003]
+// assembles to the 128-bit SRH entry fc00:0:1:2:3::
+// 
+// Reference: RFC 9800 Section 3 (F3216 format), RFC 9800 Section 4
+// (container encoding in SRH segment list).
 message FlowIpv6SegmentRoutingUsidSegment {
 
   // Description missing in models
-  PatternFlowIpv6SegmentRoutingUsidSegmentSegment segment = 1;
+  PatternFlowIpv6SegmentRoutingUsidSegmentLocator locator = 1;
+
+  // Description missing in models
+  PatternFlowIpv6SegmentRoutingUsidSegmentLocatorLength locator_length = 2;
+
+  // Ordered list of uSID values to pack into this container after the Locator Block (RFC
+  // 9800 Section 3). Each uSID occupies (128 - locator_length) / capacity bits. For F3216
+  // each uSID is 16 bits (4 hex chars) and up to 6 uSIDs fit per container. The first
+  // entry is the first uSID processed by the first hop; the implementation appends the
+  // End-of-Container zero-pad automatically. Example for F3216: [0001,0002,0003] with
+  // locator fc00::/32 assembles to SRH entry fc00:0:1:2:3::
+  repeated FlowIpv6SegmentRoutingUsiduSid usids = 3;
+}
+
+// One uSID value within a uSID container (RFC 9800 Section 3). Represents a single
+// network function (node SID, adjacency SID, or service SID) packed consecutively after
+// the Locator Block inside the 128-bit container. For F3216 (RFC 9800 Section 3), each
+// uSID is 16 bits (4 hex characters).
+message FlowIpv6SegmentRoutingUsiduSid {
+
+  // The uSID value expressed as a hex string (RFC 9800 Section 3). The string width must
+  // match the uSID bit length divided by 4. For F3216 (16-bit uSID): 4 hex characters,
+  // range 0x0001-0xFFFE. The value 0x0000 is reserved as the End-of-Container (EoC) marker
+  // and must not be used as a uSID value (RFC 9800 Section 3). Example: 0001 identifies
+  // node 1; with locator fc00::/32 this contributes the 0001 field to produce container
+  // fc00:0:1:...::
+  optional string usid = 1;
 }
 
 // SRH Flags field (RFC 8754 Section 2.1). An 8-bit field; RFC 8754 marks all bits as
-// reserved. IxNetwork exposes the following bits for OAM, HMAC, FRR, and protocol testing:
-// Protected (FRR), Alert, O (OAM, RFC 9259), H (HMAC), and two reserved bits U1 and
-// U2.
+// reserved.
+message FlowIpv6SegmentRoutinguSidFlags {
+
+  // Unused and for future use. MUST be 0 on transmission and ignored on receipt.
+  // default = False
+  optional bool u1_flag = 1;
+
+  // Unused and for future use. MUST be 0 on transmission and ignored on receipt.
+  // default = False
+  optional bool u2_flag = 2;
+
+  // Unused and for future use. MUST be 0 on transmission and ignored on receipt.
+  // default = False
+  optional bool u3_flag = 3;
+
+  // Unused and for future use. MUST be 0 on transmission and ignored on receipt.
+  // default = False
+  optional bool u4_flag = 4;
+
+  // Unused and for future use. MUST be 0 on transmission and ignored on receipt.
+  // default = False
+  optional bool u5_flag = 5;
+
+  // Unused and for future use. MUST be 0 on transmission and ignored on receipt.
+  // default = False
+  optional bool u6_flag = 6;
+
+  // Unused and for future use. MUST be 0 on transmission and ignored on receipt.
+  // default = False
+  optional bool u7_flag = 7;
+
+  // Unused and for future use. MUST be 0 on transmission and ignored on receipt.
+  // default = False
+  optional bool u8_flag = 8;
+}
+
+// An 8-bit field containing flags. While RFC 8754 reserves all bits as unused, earlier
+// drafts defined specific flags for behavior such as OAM, HMAC, and FRR protection.
 message FlowIpv6SegmentRoutingFlags {
 
-  // Protected (P) flag. Indicates that the segment is protected by a Fast Re-Route (FRR)
-  // mechanism (RFC 8754 Section 2.1).
-  // default = False
-  optional bool protected = 1;
-
-  // Alert (A) flag. Indicates the presence of important TLVs in the SRH that must be
-  // examined by the receiving endpoint (RFC 8754 Section 2.1).
-  // default = False
-  optional bool alert = 3;
-
-  // OAM (O) flag (RFC 9259 Section 2). When set, marks this packet as an active OAM probe.
-  // SRv6 endpoint nodes that process OAM packets inspect SRH TLVs such as the Ingress
-  // Node TLV (type 1) and Egress Node TLV (type 2) to perform path verification. Reference:
-  // RFC 8754 Section 2.1, RFC 9259 Section 2.
-  // default = False
-  optional bool oam = 2;
-
-  // HMAC (H) flag (RFC 8754 Section 2.1). When set, indicates that this SRH includes
-  // an HMAC TLV (type 5) providing data integrity and source authentication for the segment
-  // routing path. Reference: RFC 8754 Section 2.1.
-  // default = False
-  optional bool h_flag = 4;
-
-  // Reserved bit U1 (RFC 8754 Section 2.1). MUST be zero on normal transmission. Exposed
-  // for negative or conformance testing only.
-  // default = False
-  optional bool u1_flag = 5;
-
-  // Reserved bit U2 (RFC 8754 Section 2.1). MUST be zero on normal transmission. Exposed
-  // for negative or conformance testing only.
-  // default = False
-  optional bool u2_flag = 6;
-}
-
-// SRH Ingress Node TLV (type 1, RFC 9259 Section 3.1). Identifies the global IPv6 address
-// of the SRv6 ingress node that imposed the SRH on the packet. OAM-capable endpoint
-// nodes (those that process packets with the O-flag set) inspect this TLV to verify
-// that the packet entered the SR domain at the expected node. When present this TLV
-// is included in the SRH TLV section; omit the object to suppress it. Reference: RFC
-// 9259 Section 3.1.
-message FlowIpv6SRHIngressNodeTlv {
+  // Description missing in models
+  PatternFlowIpv6SegmentRoutingFlagsProtected protected = 1;
 
   // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvType type = 1;
+  PatternFlowIpv6SegmentRoutingFlagsOam oam = 2;
 
   // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvLength length = 2;
-
-  // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvReserved reserved = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvValue value = 4;
-}
-
-// SRH Egress Node TLV (type 2, RFC 9259 Section 3.2). Identifies the global IPv6 address
-// of the intended SRv6 egress node - the last segment endpoint of the SR policy. OAM-capable
-// endpoint nodes inspect this TLV to verify that the packet will exit the SR domain
-// at the expected node. When present this TLV is included in the SRH TLV section; omit
-// the object to suppress it. Reference: RFC 9259 Section 3.2.
-message FlowIpv6SRHEgressNodeTlv {
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvType type = 1;
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvLength length = 2;
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvReserved reserved = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvValue value = 4;
-}
-
-// SRH Opaque Container TLV (type 3, RFC 8754 Section 2.1). Carries implementation-specific
-// or application-defined opaque data in the SRH TLV section. Transit nodes do not interpret
-// the contents. When present this TLV is included in the SRH TLV section; omit the
-// object to suppress it. Reference: RFC 8754 Section 2.1.
-message FlowIpv6SRHOpaqueContainerTlv {
-
-  // Description missing in models
-  PatternFlowIpv6SRHOpaqueContainerTlvType type = 1;
-
-  // Description missing in models
-  PatternFlowIpv6SRHOpaqueContainerTlvLength length = 2;
-
-  // Opaque data as a hex string (RFC 8754 Section 2.1). The content is implementation-defined
-  // and not interpreted by transit nodes. Example: deadbeef01020304.
-  optional string value = 3;
+  PatternFlowIpv6SegmentRoutingFlagsAlert alert = 3;
 }
 
 // SRH Padding TLV (type 4, RFC 8754 Section 2.1). Used to align the SRH TLV block to
@@ -13223,32 +13193,6 @@ message FlowIpv6SRHPadTlv {
 
   // Description missing in models
   PatternFlowIpv6SRHPadTlvLength length = 2;
-}
-
-// SRH Path Trace TLV (type 128, draft-ietf-spring-srv6-path-tracing). Records path
-// information as the packet traverses SRv6 segment endpoints. The ingress node initializes
-// the TLV; each subsequent SRv6 endpoint appends an 8-byte block containing its node
-// identity, timestamp, and performance monitoring data. When present this TLV is included
-// in the SRH TLV section; omit the object to suppress it. Reference: draft-ietf-spring-srv6-path-tracing.
-message FlowIpv6SRHPathTraceTlv {
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvType type = 1;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvLength length = 2;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvReserved reserved = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvTimestamp timestamp = 4;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvPmData pm_data = 5;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvValue value = 6;
 }
 
 // The frame size which overrides the total length of the packet
@@ -25331,24 +25275,34 @@ message PatternFlowIpv6DstMetricTag {
 }
 
 // Destination address of the IPv6 packet.
-// For SRv6 uSID traffic with no Segment Routing Header (reduced encapsulation, RFC
-// 9800 Section 4), set this field to the uSID container that encodes the entire SR
-// path. A uSID container is a 128-bit IPv6 address that packs a sequence of Micro-SIDs
-// consecutively after a common Locator Block (LB), with 0x0000 (End-of-Container marker)
-// padding unused slots to fill 128 bits.
-// For the F3216 format (LB = 32 bits, uSID = 16 bits, RFC 9800 Section 3), up to 6
-// uSIDs fit in one container. The bit layout is: [32-bit LB][uSID-1 16-bit][uSID-2
-// 16-bit]...[uSID-N 16-bit][zeros].
-// Example - path through 3 nodes, LB fc00::/32, uSIDs 0x0001 (node 1), 0x0002 (node
-// 2), 0x0003 (node 3): dst = fc00:0:1:2:3:: where fc00:0 is the 32-bit LB, 0001/0002/0003
-// are the per-node uSIDs, and :: represents the zero-padded End-of-Container tail.
-// Each uN node on the path shifts out its own uSID and forwards to the next, updating
-// the IPv6 DA in place (RFC 9800 Section 9.4): after node 1 - fc00:0:2:3:: after node
-// 2 - fc00:0:3:: after node 3 - fc00:: (all uSIDs consumed, packet delivered).
-// No SRH is needed when all path hops fit within a single 128-bit container. For paths
-// requiring more than 6 hops (F3216), use Flow.Ipv6Routing with segment_routing_usid
-// and carry additional containers in the SRH segment list.
-// Reference: RFC 9800 Section 3 (F3216 format), RFC 9800 Section 9.4 (uN endpoint behavior).
+// 
+// For SRv6 uSID traffic with no Segment Routing Header (reduced
+// encapsulation, RFC 9800 Section 4), set this field to the uSID
+// container that encodes the entire SR path. A uSID container is a
+// 128-bit IPv6 address that packs a sequence of Micro-SIDs
+// consecutively after a common Locator Block (LB), with 0x0000
+// (End-of-Container marker) padding unused slots to fill 128 bits.
+// 
+// For the F3216 format (LB = 32 bits, uSID = 16 bits, RFC 9800
+// Section 3), up to 6 uSIDs fit in one container. The bit layout is:
+// [32-bit LB][uSID-1 16-bit][uSID-2 16-bit]...[uSID-N 16-bit][zeros].
+// 
+// Example - path through 3 nodes, LB fc00::/32,
+// uSIDs 0x0001 (node 1), 0x0002 (node 2), 0x0003 (node 3):
+// dst = fc00:0:1:2:3::
+// where fc00:0 is the 32-bit LB, 0001/0002/0003 are the per-node
+// uSIDs, and :: represents the zero-padded End-of-Container tail.
+// 
+// Each uN node on the path shifts out its own uSID and forwards to
+// the next, updating the IPv6 DA in place (RFC 9800 Section 9.4):
+// after node 1 - fc00:0:2:3::
+// after node 2 - fc00:0:3::
+// after node 3 - fc00:: (all uSIDs consumed, packet delivered).
+// 
+// No SRH is needed when all path hops fit within a single 128-bit
+// container. For paths requiring more than 6 hops (F3216), use
+// Flow.Ipv6Routing with segment_routing_usid and carry additional
+// containers in the SRH segment list.
 message PatternFlowIpv6Dst {
 
   message Choice {
@@ -36939,6 +36893,53 @@ message PatternFlowIpv6SegmentRoutingTag {
   PatternFlowIpv6SegmentRoutingTagCounter decrement = 6;
 }
 
+// ipv6 counter pattern
+message PatternFlowIpv6SegmentRoutingSegmentSegmentCounter {
+
+  // Description missing in models
+  // default = ::0
+  optional string start = 1;
+
+  // Description missing in models
+  // default = ::1
+  optional string step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// A 128-bit IPv6 SID address (RFC 8754 Section 2.1). Example: 2001:db8::1.
+message PatternFlowIpv6SegmentRoutingSegmentSegment {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = ::0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['::0']
+  repeated string values = 3;
+
+  // Description missing in models
+  PatternFlowIpv6SegmentRoutingSegmentSegmentCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowIpv6SegmentRoutingSegmentSegmentCounter decrement = 6;
+}
+
 // integer counter pattern
 message PatternFlowIpv6SegmentRoutingUsidSegmentsLeftCounter {
 
@@ -36955,10 +36956,11 @@ message PatternFlowIpv6SegmentRoutingUsidSegmentsLeftCounter {
   optional uint32 count = 3;
 }
 
-// Number of uSID containers remaining before the packet reaches its final destination
-// (RFC 8754 Section 2.1). Decremented when the active container is exhausted and the
-// next container becomes active. When auto is assigned the value is set to the number
-// of containers specified.
+// Number of SRH segment list entries remaining to be visited after the current active
+// container (RFC 8754 Section 2.1). The active container is Segment[segments_left];
+// the value is decremented each time the active container is exhausted and the pointer
+// advances to the next entry. When auto is assigned the value is set to one less than
+// the number of containers specified (last_entry value).
 message PatternFlowIpv6SegmentRoutingUsidSegmentsLeft {
 
   message Choice {
@@ -37101,7 +37103,7 @@ message PatternFlowIpv6SegmentRoutingUsidTag {
 }
 
 // ipv6 counter pattern
-message PatternFlowIpv6SegmentRoutingSegmentSegmentCounter {
+message PatternFlowIpv6SegmentRoutingUsidSegmentLocatorCounter {
 
   // Description missing in models
   // default = ::0
@@ -37116,8 +37118,11 @@ message PatternFlowIpv6SegmentRoutingSegmentSegmentCounter {
   optional uint32 count = 3;
 }
 
-// A 128-bit IPv6 SID address (RFC 8754 Section 2.1). Example: 2001:db8::1.
-message PatternFlowIpv6SegmentRoutingSegmentSegment {
+// The Locator Block (LB) IPv6 prefix shared by all uSIDs in this container (RFC 9800
+// Section 3). Defines the common high-order bits of every uSID assembled from this
+// entry. For F3216, this is a /32 prefix (e.g., fc00::). The prefix length is given
+// by locator_length.
+message PatternFlowIpv6SegmentRoutingUsidSegmentLocator {
 
   message Choice {
     enum Enum {
@@ -37141,31 +37146,32 @@ message PatternFlowIpv6SegmentRoutingSegmentSegment {
   repeated string values = 3;
 
   // Description missing in models
-  PatternFlowIpv6SegmentRoutingSegmentSegmentCounter increment = 5;
+  PatternFlowIpv6SegmentRoutingUsidSegmentLocatorCounter increment = 5;
 
   // Description missing in models
-  PatternFlowIpv6SegmentRoutingSegmentSegmentCounter decrement = 6;
+  PatternFlowIpv6SegmentRoutingUsidSegmentLocatorCounter decrement = 6;
 }
 
-// ipv6 counter pattern
-message PatternFlowIpv6SegmentRoutingUsidSegmentSegmentCounter {
+// integer counter pattern
+message PatternFlowIpv6SegmentRoutingUsidSegmentLocatorLengthCounter {
 
   // Description missing in models
-  // default = ::0
-  optional string start = 1;
+  // default = 32
+  optional uint32 start = 1;
 
   // Description missing in models
-  // default = ::1
-  optional string step = 2;
+  // default = 1
+  optional uint32 step = 2;
 
   // Description missing in models
   // default = 1
   optional uint32 count = 3;
 }
 
-// A pre-computed 128-bit uSID container value as an IPv6 address (RFC 9800 Section
-// 4). Example: fc00:0:2:1:3:1::.
-message PatternFlowIpv6SegmentRoutingUsidSegmentSegment {
+// Length of the Locator Block in bits (RFC 9800 Section 3). Determines how many high-order
+// bits of locator are used as the LB and how many bits remain for uSID packing. For
+// F3216: 32. For F3208: 32. Valid range: 1-112.
+message PatternFlowIpv6SegmentRoutingUsidSegmentLocatorLength {
 
   message Choice {
     enum Enum {
@@ -37181,133 +37187,22 @@ message PatternFlowIpv6SegmentRoutingUsidSegmentSegment {
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  // default = ::0
-  optional string value = 2;
-
-  // Description missing in models
-  // default = ['::0']
-  repeated string values = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SegmentRoutingUsidSegmentSegmentCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowIpv6SegmentRoutingUsidSegmentSegmentCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHIngressNodeTlvTypeCounter {
-
-  // Description missing in models
-  // default = 1
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// TLV type code (RFC 9259 Section 3.1). The canonical value is 1. Set to a different
-// value only for negative or conformance testing.
-message PatternFlowIpv6SRHIngressNodeTlvType {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      auto = 1;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.auto
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 1
+  // default = 32
   optional uint32 value = 2;
 
   // Description missing in models
-  // default = [1]
+  // default = [32]
   repeated uint32 values = 3;
 
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 1
-  optional uint32 auto = 4;
+  // Description missing in models
+  PatternFlowIpv6SegmentRoutingUsidSegmentLocatorLengthCounter increment = 5;
 
   // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvTypeCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvTypeCounter decrement = 7;
+  PatternFlowIpv6SegmentRoutingUsidSegmentLocatorLengthCounter decrement = 6;
 }
 
 // integer counter pattern
-message PatternFlowIpv6SRHIngressNodeTlvLengthCounter {
-
-  // Description missing in models
-  // default = 18
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// Length of the TLV Value field in bytes (RFC 9259 Section 3.1). When auto is assigned
-// the implementation sets this to 18: 1-byte Reserved + 1-byte Node ID Len (fixed at
-// 16) + 16-byte IPv6 address.
-message PatternFlowIpv6SRHIngressNodeTlvLength {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      auto = 1;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.auto
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 18
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [18]
-  repeated uint32 values = 3;
-
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 18
-  optional uint32 auto = 4;
-
-  // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvLengthCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvLengthCounter decrement = 7;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHIngressNodeTlvReservedCounter {
+message PatternFlowIpv6SegmentRoutingFlagsProtectedCounter {
 
   // Description missing in models
   // default = 0
@@ -37322,10 +37217,8 @@ message PatternFlowIpv6SRHIngressNodeTlvReservedCounter {
   optional uint32 count = 3;
 }
 
-// Reserved byte following the Length field (RFC 9259 Section 3.1). Must be zero on
-// transmission. The adjacent Node ID Length byte is fixed at 16 for IPv6 addresses
-// and is not separately configurable.
-message PatternFlowIpv6SRHIngressNodeTlvReserved {
+// Protected Flag. Indicates if the segment is protected by a Fast Re-Route (FRR) mechanism.
+message PatternFlowIpv6SegmentRoutingFlagsProtected {
 
   message Choice {
     enum Enum {
@@ -37349,173 +37242,14 @@ message PatternFlowIpv6SRHIngressNodeTlvReserved {
   repeated uint32 values = 3;
 
   // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvReservedCounter increment = 5;
+  PatternFlowIpv6SegmentRoutingFlagsProtectedCounter increment = 5;
 
   // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvReservedCounter decrement = 6;
-}
-
-// ipv6 counter pattern
-message PatternFlowIpv6SRHIngressNodeTlvValueCounter {
-
-  // Description missing in models
-  // default = ::0
-  optional string start = 1;
-
-  // Description missing in models
-  // default = ::1
-  optional string step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// Global IPv6 address of the SRv6 ingress node (RFC 9259 Section 3.1). This is the
-// address of the node that imposed the SRH on the packet.
-message PatternFlowIpv6SRHIngressNodeTlvValue {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.value
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = ::0
-  optional string value = 2;
-
-  // Description missing in models
-  // default = ['::0']
-  repeated string values = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvValueCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowIpv6SRHIngressNodeTlvValueCounter decrement = 6;
+  PatternFlowIpv6SegmentRoutingFlagsProtectedCounter decrement = 6;
 }
 
 // integer counter pattern
-message PatternFlowIpv6SRHEgressNodeTlvTypeCounter {
-
-  // Description missing in models
-  // default = 2
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// TLV type code (RFC 9259 Section 3.2). The canonical value is 2. Set to a different
-// value only for negative or conformance testing.
-message PatternFlowIpv6SRHEgressNodeTlvType {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      auto = 1;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.auto
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 2
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [2]
-  repeated uint32 values = 3;
-
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 2
-  optional uint32 auto = 4;
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvTypeCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvTypeCounter decrement = 7;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHEgressNodeTlvLengthCounter {
-
-  // Description missing in models
-  // default = 18
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// Length of the TLV Value field in bytes (RFC 9259 Section 3.2). When auto is assigned
-// the implementation sets this to 18: 1-byte Reserved + 1-byte Node ID Len (fixed at
-// 16) + 16-byte IPv6 address.
-message PatternFlowIpv6SRHEgressNodeTlvLength {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      auto = 1;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.auto
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 18
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [18]
-  repeated uint32 values = 3;
-
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 18
-  optional uint32 auto = 4;
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvLengthCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvLengthCounter decrement = 7;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHEgressNodeTlvReservedCounter {
+message PatternFlowIpv6SegmentRoutingFlagsOamCounter {
 
   // Description missing in models
   // default = 0
@@ -37530,10 +37264,9 @@ message PatternFlowIpv6SRHEgressNodeTlvReservedCounter {
   optional uint32 count = 3;
 }
 
-// Reserved byte following the Length field (RFC 9259 Section 3.2). Must be zero on
-// transmission. The adjacent Node ID Length byte is fixed at 16 for IPv6 addresses
-// and is not separately configurable.
-message PatternFlowIpv6SRHEgressNodeTlvReserved {
+// OAM Flag. Indicates if the packet is an Operations, Administration, and Maintenance
+// (OAM) packet.
+message PatternFlowIpv6SegmentRoutingFlagsOam {
 
   message Choice {
     enum Enum {
@@ -37557,31 +37290,30 @@ message PatternFlowIpv6SRHEgressNodeTlvReserved {
   repeated uint32 values = 3;
 
   // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvReservedCounter increment = 5;
+  PatternFlowIpv6SegmentRoutingFlagsOamCounter increment = 5;
 
   // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvReservedCounter decrement = 6;
+  PatternFlowIpv6SegmentRoutingFlagsOamCounter decrement = 6;
 }
 
-// ipv6 counter pattern
-message PatternFlowIpv6SRHEgressNodeTlvValueCounter {
+// integer counter pattern
+message PatternFlowIpv6SegmentRoutingFlagsAlertCounter {
 
   // Description missing in models
-  // default = ::0
-  optional string start = 1;
+  // default = 0
+  optional uint32 start = 1;
 
   // Description missing in models
-  // default = ::1
-  optional string step = 2;
+  // default = 1
+  optional uint32 step = 2;
 
   // Description missing in models
   // default = 1
   optional uint32 count = 3;
 }
 
-// Global IPv6 address of the intended SRv6 egress node (RFC 9259 Section 3.2). This
-// is the address of the final segment endpoint of the SR policy.
-message PatternFlowIpv6SRHEgressNodeTlvValue {
+// Alert Flag. Indicates the presence of important TLVs that must be inspected.
+message PatternFlowIpv6SegmentRoutingFlagsAlert {
 
   message Choice {
     enum Enum {
@@ -37597,110 +37329,6 @@ message PatternFlowIpv6SRHEgressNodeTlvValue {
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  // default = ::0
-  optional string value = 2;
-
-  // Description missing in models
-  // default = ['::0']
-  repeated string values = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvValueCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowIpv6SRHEgressNodeTlvValueCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHOpaqueContainerTlvTypeCounter {
-
-  // Description missing in models
-  // default = 3
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// TLV type code (RFC 8754 Section 2.1). The canonical value is 3. Set to a different
-// value only for negative or conformance testing.
-message PatternFlowIpv6SRHOpaqueContainerTlvType {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      auto = 1;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.auto
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 3
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [3]
-  repeated uint32 values = 3;
-
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 3
-  optional uint32 auto = 4;
-
-  // Description missing in models
-  PatternFlowIpv6SRHOpaqueContainerTlvTypeCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6SRHOpaqueContainerTlvTypeCounter decrement = 7;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHOpaqueContainerTlvLengthCounter {
-
-  // Description missing in models
-  // default = 0
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// Length of the TLV Value field in bytes (RFC 8754 Section 2.1). When auto is assigned
-// the implementation derives this from the length of the value string.
-message PatternFlowIpv6SRHOpaqueContainerTlvLength {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      auto = 1;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.auto
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
   // default = 0
   optional uint32 value = 2;
 
@@ -37708,17 +37336,11 @@ message PatternFlowIpv6SRHOpaqueContainerTlvLength {
   // default = [0]
   repeated uint32 values = 3;
 
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 0
-  optional uint32 auto = 4;
+  // Description missing in models
+  PatternFlowIpv6SegmentRoutingFlagsAlertCounter increment = 5;
 
   // Description missing in models
-  PatternFlowIpv6SRHOpaqueContainerTlvLengthCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6SRHOpaqueContainerTlvLengthCounter decrement = 7;
+  PatternFlowIpv6SegmentRoutingFlagsAlertCounter decrement = 6;
 }
 
 // integer counter pattern
@@ -37830,307 +37452,6 @@ message PatternFlowIpv6SRHPadTlvLength {
 
   // Description missing in models
   PatternFlowIpv6SRHPadTlvLengthCounter decrement = 7;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHPathTraceTlvTypeCounter {
-
-  // Description missing in models
-  // default = 128
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// TLV type code (draft-ietf-spring-srv6-path-tracing). The canonical value is 128.
-// Set to a different value only for negative or conformance testing.
-message PatternFlowIpv6SRHPathTraceTlvType {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      auto = 1;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.auto
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 128
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [128]
-  repeated uint32 values = 3;
-
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 128
-  optional uint32 auto = 4;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvTypeCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvTypeCounter decrement = 7;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHPathTraceTlvLengthCounter {
-
-  // Description missing in models
-  // default = 0
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// Length of the TLV Value field in bytes (draft-ietf-spring-srv6-path-tracing). When
-// auto is assigned the implementation derives this from the configured value fields.
-message PatternFlowIpv6SRHPathTraceTlvLength {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      auto = 1;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.auto
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 0
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [0]
-  repeated uint32 values = 3;
-
-  // The OTG implementation can provide a system generated
-  // value for this property. If the OTG is unable to generate a value
-  // the default value must be used.
-  // default = 0
-  optional uint32 auto = 4;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvLengthCounter increment = 6;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvLengthCounter decrement = 7;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHPathTraceTlvReservedCounter {
-
-  // Description missing in models
-  // default = 0
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// Reserved field (draft-ietf-spring-srv6-path-tracing). Must be zero on transmission.
-message PatternFlowIpv6SRHPathTraceTlvReserved {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.value
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 0
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [0]
-  repeated uint32 values = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvReservedCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvReservedCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHPathTraceTlvTimestampCounter {
-
-  // Description missing in models
-  // default = 0
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// Timestamp inserted by the ingress node (draft-ietf-spring-srv6-path-tracing). Encoded
-// as a 32-bit truncated PTP timestamp value.
-message PatternFlowIpv6SRHPathTraceTlvTimestamp {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.value
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 0
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [0]
-  repeated uint32 values = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvTimestampCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvTimestampCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHPathTraceTlvPmDataCounter {
-
-  // Description missing in models
-  // default = 0
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// Performance Monitoring (PM) data inserted by the ingress node (draft-ietf-spring-srv6-path-tracing).
-// Carries interface and load information encoded as a 32-bit value.
-message PatternFlowIpv6SRHPathTraceTlvPmData {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.value
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 0
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [0]
-  repeated uint32 values = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvPmDataCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvPmDataCounter decrement = 6;
-}
-
-// integer counter pattern
-message PatternFlowIpv6SRHPathTraceTlvValueCounter {
-
-  // Description missing in models
-  // default = 0
-  optional uint32 start = 1;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 step = 2;
-
-  // Description missing in models
-  // default = 1
-  optional uint32 count = 3;
-}
-
-// Initial node identification value inserted by the ingress node (draft-ietf-spring-srv6-path-tracing).
-// Identifies the ingress node within the path trace record.
-message PatternFlowIpv6SRHPathTraceTlvValue {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      value = 2;
-      values = 3;
-      increment = 4;
-      decrement = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.value
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  // default = 0
-  optional uint32 value = 2;
-
-  // Description missing in models
-  // default = [0]
-  repeated uint32 values = 3;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvValueCounter increment = 5;
-
-  // Description missing in models
-  PatternFlowIpv6SRHPathTraceTlvValueCounter decrement = 6;
 }
 
 // Version details

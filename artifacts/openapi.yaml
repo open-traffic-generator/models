@@ -16591,7 +16591,7 @@ components:
           x-field-uid: 5
     Flow.Cfm.Ccm.Flags:
       description: |-
-        CCM flags byte has RDI, Traffic/T (Y.1731 only), and CCM Interval.
+        CCM flags byte has RDI and CCM Interval.
       type: object
       properties:
         rdi:
@@ -16602,14 +16602,6 @@ components:
           default: 0
           maximum: 1
           x-field-uid: 1
-        traffic:
-          description: |-
-            The Traffic bit (T) indicates whether the transmitting MEP has customer traffic flowing on the associated service instance. Set to 1 when the MEP is transmitting customer traffic, 0 otherwise. As defined in ITU-T Y.1731 it must be set to 0 for IEEE 802.1Q-2018 CFM operation.
-          type: integer
-          format: uint32
-          default: 0
-          maximum: 1
-          x-field-uid: 2
         ccm_interval:
           description: |-
             The CCM interval field is used to indicate how frequently "heartbeat" packets are sent between Maintenance End Points (MEPs) as defined in IEEE 802.1ag/ITU-T Y.1731. It is `000`=Invalid, `001`=3.33 ms, `010`=10 ms, `011`=100 ms, `100`=1 s, `101`=10 s, `110`=1 min, `111`=10 min
@@ -16617,7 +16609,7 @@ components:
           format: uint32
           default: 0
           maximum: 7
-          x-field-uid: 3
+          x-field-uid: 2
     Flow.Cfm.OamProtocol:
       description: |-
         Ethernet OAM standard used to encode the 48-byte identifier field in the CCM PDU. IEEE 802.1Q-2018 uses a MAID (MD Name + Short MA Name). ITU-T Y.1731 uses a MEG ID with a different fixed-format encoding.
@@ -16630,20 +16622,14 @@ components:
           x-enum:
             cfm:
               x-field-uid: 1
-            y1731:
-              x-field-uid: 2
           enum:
           - cfm
-          - y1731
         cfm:
           $ref: '#/components/schemas/Flow.Cfm.MaidCfm'
           x-field-uid: 2
-        y1731:
-          $ref: '#/components/schemas/Flow.Cfm.Y1731'
-          x-field-uid: 3
     Flow.Cfm.MaidCfm:
       description: |-
-        Connectivity Fault Management
+        IEEE 802.1Q-2018 MAID encoding: MD Name (optional) + Short MA Name, zero-padded to fill 48 bytes in the CCM PDU.
       type: object
       properties:
         md_name:
@@ -16670,8 +16656,8 @@ components:
           - two_oct_int
           - rfc_2685_vpn_id
         short_ma_name_length:
+          $ref: '#/components/schemas/Flow.Cfm.Length'
           x-field-uid: 3
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MaidCfm.ShortMaNameLength'
         short_ma_name:
           description: |-
             Short MA name
@@ -16679,35 +16665,6 @@ components:
           format: hex
           default: '00'
           x-field-uid: 4
-    Flow.Cfm.Y1731:
-      description: |-
-        ITU-T Y.1731 MEG (Maintenance Entity Group) identifier used to encode the 48-byte identifier field in the CCM PDU, as defined in ITU-T Y.1731 Table A.1.
-      type: object
-      properties:
-        meg_id_format:
-          description: |-
-            MEG ID format as defined in ITU-T Y.1731 Table A.1. icc_based: ICC-based MEG ID format (13 octets: 6-octet ICC + 7-octet UMC). y1731_char_str: ITU-T Y.1731 character string format.
-          type: string
-          default: icc_based
-          x-enum:
-            icc_based:
-              x-field-uid: 1
-            y1731_char_str:
-              x-field-uid: 2
-          x-field-uid: 1
-          enum:
-          - icc_based
-          - y1731_char_str
-        meg_id_length:
-          x-field-uid: 2
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Y1731.MegIdLength'
-        meg_id:
-          description: |-
-            MEG ID value encoded as a hex string.
-          type: string
-          format: hex
-          default: '00'
-          x-field-uid: 3
     Flow.Cfm.MDName:
       description: |-
         Maintenance domain name. May be absent or specified. When absent, MD Name Format is set to 1 (no MD name) per IEEE 802.1Q-2018.
@@ -16751,8 +16708,8 @@ components:
           - mac_addr
           - char_str
         md_name_length:
+          $ref: '#/components/schemas/Flow.Cfm.Length'
           x-field-uid: 2
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MDNamePresent.MdNameLength'
         md_name:
           description: |-
             Maintenance domain name
@@ -16896,8 +16853,8 @@ components:
           - interface_name
           - locally_assigned
         chassis_id_length:
+          $ref: '#/components/schemas/Flow.Cfm.Length'
           x-field-uid: 3
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.ChassisId.ChassisIdLength'
         chassis_id:
           description: |-
             Chassis ID
@@ -16926,8 +16883,8 @@ components:
           - no_management_address
           - management_address
         management_address_domain_length:
+          $ref: '#/components/schemas/Flow.Cfm.Length'
           x-field-uid: 2
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.MADomain.ManagementAddressDomainLength'
         management_address_domain:
           description: |-
             Management address domain
@@ -16944,8 +16901,8 @@ components:
       type: object
       properties:
         management_address_length:
+          $ref: '#/components/schemas/Flow.Cfm.Length'
           x-field-uid: 1
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.MgmtAddress.ManagementAddressLength'
         management_address:
           description: |-
             Management address
@@ -17018,6 +16975,37 @@ components:
           format: hex
           default: '00'
           x-field-uid: 1
+    Flow.Cfm.Length:
+      type: object
+      properties:
+        choice:
+          description: |-
+            auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+          enum:
+          - auto
+          - value
+        auto:
+          description: |-
+            The OTG implementation will provide a system generated value for this property.  If the OTG implementation is unable to generate a value the default value must be used.
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 1
+          x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 1
+          x-field-uid: 3
     Flow.Size:
       description: |-
         The frame size which overrides the total length of the packet
@@ -51838,246 +51826,6 @@ components:
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier.Counter'
           x-field-uid: 6
-    Pattern.Flow.Cfm.MaidCfm.ShortMaNameLength.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 1
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.MaidCfm.ShortMaNameLength:
-      description: |-
-        Short MA name length
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            auto:
-              x-field-uid: 1
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: auto
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - auto
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: integer
-          x-field-uid: 4
-          default: 1
-          format: uint32
-          maximum: 255
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MaidCfm.ShortMaNameLength.Counter'
-          x-field-uid: 6
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MaidCfm.ShortMaNameLength.Counter'
-          x-field-uid: 7
-    Pattern.Flow.Cfm.Y1731.MegIdLength.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 13
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.Y1731.MegIdLength:
-      description: |-
-        Length of the MEG ID value in octets. Maximum 13 octets for icc_based format (6-octet ICC + 7-octet UMC). Maximum 45 octets for y1731_char_str format.
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            auto:
-              x-field-uid: 1
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: auto
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - auto
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 13
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 13
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: integer
-          x-field-uid: 4
-          default: 13
-          format: uint32
-          maximum: 255
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Y1731.MegIdLength.Counter'
-          x-field-uid: 6
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.Y1731.MegIdLength.Counter'
-          x-field-uid: 7
-    Pattern.Flow.Cfm.MDNamePresent.MdNameLength.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 1
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.MDNamePresent.MdNameLength:
-      description: |-
-        Maintenance domain name length
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            auto:
-              x-field-uid: 1
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: auto
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - auto
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: integer
-          x-field-uid: 4
-          default: 1
-          format: uint32
-          maximum: 255
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MDNamePresent.MdNameLength.Counter'
-          x-field-uid: 6
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.MDNamePresent.MdNameLength.Counter'
-          x-field-uid: 7
     Pattern.Flow.Cfm.Lbm.TransactionId.Counter:
       description: |-
         integer counter pattern
@@ -52281,246 +52029,6 @@ components:
           x-field-uid: 6
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Tlvs.Length.Counter'
-          x-field-uid: 7
-    Pattern.Flow.Cfm.SenderIdTlv.ChassisId.ChassisIdLength.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 1
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.SenderIdTlv.ChassisId.ChassisIdLength:
-      description: |-
-        Specifies the length of the chassis ID field.
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            auto:
-              x-field-uid: 1
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: auto
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - auto
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: integer
-          x-field-uid: 4
-          default: 1
-          format: uint32
-          maximum: 255
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.ChassisId.ChassisIdLength.Counter'
-          x-field-uid: 6
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.ChassisId.ChassisIdLength.Counter'
-          x-field-uid: 7
-    Pattern.Flow.Cfm.SenderIdTlv.MADomain.ManagementAddressDomainLength.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 1
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.SenderIdTlv.MADomain.ManagementAddressDomainLength:
-      description: |-
-        Specifies the length of the management address domain.
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            auto:
-              x-field-uid: 1
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: auto
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - auto
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: integer
-          x-field-uid: 4
-          default: 1
-          format: uint32
-          maximum: 255
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.MADomain.ManagementAddressDomainLength.Counter'
-          x-field-uid: 6
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.MADomain.ManagementAddressDomainLength.Counter'
-          x-field-uid: 7
-    Pattern.Flow.Cfm.SenderIdTlv.MgmtAddress.ManagementAddressLength.Counter:
-      description: |-
-        integer counter pattern
-      type: object
-      properties:
-        start:
-          type: integer
-          x-field-uid: 1
-          default: 1
-          format: uint32
-          maximum: 255
-        step:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        count:
-          type: integer
-          x-field-uid: 3
-          default: 1
-          format: uint32
-          maximum: 256
-    Pattern.Flow.Cfm.SenderIdTlv.MgmtAddress.ManagementAddressLength:
-      description: |-
-        Specifies the length of the management address.
-      type: object
-      properties:
-        choice:
-          type: string
-          x-enum:
-            value:
-              x-field-uid: 2
-            values:
-              x-field-uid: 3
-            auto:
-              x-field-uid: 1
-            increment:
-              x-field-uid: 4
-            decrement:
-              x-field-uid: 5
-          default: auto
-          x-field-uid: 1
-          enum:
-          - value
-          - values
-          - auto
-          - increment
-          - decrement
-        value:
-          type: integer
-          x-field-uid: 2
-          default: 1
-          format: uint32
-          maximum: 255
-        values:
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 255
-          x-field-uid: 3
-          default:
-          - 1
-        auto:
-          description: |-
-            The OTG implementation can provide a system generated
-            value for this property. If the OTG is unable to generate a value
-            the default value must be used.
-          type: integer
-          x-field-uid: 4
-          default: 1
-          format: uint32
-          maximum: 255
-        increment:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.MgmtAddress.ManagementAddressLength.Counter'
-          x-field-uid: 6
-        decrement:
-          $ref: '#/components/schemas/Pattern.Flow.Cfm.SenderIdTlv.MgmtAddress.ManagementAddressLength.Counter'
           x-field-uid: 7
     Version:
       description: |-

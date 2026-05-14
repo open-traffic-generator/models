@@ -1,24 +1,30 @@
 openapi: 3.0.3
 info:
-  title: Update IS-IS protocol Config
+  title: Update IS-IS Protocol Config
   description: >-
-    Update IS-IS protocol Config for IS-IS control protocol schema.
+    Schema for updating IS-IS protocol configuration attributes on-the-fly.
   version: ^0.0.0
 components:
   schemas:
     UpdateProtocol.Config.Isis:
       description: >-
         A container for IS-IS properties to be updated. Presence of this object
-        indicates that one or more IS-IS interface properties require updating.
+        indicates that one or more IS-IS properties require updating.
       type: object
       properties:
         interfaces:
-          description: >-
-            List of IS-IS interface update groups. IS-IS interface names are
-            globally unique across all routers so no parent router name is required.
-            Each update group applies attribute updates to one or more interfaces
-            simultaneously. Use multiple update groups to handle asymmetric changes
-            across different subsets of interfaces.
+          description: |-
+            List of IS-IS interface update groups. One update group targets one or more IS-IS interfaces.
+            Use multiple update groups to handle asymmetric changes across different subsets of interfaces.
+
+            All interfaces listed in names in each update group receive every attribute update specified in the attributes list. 
+
+            If the session is up but true on-the-fly update is not supported for an attribute (e.g. metric change on an emulated interface),
+            a warning is returned indicating that the session will be disabled and re-enabled, and the updated attribute will be reflected 
+            once the session comes back up.
+
+            An error should be returned if any provided name is not found in the current configuration's list of IS-IS interface names.
+
           type: array
           items:
             $ref: '#/components/schemas/UpdateProtocol.Config.Isis.Interface.UpdateGroup'
@@ -34,7 +40,11 @@ components:
         If the session is up but true on-the-fly update is not supported for an
         attribute (e.g. metric change on an emulated interface): a warning is
         returned indicating that the session will be disabled and re-enabled,
+        
         and the updated attribute will be reflected once the session comes back up.
+        An error should be returned if any provided name is not found in the current
+        configuration's list of IS-IS interface names.
+
       type: object
       properties:
         names:
@@ -62,6 +72,7 @@ components:
         A single IS-IS interface attribute update. The choice field identifies which
         attribute is being changed.
       type: object
+      required: [metric]
       properties:
         choice:
           description: >-
@@ -90,5 +101,4 @@ components:
           type: integer
           format: uint32
           maximum: 16777215
-          default: 10
           x-field-uid: 2

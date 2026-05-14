@@ -13944,7 +13944,7 @@ message ConfigUpdate {
       protocols = 2;
     }
   }
-  // Description missing in models
+  // Selects the type of resource to update.
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -13968,41 +13968,57 @@ message FlowsUpdate {
   // Flow properties to be updated without affecting the transmit state.
   repeated PropertyNames.Enum property_names = 1;
 
-  // The list of configured flows for which given property will be updated.
+  // The list of configured flows for which the given property will be updated.
   repeated Flow flows = 2;
 }
 
-// A container of Protocols with associated properties to be updated that may or may
-// not
-// able to maintain the current Protocols session in Up state always.
+// A container of protocol properties to be updated that may or may not be
+// able to maintain the current protocol session always in the Up state.
+// 
 // If the session is up but true on-the-fly update is not supported for one of the attributes
 // selected for update
 // (e.g. metric change on an emulated interface): a warning should be returned indicating
 // that the session will be
-// disabled and re-enabled,and the updated attribute(s) will be reflected once the session
-// comes back up.
-// a) The attributes are permanently updated in the stored config [i.e. next get_config
+// disabled and re-enabled, and the updated attribute(s) will be reflected once the
+// session comes back up.
+// 
+// The attributes are permanently updated in the stored config. [i.e. the next get_config
 // should return modified parameters]
-// b) If any of the protocol session(s) linked to the attributes is not in started
-// state, an implementation return with
-// Error rejecting the full update request OR will be applied on next start of
-// the protocol.
-// c) If session tied to an attribute is not in started state , the change will be
-// reflected when session comes up next.
+// 
+// If any of the protocol session(s) linked to the attributes are not in started state,
+// an implementation can
+// a) return an Error rejecting the full update request if on the fly changes are supported
+// only on
+// started protocol sessions, OR
+// b) return a Warning indicating that some of the sessions were not in started state,
+// update the configuration
+// and apply it on the next start of the protocol session.
 message ProtocolsUpdate {
 
-  // Description missing in models
+  // IS-IS protocol attribute updates to apply.
   UpdateProtocolConfigIsis isis = 1;
 }
 
 // A container for IS-IS properties to be updated. Presence of this object indicates
-// that one or more IS-IS interface properties require updating.
+// that one or more IS-IS properties require updating.
 message UpdateProtocolConfigIsis {
 
-  // List of IS-IS interface update groups. IS-IS interface names are globally unique
-  // across all routers so no parent router name is required. Each update group applies
-  // attribute updates to one or more interfaces simultaneously. Use multiple update groups
-  // to handle asymmetric changes across different subsets of interfaces.
+  // List of IS-IS interface update groups. One update group targets one or more IS-IS
+  // interfaces.
+  // Use multiple update groups to handle asymmetric changes across different subsets
+  // of interfaces.
+  // 
+  // All interfaces listed in names in each update group receive every attribute update
+  // specified in the attributes list.
+  // 
+  // If the session is up but true on-the-fly update is not supported for an attribute
+  // (e.g. metric change on an emulated interface),
+  // a warning is returned indicating that the session will be disabled and re-enabled,
+  // and the updated attribute will be reflected
+  // once the session comes back up.
+  // 
+  // An error should be returned if any provided name is not found in the current configuration's
+  // list of IS-IS interface names.
   repeated UpdateProtocolConfigIsisInterfaceUpdateGroup interfaces = 1;
 }
 
@@ -14012,8 +14028,10 @@ message UpdateProtocolConfigIsis {
 // updates).
 // If the session is up but true on-the-fly update is not supported for an attribute
 // (e.g. metric change on an emulated interface): a warning is returned indicating that
-// the session will be disabled and re-enabled, and the updated attribute will be reflected
-// once the session comes back up.
+// the session will be disabled and re-enabled,
+// and the updated attribute will be reflected once the session comes back up. An error
+// should be returned if any provided name is not found in the current configuration's
+// list of IS-IS interface names.
 message UpdateProtocolConfigIsisInterfaceUpdateGroup {
 
   // The names of the IS-IS interfaces to which all attribute updates in this group will
@@ -14057,7 +14075,7 @@ message UpdateProtocolConfigIsisInterfaceAttribute {
   // on-the-fly metric update may not be supported. In that case the implementation
   // should return a warning, disable the session, re-enable it with the updated
   // metric, and reflect the new value in the LSP once the session comes back up.
-  // default = 10
+  // required = true
   optional uint32 metric = 2;
 }
 

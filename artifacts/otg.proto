@@ -12578,14 +12578,17 @@ message FlowIpv6SegmentRoutingFlags {
 }
 
 // Defines the fields of a Connectivity Fault Management (CFM) Packet Data Unit (PDU)
-// as specified in IEEE 802.1Q-2018 Clause 12.
+// as specified in IEEE 802.1Q-2018 Clause 21.
 message FlowCfm {
 
-  // Maintenance Domain Level
+  // Maintenance Domain Level (0-7). Determines the CCM multicast destination MAC address:
+  // 01:80:c2:00:00:3X where X is the level in hex (e.g. level 5 = 01:80:c2:00:00:35,
+  // level 0 = 01:80:c2:00:00:30). Defined in IEEE 802.1Q-2018 Table 21-3.
   // default = 0
   optional uint32 md_level = 1;
 
-  // Indicates the version as specified in IEEE 802.1Q-2018 §12.14.1.
+  // CFM Common Header version field (IEEE 802.1Q-2018 Table 21-6). Must be 0 for all
+  // frames compliant with this standard.
   // default = 0
   optional uint32 version = 2;
 
@@ -12622,7 +12625,7 @@ message FlowCfmSelectOpCode {
 }
 
 // CCM is a multicast PDU used to detect continuity and configuration errors within
-// a Maintenance Association (MA). As defined in IEEE 802.1Q-2018 §12.14.6.
+// a Maintenance Association (MA). As defined in IEEE 802.1Q-2018 Section 12.14.6.
 message FlowCfmCcm {
 
   // Description missing in models
@@ -12639,27 +12642,32 @@ message FlowCfmCcm {
 
   // Description missing in models
   repeated FlowCfmTlvs tlvs = 5;
+
+  // When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table
+  // 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour
+  // with a deliberately missing End TLV.
+  // default = True
+  optional bool append_end_tlv = 6;
 }
 
 // CCM flags byte has RDI and CCM Interval.
 message FlowCfmCcmFlags {
 
-  // Remote Defect Indicator (RDI) bit is set to inform remote peers that it is experiencing
-  // a fault, such as a local interface failure.
-  // default = 0
-  optional uint32 rdi = 1;
+  // Remote Defect Indicator. When true the MEP is reporting a local defect to its remote
+  // peers (IEEE 802.1Q-2018 Section 12.14.6.1.3).
+  // default = False
+  optional bool rdi = 1;
 
-  // The CCM interval field is used to indicate how frequently heartbeat packets are sent
-  // between Maintenance End Points (MEPs) as defined in IEEE 802.1ag/ITU-T Y.1731. It
-  // is `000`=Invalid, `001`=3.33 ms, `010`=10 ms, `011`=100 ms, `100`=1 s, `101`=10 s,
-  // `110`=1 min, `111`=10 min
-  // default = 0
+  // CCM transmission interval. Encoded as a 3-bit integer in the flags byte as defined
+  // in IEEE 802.1Q-2018 Table 21-15. 0 = invalid, 1 = 3.33 ms, 2 = 10 ms, 3 = 100 ms,
+  // 4 = 1 s, 5 = 10 s, 6 = 1 min, 7 = 10 min.
+  // default = 4
   optional uint32 ccm_interval = 2;
 }
 
 // Ethernet OAM standard used to encode the 48-byte identifier field in the CCM PDU.
-// IEEE 802.1Q-2018 uses a MAID (MD Name + Short MA Name). ITU-T Y.1731 uses a MEG ID
-// with a different fixed-format encoding.
+// Currently only the cfm choice is available; IEEE 802.1Q-2018 MAID encoding (MD Name
+// + Short MA Name) is used. Future choices may include ITU-T Y.1731 MEG ID encoding.
 message FlowCfmOamProtocol {
 
   message Choice {
@@ -12683,28 +12691,8 @@ message FlowCfmMaidCfm {
   // Description missing in models
   FlowCfmMDName md_name = 1;
 
-  message ShortMaNameFormat {
-    enum Enum {
-      unspecified = 0;
-      primary_vid = 1;
-      char_str = 2;
-      two_oct_int = 3;
-      rfc_2685_vpn_id = 4;
-    }
-  }
-  // Short MA name format values as defined in IEEE 802.1Q-2018 Table 21-20. Value 1:
-  // primary VID encoded as a 2-octet unsigned integer. Value 2: RFC 2579 DisplayString
-  // up to 45 octets. Value 3: 2-octet unsigned integer (e.g., a VLAN ID). Value 4: RFC
-  // 2685 VPN ID, 7 octets.
-  // default = ShortMaNameFormat.Enum.char_str
-  optional ShortMaNameFormat.Enum short_ma_name_format = 2;
-
   // Description missing in models
-  FlowCfmLength short_ma_name_length = 3;
-
-  // Short MA name
-  // default = 00
-  optional string short_ma_name = 4;
+  FlowCfmShortMANameFormat short_ma_name = 2;
 }
 
 // Maintenance domain name. May be absent or specified. When absent, MD Name Format
@@ -12723,13 +12711,15 @@ message FlowCfmMDName {
   optional Choice.Enum choice = 1;
 
   // Description missing in models
-  FlowCfmMDNamePresent maintenance_domain_present = 2;
+  FlowCfmMDNameFormat maintenance_domain_present = 2;
 }
 
-// Maintenance domain name
-message FlowCfmMDNamePresent {
+// Maintenance domain name encoding. The choice selects the MD Name Format as defined
+// in IEEE 802.1Q-2018 Table 21-19 and provides a typed input for each format. Length
+// is auto-computed from the value unless overridden.
+message FlowCfmMDNameFormat {
 
-  message MdNameFormat {
+  message Choice {
     enum Enum {
       unspecified = 0;
       domain_name_str = 1;
@@ -12737,16 +12727,75 @@ message FlowCfmMDNamePresent {
       char_str = 3;
     }
   }
-  // Maintenance domain name format
-  // default = MdNameFormat.Enum.char_str
-  optional MdNameFormat.Enum md_name_format = 1;
-
   // Description missing in models
-  FlowCfmLength md_name_length = 2;
+  // default = Choice.Enum.char_str
+  optional Choice.Enum choice = 1;
 
-  // Maintenance domain name
-  // default = 00
-  optional string md_name = 3;
+  // Length of the encoded name value in octets. Auto-computed by default.
+  FlowCfmLength length = 2;
+
+  // DNS-like domain name, e.g. example.com (RFC 1034 encoding).
+  // default =
+  optional string domain_name_str = 3;
+
+  // MAC address + 2-octet integer (IEEE Format 3). See Flow.Cfm.MDNameMacAddr.
+  FlowCfmMDNameMacAddr mac_addr = 4;
+
+  // Character string (ASCII), up to 43 octets (IEEE 802.1Q-2018 Table 21-19).
+  // default =
+  optional string char_str = 5;
+}
+
+// MD Name Format 3 encoding as defined in IEEE 802.1Q-2018 Table 21-19. Consists of
+// a 6-octet MAC address followed by a 2-octet unsigned integer.
+message FlowCfmMDNameMacAddr {
+
+  // 6-octet MAC address component, e.g. 00:11:22:33:44:55.
+  // default = 00:00:00:00:00:00
+  optional string mac = 1;
+
+  // Locally assigned 2-octet unsigned integer that distinguishes multiple maintenance
+  // domains sharing the same MAC address (IEEE 802.1Q-2018 Table 21-19).
+  // default = 0
+  optional uint32 local_id = 2;
+}
+
+// Short MA name encoding. The choice selects the Short MA Name Format as defined in
+// IEEE 802.1Q-2018 Table 21-20 and provides a typed input for each format.
+message FlowCfmShortMANameFormat {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      primary_vid = 1;
+      char_str = 2;
+      two_oct_int = 3;
+      rfc_2685_vpn_id = 4;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.char_str
+  optional Choice.Enum choice = 1;
+
+  // Length of the encoded name value in octets. Auto-computed by default.
+  FlowCfmLength length = 2;
+
+  // Primary VLAN ID (1-4094). Encoded as a 2-octet unsigned integer.
+  // default = 1
+  optional uint32 primary_vid = 3;
+
+  // Character string (ASCII), up to 45 octets (RFC 2579 DisplayString).
+  // default =
+  optional string char_str = 4;
+
+  // 2-octet unsigned integer, e.g. a locally assigned VLAN tag.
+  // default = 0
+  optional uint32 two_oct_int = 5;
+
+  // RFC 2685 VPN ID, exactly 7 octets (3-octet OUI + 4-octet index). Encode as 14 hex
+  // characters, e.g. 00000000000000.
+  // default = 00000000000000
+  optional string rfc_2685_vpn_id = 6;
 }
 
 // Loopback Message (LBM) is a diagnostic frame used to verify connectivity between
@@ -12759,6 +12808,12 @@ message FlowCfmLbm {
 
   // Description missing in models
   repeated FlowCfmTlvs tlvs = 2;
+
+  // When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table
+  // 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour
+  // with a deliberately missing End TLV.
+  // default = True
+  optional bool append_end_tlv = 3;
 }
 
 // Loopback Reply (LBR) messages are unicast frames sent by a Maintenance Association
@@ -12771,24 +12826,30 @@ message FlowCfmLbr {
 
   // Description missing in models
   repeated FlowCfmTlvs tlvs = 2;
+
+  // When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table
+  // 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour
+  // with a deliberately missing End TLV.
+  // default = True
+  optional bool append_end_tlv = 3;
 }
 
-// The CFM TLV format is defined in 8021Q. Common fields are Type (1 octet) defined
-// by choice below, Length (2 octet) and Value (variable) defined for each tlv type.
+// CFM TLV entry. The Type byte (IEEE 802.1Q-2018 Table 21-17) is set automatically
+// from the choice: Sender ID=1, Port Status=2, Data=3, Interface Status=4. Length (2
+// octets) and Value are defined per TLV type.
 message FlowCfmTlvs {
 
   message Choice {
     enum Enum {
       unspecified = 0;
-      end = 1;
-      sender_id = 2;
-      port_status = 3;
-      interface_status = 4;
-      data = 5;
+      sender_id = 1;
+      port_status = 2;
+      interface_status = 3;
+      data = 4;
     }
   }
   // Description missing in models
-  // default = Choice.Enum.end
+  // default = Choice.Enum.sender_id
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -12903,7 +12964,7 @@ message FlowCfmSenderIdTlvMgmtAddress {
 }
 
 // Port status TLV indicates the ability of the Bridge Port to pass ordinary data traffic,
-// as defined in IEEE 802.1Q-2018 §12.14.3.3.
+// as defined in IEEE 802.1Q-2018 Section 12.14.3.3.
 message FlowCfmPortStatusTlv {
 
   message Status {
@@ -12940,15 +13001,17 @@ message FlowCfmInterfaceStatusTlv {
 }
 
 // Data TLV (Type 3) used to carry arbitrary test data, typically for loopback testing.
-// As defined in IEEE 802.1Q-2018 §12.14.3.2.
+// As defined in IEEE 802.1Q-2018 Section 12.14.3.2.
 message FlowCfmDataTlv {
 
-  // String data for the tlv
+  // Arbitrary test data payload. The length field of the parent TLV entry should be set
+  // to auto to match the byte count of this value.
   // default = 00
   optional string data = 1;
 }
 
-// Description missing in models
+// Length field with auto-compute or explicit-value choice. When auto, the implementation
+// derives the value from the associated data field.
 message FlowCfmLength {
 
   message Choice {
@@ -36898,7 +36961,8 @@ message PatternFlowCfmCcmMaEndpointIdentifierCounter {
   optional uint32 count = 3;
 }
 
-// Maintenance association endpoint identifier
+// Maintenance Association End Point Identifier (MEP ID). Unique within the MA. Range
+// 1-8191 per IEEE 802.1Q-2018 Section 12.14.6.3.2.
 message PatternFlowCfmCcmMaEndpointIdentifier {
 
   message Choice {
@@ -37040,7 +37104,8 @@ message PatternFlowCfmTlvsLengthCounter {
   optional uint32 count = 3;
 }
 
-// Specifies the length of the tlv data in octets.
+// Length of the TLV value field in octets (IEEE 802.1Q-2018 Section 12.14.3.1). When
+// auto, derived from the selected TLV sub-object.
 message PatternFlowCfmTlvsLength {
 
   message Choice {

@@ -16515,12 +16515,12 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Alert'
     Flow.Cfm:
       description: |-
-        Defines the fields of a Connectivity Fault Management (CFM) Packet Data Unit (PDU) as specified in IEEE 802.1Q-2018 Clause 12.
+        Defines the fields of a Connectivity Fault Management (CFM) Packet Data Unit (PDU) as specified in IEEE 802.1Q-2018 Clause 21.
       type: object
       properties:
         md_level:
           description: |-
-            Maintenance Domain Level
+            Maintenance Domain Level (0-7). Determines the CCM multicast destination MAC address: 01:80:c2:00:00:3X where X is the level in hex (e.g. level 5 = 01:80:c2:00:00:35, level 0 = 01:80:c2:00:00:30). Defined in IEEE 802.1Q-2018 Table 21-3.
           type: integer
           format: uint32
           default: 0
@@ -16528,7 +16528,7 @@ components:
           x-field-uid: 1
         version:
           description: |-
-            Indicates the version as specified in IEEE 802.1Q-2018 §12.14.1.
+            CFM Common Header version field (IEEE 802.1Q-2018 Table 21-6). Must be 0 for all frames compliant with this standard.
           type: integer
           format: uint32
           default: 0
@@ -16568,7 +16568,7 @@ components:
           x-field-uid: 4
     Flow.Cfm.Ccm:
       description: |-
-        CCM is a multicast PDU used to detect continuity and configuration errors within a Maintenance Association (MA). As defined in IEEE 802.1Q-2018 §12.14.6.
+        CCM is a multicast PDU used to detect continuity and configuration errors within a Maintenance Association (MA). As defined in IEEE 802.1Q-2018 Section 12.14.6.
       type: object
       properties:
         flags:
@@ -16585,10 +16585,15 @@ components:
           x-field-uid: 4
         tlvs:
           type: array
-          minItems: 1
           items:
             $ref: '#/components/schemas/Flow.Cfm.Tlvs'
           x-field-uid: 5
+        append_end_tlv:
+          description: |-
+            When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour with a deliberately missing End TLV.
+          type: boolean
+          default: true
+          x-field-uid: 6
     Flow.Cfm.Ccm.Flags:
       description: |-
         CCM flags byte has RDI and CCM Interval.
@@ -16596,23 +16601,21 @@ components:
       properties:
         rdi:
           description: |-
-            Remote Defect Indicator (RDI) bit is set to inform remote peers that it is experiencing a fault, such as a local interface failure.
-          type: integer
-          format: uint32
-          default: 0
-          maximum: 1
+            Remote Defect Indicator. When true the MEP is reporting a local defect to its remote peers (IEEE 802.1Q-2018 Section 12.14.6.1.3).
+          type: boolean
+          default: false
           x-field-uid: 1
         ccm_interval:
           description: |-
-            The CCM interval field is used to indicate how frequently "heartbeat" packets are sent between Maintenance End Points (MEPs) as defined in IEEE 802.1ag/ITU-T Y.1731. It is `000`=Invalid, `001`=3.33 ms, `010`=10 ms, `011`=100 ms, `100`=1 s, `101`=10 s, `110`=1 min, `111`=10 min
+            CCM transmission interval. Encoded as a 3-bit integer in the flags byte as defined in IEEE 802.1Q-2018 Table 21-15. 0 = invalid, 1 = 3.33 ms, 2 = 10 ms, 3 = 100 ms, 4 = 1 s, 5 = 10 s, 6 = 1 min, 7 = 10 min.
           type: integer
           format: uint32
-          default: 0
+          default: 4
           maximum: 7
           x-field-uid: 2
     Flow.Cfm.OamProtocol:
       description: |-
-        Ethernet OAM standard used to encode the 48-byte identifier field in the CCM PDU. IEEE 802.1Q-2018 uses a MAID (MD Name + Short MA Name). ITU-T Y.1731 uses a MEG ID with a different fixed-format encoding.
+        Ethernet OAM standard used to encode the 48-byte identifier field in the CCM PDU. Currently only the cfm choice is available; IEEE 802.1Q-2018 MAID encoding (MD Name + Short MA Name) is used. Future choices may include ITU-T Y.1731 MEG ID encoding.
       type: object
       properties:
         choice:
@@ -16635,36 +16638,9 @@ components:
         md_name:
           $ref: '#/components/schemas/Flow.Cfm.MDName'
           x-field-uid: 1
-        short_ma_name_format:
-          description: |-
-            Short MA name format values as defined in IEEE 802.1Q-2018 Table 21-20. Value 1: primary VID encoded as a 2-octet unsigned integer. Value 2: RFC 2579 DisplayString up to 45 octets. Value 3: 2-octet unsigned integer (e.g., a VLAN ID). Value 4: RFC 2685 VPN ID, 7 octets.
-          type: string
-          default: char_str
-          x-enum:
-            primary_vid:
-              x-field-uid: 1
-            char_str:
-              x-field-uid: 2
-            two_oct_int:
-              x-field-uid: 3
-            rfc_2685_vpn_id:
-              x-field-uid: 4
-          x-field-uid: 2
-          enum:
-          - primary_vid
-          - char_str
-          - two_oct_int
-          - rfc_2685_vpn_id
-        short_ma_name_length:
-          $ref: '#/components/schemas/Flow.Cfm.Length'
-          x-field-uid: 3
         short_ma_name:
-          description: |-
-            Short MA name
-          type: string
-          format: hex
-          default: '00'
-          x-field-uid: 4
+          $ref: '#/components/schemas/Flow.Cfm.ShortMANameFormat'
+          x-field-uid: 2
     Flow.Cfm.MDName:
       description: |-
         Maintenance domain name. May be absent or specified. When absent, MD Name Format is set to 1 (no MD name) per IEEE 802.1Q-2018.
@@ -16683,16 +16659,14 @@ components:
           - no_maintenance_domain
           - maintenance_domain_present
         maintenance_domain_present:
-          $ref: '#/components/schemas/Flow.Cfm.MDNamePresent'
+          $ref: '#/components/schemas/Flow.Cfm.MDNameFormat'
           x-field-uid: 2
-    Flow.Cfm.MDNamePresent:
-      description: |-
-        Maintenance domain name
+    Flow.Cfm.MDNameFormat:
       type: object
+      description: |-
+        Maintenance domain name encoding. The choice selects the MD Name Format as defined in IEEE 802.1Q-2018 Table 21-19 and provides a typed input for each format. Length is auto-computed from the value unless overridden.
       properties:
-        md_name_format:
-          description: |-
-            Maintenance domain name format
+        choice:
           type: string
           default: char_str
           x-enum:
@@ -16707,16 +16681,106 @@ components:
           - domain_name_str
           - mac_addr
           - char_str
-        md_name_length:
+        length:
+          description: |-
+            Length of the encoded name value in octets. Auto-computed by default.
           $ref: '#/components/schemas/Flow.Cfm.Length'
           x-field-uid: 2
-        md_name:
+        domain_name_str:
           description: |-
-            Maintenance domain name
+            DNS-like domain name, e.g. "example.com" (RFC 1034 encoding).
+          type: string
+          default: ''
+          x-field-uid: 3
+        mac_addr:
+          description: |-
+            MAC address + 2-octet integer (IEEE Format 3). See Flow.Cfm.MDNameMacAddr.
+          $ref: '#/components/schemas/Flow.Cfm.MDNameMacAddr'
+          x-field-uid: 4
+        char_str:
+          description: |-
+            Character string (ASCII), up to 43 octets (IEEE 802.1Q-2018 Table 21-19).
+          type: string
+          default: ''
+          x-field-uid: 5
+    Flow.Cfm.MDNameMacAddr:
+      description: |-
+        MD Name Format 3 encoding as defined in IEEE 802.1Q-2018 Table 21-19. Consists of a 6-octet MAC address followed by a 2-octet unsigned integer.
+      type: object
+      properties:
+        mac:
+          description: |-
+            6-octet MAC address component, e.g. "00:11:22:33:44:55".
+          type: string
+          format: mac
+          default: 00:00:00:00:00:00
+          x-field-uid: 1
+        local_id:
+          description: |-
+            Locally assigned 2-octet unsigned integer that distinguishes multiple maintenance domains sharing the same MAC address (IEEE 802.1Q-2018 Table 21-19).
+          type: integer
+          format: uint32
+          maximum: 65535
+          default: 0
+          x-field-uid: 2
+    Flow.Cfm.ShortMANameFormat:
+      type: object
+      description: |-
+        Short MA name encoding. The choice selects the Short MA Name Format as defined in IEEE 802.1Q-2018 Table 21-20 and provides a typed input for each format.
+      properties:
+        choice:
+          type: string
+          default: char_str
+          x-enum:
+            primary_vid:
+              x-field-uid: 1
+            char_str:
+              x-field-uid: 2
+            two_oct_int:
+              x-field-uid: 3
+            rfc_2685_vpn_id:
+              x-field-uid: 4
+          x-field-uid: 1
+          enum:
+          - primary_vid
+          - char_str
+          - two_oct_int
+          - rfc_2685_vpn_id
+        length:
+          description: |-
+            Length of the encoded name value in octets. Auto-computed by default.
+          $ref: '#/components/schemas/Flow.Cfm.Length'
+          x-field-uid: 2
+        primary_vid:
+          description: |-
+            Primary VLAN ID (1-4094). Encoded as a 2-octet unsigned integer.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 4094
+          default: 1
+          x-field-uid: 3
+        char_str:
+          description: |-
+            Character string (ASCII), up to 45 octets (RFC 2579 DisplayString).
+          type: string
+          default: ''
+          x-field-uid: 4
+        two_oct_int:
+          description: |-
+            2-octet unsigned integer, e.g. a locally assigned VLAN tag.
+          type: integer
+          format: uint32
+          maximum: 65535
+          default: 0
+          x-field-uid: 5
+        rfc_2685_vpn_id:
+          description: |-
+            RFC 2685 VPN ID, exactly 7 octets (3-octet OUI + 4-octet index). Encode as 14 hex characters, e.g. "00000000000000".
           type: string
           format: hex
-          default: '00'
-          x-field-uid: 3
+          default: '00000000000000'
+          x-field-uid: 6
     Flow.Cfm.Lbm:
       description: |-
         Loopback Message (LBM) is a diagnostic frame used to verify connectivity between Maintenance End Points (MEPs) and Maintenance Intermediate Points (MIPs). LBM flag bits are reserved and set to zero.
@@ -16727,10 +16791,15 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbm.TransactionId'
         tlvs:
           type: array
-          minItems: 1
           items:
             $ref: '#/components/schemas/Flow.Cfm.Tlvs'
           x-field-uid: 2
+        append_end_tlv:
+          description: |-
+            When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour with a deliberately missing End TLV.
+          type: boolean
+          default: true
+          x-field-uid: 3
     Flow.Cfm.Lbr:
       description: |-
         Loopback Reply (LBR) messages are unicast frames sent by a Maintenance Association End Point (MEP) or Intermediate Point (MIP) to a source MEP in response to a Loopback Message (LBM). LBR flag bits are reserved and set to zero.
@@ -16741,32 +16810,34 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbr.TransactionId'
         tlvs:
           type: array
-          minItems: 1
           items:
             $ref: '#/components/schemas/Flow.Cfm.Tlvs'
           x-field-uid: 2
+        append_end_tlv:
+          description: |-
+            When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour with a deliberately missing End TLV.
+          type: boolean
+          default: true
+          x-field-uid: 3
     Flow.Cfm.Tlvs:
       description: |-
-        The CFM TLV format is defined in 8021Q. Common fields are Type (1 octet) defined by choice below, Length (2 octet) and Value (variable) defined for each tlv type.
+        CFM TLV entry. The Type byte (IEEE 802.1Q-2018 Table 21-17) is set automatically from the choice: Sender ID=1, Port Status=2, Data=3, Interface Status=4. Length (2 octets) and Value are defined per TLV type.
       type: object
       properties:
         choice:
           type: string
-          default: end
+          default: sender_id
           x-field-uid: 1
           x-enum:
-            end:
-              x-field-uid: 1
             sender_id:
-              x-field-uid: 2
+              x-field-uid: 1
             port_status:
-              x-field-uid: 3
+              x-field-uid: 2
             interface_status:
-              x-field-uid: 4
+              x-field-uid: 3
             data:
-              x-field-uid: 5
+              x-field-uid: 4
           enum:
-          - end
           - sender_id
           - port_status
           - interface_status
@@ -16912,7 +16983,7 @@ components:
           x-field-uid: 2
     Flow.Cfm.PortStatusTlv:
       description: |-
-        Port status TLV indicates the ability of the Bridge Port to pass ordinary data traffic, as defined in IEEE 802.1Q-2018 §12.14.3.3.
+        Port status TLV indicates the ability of the Bridge Port to pass ordinary data traffic, as defined in IEEE 802.1Q-2018 Section 12.14.3.3.
       type: object
       properties:
         status:
@@ -16965,17 +17036,19 @@ components:
           - lower_layer_down
     Flow.Cfm.DataTlv:
       description: |-
-        Data TLV (Type 3) used to carry arbitrary test data, typically for loopback testing. As defined in IEEE 802.1Q-2018 §12.14.3.2.
+        Data TLV (Type 3) used to carry arbitrary test data, typically for loopback testing. As defined in IEEE 802.1Q-2018 Section 12.14.3.2.
       type: object
       properties:
         data:
           description: |-
-            String data for the tlv
+            Arbitrary test data payload. The length field of the parent TLV entry should be set to auto to match the byte count of this value.
           type: string
           format: hex
           default: '00'
           x-field-uid: 1
     Flow.Cfm.Length:
+      description: |-
+        Length field with auto-compute or explicit-value choice. When auto, the implementation derives the value from the associated data field.
       type: object
       properties:
         choice:
@@ -51784,7 +51857,7 @@ components:
           maximum: 65536
     Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier:
       description: |-
-        Maintenance association endpoint identifier
+        Maintenance Association End Point Identifier (MEP ID). Unique within the MA. Range 1-8191 per IEEE 802.1Q-2018 Section 12.14.6.3.2.
       type: object
       properties:
         choice:
@@ -51975,7 +52048,7 @@ components:
           maximum: 65536
     Pattern.Flow.Cfm.Tlvs.Length:
       description: |-
-        Specifies the length of the tlv data in octets.
+        Length of the TLV value field in octets (IEEE 802.1Q-2018 Section 12.14.3.1). When auto, derived from the selected TLV sub-object.
       type: object
       properties:
         choice:

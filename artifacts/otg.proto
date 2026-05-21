@@ -12690,44 +12690,16 @@ message FlowCfmOamProtocol {
 // in IEEE 802.1Q-2018 Table 21-20 and provides a typed input for each format.
 message FlowCfmMaidCfm {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      primary_vid = 1;
-      char_str = 2;
-      two_oct_int = 3;
-      rfc_2685_vpn_id = 4;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.char_str
-  optional Choice.Enum choice = 1;
-
   // Maintenance domain name encoding. When present, the MD Name field is included in
   // the MAID using the selected format (IEEE 802.1Q-2018 Table 21-19 Formats 2-4). When
   // absent, Format 1 (No MD Name) is encoded and the MAID begins directly with the Short
   // MA Name.
-  FlowCfmMDNameFormat md_name = 2;
+  FlowCfmMDNameFormat md_name = 1;
 
-  // Length of the Short MA Name value in octets. Auto-computed by default.
-  FlowCfmLength length = 3;
-
-  // Primary VLAN ID (1-4094). Encoded as a 2-octet unsigned integer.
-  // default = 1
-  optional uint32 primary_vid = 4;
-
-  // Character string (ASCII), up to 45 octets (RFC 2579 DisplayString).
-  // default =
-  optional string char_str = 5;
-
-  // 2-octet unsigned integer, e.g. a locally assigned VLAN tag.
-  // default = 0
-  optional uint32 two_oct_int = 6;
-
-  // RFC 2685 VPN ID, exactly 7 octets (3-octet OUI + 4-octet index). Encode as 14 hex
-  // characters, e.g. 00000000000000.
-  // default = 00000000000000
-  optional string rfc_2685_vpn_id = 7;
+  // Short MA Name encoding. The Short MA Name field is mandatory in the MAID and identifies
+  // the Maintenance Association within its Maintenance Domain. The selected format determines
+  // the on-wire encoding per IEEE 802.1Q-2018 Table 21-20 (Formats 1-4).
+  FlowCfmShortMANameFormat short_ma_name = 2;
 }
 
 // Maintenance domain name encoding. The choice selects the MD Name Format as defined
@@ -12777,6 +12749,44 @@ message FlowCfmMDNameMacAddr {
   // 21-19).
   // default = 0
   optional uint32 id = 2;
+}
+
+// Short MA Name encoding (IEEE 802.1Q-2018 Table 21-20). Choose one of four formats
+// and provide its typed value. Length is auto-computed from the value unless overridden.
+message FlowCfmShortMANameFormat {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      primary_vid = 1;
+      char_str = 2;
+      two_oct_int = 3;
+      rfc_2685_vpn_id = 4;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.char_str
+  optional Choice.Enum choice = 1;
+
+  // Length of the Short MA Name value in octets. Auto-computed by default.
+  FlowCfmLength length = 2;
+
+  // Primary VLAN ID (1-4094). Encoded as a 2-octet unsigned integer.
+  // default = 1
+  optional uint32 primary_vid = 3;
+
+  // Character string (ASCII), up to 45 octets (RFC 2579 DisplayString).
+  // default =
+  optional string char_str = 4;
+
+  // 2-octet unsigned integer, e.g. a locally assigned VLAN tag.
+  // default = 0
+  optional uint32 two_oct_int = 5;
+
+  // RFC 2685 VPN ID, exactly 7 octets (3-octet OUI + 4-octet index). Encode as 14 hex
+  // characters, e.g. 00000000000000.
+  // default = 00000000000000
+  optional string rfc_2685_vpn_id = 6;
 }
 
 // Loopback Message (LBM) is a diagnostic frame used to verify connectivity between
@@ -12897,8 +12907,7 @@ message FlowCfmSenderIdTlvChassisId {
   // default = 00:00:00:00:00:00
   optional string mac_address = 6;
 
-  // Encoded as a binary network address, the first octet is the IANA address family number
-  // (1 = IPv4, 2 = IPv6), followed by the raw address bytes.
+  // Network address identifying the chassis (IEEE 802.1AB-2016 Chassis ID Subtype 5).
   // default = 00
   optional string network_address = 7;
 
@@ -12942,6 +12951,29 @@ message FlowCfmSenderIdTlvMgmtAddress {
   // how to dial back into the sender's management stack.
   // default = 00
   optional string address = 2;
+}
+
+// Typed network address used as the Sender ID TLV Chassis ID Subtype 5 (IEEE 802.1AB-2016
+// Table 8-3). On the wire, the choice value encodes the leading IANA address family
+// octet (1 = IPv4, 2 = IPv6), followed by the corresponding IP address bytes.
+message FlowCfmNetwork {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  // IANA address family, encodes the first octet of the network address.
+  // default = Choice.Enum.ipv4
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  PatternFlowCfmNetworkIpv4 ipv4 = 2;
+
+  // Description missing in models
+  PatternFlowCfmNetworkIpv6 ipv6 = 3;
 }
 
 // Port Status TLV (Type 2) indicates the ability of the Bridge Port to pass ordinary
@@ -37235,6 +37267,52 @@ message PatternFlowCfmTlvsLength {
 
   // Description missing in models
   PatternFlowCfmTlvsLengthCounter decrement = 7;
+}
+
+// Chassis ID IPv4 address
+message PatternFlowCfmNetworkIpv4 {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0.0.0.0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['0.0.0.0']
+  repeated string values = 3;
+}
+
+// Chassis ID IPv6 address
+message PatternFlowCfmNetworkIpv6 {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = ::0
+  optional string value = 2;
+
+  // Description missing in models
+  // default = ['::0']
+  repeated string values = 3;
 }
 
 // Version details

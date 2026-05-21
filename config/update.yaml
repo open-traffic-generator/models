@@ -6,14 +6,22 @@ components:
       type: object
       properties:
         choice:
+          description: >-
+            Selects the type of resource to update.
           type: string
           x-enum:
             flows:
               x-field-uid: 1
+            protocols:
+              x-field-uid: 2
           x-field-uid: 1
         flows:
           $ref: '#/components/schemas/Flows.Update'
           x-field-uid: 2
+        protocols:
+          $ref: '#/components/schemas/Protocols.Update'
+          x-field-uid: 3
+
     Flows.Update:
       description: >-
         A container of flows with associated properties to be updated without
@@ -37,8 +45,33 @@ components:
           x-field-uid: 1
         flows:
           description: >-
-            The list of configured flows for which given property will be updated.
+            The list of configured flows for which the given property will be updated.
           type: array
           items:
             $ref: '#/components/schemas/Flow'
           x-field-uid: 2
+          
+    Protocols.Update:
+      description: |-
+        A container of protocol properties to be updated that may or may not be
+        able to maintain the current protocol session always in the Up state.
+
+        If the session is up but true on-the-fly update is not supported for one of the attributes selected for update
+        (e.g. metric change on an emulated interface): a warning should be returned indicating that the session will be
+        disabled and re-enabled, and the updated attribute(s) will be reflected once the session comes back up.
+
+        The attributes are permanently updated in the stored config. [i.e. the next get_config should return modified parameters]
+        
+        If any of the protocol session(s) linked to the attributes are not in started state, an implementation can
+        a) return an Error rejecting the full update request if on the fly changes are supported only on
+        started protocol sessions, OR
+        b) return a Warning indicating that some of the sessions were not in started state, update the configuration
+           and apply it on the next start of the protocol session.
+
+      type: object
+      properties:
+        isis:
+          description: >-
+            IS-IS protocol attribute updates to apply.
+          $ref: './updateisisconfig.yaml#/components/schemas/UpdateProtocol.Config.Isis'
+          x-field-uid: 1

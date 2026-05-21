@@ -12578,7 +12578,8 @@ message FlowIpv6SegmentRoutingFlags {
 }
 
 // Defines the fields of a Connectivity Fault Management (CFM) Packet Data Unit (PDU)
-// as specified in IEEE 802.1Q-2018 Clause 21.
+// as specified in IEEE 802.1Q-2018 Clause 21. CCM destination MAC is a multicast address
+// derived from the maintenance domain level (IEEE 802.1Q-2018 Table 21-3).
 message FlowCfm {
 
   // Maintenance Domain Level (0-7). Determines the CCM multicast destination MAC address:
@@ -12686,7 +12687,7 @@ message FlowCfmOamProtocol {
 
 // IEEE 802.1Q-2018 MAID encoding: MD Name (optional) + Short MA Name, zero-padded to
 // fill 48 bytes in the CCM PDU. The choice selects the Short MA Name Format as defined
-// in IEEE 802.1Q-2018 Table 21-20 and. provides a typed input for each format.
+// in IEEE 802.1Q-2018 Table 21-20 and provides a typed input for each format.
 message FlowCfmMaidCfm {
 
   message Choice {
@@ -12702,10 +12703,13 @@ message FlowCfmMaidCfm {
   // default = Choice.Enum.char_str
   optional Choice.Enum choice = 1;
 
-  // Description missing in models
+  // Maintenance domain name encoding. When present, the MD Name field is included in
+  // the MAID using the selected format (IEEE 802.1Q-2018 Table 21-19 Formats 2-4). When
+  // absent, Format 1 (No MD Name) is encoded and the MAID begins directly with the Short
+  // MA Name.
   FlowCfmMDNameFormat md_name = 2;
 
-  // Length of the encoded name value in octets. Auto-computed by default.
+  // Length of the Short MA Name value in octets. Auto-computed by default.
   FlowCfmLength length = 3;
 
   // Primary VLAN ID (1-4094). Encoded as a 2-octet unsigned integer.
@@ -12743,10 +12747,11 @@ message FlowCfmMDNameFormat {
   // default = Choice.Enum.char_str
   optional Choice.Enum choice = 1;
 
-  // Length of the encoded name value in octets. Auto-computed by default.
+  // Length of the MD Name value in octets. Auto-computed by default.
   FlowCfmLength length = 2;
 
-  // DNS-like domain name, e.g. example.com (RFC 1034 encoding).
+  // DNS-like domain name, e.g. example.com (RFC 1034 encoding). Maximum 43 octets (IEEE
+  // 802.1Q-2018 Table 21-19).
   // default =
   optional string domain_name_str = 3;
 
@@ -12844,14 +12849,17 @@ message FlowCfmTlvs {
   FlowCfmDataTlv data = 6;
 }
 
-// Sender ID TLV is used to help identify the sender's hardware and management address.
+// Sender ID TLV (Type 1) carries the sender's chassis identity and optionally a Management
+// Address so that the receiving MEP can identify and reach back to the sender, as defined
+// in IEEE 802.1Q-2018 Section 21.5.5, Table 21-16.
 message FlowCfmSenderIdTlv {
 
-  // Description missing in models
+  // Chassis identifier of the sender. When absent, the Chassis ID Length field is set
+  // to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
   FlowCfmSenderIdTlvChassisId chassis_id = 1;
 }
 
-// Sender ID TLV with chassis id
+// Sender ID TLV with Chassis ID
 message FlowCfmSenderIdTlvChassisId {
 
   message Choice {
@@ -12885,7 +12893,7 @@ message FlowCfmSenderIdTlvChassisId {
   // default =
   optional string port_component = 5;
 
-  // MAC address identifying the chassis (IEEE 802.1AB-2016 subtype 4).
+  // MAC address identifying the chassis.
   // default = 00:00:00:00:00:00
   optional string mac_address = 6;
 
@@ -12902,11 +12910,13 @@ message FlowCfmSenderIdTlvChassisId {
   // default =
   optional string locally_assigned = 9;
 
-  // Description missing in models
+  // Management Address Domain and address of the sender. When absent, the Management
+  // Address Domain Length field is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section
+  // 21.5.5.1).
   FlowCfmSenderIdTlvMADomain management_address_domain = 10;
 }
 
-// Sender ID TLV with management address domain
+// Sender ID TLV with Management Address Domain
 message FlowCfmSenderIdTlvMADomain {
 
   // Description missing in models
@@ -12917,11 +12927,12 @@ message FlowCfmSenderIdTlvMADomain {
   // default = 00
   optional string domain = 2;
 
-  // Description missing in models
+  // Management Address of the sender. When absent, the Management Address Length field
+  // is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
   FlowCfmSenderIdTlvMgmtAddress management_address = 3;
 }
 
-// Sender ID TLV with management address
+// Sender ID TLV with Management Address
 message FlowCfmSenderIdTlvMgmtAddress {
 
   // Description missing in models
@@ -12933,8 +12944,8 @@ message FlowCfmSenderIdTlvMgmtAddress {
   optional string address = 2;
 }
 
-// Port status TLV indicates the ability of the Bridge Port to pass ordinary data traffic,
-// as defined in IEEE 802.1Q-2018 Section 12.14.3.3.
+// Port Status TLV (Type 2) indicates the ability of the Bridge Port to pass ordinary
+// data traffic, as defined in IEEE 802.1Q-2018 Section 12.14.3.3.
 message FlowCfmPortStatusTlv {
 
   message Status {
@@ -12944,13 +12955,14 @@ message FlowCfmPortStatusTlv {
       port_up = 2;
     }
   }
-  // Port status can be either port blocked or port up
+  // Port status can be either port blocked or port up.
   // default = Status.Enum.port_up
   optional Status.Enum status = 1;
 }
 
-// Interface status TLV is used to propagate the operational state of a physical or
-// logical interface between Provider Edge (PE) and Customer Edge (CE) devices.
+// Interface Status TLV (Type 4) indicates the operational state of a physical or logical
+// interface between Provider Edge (PE) and Customer Edge (CE) devices. As defined in
+// IEEE 802.1Q-2018 Section 12.14.3.4.
 message FlowCfmInterfaceStatusTlv {
 
   message Status {
@@ -12965,7 +12977,7 @@ message FlowCfmInterfaceStatusTlv {
       lower_layer_down = 7;
     }
   }
-  // Defined interface status
+  // Defined Interface status.
   // default = Status.Enum.up
   optional Status.Enum status = 1;
 }
@@ -36995,7 +37007,7 @@ message PatternFlowCfmCcmSequenceNumberCounter {
   optional uint32 count = 3;
 }
 
-// CCM unique sequence number
+// CCM unique sequence number.
 message PatternFlowCfmCcmSequenceNumber {
 
   message Choice {
@@ -37090,7 +37102,8 @@ message PatternFlowCfmLbmTransactionIdCounter {
   optional uint32 count = 3;
 }
 
-// Transaction id or sequence number to detect out-of-order packets.
+// Transaction identifier copied verbatim into the corresponding LBR, allowing the sender
+// to match the reply to this request (IEEE 802.1Q-2018 Figure 21-5).
 message PatternFlowCfmLbmTransactionId {
 
   message Choice {
@@ -37185,8 +37198,8 @@ message PatternFlowCfmTlvsLengthCounter {
   optional uint32 count = 3;
 }
 
-// Length of the TLV value field in octets (IEEE 802.1Q-2018 Section 12.14.3.1). When
-// auto, derived from the selected TLV sub-object.
+// Length of the TLV value field in octets (IEEE 802.1Q-2018 Table 21-16). When auto,
+// derived from the selected TLV sub-object.
 message PatternFlowCfmTlvsLength {
 
   message Choice {

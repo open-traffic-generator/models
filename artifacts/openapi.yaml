@@ -16515,7 +16515,7 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Flags.Alert'
     Flow.Cfm:
       description: |-
-        Defines the fields of a Connectivity Fault Management (CFM) Packet Data Unit (PDU) as specified in IEEE 802.1Q-2018 Clause 21.
+        Defines the fields of a Connectivity Fault Management (CFM) Packet Data Unit (PDU) as specified in IEEE 802.1Q-2018 Clause 21. CCM destination MAC is a multicast address derived from the maintenance domain level (IEEE 802.1Q-2018 Table 21-3).
       type: object
       properties:
         md_level:
@@ -16632,7 +16632,7 @@ components:
           x-field-uid: 2
     Flow.Cfm.MaidCfm:
       description: |-
-        IEEE 802.1Q-2018 MAID encoding: MD Name (optional) + Short MA Name, zero-padded to fill 48 bytes in the CCM PDU. The choice selects the Short MA Name Format as defined in IEEE 802.1Q-2018 Table 21-20 and. provides a typed input for each format.
+        IEEE 802.1Q-2018 MAID encoding: MD Name (optional) + Short MA Name, zero-padded to fill 48 bytes in the CCM PDU. The choice selects the Short MA Name Format as defined in IEEE 802.1Q-2018 Table 21-20 and provides a typed input for each format.
       type: object
       properties:
         choice:
@@ -16654,11 +16654,13 @@ components:
           - two_oct_int
           - rfc_2685_vpn_id
         md_name:
+          description: |-
+            Maintenance domain name encoding. When present, the MD Name field is included in the MAID using the selected format (IEEE 802.1Q-2018 Table 21-19 Formats 2-4). When absent, Format 1 (No MD Name) is encoded and the MAID begins directly with the Short MA Name.
           $ref: '#/components/schemas/Flow.Cfm.MDNameFormat'
           x-field-uid: 2
         length:
           description: |-
-            Length of the encoded name value in octets. Auto-computed by default.
+            Length of the Short MA Name value in octets. Auto-computed by default.
           $ref: '#/components/schemas/Flow.Cfm.Length'
           x-field-uid: 3
         primary_vid:
@@ -16713,12 +16715,12 @@ components:
           - char_str
         length:
           description: |-
-            Length of the encoded name value in octets. Auto-computed by default.
+            Length of the MD Name value in octets. Auto-computed by default.
           $ref: '#/components/schemas/Flow.Cfm.Length'
           x-field-uid: 2
         domain_name_str:
           description: |-
-            DNS-like domain name, e.g. "example.com" (RFC 1034 encoding).
+            DNS-like domain name, e.g. "example.com" (RFC 1034 encoding). Maximum 43 octets (IEEE 802.1Q-2018 Table 21-19).
           type: string
           default: ''
           x-field-uid: 3
@@ -16831,15 +16833,17 @@ components:
           x-field-uid: 6
     Flow.Cfm.SenderIdTlv:
       description: |-
-        Sender ID TLV is used to help identify the sender's hardware and management address.
+        Sender ID TLV (Type 1) carries the sender's chassis identity and optionally a Management Address so that the receiving MEP can identify and reach back to the sender, as defined in IEEE 802.1Q-2018 Section 21.5.5, Table 21-16.
       type: object
       properties:
         chassis_id:
+          description: |-
+            Chassis identifier of the sender. When absent, the Chassis ID Length field is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
           $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv.ChassisId'
           x-field-uid: 1
     Flow.Cfm.SenderIdTlv.ChassisId:
       description: |-
-        Sender ID TLV with chassis id
+        Sender ID TLV with Chassis ID
       type: object
       properties:
         choice:
@@ -16894,7 +16898,7 @@ components:
           x-field-uid: 5
         mac_address:
           description: |-
-            MAC address identifying the chassis (IEEE 802.1AB-2016 subtype 4).
+            MAC address identifying the chassis.
           type: string
           format: mac
           default: 00:00:00:00:00:00
@@ -16919,11 +16923,13 @@ components:
           default: ''
           x-field-uid: 9
         management_address_domain:
+          description: |-
+            Management Address Domain and address of the sender. When absent, the Management Address Domain Length field is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
           $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv.MADomain'
           x-field-uid: 10
     Flow.Cfm.SenderIdTlv.MADomain:
       description: |-
-        Sender ID TLV with management address domain
+        Sender ID TLV with Management Address Domain
       type: object
       properties:
         length:
@@ -16937,11 +16943,13 @@ components:
           default: '00'
           x-field-uid: 2
         management_address:
+          description: |-
+            Management Address of the sender. When absent, the Management Address Length field is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
           $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv.MgmtAddress'
           x-field-uid: 3
     Flow.Cfm.SenderIdTlv.MgmtAddress:
       description: |-
-        Sender ID TLV with management address
+        Sender ID TLV with Management Address
       type: object
       properties:
         length:
@@ -16956,12 +16964,12 @@ components:
           x-field-uid: 2
     Flow.Cfm.PortStatusTlv:
       description: |-
-        Port status TLV indicates the ability of the Bridge Port to pass ordinary data traffic, as defined in IEEE 802.1Q-2018 Section 12.14.3.3.
+        Port Status TLV (Type 2) indicates the ability of the Bridge Port to pass ordinary data traffic, as defined in IEEE 802.1Q-2018 Section 12.14.3.3.
       type: object
       properties:
         status:
           description: |-
-            Port status can be either port blocked or port up
+            Port status can be either port blocked or port up.
           type: string
           default: port_up
           x-enum:
@@ -16975,12 +16983,12 @@ components:
           - port_up
     Flow.Cfm.InterfaceStatusTlv:
       description: |-
-        Interface status TLV is used to propagate the operational state of a physical or logical interface between Provider Edge (PE) and Customer Edge (CE) devices.
+        Interface Status TLV (Type 4) indicates the operational state of a physical or logical interface between Provider Edge (PE) and Customer Edge (CE) devices. As defined in IEEE 802.1Q-2018 Section 12.14.3.4.
       type: object
       properties:
         status:
           description: |-
-            Defined interface status
+            Defined Interface status.
           type: string
           default: up
           x-enum:
@@ -51879,7 +51887,7 @@ components:
           format: uint32
     Pattern.Flow.Cfm.Ccm.SequenceNumber:
       description: |-
-        CCM unique sequence number
+        CCM unique sequence number.
       type: object
       properties:
         choice:
@@ -52008,7 +52016,7 @@ components:
           format: uint32
     Pattern.Flow.Cfm.Lbm.TransactionId:
       description: |-
-        Transaction id or sequence number to detect out-of-order packets.
+        Transaction identifier copied verbatim into the corresponding LBR, allowing the sender to match the reply to this request (IEEE 802.1Q-2018 Figure 21-5).
       type: object
       properties:
         choice:
@@ -52135,7 +52143,7 @@ components:
           maximum: 65536
     Pattern.Flow.Cfm.Tlvs.Length:
       description: |-
-        Length of the TLV value field in octets (IEEE 802.1Q-2018 Section 12.14.3.1). When auto, derived from the selected TLV sub-object.
+        Length of the TLV value field in octets (IEEE 802.1Q-2018 Table 21-16). When auto, derived from the selected TLV sub-object.
       type: object
       properties:
         choice:

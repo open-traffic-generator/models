@@ -172,17 +172,20 @@ components:
         REPLACE-CSID (RFC 9800 Section 4.2):
           First entry (locator_length > 0): fully formed SRv6 SID, same structure as NEXT-CSID.
           Subsequent entries (locator_length = 0): K = floor(128 / LNFL) CSID slots packed
-          LSB-first; CSID width inferred from usids hex length (4 chars = 16-bit, 8 = 32-bit).
-          Example LNFL=32: usids ["00010002","00030004"] -> ::3:4:1:2
-          Processing: the router extracts the next CSID from the LSB slot of the following
-          packed container entry and writes it into the DA function field, keeping the
-          locator block unchanged. Each hop advances the LSB read pointer; segments_left
-          is decremented only when the entire packed container is consumed.
+          into a 128-bit SRH entry. Provide only the non-zero CSIDs in wire order (left to
+          right, MSB first among the provided values). The implementation right-aligns them
+          to the LSB end and zero-pads the remaining MSB slots automatically.
+          CSID width is inferred from hex string length (8 chars = 32-bit, 4 chars = 16-bit).
 
-        Flavor discrimination: there is no flavor flag in the packet. Each SR router is
-        pre-provisioned with its SIDs bound to either NEXT-CSID or REPLACE-CSID behavior;
-        when the DA matches a SID, the router applies whichever behavior that SID is
-        configured with.
+          Example LNFL=32, K=4, fully packed (4 CSIDs):
+            usids ["00050005","00040004","00030003","00020002"]
+            wire: [00050005][00040004][00030003][00020002] (MSB->LSB) -> 5:5:4:4:3:3:2:2
+            DA.Arg.Index starts at K-1=3; usids[3]=00020002 is processed first.
+
+          Example LNFL=32, K=4, partially packed (2 CSIDs, MSB slots zeroed automatically):
+            usids ["00030004","00010002"]
+            wire: [0][0][00030004][00010002] (MSB->LSB) -> ::3:4:1:2
+            usids[1]=00010002 is at LSB and processed first by the router.
 
         Segment list is in reverse path order (RFC 8754 Section 2.1): segment[n-1] is the
         first active container.
@@ -258,9 +261,16 @@ components:
         NEXT-CSID example (F3216: locator_length=32, 16-bit CSIDs):
           locator fc00::/32, usids ["0001","0002","0003"] -> SRH entry fc00:0:1:2:3::
 
-        REPLACE-CSID packed example (LNFL=32, K=4, locator_length=0):
-          usids ["00010002","00030004"] -> wire [0][0][00030004][00010002] (MSB->LSB)
-          -> SRH entry ::3:4:1:2
+        REPLACE-CSID packed examples (LNFL=32, K=4, locator_length=0):
+          Fully packed (4 CSIDs):
+            usids ["00050005","00040004","00030003","00020002"]
+            wire: [00050005][00040004][00030003][00020002] -> 5:5:4:4:3:3:2:2
+            (usids[3]=00020002 at LSB is processed first by the router)
+
+          Partially packed (2 CSIDs; MSB slots are zero-padded automatically):
+            usids ["00030004","00010002"]
+            wire: [0][0][00030004][00010002] -> ::3:4:1:2
+            (usids[1]=00010002 at LSB is processed first by the router)
       type: object
       properties:
         locator:
@@ -277,7 +287,7 @@ components:
           x-field-uid: 1
         locator_length:
           x-field-pattern:
-            description: >-
+            description: |-
               Length of the Locator Block in bits (RFC 9800 Section 3).
               Valid range: 0-112.
               For NEXT-CSID (locator_length > 0): high-order locator_length bits of
@@ -286,27 +296,40 @@ components:
               structure; use a single usid = Locator-Node+Function value (LNFL bits).
               For REPLACE-CSID packed containers (locator_length = 0): the locator
               field is ignored; the 128-bit SRH entry is K = floor(128/LNFL) slots
-              of LNFL bits each; usids are packed from the LSB (RFC 9800 Section 4.2).
+              of LNFL bits each; usids are provided in wire order (MSB first) - see usids
+              field description for examples (RFC 9800 Section 4.2).
             format: integer
             length: 8
             default: 32
             features: [count]
           x-field-uid: 2
         usids:
-          description: >-
+          description: |-
             Ordered list of CSID hex strings for this container (RFC 9800 Section 3).
             For NEXT-CSID (locator_length > 0): CSIDs are packed in forward order after
             the Locator Block. usids[0] immediately follows the LB, usids[1] follows, etc.
             The value 0x0 (all zeros) is reserved as the End-of-Container marker.
             Example F3216: ["0001","0002","0003"] with locator fc00::/32 -> fc00:0:1:2:3::
-            For REPLACE-CSID packed format (locator_length = 0): CSIDs are packed in
-            reverse order from the LSB (RFC 9800 Section 4.2, Figure 4).
-            K = floor(128 / LNFL) where LNFL is inferred from hex string width
-            (8 chars = 32-bit CSID, K = 4). usids[0] goes to position K-1 (LSB,
-            bits [128-LNFL..127]), usids[1] to position K-2, etc.
-            Unused MSB positions are zero-padded.
-            Example LNFL=32: ["00010002","00030004"] -> wire [0][0][00030004][00010002]
-            (MSB to LSB) -> SRH entry ::3:4:1:2
+
+            For REPLACE-CSID packed containers (locator_length = 0): provide only the
+            non-zero CSIDs in wire order (left to right, MSB first among the provided
+            values). LNFL is inferred from hex string width (8 chars = 32-bit CSID,
+            K = 4; 4 chars = 16-bit CSID, K = 8). The implementation right-aligns the
+            provided CSIDs to the LSB end of the 128-bit container and zero-pads the
+            remaining MSB slots automatically - no need to supply leading zero entries.
+            Per RFC 9800 Section 4.2, DA.Arg.Index starts at the last occupied slot
+            (LSB = usids[-1]) and decrements each hop, so usids[-1] is the first CSID
+            the router processes and usids[0] is the last.
+
+            Example LNFL=32, K=4, fully packed (4 CSIDs):
+              usids ["00050005","00040004","00030003","00020002"]
+              wire: [00050005][00040004][00030003][00020002] (MSB->LSB) -> 5:5:4:4:3:3:2:2
+              Router processes: 00020002 first, then 00030003, 00040004, 00050005.
+
+            Example LNFL=32, K=4, partially packed (2 CSIDs; MSB slots zeroed automatically):
+              usids ["00030004","00010002"]
+              wire: [0][0][00030004][00010002] (MSB->LSB) -> ::3:4:1:2
+              Router processes: 00010002 first, then 00030004.
           type: array
           minItems: 1
           items:

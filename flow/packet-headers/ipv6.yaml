@@ -84,7 +84,7 @@ components:
         dst:
           x-field-pattern:
             description: >-
-              Destination address in IPv6 packet header. If dest_usids is configured, the locator and usids provided in that
+              Destination address in IPv6 packet header. If dst_usids is configured, the locator and usids provided in that
               should be used to construct the IPv6 destination address instead of this field.
             format: ipv6
             default: ::0
@@ -136,8 +136,10 @@ components:
             description: >-
               Length of the Locator Block in bits (RFC 9800 Section 3).
               Determines how many high-order bits of locator are used as the LB
-              and how many bits remain for uSID packing.
-              For F3216: 32. For F3208: 32. Valid range: 1-112.
+              and how many bits remain for CSID packing. Valid range: 1-112.
+              For NEXT-CSID F3216 (RFC 9800 Section 3): 32. For REPLACE-CSID first
+              container (RFC 9800 Section 4.2): use the LB length (e.g. 32 or 48);
+              the outer IPv6 DA always carries a fully formed SRv6 SID with a LB.
             format: integer
             length: 8
             default: 32
@@ -145,33 +147,20 @@ components:
           x-field-uid: 2
         usids:
           description: >-
-            Ordered list of uSID values to pack after the Locator Block
+            Ordered list of uSID values (hex strings) to pack after the Locator Block
             (RFC 9800 Section 3). For F3216 each uSID is 16 bits (4 hex chars);
             up to 6 uSIDs fit per container. The End-of-Container zero-pad
             is appended automatically by the implementation.
+            The value 0x0000 is reserved as the End-of-Container marker and must
+            not be used.
             Example: ["0001","0002","0003"] with locator fc00::/32
             assembles to fc00:0:1:2:3::
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/Flow.Ipv6.UsidDst.uSid'
+            type: string
+            format: hex
           x-field-uid: 3
-    Flow.Ipv6.UsidDst.uSid:
-      description: >-
-        One uSID value within the no-SRH uSID container (RFC 9800 Section 3).
-        For F3216 (16-bit uSID): 4 hex characters.
-        The value 0x0000 is reserved as the End-of-Container marker and must
-        not be used.
-      type: object
-      properties:
-        usid:
-          description: >-
-            The uSID value as a hex string. For F3216: 4 hex characters.
-            Any '0' padding before the before uSID value should be explicitly configured.
-            Example: "0001".
-          type: string
-          format: hex
-          x-field-uid: 1
     Flow.Ipv6.Auto:
       description: |-
         The OTG implementation can provide a system generated, value for this property.

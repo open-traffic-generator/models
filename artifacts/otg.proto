@@ -1,4 +1,4 @@
-/* Open Traffic Generator API 1.54.0
+/* Open Traffic Generator API 1.58.0
  * Open Traffic Generator API defines a model-driven, vendor-neutral and standard
  * interface for emulating layer 2-7 network devices and generating test traffic.
  * 
@@ -155,6 +155,9 @@ message LagPort {
   // Description missing in models
   // required = true
   DeviceEthernetBase ethernet = 3;
+
+  // Description missing in models
+  LagPortMacsec macsec = 4;
 }
 
 // Description missing in models
@@ -1232,6 +1235,966 @@ message Dhcpv6ServerOptionsBootFileParams {
   optional string parameter = 1;
 }
 
+// Configuration of MACsec per LAG member port. This MACsec configuration per LAG member
+// port and MACsec configuration in any Ethernet device a) on this port or b) on this
+// LAG are mutually exclusive.
+message LagPortMacsec {
+
+  // This contains the properties of Secure Entity (SecY) per LAG member port.
+  // required = true
+  LagPortMacsecSecureEntity secure_entity = 1;
+
+  // Protocols excluded from MACsec encapsulation at Tx from the LAG member port.
+  LagPortMacsecExcludeProtocols exclude_protocols = 2;
+}
+
+// Protocols excluded from MACsec encapsulation at Tx from the LAG member port.
+message LagPortMacsecExcludeProtocols {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      none = 1;
+      per_protocol = 2;
+    }
+  }
+  // Choose none to exclude no protocols i.e. all protocols are MACsec encapsulated at
+  // Tx. Choose per_protocol to opt per protocol.
+  // default = Choice.Enum.none
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  LagPortMacsecExcludeProtocolsPerProtocol per_protocol = 2;
+}
+
+// Per protocol choice to exclude from MACsec encapsulation at Tx from this LAG member
+// port.
+message LagPortMacsecExcludeProtocolsPerProtocol {
+
+  // Determines whether LACP should be excluded from MACsec encapsulation or not.
+  // default = False
+  optional bool lacp = 1;
+}
+
+// Configuration of Secure Entity (SecY) per LAG member port.
+message LagPortMacsecSecureEntity {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // This contains the properties of key generation protocol of Secure Entity (SecY).
+  // required = true
+  SecureEntityKeyGenerationProtocol key_generation_protocol = 2;
+
+  // This contains the properties of data plane of Secure Entity (SecY).
+  LagPortMacsecSecureEntityDataPlane data_plane = 3;
+}
+
+// A container of properties for a MACsec capable device. Reference https://1.ieee802.org/security/802-1ae/.
+message DeviceMacsec {
+
+  // Ethernet Interfaces
+  repeated DeviceMacsecEthernetInterface ethernet_interfaces = 1;
+}
+
+// Configuration for single MACsec interface.
+message DeviceMacsecEthernetInterface {
+
+  // The unique name of the Ethernet interface on which MACsec is enabled.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  // required = true
+  optional string eth_name = 1;
+
+  // This contains the properties of Secure Entity (SecY).
+  // required = true
+  SecureEntity secure_entity = 2;
+}
+
+// Configuration of a Secure Entity (SecY).
+message SecureEntity {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // This contains the properties of key generation protocol of Secure Entity (SecY).
+  // required = true
+  SecureEntityKeyGenerationProtocol key_generation_protocol = 2;
+
+  // This contains the properties of data plane of Secure Entity (SecY).
+  SecureEntityDataPlane data_plane = 3;
+}
+
+// Container of Key generation protocol configuration.
+message SecureEntityKeyGenerationProtocol {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      mka = 1;
+      static_key = 2;
+    }
+  }
+  // Key generation protocol choices. Choose mka for dynamic key distribution using MACsec
+  // key agreement(MKA) protocol. Choose static_key for static configuration of secure
+  // association key(SAK).
+  // default = Choice.Enum.mka
+  optional Choice.Enum choice = 1;
+
+  // This contains the properties of Key Agreement Entity (KaY) in MKA supplicant.
+  Mka mka = 2;
+
+  // Static key properties properties of SecY. Static key is used in absence MKA.
+  SecureEntityStaticKey static_key = 3;
+}
+
+// A container of data plane properties.
+message SecureEntityDataPlane {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      encapsulation = 1;
+      no_encapsulation = 2;
+    }
+  }
+  // Choose encapsulation so that data packets are sent with MACsec encapsulation. Choose
+  // no_encapsulation so that data packets are sent without MACsec encapsulation.
+  // default = Choice.Enum.encapsulation
+  optional Choice.Enum choice = 1;
+
+  // A container of encapsulation properties for a secure entity(SecY).
+  SecureEntityDataPlaneEncapsulation encapsulation = 2;
+}
+
+// A container of encapsulation properties for a secure entity(SecY).
+message SecureEntityDataPlaneEncapsulation {
+
+  // Tx properties of SecY.
+  SecureEntityDataPlaneTx tx = 1;
+
+  // Rx properties of SecY.
+  SecureEntityDataPlaneRx rx = 2;
+
+  // Crypto engine properties of SecY.
+  // required = true
+  SecureEntityCryptoEngine crypto_engine = 3;
+
+  // VLAN options of SecY.
+  SecureEntityVlanOptions vlan_options = 4;
+}
+
+// A container of Tx properties of SecY.
+message SecureEntityDataPlaneTx {
+
+  // End station or not.
+  // default = False
+  optional bool end_station = 1;
+
+  // Include SCI or not.
+  // default = True
+  optional bool include_sci = 2;
+}
+
+// A container for Rx settings of SecY.
+message SecureEntityDataPlaneRx {
+
+  // Enable replay protection or not.
+  // default = False
+  optional bool replay_protection = 1;
+
+  // Replay window size.
+  // default = 1
+  optional uint32 replay_window = 2;
+}
+
+// A container of crypto engine properties of a SecY.
+message SecureEntityCryptoEngine {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      encrypt_only = 1;
+      encrypt_decrypt = 2;
+    }
+  }
+  // Engine type based on encryption and/ or decryption capability. Supported types: 1)
+  // encrypt_only - engine can only encrypt transmitted packets but it cannot decrypt
+  // packets upon arrival. As the packets cannot be decrypted on arrival, such packets
+  // cannot be delivered to the receiving device. Hence only stateless traffic can be
+  // sent. 2) encrypt_decrypt - engine can both encrypt transmitted packets and decrypt
+  // packets on arrival. Such engine can have hardware acceleration for faster encryption/
+  // decryption. As both encryption and decryption are possible, stateful (e.g. TCP) traffic
+  // can be sent/ received.
+  // default = Choice.Enum.encrypt_only
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  SecureEntityCryptoEngineEncryptOnly encrypt_only = 2;
+
+  // Description missing in models
+  SecureEntityCryptoEngineEncryptDecrypt encrypt_decrypt = 3;
+}
+
+// The container for encrypt only engine configuration.
+message SecureEntityCryptoEngineEncryptOnly {
+
+  // Description missing in models
+  repeated SecureEntityCryptoEngineEncryptOnlyTxSc secure_channels = 1;
+
+  // Description missing in models
+  SecureEntityCryptoEngineEncryptOnlyTrafficOptions traffic_options = 2;
+}
+
+// The container for encrypt and decrypt engine configuration.
+message SecureEntityCryptoEngineEncryptDecrypt {
+
+  // Description missing in models
+  SecureEntityCryptoEngineEncryptDecryptTxPn tx_pn = 1;
+
+  // Description missing in models
+  SecureEntityCryptoEngineEncryptDecryptHardwareAcceleration hardware_acceleration = 2;
+}
+
+// The container for Tx secure channel configuration.
+message SecureEntityCryptoEngineEncryptOnlyTxSc {
+
+  // Description missing in models
+  SecureEntityCryptoEngineEncryptOnlyTxScTxPn tx_pn = 1;
+}
+
+// Tx packet number(PN) configuration.
+message SecureEntityCryptoEngineEncryptOnlyTxScTxPn {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      fixed_pn = 1;
+      incrementing_pn = 2;
+    }
+  }
+  // Types of Tx packet number(PN) series. Supported choices: 1) fixed PN - MACsec packets
+  // will be sent out with the configured fixed PN or lower half of configured fixed XPN.
+  // 2) incrementing PN - MACsec packets will be sent out by single device with an incrementing
+  // PN or XPN.
+  // default = Choice.Enum.fixed_pn
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  SecureEntityCryptoEngineEncryptOnlyFixedPn fixed = 2;
+
+  // Description missing in models
+  SecureEntityCryptoEngineEncryptOnlyIncrementingPn incrementing = 3;
+}
+
+// Fixed packet number(PN) configuration.
+message SecureEntityCryptoEngineEncryptOnlyFixedPn {
+
+  // Fixed Tx packet number(PN). 4 bytes PN with which all packets will be sent out.
+  // default = 6
+  optional uint32 pn = 1;
+
+  // Fixed Tx extended packet number(XPN). 8 bytes XPN with which all packets will be
+  // sent out.
+  // default = 06
+  optional string xpn = 2;
+}
+
+// Incrementing packet number(PN) configuration.
+message SecureEntityCryptoEngineEncryptOnlyIncrementingPn {
+
+  // Count of packet numbers in series.
+  // default = 100
+  optional uint32 count = 1;
+
+  // The starting packet number(PN).
+  // default = 10000
+  optional uint32 starting_pn = 2;
+
+  // The starting extended packet number(XPN).
+  // default = 01
+  optional string starting_xpn = 3;
+}
+
+// Encrypt only traffic options.
+message SecureEntityCryptoEngineEncryptOnlyTrafficOptions {
+
+  // Send gratuitous ARP or not.
+  // default = True
+  optional bool send_gratuitous_arp = 1;
+}
+
+// Tx packet number(PN) configuration.
+message SecureEntityCryptoEngineEncryptDecryptTxPn {
+
+  // The starting packet number(PN).
+  // default = 1
+  optional uint32 starting_pn = 1;
+
+  // The starting extended packet number(XPN).
+  // default = 01
+  optional string starting_xpn = 2;
+}
+
+// Hardware acceleration configuration for offloading MACsec processing to hardware.
+message SecureEntityCryptoEngineEncryptDecryptHardwareAcceleration {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      none = 1;
+      inline_crypto = 2;
+    }
+  }
+  // Hardware acceleration types. Per port global parameters for chosen hardware acceleration
+  // mode applicable for all MACsec sessions from the test port are available at options.per_port_options.protocols.macsec.hardware_acceleration.
+  // default = Choice.Enum.none
+  optional Choice.Enum choice = 1;
+}
+
+// A container for VLAN options of SecY.
+message SecureEntityVlanOptions {
+
+  // Send interface VLANS as encrypted or not. If it is false, VLANs go in cleartext.
+  // If hardware_accelerated.inline_crypto mode is chosen, option related to offset must
+  // be changed from default 12 (to 16 for example for single cleartext VLAN) at appropriate
+  // place to handle cleartext VLAN in receive direction.
+  // default = True
+  optional bool encrypt_interface_vlans = 1;
+}
+
+// Configuration of a MKA Key Agreement Entity (KaY). Reference https://1.ieee802.org/security/802-1x/.
+message Mka {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // This contains the basic properties of KaY.
+  // required = true
+  MkaBasic basic = 2;
+
+  // Key server attributes.
+  MkaKeyServer key_server = 3;
+
+  // Tx Properties.
+  // required = true
+  MkaTx tx = 4;
+}
+
+// A container of basic properties for a KaY.
+message MkaBasic {
+
+  message KeyDerivationFunction {
+    enum Enum {
+      unspecified = 0;
+      aes_cmac_128 = 1;
+      aes_cmac_256 = 2;
+    }
+  }
+  // Key Derivation Function.
+  // default = KeyDerivationFunction.Enum.aes_cmac_128
+  optional KeyDerivationFunction.Enum key_derivation_function = 1;
+
+  // Key source.
+  // required = true
+  MkaBasicKeySource key_source = 2;
+
+  // Actor priority.
+  // default = 70
+  optional string actor_priority = 3;
+
+  // Determines whether MACsec is desired or not. It is advertised in periodic Hellos.
+  // default = True
+  optional bool macsec_desired = 4;
+
+  message MacsecCapability {
+    enum Enum {
+      unspecified = 0;
+      macsec_not_implemented = 1;
+      macsec_integrity_without_confidentiality = 2;
+      macsec_integrity_with_no_confidentiality_offset = 3;
+      macsec_integrity_with_confidentiality_offset = 4;
+    }
+  }
+  // MACSec Capability.
+  // default = MacsecCapability.Enum.macsec_integrity_with_confidentiality_offset
+  optional MacsecCapability.Enum macsec_capability = 5;
+
+  // Supported Cipher Suites.
+  MkaBasicSupportedCipherSuites supported_cipher_suites = 6;
+
+  // EAPOL Ethernet type.
+  // default = 888E
+  optional string eapol_ethernet_type = 7;
+
+  // MKA Version.
+  // default = 3
+  optional uint32 mka_version = 8;
+
+  // MKA Hello Time (msec).
+  // default = 2000
+  optional uint32 mka_hello_time = 9;
+
+  // MKA Life Time (sec).
+  // default = 6
+  optional uint32 mka_life_time = 10;
+
+  // Send ICV Indicator in MKPDU.
+  // default = True
+  optional bool send_icv_indicatior_in_mkpdu = 11;
+
+  // Delay Protect or not. When delay protect is enabled, it guards against delaying the
+  // delivery of MACsec encrypted frames by an attacker to the recipient.
+  // default = False
+  optional bool delay_protect = 12;
+
+  // Rekey Mode.
+  MkaBasicRekeyMode rekey_mode = 13;
+
+  // Description missing in models
+  MkaBasicPskChainStartTime psk_chain_start_time = 14;
+}
+
+// The container for supported cipher suites.
+message MkaBasicSupportedCipherSuites {
+
+  // GCM-AES-128.
+  // default = True
+  optional bool gcm_aes_128 = 1;
+
+  // GCM-AES-256.
+  // default = True
+  optional bool gcm_aes_256 = 2;
+
+  // GCM-AES-XPN-128.
+  // default = True
+  optional bool gcm_aes_xpn_128 = 3;
+
+  // GCM-AES-XPN-256.
+  // default = True
+  optional bool gcm_aes_xpn_256 = 4;
+}
+
+// The container for key source settings.
+message MkaBasicKeySource {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      psk = 1;
+    }
+  }
+  // Key source. Current choice is PSK only.
+  // default = Choice.Enum.psk
+  optional Choice.Enum choice = 1;
+
+  // PSK chain.
+  repeated MkaBasicKeySourcePsk psks = 2;
+}
+
+// The container for Pre-shared key(PSK).
+message MkaBasicKeySourcePsk {
+
+  // Connectivity association key(CAK) value. It can be 128 bits or 256 bits long depending
+  // on the chosen MKA key derivation function.
+  // default = F123456789ABCDEF0123456789ABCDEF
+  optional string cak_value = 1;
+
+  // Connectivity association key(CAK) name. The value should be in sync with CAK name
+  // in DUT.
+  // default = ABCD
+  optional string cak_name = 2;
+
+  // 
+  MkaBasicStartOffsetTime start_offset_time = 3;
+
+  // 
+  MkaBasicEndOffsetTime end_offset_time = 4;
+}
+
+// Key start offset time in HH:MM. This is relative to key chain start time.
+message MkaBasicStartOffsetTime {
+
+  // Hours in HH format.
+  // default = 0
+  optional uint32 hh = 1;
+
+  // Minutes in MM format.
+  // default = 0
+  optional uint32 mm = 2;
+}
+
+// Key end offset time in HH:MM. This is relative to key chain start time. A value of
+// 00:00 makes the key valid for lifetime.
+message MkaBasicEndOffsetTime {
+
+  // Hours in HH format.
+  // default = 0
+  optional uint32 hh = 1;
+
+  // Minutes in MM format.
+  // default = 0
+  optional uint32 mm = 2;
+}
+
+// Pre-shared key(PSK) chain start time in UTC time format DD-MM-YYYY HH:MM:SS. For
+// any key in chain, key start offset time and end offset time will be relative to this
+// chain start time. There can be two cases depending on number of keys in key chain.
+// 1) Single key in key chain - Test port and DUT need not be time synced for single
+// key if key chain start time is set to some past time. As default key chain start
+// time is Unix epoch time, default value suffices for single key in chain. 2) More
+// than one key - Test program should set key chain start time to some future time e.g.
+// few minutes ahead of current time in both test config and DUT config. This requires
+// both test port and DUT to be time synced.
+message MkaBasicPskChainStartTime {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      utc = 1;
+    }
+  }
+  // Timezone choice. Currently only Coordinated Universal Time(UTC) is supported.
+  // default = Choice.Enum.utc
+  optional Choice.Enum choice = 1;
+
+  // Coordinated Universal Time(UTC) time.
+  MkaBasicTimeUtc utc = 2;
+}
+
+// Coordinated Universal Time(UTC).
+message MkaBasicTimeUtc {
+
+  // Day of the month in DD format.
+  // default = 1
+  optional uint32 day = 1;
+
+  // Month of the year in MM format.
+  // default = 1
+  optional uint32 month = 2;
+
+  // Year from the start of common era(CE) in YYYY format.
+  // default = 1970
+  optional uint32 year = 3;
+
+  // Hour of the day in HH format.
+  // default = 0
+  optional uint32 hour = 4;
+
+  // Minute of the hour in MM format.
+  // default = 0
+  optional uint32 minute = 5;
+
+  // Second of the minute in SS format.
+  // default = 0
+  optional uint32 second = 6;
+}
+
+// Rekey mode.
+message MkaBasicRekeyMode {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      dont_rekey = 1;
+      timer_based = 2;
+      pn_based = 3;
+    }
+  }
+  // Mode choices.
+  // default = Choice.Enum.dont_rekey
+  optional Choice.Enum choice = 1;
+
+  // Container for timer based periodic rekey properties.
+  MkaBasicRekeyModeTimerBased timer_based = 2;
+}
+
+// Timer based periodic rekey properties.
+message MkaBasicRekeyModeTimerBased {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      continuous = 1;
+      fixed_count = 2;
+    }
+  }
+  // Periodic Rekey count.
+  // default = Choice.Enum.continuous
+  optional Choice.Enum choice = 1;
+
+  // Fixed rekey attempts.
+  // default = 10
+  optional uint32 fixed_count = 2;
+
+  // Periodic rekey interval (sec).
+  // default = 300
+  optional uint32 interval = 3;
+}
+
+// Key server attributes of a KaY.
+message MkaKeyServer {
+
+  message ConfidentialtyOffset {
+    enum Enum {
+      unspecified = 0;
+      no_confidentiality = 1;
+      no_confidentiality_offset = 2;
+      confidentiality_offset_30_octets = 3;
+      confidentiality_offset_50_octets = 4;
+    }
+  }
+  // Confidentiality Offset.
+  // default = ConfidentialtyOffset.Enum.no_confidentiality_offset
+  optional ConfidentialtyOffset.Enum confidentialty_offset = 1;
+
+  message CipherSuite {
+    enum Enum {
+      unspecified = 0;
+      gcm_aes_128 = 1;
+      gcm_aes_256 = 2;
+      gcm_aes_xpn_128 = 3;
+      gcm_aes_xpn_256 = 4;
+    }
+  }
+  // The cipher suite. Choose one from GCM-AES-128 GCM-AES-256 GCM-AES-XPN-128 GCM-AES-XPN-256
+  // default = CipherSuite.Enum.gcm_aes_128
+  optional CipherSuite.Enum cipher_suite = 2;
+
+  // Starting Key Number.
+  // default = 1
+  optional uint32 starting_key_number = 3;
+
+  // Starting Distributed AN.
+  // default = 0
+  optional uint32 starting_distributed_an = 4;
+
+  // Determines the PN rekey threshold.
+  // default = C0000000
+  optional string rekey_threshold_pn = 5;
+
+  // Determines the XPN rekey threshold.
+  // default = C000000000000000
+  optional string rekey_threshold_xpn = 6;
+}
+
+// A container of Tx properties.
+message MkaTx {
+
+  // Tx secure channels.
+  repeated MkaTxSc secure_channels = 1;
+}
+
+// Tx secure channel(SC) properties.
+message MkaTxSc {
+
+  // Tx SC name.
+  // required = true
+  optional string name = 1;
+
+  // System ID.
+  // required = true
+  optional string system_id = 2;
+
+  // Port ID.
+  // default = 1
+  optional uint32 port_id = 3;
+
+  // Starting Message Number.
+  // default = 1
+  optional uint64 starting_message_number = 4;
+}
+
+// A container of static key properties for a secure entity(SecY). This configuration
+// is applicable when no dynamic key management protocol i.e. MACsec key agreement(MKA)
+// is configured. If MKA is configured, any static key configuration is not applicable.
+message SecureEntityStaticKey {
+
+  message CipherSuite {
+    enum Enum {
+      unspecified = 0;
+      gcm_aes_128 = 1;
+      gcm_aes_256 = 2;
+      gcm_aes_xpn_128 = 3;
+      gcm_aes_xpn_256 = 4;
+    }
+  }
+  // The cipher suite. Choose one from GCM-AES-128 GCM-AES-128 GCM-AES-256 GCM-AES-XPN-128
+  // GCM-AES-XPN-256
+  // default = CipherSuite.Enum.gcm_aes_128
+  optional CipherSuite.Enum cipher_suite = 1;
+
+  // Encrypt or not.
+  // default = True
+  optional bool confidentiality = 2;
+
+  message ConfidentialityOffset {
+    enum Enum {
+      unspecified = 0;
+      zero = 1;
+      thirty = 2;
+      fifty = 3;
+    }
+  }
+  // Confidentiality offset.
+  // default = ConfidentialityOffset.Enum.zero
+  optional ConfidentialityOffset.Enum confidentiality_offset = 3;
+
+  // Tx properties of SecY.
+  SecureEntityStaticKeyTx tx = 4;
+
+  // Rx properties of SecY.
+  SecureEntityStaticKeyRx rx = 5;
+}
+
+// Rekey mode.
+message SecureEntityStaticKeyRekeyMode {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      dont_rekey = 1;
+      timer_based = 2;
+      pn_based = 3;
+    }
+  }
+  // Rekey mode choices.
+  // default = Choice.Enum.dont_rekey
+  optional Choice.Enum choice = 1;
+
+  // Container for timer based periodic rekey properties.
+  SecureEntityStaticKeyRekeyModeTimerBased timer_based = 2;
+}
+
+// Timer based periodic rekey properties.
+message SecureEntityStaticKeyRekeyModeTimerBased {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      continuous = 1;
+      fixed_count = 2;
+    }
+  }
+  // Periodic rekey attempt choices.
+  // default = Choice.Enum.continuous
+  optional Choice.Enum choice = 1;
+
+  // Fixed rekey attempts.
+  // default = 10
+  optional uint32 fixed_count = 2;
+
+  // Periodic rekey interval (sec).
+  // default = 300
+  optional uint32 interval = 3;
+}
+
+// The container for SAK.
+message SecureEntityStaticKeySak {
+
+  // Secure association key(SAK) bits as hex string. Either 128 bits or 256 bits depending
+  // on the chosen cipher suite.
+  // default = F123456789ABCDEF0123456789ABCDEF
+  optional string sak = 1;
+
+  // 4 bytes short SCI(SSCI) used in case of XPN cipher suites.
+  // default = 00000001
+  optional string ssci = 2;
+
+  // 12 bytes salt used in case of XPN cipher suites.
+  // default = 000000000000000000000001
+  optional string salt = 3;
+}
+
+// A container of static key Tx properties.
+message SecureEntityStaticKeyTx {
+
+  // Tx secure channels.
+  repeated SecureEntityStaticKeyTxSc secure_channels = 1;
+
+  // Description missing in models
+  SecureEntityStaticKeyRekeyMode rekey_mode = 2;
+}
+
+// Tx SC setting for static key.
+message SecureEntityStaticKeyTxSc {
+
+  // System ID.
+  optional string system_id = 1;
+
+  // Port ID.
+  // default = 1
+  optional uint32 port_id = 2;
+
+  // Tx SAK pool.
+  repeated SecureEntityStaticKeySak saks = 3;
+}
+
+// A container of static key Rx properties.
+message SecureEntityStaticKeyRx {
+
+  // Rx secure channels.
+  repeated SecureEntityStaticKeyRxSc secure_channels = 1;
+}
+
+// Rx SC settings.
+message SecureEntityStaticKeyRxSc {
+
+  // System ID in DUT SCI.
+  optional string dut_sci_system_id = 1;
+
+  // Port ID in DUT SCI.
+  // default = 1
+  optional uint32 dut_sci_port_id = 2;
+
+  // DUT MSB of XPN. The 32 most significant bits of the XPN that DUT will be using to
+  // construct the 64 bits XPN value when test starts.
+  // default = 0
+  optional uint32 dut_msb_xpn = 3;
+
+  // Rx SAK pool.
+  repeated SecureEntityStaticKeySak saks = 4;
+}
+
+// A container of data plane properties.
+message LagPortMacsecSecureEntityDataPlane {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      encapsulation = 1;
+      no_encapsulation = 2;
+    }
+  }
+  // Choose encapsulation so that data packets are sent with MACsec encapsulation. Choose
+  // no_encapsulation so that data packets are sent without MACsec encapsulation.
+  // default = Choice.Enum.encapsulation
+  optional Choice.Enum choice = 1;
+
+  // A container of encapsulation properties for a secure entity(SecY).
+  LagPortMacsecSecureEntityDataPlaneEncapsulation encapsulation = 2;
+}
+
+// A container of encapsulation properties for a secure entity(SecY).
+message LagPortMacsecSecureEntityDataPlaneEncapsulation {
+
+  // Tx properties of SecY.
+  LagPortMacsecSecureEntityDataPlaneTx tx = 1;
+
+  // Rx properties of SecY.
+  LagPortMacsecSecureEntityDataPlaneRx rx = 2;
+
+  // Crypto engine properties of SecY.
+  // required = true
+  LagPortMacsecSecureEntityCryptoEngine crypto_engine = 3;
+}
+
+// A container of Tx properties of SecY.
+message LagPortMacsecSecureEntityDataPlaneTx {
+
+  // End station or not.
+  // default = False
+  optional bool end_station = 1;
+}
+
+// A container for Rx settings of SecY.
+message LagPortMacsecSecureEntityDataPlaneRx {
+
+  // Enable replay protection or not.
+  // default = False
+  optional bool replay_protection = 1;
+
+  // Replay window size.
+  // default = 1
+  optional uint32 replay_window = 2;
+
+  // Description missing in models
+  LagPortMacsecSecureEntityDataPlaneRxValidateFrames validate_frames = 3;
+}
+
+// Controls validation of received frames.
+message LagPortMacsecSecureEntityDataPlaneRxValidateFrames {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      check = 1;
+      strict = 2;
+    }
+  }
+  // Controls validation of received frames. check - enable validation, do not discard
+  // invalid frames and increment in_pkts_invalid stats. strict - enable validation and
+  // discard invalid frames and increment in_pkts_not_valid stats.
+  // default = Choice.Enum.check
+  optional Choice.Enum choice = 1;
+}
+
+// A container of crypto engine properties of a SecY.
+message LagPortMacsecSecureEntityCryptoEngine {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      encrypt_decrypt = 1;
+    }
+  }
+  // Engine type based on encryption and/ or decryption capability. Supported type: encrypt_decrypt
+  // - engine can both encrypt transmitted packets and decrypt packets on arrival. Such
+  // engine can have hardware acceleration for faster encryption/ decryption. As both
+  // encryption and decryption are possible, stateful (e.g. TCP) traffic can be sent/
+  // received.
+  // default = Choice.Enum.encrypt_decrypt
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  LagPortMacsecSecureEntityCryptoEngineEncryptDecrypt encrypt_decrypt = 2;
+}
+
+// The container for configuration of crypto engine of encrypt and decrypt type.
+message LagPortMacsecSecureEntityCryptoEngineEncryptDecrypt {
+
+  // Description missing in models
+  LagPortMacsecSecureEntityCryptoEngineEncryptDecryptTxPn tx_pn = 1;
+
+  // Description missing in models
+  LagPortMacsecSecureEntityCryptoEngineEncryptDecryptHardwareAcceleration hardware_acceleration = 2;
+}
+
+// Tx packet number(PN) configuration.
+message LagPortMacsecSecureEntityCryptoEngineEncryptDecryptTxPn {
+
+  // The starting packet number(PN).
+  // default = 1
+  optional uint32 starting_pn = 1;
+
+  // The starting extended packet number(XPN).
+  // default = 01
+  optional string starting_xpn = 2;
+}
+
+// Hardware acceleration configuration for offloading MACsec processing to hardware.
+message LagPortMacsecSecureEntityCryptoEngineEncryptDecryptHardwareAcceleration {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      none = 1;
+      inline_crypto = 2;
+    }
+  }
+  // Hardware acceleration types.
+  // default = Choice.Enum.none
+  optional Choice.Enum choice = 1;
+}
+
 // A container for layer1 settings.
 message Layer1 {
 
@@ -1852,10 +2815,6 @@ message IsisInterface {
   // List of SR-MPLS Adjacency Segment Identifier (Adj-SID) sub-TLVs for this interface
   // (RFC 8667).
   repeated IsisInterfaceAdjacencySid adjacency_sids = 14;
-
-  // When present, advertises SRv6 adjacency SID sub-TLVs and per-link MSD sub-TLVs for
-  // this interface. Reference: RFC 9352 Sections 6, 8.1-8.2.
-  IsisSRv6AdjSidContainer srv6_adjacency_sids = 15;
 }
 
 // Configuration for the properties of Level 1 Hello.
@@ -2125,460 +3084,6 @@ message IsisInterfaceAdjacencySid {
   // 
   // default = 0
   optional uint32 weight = 9;
-}
-
-// SRv6 Capabilities Sub-TLV (sub-TLV type 25) carried within the IS-IS Router CAPABILITY
-// TLV (TLV 242, RFC 7981). Announces that this IS-IS router is an SRv6 Segment Endpoint
-// Node and optionally supports the O-bit for OAM operations. Reference: RFC 9352 Section
-// 2.
-message IsisSRv6NodeCapability {
-
-  // OAM flag (bit 0 of the Flags field in the SRv6 Capabilities Sub-TLV). When set, indicates
-  // that this router supports the use of the O-bit in the Segment Routing Header (SRH)
-  // for Operations, Administration and Maintenance (OAM) operations as defined in RFC
-  // 9259.
-  // default = False
-  optional bool o_flag = 1;
-
-  // When present, advertises SRv6 Maximum SID Depth (MSD) sub-TLVs within the IS-IS Router
-  // CAPABILITY TLV (TLV 242, RFC 7981). Each populated child object causes the corresponding
-  // MSD sub-TLV to be advertised; omit a child object to suppress that MSD type. Reference:
-  // RFC 9352 Section 6.
-  IsisSRv6Msd node_msds = 2;
-
-  // Compression (uSID) flag (RFC 9800). When set, announces that this IS-IS router supports
-  // Micro-SID (uSID) compressed SRv6 encoding. Acts as a node-level prerequisite; individual
-  // End SIDs and Adj SIDs must also set their own c_flag to be treated as uSIDs. Carried
-  // in the SRv6 Capabilities Sub-TLV (sub-TLV type 25) Flags field. Reference: RFC 9352
-  // Section 2, RFC 9800.
-  // default = False
-  optional bool c_flag = 3;
-}
-
-// IS-IS SRv6 Locator TLV (TLV type 27), as defined in RFC 9352 Section 7.1. Advertises
-// an SRv6 locator prefix that identifies this SRv6-capable router and binds it to a
-// specific IGP algorithm (standard SPF or Flex-Algo per RFC 9350). One Locator TLV
-// is required per topology/algorithm combination. The SRv6 SID space is structured
-// as: Locator prefix | Function | Argument, where the locator prefix is routable and
-// the function identifies the specific endpoint behavior (RFC 8986 Section 3.1).
-message IsisSRv6Locator {
-
-  // Globally unique name of an object. It also serves as the primary key for arrays of
-  // objects.
-  // required = true
-  optional string locator_name = 1;
-
-  // The SRv6 locator IPv6 prefix for this TLV. This routable IPv6 prefix identifies the
-  // advertising node within the SRv6 domain. All SRv6 SIDs advertised under this locator
-  // must be allocated from this prefix.
-  // required = true
-  optional string locator = 2;
-
-  // Number of significant bits in the locator field (1-128). Defines the length of the
-  // SRv6 locator prefix. The combined bit budget of the locator, function, and argument
-  // fields must not exceed 128 bits (RFC 9352 Section 3.1).
-  // default = 64
-  optional uint32 prefix_length = 3;
-
-  // IGP Algorithm identifier for this locator (RFC 8665). 0 = standard SPF, 1 = Strict
-  // SPF. Values 128-255 represent Flexible Algorithms (Flex-Algo) as defined in RFC 9350.
-  // The algorithm determines the path computation method used to reach this locator.
-  // One Locator TLV is required per algorithm binding.
-  // default = 0
-  optional uint32 algorithm = 4;
-
-  // The metric (cost) associated with this SRv6 locator prefix. Uses the same semantics
-  // as IS-IS Extended IP reachability metric (RFC 9352 Section 7.1).
-  // default = 0
-  optional uint32 metric = 5;
-
-  // Down bit (D-flag, bit 0 of the Flags field in the SRv6 Locator TLV). MUST be set
-  // when the locator is leaked from Level 2 to Level 1 to prevent routing loops. Locator
-  // TLVs with the D-flag set MUST NOT be re-advertised from L1 to L2 (RFC 9352 Section
-  // 7.1).
-  // default = False
-  optional bool d_flag = 6;
-
-  // List of Multi-Topology Identifiers (MT-IDs) for this locator advertisement. Specifies
-  // the IS-IS topologies this locator belongs to. 0 = default topology. Valid range 0-4095
-  // per RFC 5120 Section 2 (12-bit field).
-  repeated uint32 mt_id = 7;
-
-  // List of SRv6 End SID Sub-TLVs (sub-TLV type 5) associated with this locator. Each
-  // End SID advertises a locally instantiated node-local SRv6 SID and its endpoint behavior
-  // (End, End.DT4, End.DT6, End.DT46 and their flavor variants). Reference: RFC 9352
-  // Section 7.2.
-  repeated IsisSRv6EndSid end_sids = 8;
-
-  // SRv6 SID Structure Sub-Sub-TLV (type 1) describing the internal bit-field decomposition
-  // shared by all SIDs within this locator. Specifies the Locator Block, Locator Node,
-  // Function, and Argument lengths in bits. The sum of all four lengths must not exceed
-  // 128. All End SIDs and Adjacency SIDs under this locator share the same structure.
-  // Typically set when c_flag is true (RFC 9352 Section 9).
-  IsisSRv6SidStructure sid_structure = 9;
-
-  // When present, the locator prefix is also advertised as an IS-IS IPv6 Reachability
-  // prefix (TLV 236/237) in addition to the SRv6 Locator TLV (type 27). This enables
-  // non-SRv6-capable routers to route toward the locator as an ordinary IPv6 prefix.
-  // Absence of this object suppresses the secondary prefix advertisement.
-  IsisSRv6AdvertiseLocatorAsPrefix advertise_locator_as_prefix = 10;
-}
-
-// Controls advertisement of the SRv6 locator prefix as an IS-IS IPv6 Reachability prefix
-// (TLV 236/237) alongside the SRv6 Locator TLV (type 27). When this object is present
-// the secondary prefix advertisement is enabled; when absent it is suppressed. Reference:
-// RFC 9352 Section 7.1.
-message IsisSRv6AdvertiseLocatorAsPrefix {
-
-  // Metric value used when advertising the locator prefix in the IPv6 Reachability TLV
-  // (TLV 236/237).
-  // default = 0
-  optional uint32 route_metric = 1;
-
-  message RedistributionType {
-    enum Enum {
-      unspecified = 0;
-      up = 1;
-      down = 2;
-    }
-  }
-  // Controls the Up/Down redistribution bit for this locator prefix when advertised in
-  // the IPv6 Reachability TLV (TLV 236/237). 'up' = normal advertisement (default); 'down'
-  // = the locator has been leaked from Level 2 to Level 1 (RFC 5305).
-  // default = RedistributionType.Enum.up
-  optional RedistributionType.Enum redistribution_type = 2;
-
-  message RouteOrigin {
-    enum Enum {
-      unspecified = 0;
-      internal = 1;
-      external = 2;
-    }
-  }
-  // Origin type for the locator prefix in the IPv6 Reachability TLV (TLV 236/237). 'internal'
-  // = intra-area prefix (default); 'external' = redistributed from another protocol.
-  // default = RouteOrigin.Enum.internal
-  optional RouteOrigin.Enum route_origin = 3;
-
-  // When present, the Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) is included
-  // in this prefix advertisement, carrying the X, R, and N flags. Absence suppresses
-  // the sub-TLV.
-  IsisSRv6PrefixAttributes prefix_attributes = 4;
-}
-
-// Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) for an SRv6 locator prefix
-// advertisement. Carried within the IS-IS IPv6 Reachability TLV (TLV 236/237) when
-// the locator is also advertised as a prefix. Presence of this object causes the sub-TLV
-// to be included; absence suppresses it. Reference: RFC 7794.
-message IsisSRv6PrefixAttributes {
-
-  // External prefix flag (bit 0, RFC 7794). When set, indicates this locator prefix was
-  // redistributed from another protocol.
-  // default = False
-  optional bool x_flag = 1;
-
-  // Re-advertisement flag (bit 1, RFC 7794). When set, indicates this locator prefix
-  // has been leaked between IS-IS levels.
-  // default = False
-  optional bool r_flag = 2;
-
-  // Node flag (bit 2, RFC 7794). When set, indicates this prefix identifies the advertising
-  // router (e.g., a loopback or router-ID prefix).
-  // default = False
-  optional bool n_flag = 3;
-}
-
-// SRv6 End SID Sub-TLV (sub-TLV type 5) nested within the enclosing SRv6 Locator TLV
-// (TLV type 27, RFC 9352 Section 7.2). Advertises a locally instantiated, node-level
-// SRv6 SID and its associated endpoint behavior. The locator prefix is taken from the
-// parent IsisSRv6.Locator; only the Function and Argument fields need to be specified
-// here. The full 128-bit SID is assembled as:
-// <parent locator prefix> | Function | Argument
-// Example - given parent locator fc00:0:1:: /48 with sid_structure lb=32, ln=16, fn=16,
-// arg=0:
-// function 0001, argument 0000 => SID fc00:0:1:1::
-// function 0064, argument 0000 => SID fc00:0:1:64::
-// Valid behaviors are End variants (with PSP/USP/USD flavors) and decapsulation behaviors
-// (End.DT4, End.DT6, End.DT46). Reference: RFC 9352 Section 7.2, RFC 8986.
-message IsisSRv6EndSid {
-
-  // The Function part of this End SID expressed as a hex string, occupying the function
-  // bits immediately after the locator prefix in the 128-bit SID (RFC 8986 Section 3.1).
-  // The number of hex digits must equal function_length from the parent IsisSRv6.Locator.sid_structure
-  // divided by 4 - for example, a function_length of 16 requires a 4-nibble string. Example:
-  // 0001 with parent locator fc00:0:1:: /48 gives SID fc00:0:1:1::.
-  optional string function = 5;
-
-  // The Argument part of this End SID expressed as a hex string, occupying the argument
-  // bits immediately after the function in the 128-bit SID (RFC 8986 Section 3.1). The
-  // number of hex digits must equal argument_length from the parent IsisSRv6.Locator.sid_structure
-  // divided by 4. Use the default 0000 when no argument is carried (argument_length is
-  // 0).
-  // default = 0000
-  optional string argument = 6;
-
-  message EndpointBehavior {
-    enum Enum {
-      unspecified = 0;
-      end = 1;
-      end_with_psp = 2;
-      end_with_usp = 3;
-      end_with_psp_usp = 4;
-      end_with_usd = 5;
-      end_with_psp_usd = 6;
-      end_with_usp_usd = 7;
-      end_with_psp_usp_usd = 8;
-      end_dt4 = 9;
-      end_dt6 = 10;
-      end_dt46 = 11;
-    }
-  }
-  // The endpoint behavior for this SRv6 End SID, encoded as a 2-octet behavior codepoint
-  // (RFC 8986 Section 7.4). Defines how the router processes packets arriving with this
-  // SID as the Active Segment. Valid node-level behaviors for End SID Sub-TLV type 5
-  // are End variants (with PSP/USP/USD flavors) and decapsulation behaviors.
-  // default = EndpointBehavior.Enum.end
-  optional EndpointBehavior.Enum endpoint_behavior = 2;
-
-  // Compression (uSID) flag. When set, this End SID is a Micro-SID (uSID) per RFC 9800.
-  // A headend router can pack it into a shared 128-bit uSID container alongside uSIDs
-  // from other nodes in the same /32 uSID block, steering a multi-hop path without a
-  // Segment Routing Header. The node-level IsisSRv6.NodeCapability.c_flag must also be
-  // set. The SID bit layout is governed by the parent IsisSRv6.Locator.sid_structure.
-  // Example using F3216 (lb=32, ln=16, fn=16, arg=0), uSID block fc00::/32, locator fc00:0:1::
-  // /48:
-  // c_flag=true, function 0001 => uSID fc00:0:1:1::  (End)
-  // c_flag=true, function 0002 => uSID fc00:0:1:2::  (End.DT46)
-  // For a 2-hop path via node 1 (End 0001) then node 2 (End 0001), the headend builds
-  // container DA = fc00:0:1:1:2:1:: - two 32-bit uSID slots [LN=1,FN=1] and [LN=2,FN=1]
-  // packed after the /32 block prefix. Reference: RFC 9800.
-  // default = False
-  optional bool c_flag = 3;
-}
-
-// Container for SRv6 adjacency-related sub-TLVs advertised on an IS-IS interface. Groups
-// the list of End.X SID sub-TLVs (RFC 9352 Sections 8.1-8.2) with the per-link Maximum
-// SID Depth (MSD) sub-TLVs (RFC 9352 Section 6) that are advertised together in the
-// Extended IS Reachability TLV for this interface.
-message IsisSRv6AdjSidContainer {
-
-  // List of SRv6 Adjacency SID sub-TLVs (End.X SID) for this interface. Point-to-point
-  // interfaces advertise End.X SID sub-TLV (sub-TLV type 43); broadcast interfaces advertise
-  // LAN End.X SID sub-TLV (sub-TLV type 44). Each entry binds a 128-bit SRv6 SID to this
-  // specific outgoing adjacency and advertises the associated endpoint behavior. Reference:
-  // RFC 9352 Sections 8.1-8.2.
-  repeated IsisSRv6AdjSid sids = 1;
-
-  // When present, advertises per-link SRv6 Maximum SID Depth (MSD) sub-TLVs within the
-  // IS-IS Extended IS Reachability TLV for this interface. Each populated child object
-  // causes the corresponding link MSD sub-TLV to be advertised; omit a child object to
-  // suppress that MSD type. Reference: RFC 9352 Section 6.
-  IsisSRv6Msd srv6_link_msd = 2;
-}
-
-// SRv6 Adjacency SID Sub-TLV for IS-IS interfaces. Point-to-point adjacencies use End.X
-// SID Sub-TLV (sub-TLV type 43); LAN adjacencies use LAN End.X SID Sub-TLV (sub-TLV
-// type 44). The End.X SID binds a 128-bit SRv6 SID to a specific outgoing interface
-// and next-hop, enabling traffic steering across a specific L3 adjacency. The full
-// 128-bit SID is assembled as:
-// Locator (selected via locator/custom_locator_reference) | Function | Argument
-// Example  - given locator fc00:0:1:: /48 with sid_structure lb=32, ln=16, fn=16, arg=0:
-// locator auto (=> fc00:0:1::), function 00c8
-// => final adjacency SID: fc00:0:1:c8::
-// locator custom_locator_reference loc2 (fc00:0:2:: /48), function 00c9
-// => final adjacency SID: fc00:0:2:c9::
-// Valid behaviors include End.X variants (with PSP/USP/USD flavors) and cross-connect
-// decapsulation behaviors (End.DX4, End.DX6). Reference: RFC 9352 Sections 8.1-8.2,
-// RFC 8986 Section 4.3. The SID bit-field structure (locator block, locator node, function,
-// and argument lengths) is inherited from IsisSRv6.Locator.sid_structure of the selected
-// locator per RFC 9352 Section 9. No per-adjacency structure override is defined in
-// the RFC.
-message IsisSRv6AdjSid {
-
-  message Locator {
-    enum Enum {
-      unspecified = 0;
-      auto = 1;
-      custom_locator_reference = 2;
-    }
-  }
-  // Selects which locator from the IsisSRv6.Locator list to use as the locator part of
-  // this adjacency SID. 'auto' (default) uses the first locator defined in isis.segment_routing.srv6_locators
-  // - suitable when only one locator is configured. 'custom_locator_reference' uses
-  // the specific locator identified by custom_locator_reference  - use this when multiple
-  // locators are configured and a particular one must be selected, e.g. for a Flex-Algo
-  // binding.
-  // default = Locator.Enum.auto
-  optional Locator.Enum locator = 10;
-
-  // Name of the IsisSRv6.Locator to use when locator is set to 'custom_locator_reference'.
-  // Must match the locator_name of a locator configured in isis.segment_routing.srv6_locators.
-  // Example: loc2 selects the locator whose locator_name is loc2.
-  // 
-  // x-constraint:
-  // - /components/schemas/IsisSRv6.Locator/properties/locator_name
-  // 
-  optional string custom_locator_reference = 11;
-
-  // The Function part of this adjacency SID expressed as a hex string, occupying the
-  // function bits immediately after the locator prefix in the 128-bit SID (RFC 8986 Section
-  // 3.1). The number of hex digits must match function_length in the selected IsisSRv6.Locator.sid_structure
-  // divided by 4  - e.g. function_length 16 requires a 4-nibble string. Example: 00c8
-  // places the value 200 (0xc8) in the function field; with locator fc00:0:1:: /48 (selected
-  // via auto or custom_locator_reference) the resulting SID is fc00:0:1:c8::.
-  optional string function = 12;
-
-  message EndpointBehavior {
-    enum Enum {
-      unspecified = 0;
-      end_x = 1;
-      end_x_with_psp = 2;
-      end_x_with_usp = 3;
-      end_x_with_psp_usp = 4;
-      end_x_with_usd = 5;
-      end_x_with_psp_usd = 6;
-      end_x_with_usp_usd = 7;
-      end_x_with_psp_usp_usd = 8;
-      end_dx4 = 9;
-      end_dx6 = 10;
-    }
-  }
-  // The endpoint behavior for this adjacency SID, encoded as a 2-octet behavior codepoint
-  // (RFC 8986 Section 7.4). Valid adjacency-level behaviors for End.X SID Sub-TLV types
-  // 43/44 are End.X variants (with PSP/USP/USD flavors) and per-CE cross-connect decapsulation
-  // behaviors (End.DX4, End.DX6).
-  // default = EndpointBehavior.Enum.end_x
-  optional EndpointBehavior.Enum endpoint_behavior = 2;
-
-  // Backup flag (B-flag, bit 0). When set, the End.X SID is eligible for IP Fast-ReRoute
-  // (IP-FRR) protection, indicating a backup adjacency that can protect traffic when
-  // the primary adjacency fails (RFC 9352 Section 8.1).
-  // default = False
-  optional bool b_flag = 3;
-
-  // Set flag (S-flag, bit 1). When set, the End.X SID refers to a set of adjacencies
-  // (e.g., parallel links, ECMP group). The same SID value may be assigned to multiple
-  // adjacencies forming the set (RFC 9352 Section 8.1).
-  // default = False
-  optional bool s_flag = 4;
-
-  // Persistent flag (P-flag, bit 2). When set, the End.X SID value is persistently allocated
-  // and remains consistent across router restarts and interface flap events (RFC 9352
-  // Section 8.1).
-  // default = False
-  optional bool p_flag = 5;
-
-  // Weight for load balancing across adjacencies sharing the same End.X SID (applicable
-  // when S-flag is set). Traffic is distributed proportionally across the adjacency set
-  // according to the weight values (RFC 9352 Section 8.1).
-  // default = 0
-  optional uint32 weight = 6;
-
-  // IGP algorithm associated with this adjacency SID (RFC 8665). 0 = standard SPF, 1
-  // = Strict SPF, 128-255 = Flex-Algo (RFC 9350). Binds the adjacency SID to the corresponding
-  // topology or path computation algorithm.
-  // default = 0
-  optional uint32 algorithm = 7;
-
-  // Compression (uSID) flag. When set, this adjacency SID is a Micro-SID (uSID) End.X
-  // per RFC 9800. A headend can pack it into a shared 128-bit uSID container alongside
-  // node uSIDs from the same /32 block, directing traffic over a specific L3 adjacency
-  // within a compressed segment list. The node-level IsisSRv6.NodeCapability.c_flag must
-  // also be set. The SID bit layout is governed by the selected IsisSRv6.Locator.sid_structure.
-  // Example using F3216 (lb=32, ln=16, fn=16, arg=0), uSID block fc00::/32, locator fc00:0:1::
-  // /48:
-  // c_flag=true, function 00c8 => uSID fc00:0:1:c8::  (End.X)
-  // c_flag=true, function 00c9 => uSID fc00:0:1:c9::  (End.X alternate link)
-  // For a path routed via node 1's adjacency 00c8 then node 2 End 0001, the headend builds
-  // DA = fc00:0:1:c8:2:1:: encoding both hops in a single 128-bit address. Reference:
-  // RFC 9800.
-  // default = False
-  optional bool c_flag = 8;
-}
-
-// SRv6 Maximum SID Depth (MSD) sub-TLV values, used for both node-level advertisement
-// (carried in IS-IS Router CAPABILITY TLV 242 via Node MSD sub-TLV type 23, RFC 9352
-// Section 6) and link-level advertisement (carried in Extended IS Reachability TLV
-// via Link MSD sub-TLV type 15, RFC 9352 Section 6). When a property is present, the
-// corresponding MSD sub-TLV is advertised with the configured value. Omit a property
-// to suppress advertisement of that MSD type. Reference: RFC 9352 Section 6.
-message IsisSRv6Msd {
-
-  // When present, advertises Maximum Segments Left (Max-SL, MSD type 41, RFC 9352 Section
-  // 6) - the maximum value of the Segments Left field in an SRH that this node can correctly
-  // process.
-  IsisSRv6MsdValue max_sl = 1;
-
-  // When present, advertises Maximum End Pop SRH (Max-End-Pop, MSD type 42, RFC 9352
-  // Section 6) - the maximum size of the SRH this node can remove when processing an
-  // End.Pop operation.
-  IsisSRv6MsdValue max_end_pop_srh = 2;
-
-  // When present, advertises Maximum H.Encaps (Max-H.Encaps, MSD type 44, RFC 9352 Section
-  // 6) - the maximum number of SRv6 SID encapsulations this node can perform as a headend.
-  IsisSRv6MsdValue max_h_encaps = 3;
-
-  // When present, advertises Maximum End.D SRH (Max-End-D, MSD type 45, RFC 9352 Section
-  // 6) - the maximum size of the SRH this node can process when performing an End.D decapsulation
-  // function.
-  IsisSRv6MsdValue max_end_d_srh = 4;
-
-  // When present, advertises Maximum T.Insert (Max-T.Insert, MSD type 46, RFC 9352 Section
-  // 6) - the maximum size of the SRH this node can insert using a T.Insert operation.
-  IsisSRv6MsdValue max_t_insert = 5;
-
-  // When present, advertises Maximum T.Encaps (Max-T.Encaps, MSD type 47, RFC 9352 Section
-  // 6) - the maximum size of the SRH this node can insert using a T.Encaps operation.
-  IsisSRv6MsdValue max_t_encaps = 6;
-}
-
-// A single MSD (Maximum SID Depth) value entry (RFC 9352 Section 6). When this object
-// is present, the parent MSD type is advertised with the configured value. Omit the
-// object to suppress advertisement of that MSD type.
-message IsisSRv6MsdValue {
-
-  // The MSD depth value (0-255, RFC 9352 Section 6). A value of 0 indicates that the
-  // node has no capability for the corresponding SRH operation but still causes the sub-TLV
-  // to be advertised. To suppress advertisement entirely, omit the parent object.
-  optional uint32 value = 1;
-}
-
-// SRv6 SID Structure Sub-Sub-TLV (type 1), carried within SRv6 SID Sub-TLVs (End SID
-// type 5, End.X SID type 43/44). Describes the internal bit-field decomposition of
-// the SRv6 SID value so that receiving routers can interpret each field independently.
-// The four length fields (lb_length + ln_length + function_length + argument_length)
-// MUST NOT exceed 128 bits. Required when advertising Micro-SID (uSID) SIDs to describe
-// the compressed encoding. Example for common uSID F3216 format:
-// lb_length=32, ln_length=16, function_length=16, argument_length=0
-// Reference: RFC 9352 Section 9, RFC 9800.
-message IsisSRv6SidStructure {
-
-  // Number of bits in the Locator Block (LB) field of the SID. The Locator Block is the
-  // common IPv6 prefix shared across all SIDs within the same SRv6 domain block (e.g.,
-  // 32 bits in the uSID F3216 format). Minimum value 1 (a zero-bit locator block is not
-  // meaningful).
-  // default = 32
-  optional uint32 locator_block_length = 1;
-
-  // Number of bits in the Locator Node (LN) field of the SID. Identifies the specific
-  // node within the Locator Block (e.g., 16 bits in the uSID F3216 format, providing
-  // up to 65534 addressable nodes per domain block).
-  // default = 16
-  optional uint32 locator_node_length = 2;
-
-  // Number of bits in the Function field of the SID. Identifies the specific endpoint
-  // behavior instantiated on this node (e.g., 16 bits in the uSID F3216 format, supporting
-  // up to 65534 distinct functions per node).
-  // default = 16
-  optional uint32 function_length = 3;
-
-  // Number of bits in the Argument field of the SID. Carries additional per-behavior
-  // information such as VPN table identifiers or compressed next-SID encodings for Micro-SID
-  // stacking. Set to 0 for standard SIDs that carry no argument. When non-zero in a uSID
-  // context, enables packing multiple micro-segment identifiers within a single 128-bit
-  // SID carrier (RFC 9800).
-  // default = 0
-  optional uint32 argument_length = 4;
 }
 
 // This contains ISIS router basic properties.
@@ -3016,14 +3521,6 @@ message IsisSegmentRouting {
   // router to announce its
   // capabilities within an IS-IS level or the entire routing domain.
   IsisRouterCapability router_capability = 1;
-
-  // List of SRv6 Locator TLVs (TLV type 27) to be advertised by this IS-IS router. Each
-  // locator binds an IPv6 prefix to an IGP algorithm (standard SPF or Flex-Algo per RFC
-  // 9350) and carries End SID Sub-TLVs for locally instantiated node-level SRv6 SIDs.
-  // One Locator TLV is required per topology/algorithm combination. Locators are scoped
-  // to this IS-IS instance and cannot be shared across other protocol instances. Reference:
-  // RFC 9352 Section 7.1.
-  repeated IsisSRv6Locator srv6_locators = 2;
 }
 
 // Container for the configuration of IS-IS Router CAPABILITY TLV.
@@ -3111,12 +3608,6 @@ message IsisRouterCapability {
 
   // This contains the list of SR Local Block (SRLB)
   repeated IsisSRSrlb srlb_ranges = 7;
-
-  // SRv6 Capabilities Sub-TLV (sub-TLV type 25) carried within this Router CAPABILITY
-  // TLV. Announces that this router is an SRv6 Segment Endpoint Node and advertises optional
-  // OAM (O-flag) support and node-level SRv6 Maximum SID Depth (MSD) values. Reference:
-  // RFC 9352 Section 2, RFC 8491.
-  IsisSRv6NodeCapability srv6_capability = 8;
 }
 
 // Container for the configuration of IS-IS SR-CAPABILITY TLV that Segment Routing requires
@@ -8848,706 +9339,6 @@ message Ospfv2V4RRExtdPrefixFlags {
   optional bool n_flag = 2;
 }
 
-// A container of properties for a MACsec capable device. Reference https://1.ieee802.org/security/802-1ae/.
-message DeviceMacsec {
-
-  // Ethernet Interfaces
-  repeated DeviceMacsecEthernetInterface ethernet_interfaces = 1;
-}
-
-// Configuration for single MACsec interface.
-message DeviceMacsecEthernetInterface {
-
-  // The unique name of the Ethernet interface on which MACsec is enabled.
-  // 
-  // x-constraint:
-  // - /components/schemas/Device.Ethernet/properties/name
-  // 
-  // required = true
-  optional string eth_name = 1;
-
-  // This contains the properties of Secure Entity (SecY).
-  // required = true
-  SecureEntity secure_entity = 2;
-}
-
-// Configuration of a Secure Entity (SecY).
-message SecureEntity {
-
-  // Globally unique name of an object. It also serves as the primary key for arrays of
-  // objects.
-  // required = true
-  optional string name = 1;
-
-  // This contains the properties of key generation protocol of Secure Entity (SecY).
-  // required = true
-  SecureEntityKeyGenerationProtocol key_generation_protocol = 2;
-
-  // This contains the properties of data plane of Secure Entity (SecY).
-  SecureEntityDataPlane data_plane = 3;
-}
-
-// Container of Key generation protocol configuration.
-message SecureEntityKeyGenerationProtocol {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      mka = 1;
-      static_key = 2;
-    }
-  }
-  // Key generation protocol choices. Choose mka for dynamic key distribution using MACsec
-  // key agreement(MKA) protocol. Choose static_key for static configuration of secure
-  // association key(SAK).
-  // default = Choice.Enum.mka
-  optional Choice.Enum choice = 1;
-
-  // This contains the properties of Key Agreement Entity (KaY) in MKA supplicant.
-  Mka mka = 2;
-
-  // Static key properties properties of SecY. Static key is used in absence MKA.
-  SecureEntityStaticKey static_key = 3;
-}
-
-// A container of data plane properties.
-message SecureEntityDataPlane {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      encapsulation = 1;
-      no_encapsulation = 2;
-    }
-  }
-  // Choose encapsulation so that data packets are sent with MACsec encapsulation. Choose
-  // no_encapsulation so that data packets are sent without MACsec encapsulation.
-  // default = Choice.Enum.encapsulation
-  optional Choice.Enum choice = 1;
-
-  // A container of encapsulation properties for a secure entity(SecY).
-  SecureEntityDataPlaneEncapsulation encapsulation = 2;
-}
-
-// A container of encapsulation properties for a secure entity(SecY).
-message SecureEntityDataPlaneEncapsulation {
-
-  // Tx properties of SecY.
-  SecureEntityDataPlaneTx tx = 1;
-
-  // Rx properties of SecY.
-  SecureEntityDataPlaneRx rx = 2;
-
-  // Crypto engine properties of SecY.
-  // required = true
-  SecureEntityCryptoEngine crypto_engine = 3;
-}
-
-// A container of Tx properties of SecY.
-message SecureEntityDataPlaneTx {
-
-  // End station on not.
-  // default = False
-  optional bool end_station = 1;
-
-  // Include SCI on not.
-  // default = False
-  optional bool include_sci = 2;
-}
-
-// A container for Rx settings of SecY.
-message SecureEntityDataPlaneRx {
-
-  // Enable replay protection on not.
-  // default = False
-  optional bool replay_protection = 1;
-
-  // Replay window size.
-  // default = 1
-  optional uint32 replay_window = 2;
-}
-
-// A container of crypto engine properties of a SecY.
-message SecureEntityCryptoEngine {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      encrypt_only = 1;
-    }
-  }
-  // Engine type based on encryption and/ or decryption capability. Supported types: encrypt_only
-  // - engine can only encrypt transmitted packets but it cannot decrypt packets upon
-  // arrival. As the packets cannot be decrypted on arrival, such packets cannot be delivered
-  // to the receiving device. Hence only stateless traffic can be sent.
-  // default = Choice.Enum.encrypt_only
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  SecureEntityCryptoEngineEncryptOnly encrypt_only = 2;
-}
-
-// The container for encrypt only engine configuration.
-message SecureEntityCryptoEngineEncryptOnly {
-
-  // Description missing in models
-  repeated SecureEntityCryptoEngineEncryptOnlyTxSc secure_channels = 1;
-
-  // Description missing in models
-  SecureEntityCryptoEngineEncryptOnlyTrafficOptions traffic_options = 2;
-}
-
-// The container for Tx secure channel configuration.
-message SecureEntityCryptoEngineEncryptOnlyTxSc {
-
-  // Description missing in models
-  SecureEntityCryptoEngineEncryptOnlyTxScTxPn tx_pn = 1;
-}
-
-// Tx packet number(PN) configuration.
-message SecureEntityCryptoEngineEncryptOnlyTxScTxPn {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      fixed_pn = 1;
-      incrementing_pn = 2;
-    }
-  }
-  // Types of Tx packet number(PN) series. Supported choices: 1) fixed PN - MACsec packets
-  // will be sent out with the configured fixed PN or lower half of configured fixed XPN.
-  // 2) incrementing PN - MACsec packets will be sent out by single device with an incrementing
-  // PN or XPN.
-  // default = Choice.Enum.fixed_pn
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  SecureEntityCryptoEngineEncryptOnlyFixedPn fixed = 2;
-
-  // Description missing in models
-  SecureEntityCryptoEngineEncryptOnlyIncrementingPn incrementing = 3;
-}
-
-// Fixed packet number(PN) configuration.
-message SecureEntityCryptoEngineEncryptOnlyFixedPn {
-
-  // Fixed Tx packet number(PN). 4 bytes PN with which all packets will be sent out.
-  // default = 6
-  optional uint32 pn = 1;
-
-  // Fixed Tx extended packet number(XPN). 8 bytes XPN with which all packets will be
-  // sent out.
-  // default = 0x06
-  optional string xpn = 2;
-}
-
-// Incrementing packet number(PN) configuration.
-message SecureEntityCryptoEngineEncryptOnlyIncrementingPn {
-
-  // Count of packet numbers in series.
-  // default = 100
-  optional uint32 count = 1;
-
-  // The starting packet number(PN).
-  // default = 10000
-  optional uint32 starting_pn = 2;
-
-  // The starting extended packet number(XPN).
-  // default = 0x010000
-  optional string starting_xpn = 3;
-}
-
-// Encrypt only traffic options.
-message SecureEntityCryptoEngineEncryptOnlyTrafficOptions {
-
-  // Send gratuitous ARP or not.
-  // default = True
-  optional bool send_gratuitous_arp = 1;
-}
-
-// Configuration of a MKA Key Agreement Entity (KaY). Reference https://1.ieee802.org/security/802-1x/.
-message Mka {
-
-  // Globally unique name of an object. It also serves as the primary key for arrays of
-  // objects.
-  // required = true
-  optional string name = 1;
-
-  // This contains the basic properties of KaY.
-  // required = true
-  MkaBasic basic = 2;
-
-  // Key server attributes.
-  MkaKeyServer key_server = 3;
-
-  // Tx Properties.
-  // required = true
-  MkaTx tx = 4;
-}
-
-// A container of basic properties for a KaY.
-message MkaBasic {
-
-  message KeyDerivationFunction {
-    enum Enum {
-      unspecified = 0;
-      aes_cmac_128 = 1;
-      aes_cmac_256 = 2;
-    }
-  }
-  // Key Derivation Function.
-  // default = KeyDerivationFunction.Enum.aes_cmac_128
-  optional KeyDerivationFunction.Enum key_derivation_function = 1;
-
-  // Key source.
-  // required = true
-  MkaBasicKeySource key_source = 2;
-
-  // Actor priority.
-  // default = 70
-  optional string actor_priority = 3;
-
-  // Determines whether MACsec is desired or not. It is advertised in periodic Hellos.
-  // default = True
-  optional bool macsec_desired = 4;
-
-  message MacsecCapability {
-    enum Enum {
-      unspecified = 0;
-      macsec_not_implemented = 1;
-      macsec_integrity_without_confidentiality = 2;
-      macsec_integrity_with_no_confidentiality_offset = 3;
-      macsec_integrity_with_confidentiality_offset = 4;
-    }
-  }
-  // MACSec Capability.
-  // default = MacsecCapability.Enum.macsec_integrity_with_confidentiality_offset
-  optional MacsecCapability.Enum macsec_capability = 5;
-
-  // Supported Cipher Suites.
-  MkaBasicSupportedCipherSuites supported_cipher_suites = 6;
-
-  // EAPOL Ethernet type.
-  // default = 888E
-  optional string eapol_ethernet_type = 7;
-
-  // MKA Version.
-  // default = 3
-  optional uint32 mka_version = 8;
-
-  // MKA Hello Time (msec).
-  // default = 2000
-  optional uint32 mka_hello_time = 9;
-
-  // MKA Life Time (sec).
-  // default = 6
-  optional uint32 mka_life_time = 10;
-
-  // Send ICV Indicator in MKPDU.
-  // default = True
-  optional bool send_icv_indicatior_in_mkpdu = 11;
-
-  // Delay Protect or not. When delay protect is enabled, it guards against delaying the
-  // delivery of MACsec encrypted frames by an attacker to the recipient.
-  // default = True
-  optional bool delay_protect = 12;
-
-  // Rekey Mode.
-  MkaBasicRekeyMode rekey_mode = 13;
-
-  // Description missing in models
-  MkaBasicPskChainStartTime psk_chain_start_time = 14;
-}
-
-// The container for supported cipher suites.
-message MkaBasicSupportedCipherSuites {
-
-  // GCM-AES-128.
-  // default = True
-  optional bool gcm_aes_128 = 1;
-
-  // GCM-AES-256.
-  // default = True
-  optional bool gcm_aes_256 = 2;
-
-  // GCM-AES-XPN-128.
-  // default = True
-  optional bool gcm_aes_xpn_128 = 3;
-
-  // GCM-AES-XPN-256.
-  // default = True
-  optional bool gcm_aes_xpn_256 = 4;
-}
-
-// The container for key source settings.
-message MkaBasicKeySource {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      psk = 1;
-      msk = 2;
-    }
-  }
-  // Key source. Choose one from PSK or MSK.
-  // default = Choice.Enum.psk
-  optional Choice.Enum choice = 1;
-
-  // PSK chain.
-  repeated MkaBasicKeySourcePsk psks = 2;
-}
-
-// The container for Pre-shared key(PSK).
-message MkaBasicKeySourcePsk {
-
-  // Connectivity association key(CAK) value. It can be 128 bits or 256 bits long depending
-  // on the chosen MKA key derivation function.
-  // default = F123456789ABCDEF0123456789ABCDEF
-  optional string cak_value = 1;
-
-  // Connectivity association key(CAK) name.
-  // default = F123456789ABCDEF0123456789ABCDEFF123456789ABCDEF0123456789ABCDEF
-  optional string cak_name = 2;
-
-  // 
-  MkaBasicStartOffsetTime start_offset_time = 3;
-
-  // 
-  MkaBasicEndOffsetTime end_offset_time = 4;
-}
-
-// Key start offset time in HH:MM. This is relative to key chain start time.
-message MkaBasicStartOffsetTime {
-
-  // Hours in HH format.
-  // default = 0
-  optional uint32 hh = 1;
-
-  // Minutes in MM format.
-  // default = 0
-  optional uint32 mm = 2;
-}
-
-// Key end offset time in HH:MM. This is relative to key chain start time. A value of
-// 00:00 makes the key valid for lifetime.
-message MkaBasicEndOffsetTime {
-
-  // Hours in HH format.
-  // default = 0
-  optional uint32 hh = 1;
-
-  // Minutes in MM format.
-  // default = 0
-  optional uint32 mm = 2;
-}
-
-// Pre-shared key(PSK) chain start time in UTC time format DD-MM-YYYY HH:MM:SS. If this
-// time is set, the key start time will be relative to this value. Otherwise if this
-// value is not set, key start time will be relative to test start time.
-message MkaBasicPskChainStartTime {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      utc = 1;
-    }
-  }
-  // Timezone choice. Currently only Coordinated Universal Time(UTC) is supported.
-  // default = Choice.Enum.utc
-  optional Choice.Enum choice = 1;
-
-  // Coordinated Universal Time(UTC) time.
-  MkaBasicTimeUtc utc = 2;
-}
-
-// Coordinated Universal Time(UTC).
-message MkaBasicTimeUtc {
-
-  // Day of the month in DD format.
-  optional uint32 day = 1;
-
-  // Month of the year in MM format.
-  optional uint32 month = 2;
-
-  // Year from the start of common era(CE) in YYYY format.
-  optional uint32 year = 3;
-
-  // Hour of the day in HH format.
-  optional uint32 hour = 4;
-
-  // Minute of the hour in MM format.
-  optional uint32 minute = 5;
-
-  // Second of the minute in SS format.
-  optional uint32 second = 6;
-}
-
-// Rekey mode.
-message MkaBasicRekeyMode {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      dont_rekey = 1;
-      timer_based = 2;
-      pn_based = 3;
-    }
-  }
-  // Mode choices.
-  // default = Choice.Enum.dont_rekey
-  optional Choice.Enum choice = 1;
-
-  // Container for timer based periodic rekey properties.
-  MkaBasicRekeyModeTimerBased timer_based = 2;
-}
-
-// Timer based periodic rekey properties.
-message MkaBasicRekeyModeTimerBased {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      continuous = 1;
-      fixed_count = 2;
-    }
-  }
-  // Periodic Rekey count.
-  // default = Choice.Enum.continuous
-  optional Choice.Enum choice = 1;
-
-  // Fixed rekey attempts.
-  // default = 10
-  optional uint32 fixed_count = 2;
-
-  // Periodic rekey interval (sec).
-  // default = 300
-  optional uint32 interval = 3;
-}
-
-// Key server attributes of a KaY.
-message MkaKeyServer {
-
-  message ConfidentialtyOffset {
-    enum Enum {
-      unspecified = 0;
-      no_confidentiality = 1;
-      no_confidentiality_offset = 2;
-      confidentiality_offset_30_octets = 3;
-      confidentiality_offset_50_octets = 4;
-    }
-  }
-  // Confidentiality Offset.
-  // default = ConfidentialtyOffset.Enum.no_confidentiality_offset
-  optional ConfidentialtyOffset.Enum confidentialty_offset = 1;
-
-  message CipherSuite {
-    enum Enum {
-      unspecified = 0;
-      gcm_aes_128 = 1;
-      gcm_aes_256 = 2;
-      gcm_aes_xpn_128 = 3;
-      gcm_aes_xpn_256 = 4;
-    }
-  }
-  // The cipher suite. Choose one from GCM-AES-128 GCM-AES-256 GCM-AES-XPN-128 GCM-AES-XPN-256
-  // default = CipherSuite.Enum.gcm_aes_128
-  optional CipherSuite.Enum cipher_suite = 2;
-
-  // Starting Key Number.
-  // default = 1
-  optional uint32 starting_key_number = 3;
-
-  // Starting Distributed AN.
-  // default = 0
-  optional uint32 starting_distributed_an = 4;
-
-  // Determines the PN rekey threshold.
-  // default = C0000000
-  optional string rekey_threshold_pn = 5;
-
-  // Determines the XPN rekey threshold.
-  // default = C000000000000000
-  optional string rekey_threshold_xpn = 6;
-}
-
-// A container of Tx properties.
-message MkaTx {
-
-  // Tx secure channels.
-  repeated MkaTxSc secure_channels = 1;
-}
-
-// Tx secure channel(SC) properties.
-message MkaTxSc {
-
-  // Tx SC name.
-  // required = true
-  optional string name = 1;
-
-  // System ID.
-  // required = true
-  optional string system_id = 2;
-
-  // Port ID.
-  // default = 1
-  optional uint32 port_id = 3;
-
-  // Starting Message Number.
-  // default = 1
-  optional uint64 starting_message_number = 4;
-}
-
-// A container of static key properties for a secure entity(SecY). This configuration
-// is applicable when no dynamic key management protocol i.e. MACsec key agreement(MKA)
-// is configured. If MKA is configured, any static key configuration is not applicable.
-message SecureEntityStaticKey {
-
-  message CipherSuite {
-    enum Enum {
-      unspecified = 0;
-      gcm_aes_128 = 1;
-      gcm_aes_256 = 2;
-      gcm_aes_xpn_128 = 3;
-      gcm_aes_xpn_256 = 4;
-    }
-  }
-  // The cipher suite. Choose one from GCM-AES-128 GCM-AES-128 GCM-AES-256 GCM-AES-XPN-128
-  // GCM-AES-XPN-256
-  // default = CipherSuite.Enum.gcm_aes_128
-  optional CipherSuite.Enum cipher_suite = 1;
-
-  // Encrypt or not.
-  // default = True
-  optional bool confidentiality = 2;
-
-  message ConfidentialityOffset {
-    enum Enum {
-      unspecified = 0;
-      zero = 1;
-      thirty = 2;
-      fifty = 3;
-    }
-  }
-  // Confidentiality offset.
-  // default = ConfidentialityOffset.Enum.zero
-  optional ConfidentialityOffset.Enum confidentiality_offset = 3;
-
-  // Tx properties of SecY.
-  SecureEntityStaticKeyTx tx = 4;
-
-  // Rx properties of SecY.
-  SecureEntityStaticKeyRx rx = 5;
-}
-
-// Rekey mode.
-message SecureEntityStaticKeyRekeyMode {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      dont_rekey = 1;
-      timer_based = 2;
-      pn_based = 3;
-    }
-  }
-  // Rekey mode choices.
-  // default = Choice.Enum.dont_rekey
-  optional Choice.Enum choice = 1;
-
-  // Container for timer based periodic rekey properties.
-  SecureEntityStaticKeyRekeyModeTimerBased timer_based = 2;
-}
-
-// Timer based periodic rekey properties.
-message SecureEntityStaticKeyRekeyModeTimerBased {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      continuous = 1;
-      fixed_count = 2;
-    }
-  }
-  // Periodic rekey attempt choices.
-  // default = Choice.Enum.continuous
-  optional Choice.Enum choice = 1;
-
-  // Fixed rekey attempts.
-  // default = 10
-  optional uint32 fixed_count = 2;
-
-  // Periodic rekey interval (sec).
-  // default = 300
-  optional uint32 interval = 3;
-}
-
-// The container for SAK.
-message SecureEntityStaticKeySak {
-
-  // Secure association key(SAK) bits as hex string. Either 128 bits or 256 bits depending
-  // on the chosen cipher suite.
-  // default = F123456789ABCDEF0123456789ABCDEF
-  optional string sak = 1;
-
-  // 4 bytes short SCI(SSCI) used in case of XPN cipher suites.
-  // default = 00000001
-  optional string ssci = 2;
-
-  // 12 bytes salt used in case of XPN cipher suites.
-  // default = 000000000000000000000001
-  optional string salt = 3;
-}
-
-// A container of static key Tx properties.
-message SecureEntityStaticKeyTx {
-
-  // Tx secure channels.
-  repeated SecureEntityStaticKeyTxSc secure_channels = 1;
-
-  // Description missing in models
-  SecureEntityStaticKeyRekeyMode rekey_mode = 2;
-}
-
-// Tx SC setting for static key.
-message SecureEntityStaticKeyTxSc {
-
-  // System ID.
-  optional string system_id = 1;
-
-  // Port ID.
-  // default = 1
-  optional uint32 port_id = 2;
-
-  // Tx SAK pool.
-  repeated SecureEntityStaticKeySak saks = 3;
-}
-
-// A container of static key Rx properties.
-message SecureEntityStaticKeyRx {
-
-  // Rx secure channels.
-  repeated SecureEntityStaticKeyRxSc secure_channels = 1;
-}
-
-// Rx SC settings.
-message SecureEntityStaticKeyRxSc {
-
-  // System ID in DUT SCI.
-  optional string dut_sci_system_id = 1;
-
-  // Port ID in DUT SCI.
-  // default = 1
-  optional uint32 dut_sci_port_id = 2;
-
-  // DUT MSB of XPN. The 32 most significant bits of the XPN that DUT will be using to
-  // construct the 64 bits XPN value when test starts.
-  // default = 0
-  optional uint32 dut_msb_xpn = 3;
-
-  // Rx SAK pool.
-  repeated SecureEntityStaticKeySak saks = 4;
-}
-
 // A container of properties for an OSPFv3 router.
 message DeviceOspfv3Router {
 
@@ -10615,6 +10406,7 @@ message FlowHeader {
       macsec = 22;
       lacp = 23;
       ipv6_extension_header = 24;
+      cfm = 25;
     }
   }
   // The available types of flow headers. If one is not provided the
@@ -10693,6 +10485,9 @@ message FlowHeader {
 
   // Description missing in models
   FlowIpv6ExtHeader ipv6_extension_header = 25;
+
+  // Description missing in models
+  FlowCfm cfm = 26;
 }
 
 // Custom packet header
@@ -11130,21 +10925,12 @@ message FlowIpv6UsidDst {
   // Description missing in models
   PatternFlowIpv6UsidDstLocatorLength locator_length = 2;
 
-  // Ordered list of uSID values to pack after the Locator Block (RFC 9800 Section 3).
-  // For F3216 each uSID is 16 bits (4 hex chars); up to 6 uSIDs fit per container. The
-  // End-of-Container zero-pad is appended automatically by the implementation. Example:
+  // Ordered list of uSID values (hex strings) to pack after the Locator Block (RFC 9800
+  // Section 3). For F3216 each uSID is 16 bits (4 hex chars); up to 6 uSIDs fit per container.
+  // The End-of-Container zero-pad is appended automatically by the implementation. The
+  // value 0x0000 is reserved as the End-of-Container marker and must not be used. Example:
   // [0001,0002,0003] with locator fc00::/32 assembles to fc00:0:1:2:3::
-  repeated FlowIpv6UsidDstuSid usids = 3;
-}
-
-// One uSID value within the no-SRH uSID container (RFC 9800 Section 3). For F3216 (16-bit
-// uSID): 4 hex characters. The value 0x0000 is reserved as the End-of-Container marker
-// and must not be used.
-message FlowIpv6UsidDstuSid {
-
-  // The uSID value as a hex string. For F3216: 4 hex characters. Any '0' padding before
-  // the before uSID value should be explicitly configured. Example: 0001.
-  optional string usid = 1;
+  repeated string usids = 3;
 }
 
 // The OTG implementation can provide a system generated, value for this property.
@@ -12795,13 +12581,14 @@ message FlowMacsec {
     }
   }
   // Currently only auto choice is allowed. If choice is auto, MACsec header is autogenerated.
-  // If auto choice is selected, MACsec protocol must be configured in device; flow.tx_rx.choice
-  // must be of type 'device' and flow.tx_rx.device.tx_names[0] must be chosen to be an
-  // endpoint that is on or behind a MACSec enabled ethernet to be able to correctly auto-fill
-  // the fields of the MACsec header. If one of the conditions is not true, the implementation
-  // should return an error specifying the issue. A custom choice can be added in future
-  // to allow user to set specific MACsec header fields and/ or to generate flow.tx_rx.port
-  // type of traffic with MACSec header fields explicitly specified by the user.
+  // If auto choice is selected, MACsec protocol must be configured in either device or
+  // LAG members (ports); flow.tx_rx.choice must be of type 'device' and flow.tx_rx.device.tx_names[0]
+  // must be chosen to be an endpoint that is on or behind a MACSec enabled ethernet to
+  // be able to correctly auto-fill the fields of the MACsec header. If one of the conditions
+  // is not true, the implementation should return an error specifying the issue. A custom
+  // choice can be added in future to allow user to set specific MACsec header fields
+  // and/ or to generate flow.tx_rx.port type of traffic with MACSec header fields explicitly
+  // specified by the user.
   // default = Choice.Enum.auto
   optional Choice.Enum choice = 1;
 }
@@ -13048,8 +12835,7 @@ message FlowIpv6Routing {
 // IPv6 Segment Routing Header (SRH, Routing Type 4, RFC 8754 Section 2) carrying full
 // 128-bit SRv6 SIDs. Each segment list entry is a complete SID (locator + function
 // + argument) as a 128-bit IPv6 address. Segment list encoded in reverse path order:
-// Segment[0] is the last hop, Segment[n-1] is the first hop (active, placed in outer
-// IPv6 dst).
+// Segment[0] is the last hop, Segment[n-1] is the first hop.
 message FlowIpv6SegmentRouting {
 
   // Description missing in models
@@ -13083,32 +12869,40 @@ message FlowIpv6SegmentRoutingSegment {
   PatternFlowIpv6SegmentRoutingSegmentSegment segment = 1;
 }
 
-// IPv6 Segment Routing Header (SRH, Routing Type 4, RFC 8754 Section 2)
-// whose segment list carries compressed uSID containers (RFC 9800 Section 4).
-// Each entry in segment_list represents one 128-bit compressed uSID container.
-// The user supplies a structured locator prefix and a list of uSID values;
-// the implementation assembles the 128-bit wire value by packing them as:
-// LB (Locator Block bits) || uSID-1 || uSID-2 || ... || EoC (zeros).
+// SRH (Routing Type 4, RFC 8754 Section 2) whose segment_list entries each
+// represent one 128-bit CSID container (RFC 9800 Section 4). Supports two flavors:
 // 
-// For F3216 format (RFC 9800 Section 3): LB = 32 bits, each uSID = 16 bits,
-// maximum 6 uSIDs per container.
-// Example - locator fc00::/32 with uSIDs 0x0001, 0x0002 assembles to
-// container fc00:0:1:2:: placed in the SRH segment list entry.
+// NEXT-CSID (locator_length > 0, RFC 9800 Section 4.1):
+// Each SRH entry is a fully formed SRv6 SID: LB (locator_length bits) || CSID-1 ||
+// ... || EoC (zeros).
+// F3216 (LB=32, CSID=16): locator fc00::/32, CSIDs [0x0001, 0x0002] -> fc00:0:1:2::
+// Processing: the router reads its own CSID from the DA function field, then
+// left-shifts the DA by one CSID width so the next CSID moves into the active
+// function position. When the shifted suffix is all-zero (End-of-Container), the
+// container is exhausted: segments_left is decremented and the next SRH entry
+// is loaded as the new DA.
 // 
-// The segment list is encoded in reverse path order per RFC 8754 Section 2.1:
-// segment[0] is the last container to visit, segment[n-1] is the first
-// (active) container, whose value is also placed in the outer ipv6.dst_usids field.
+// REPLACE-CSID (RFC 9800 Section 4.2):
+// First entry (locator_length > 0): fully formed SRv6 SID, same structure as NEXT-CSID.
+// Subsequent entries (locator_length = 0): K = floor(128 / LNFL) CSID slots packed
+// into a 128-bit SRH entry. Provide exactly K CSIDs in wire order (left to right,
+// MSB first). Use 00000000 (32-bit) or 0000 (16-bit) for unused slots.
+// CSID width is inferred from hex string length (8 chars = 32-bit, 4 chars = 16-bit).
 // 
-// The active container is determined by the segments_left pointer,
-// which is decremented as the packet progresses through the path and containers are
-// exhausted,
-// where n is the number of compressed uSID containers.
+// Example LNFL=32, K=4, fully packed (4 CSIDs):
+// usids [00050005,00040004,00030003,00020002]
+// wire: [00050005][00040004][00030003][00020002] (MSB->LSB) -> 5:5:4:4:3:3:2:2
+// DA.Arg.Index starts at K-1=3; usids[3]=00020002 is processed first.
 // 
-// Use this schema when the SR path requires more containers than fit in
-// the outer ipv6.dst_usids alone.
-// For single-container paths with no SRH, set the locator and uSID list in ipv6.dst_usids
-// from which
-// destination IPv6 address will be generated by the implementation.
+// Example LNFL=32, K=4, partially used (2 CSIDs, unused MSB slots set to zero):
+// usids [00000000,00000000,00030004,00010002]
+// wire: [00000000][00000000][00030004][00010002] (MSB->LSB) -> ::3:4:1:2
+// usids[3]=00010002 is at LSB and processed first by the router.
+// 
+// Segment list is in reverse path order (RFC 8754 Section 2.1): segment[n-1] is the
+// first active container.
+// 
+// For single-container NEXT-CSID paths with no SRH, use ipv6.dst_usids instead.
 message FlowIpv6SegmentRoutingUsid {
 
   // Description missing in models
@@ -13135,15 +12929,23 @@ message FlowIpv6SegmentRoutingUsid {
   FlowIpv6SRHPadTlv pad_tlv = 6;
 }
 
-// One compressed uSID container entry in the SRH segment list (RFC 9800 Section 4,
-// RFC 8754 Section 2.1). The implementation assembles the 128-bit wire
-// value by packing the locator block followed by the uSID values in order,
-// zero-padding the remainder to 128 bits (End-of-Container marker).
+// One CSID container entry in the SRH segment list (RFC 9800, RFC 8754 Section 2.1).
+// Supports both NEXT-CSID (locator_length > 0) and REPLACE-CSID packed format
+// (locator_length = 0) as described in Flow.Ipv6SegmentRoutingUsid.
 // 
-// For F3216 format (RFC 9800 Section 3): Locator Block = 32 bits, each uSID = 16 bits,
-// up to 6 uSIDs per container.
-// Example - locator fc00::/32 (locator_length 32), usids [0001,0002,0003]
-// assembles to the 128-bit SRH entry fc00:0:1:2:3::
+// NEXT-CSID example (F3216: locator_length=32, 16-bit CSIDs):
+// locator fc00::/32, usids [0001,0002,0003] -> SRH entry fc00:0:1:2:3::
+// 
+// REPLACE-CSID packed examples (LNFL=32, K=4, locator_length=0):
+// Fully used (4 CSIDs):
+// usids [00050005,00040004,00030003,00020002]
+// wire: [00050005][00040004][00030003][00020002] -> 5:5:4:4:3:3:2:2
+// (usids[3]=00020002 at LSB is processed first by the router)
+// 
+// Partially used (2 CSIDs; unused MSB slots set to zero explicitly):
+// usids [00000000,00000000,00030004,00010002]
+// wire: [00000000][00000000][00030004][00010002] -> ::3:4:1:2
+// (usids[3]=00010002 at LSB is processed first by the router)
 message FlowIpv6SegmentRoutingUsidSegment {
 
   // Description missing in models
@@ -13152,26 +12954,30 @@ message FlowIpv6SegmentRoutingUsidSegment {
   // Description missing in models
   PatternFlowIpv6SegmentRoutingUsidSegmentLocatorLength locator_length = 2;
 
-  // Ordered list of uSID values to pack into this container after the Locator Block (RFC
-  // 9800 Section 3). Each uSID occupies ((128 - locator_length) / no of uSIDs) bits.
-  // For F3216 each uSID is 16 bits (4 hex chars) and up to 6 uSIDs fit per container.
-  // The implementation appends the End-of-Container zero-pad automatically. Example for
-  // F3216: [0001,0002,0003] with locator fc00::/32 assembles to SRH entry fc00:0:1:2:3::
-  repeated FlowIpv6SegmentRoutingUsiduSid usids = 3;
-}
-
-// One uSID value within a compressed uSID container (RFC 9800 Section 3). Represents
-// a single network function (node SID, adjacency SID, or service SID) packed consecutively
-// after the Locator Block inside the 128-bit container. For F3216 (RFC 9800 Section
-// 3), each uSID is 16 bits (4 hex characters).
-message FlowIpv6SegmentRoutingUsiduSid {
-
-  // The uSID value expressed as a hex string (RFC 9800 Section 3). The string width must
-  // match the uSID bit length divided by 4. For F3216 (16-bit uSID): 4 hex characters.
-  // The value 0x0000 is reserved as the End-of-Container (EoC) marker and must not be
-  // used as a uSID value (RFC 9800 Section 3). Example: 0001 identifies node 1; with
-  // locator fc00::/32 this contributes the 0001 field to produce container fc00:0:1:...::
-  optional string usid = 1;
+  // Ordered list of CSID hex strings for this container (RFC 9800 Section 3).
+  // For NEXT-CSID (locator_length > 0): CSIDs are packed in forward order after
+  // the Locator Block. usids[0] immediately follows the LB, usids[1] follows, etc.
+  // The value 0x0 (all zeros) is reserved as the End-of-Container marker.
+  // Example F3216: [0001,0002,0003] with locator fc00::/32 -> fc00:0:1:2:3::
+  // 
+  // For REPLACE-CSID packed containers (locator_length = 0): provide exactly
+  // K = floor(128/LNFL) CSIDs in wire order (left to right, MSB first).
+  // Use 00000000 (32-bit) or 0000 (16-bit) for unused slots.
+  // LNFL is inferred from hex string width (8 chars = 32-bit, K = 4;
+  // 4 chars = 16-bit, K = 8).
+  // Per RFC 9800 Section 4.2, DA.Arg.Index starts at K-1 (LSB slot);
+  // usids[K-1] is the first CSID the router processes, usids[0] is the last.
+  // 
+  // Example LNFL=32, K=4, fully used (4 CSIDs):
+  // usids [00050005,00040004,00030003,00020002]
+  // wire: [00050005][00040004][00030003][00020002] (MSB->LSB) -> 5:5:4:4:3:3:2:2
+  // Router processes: 00020002 first, then 00030003, 00040004, 00050005.
+  // 
+  // Example LNFL=32, K=4, partially used (2 CSIDs; unused MSB slots set to zero):
+  // usids [00000000,00000000,00030004,00010002]
+  // wire: [00000000][00000000][00030004][00010002] (MSB->LSB) -> ::3:4:1:2
+  // Router processes: 00010002 first, then 00030004.
+  repeated string usids = 3;
 }
 
 // SRH Flags field (RFC 8754 Section 2.1). An 8-bit field; RFC 8754 marks all bits as
@@ -13207,6 +13013,480 @@ message FlowIpv6SRHPadTlv {
 
   // Description missing in models
   PatternFlowIpv6SRHPadTlvLength length = 2;
+}
+
+// Defines the fields of a Connectivity Fault Management (CFM) Packet Data Unit (PDU)
+// as specified in IEEE 802.1Q-2018 Clause 21. CCM destination MAC is a multicast address
+// derived from the maintenance domain level (IEEE 802.1Q-2018 Table 21-3).
+message FlowCfm {
+
+  // Maintenance Domain Level (0-7). Determines the CCM multicast destination MAC address:
+  // 01:80:c2:00:00:3X where X is the level in hex (e.g. level 5 = 01:80:c2:00:00:35,
+  // level 0 = 01:80:c2:00:00:30). Defined in IEEE 802.1Q-2018 Table 21-3.
+  // default = 0
+  optional uint32 md_level = 1;
+
+  // CFM Common Header version field (IEEE 802.1Q-2018 Table 21-6). Must be 0 for all
+  // frames compliant with this standard.
+  // default = 0
+  optional uint32 version = 2;
+
+  // Description missing in models
+  FlowCfmSelectOpCode op_code = 3;
+}
+
+// Select message header. The opcode byte in the CFM Common Header is automatically
+// set based on the choice as defined in IEEE 802.1Q-2018 Table 21-7. Currently only
+// Continuity Check Message (CCM), Loopback Message (LBM) and Loopback Reply (LBR) are
+// supported.
+message FlowCfmSelectOpCode {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ccm = 1;
+      lbm = 2;
+      lbr = 3;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.ccm
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowCfmCcm ccm = 2;
+
+  // Description missing in models
+  FlowCfmLbm lbm = 3;
+
+  // Description missing in models
+  FlowCfmLbr lbr = 4;
+}
+
+// CCM is a multicast PDU used to detect continuity and configuration errors within
+// a Maintenance Association (MA). As defined in IEEE 802.1Q-2018 Section 12.14.6.
+message FlowCfmCcm {
+
+  // Description missing in models
+  FlowCfmCcmFlags flags = 1;
+
+  // Description missing in models
+  PatternFlowCfmCcmSequenceNumber sequence_number = 2;
+
+  // Description missing in models
+  PatternFlowCfmCcmMaEndpointIdentifier ma_endpoint_identifier = 3;
+
+  // Description missing in models
+  FlowCfmOamProtocol ethernet_oam_protocol = 4;
+
+  // Description missing in models
+  repeated FlowCfmTlvs tlvs = 5;
+
+  // When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table
+  // 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour
+  // with a deliberately missing End TLV.
+  // default = True
+  optional bool append_end_tlv = 6;
+}
+
+// CCM flags byte has RDI and CCM Interval.
+message FlowCfmCcmFlags {
+
+  // Remote Defect Indicator. When true the MEP is reporting a local defect to its remote
+  // peers (IEEE 802.1Q-2018 Section 12.14.6.1.3).
+  // default = False
+  optional bool rdi = 1;
+
+  // CCM transmission interval. Encoded as a 3-bit integer in the flags byte as defined
+  // in IEEE 802.1Q-2018 Table 21-15. 0 = invalid, 1 = 3.33 ms, 2 = 10 ms, 3 = 100 ms,
+  // 4 = 1 s, 5 = 10 s, 6 = 1 min, 7 = 10 min.
+  // default = 4
+  optional uint32 ccm_interval = 2;
+}
+
+// Ethernet OAM standard used to encode the 48-byte identifier field in the CCM PDU.
+// Currently only the cfm choice is available; IEEE 802.1Q-2018 MAID encoding (MD Name
+// + Short MA Name) is used. Future choices may include ITU-T Y.1731 MEG ID encoding.
+message FlowCfmOamProtocol {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      cfm = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.cfm
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowCfmMaidCfm cfm = 2;
+}
+
+// IEEE 802.1Q-2018 MAID encoding: MD Name (optional) + Short MA Name, zero-padded to
+// fill 48 bytes in the CCM PDU. The choice selects the Short MA Name Format as defined
+// in IEEE 802.1Q-2018 Table 21-20 and provides a typed input for each format.
+message FlowCfmMaidCfm {
+
+  // Maintenance domain name encoding. When present, the MD Name field is included in
+  // the MAID using the selected format (IEEE 802.1Q-2018 Table 21-19 Formats 2-4). When
+  // absent, Format 1 (No MD Name) is encoded and the MAID begins directly with the Short
+  // MA Name.
+  FlowCfmMDNameFormat md_name = 1;
+
+  // Short MA Name encoding. The Short MA Name field is mandatory in the MAID and identifies
+  // the Maintenance Association within its Maintenance Domain. The selected format determines
+  // the on-wire encoding per IEEE 802.1Q-2018 Table 21-20 (Formats 1-4).
+  FlowCfmShortMANameFormat short_ma_name = 2;
+}
+
+// Maintenance domain name encoding. The choice selects the MD Name Format as defined
+// in IEEE 802.1Q-2018 Table 21-19 and provides a typed input for each format. Length
+// is auto-computed from the value unless overridden.
+message FlowCfmMDNameFormat {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      domain_name_str = 1;
+      mac_addr = 2;
+      char_str = 3;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.char_str
+  optional Choice.Enum choice = 1;
+
+  // Length of the MD Name value in octets. Auto-computed by default.
+  FlowCfmLength length = 2;
+
+  // DNS-like domain name, e.g. example.com (RFC 1034 encoding). Maximum 43 octets (IEEE
+  // 802.1Q-2018 Table 21-19).
+  // default =
+  optional string domain_name_str = 3;
+
+  // MAC address + 2-octet integer (IEEE Format 3). See Flow.Cfm.MDNameMacAddr.
+  FlowCfmMDNameMacAddr mac_addr = 4;
+
+  // Character string (ASCII), up to 43 octets (IEEE 802.1Q-2018 Table 21-19).
+  // default =
+  optional string char_str = 5;
+}
+
+// MD Name Format 3 encoding as defined in IEEE 802.1Q-2018 Table 21-19. Consists of
+// a 6-octet MAC address followed by a 2-octet unsigned integer in network byte order.
+// Total wire length is always 8 octets.
+message FlowCfmMDNameMacAddr {
+
+  // 6-octet MAC address component, e.g. 00:11:22:33:44:55.
+  // default = 00:00:00:00:00:00
+  optional string mac = 1;
+
+  // Locally assigned 2-octet unsigned integer in network byte order that distinguishes
+  // multiple maintenance domains sharing the same MAC address (IEEE 802.1Q-2018 Table
+  // 21-19).
+  // default = 0
+  optional uint32 id = 2;
+}
+
+// Short MA Name encoding (IEEE 802.1Q-2018 Table 21-20). Choose one of four formats
+// and provide its typed value. Length is auto-computed from the value unless overridden.
+message FlowCfmShortMANameFormat {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      primary_vid = 1;
+      char_str = 2;
+      two_oct_int = 3;
+      rfc_2685_vpn_id = 4;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.char_str
+  optional Choice.Enum choice = 1;
+
+  // Length of the Short MA Name value in octets. Auto-computed by default.
+  FlowCfmLength length = 2;
+
+  // Primary VLAN ID (1-4094). Encoded as a 2-octet unsigned integer.
+  // default = 1
+  optional uint32 primary_vid = 3;
+
+  // Character string (ASCII), up to 45 octets (RFC 2579 DisplayString).
+  // default =
+  optional string char_str = 4;
+
+  // 2-octet unsigned integer, e.g. a locally assigned VLAN tag.
+  // default = 0
+  optional uint32 two_oct_int = 5;
+
+  // RFC 2685 VPN ID, exactly 7 octets (3-octet OUI + 4-octet index). Encode as 14 hex
+  // characters, e.g. 00000000000000.
+  // default = 00000000000000
+  optional string rfc_2685_vpn_id = 6;
+}
+
+// Loopback Message (LBM) is a diagnostic frame used to verify connectivity between
+// Maintenance End Points (MEPs) and Maintenance Intermediate Points (MIPs). LBM flag
+// bits are reserved and set to zero.
+message FlowCfmLbm {
+
+  // Description missing in models
+  PatternFlowCfmLbmTransactionId transaction_id = 1;
+
+  // Description missing in models
+  repeated FlowCfmTlvs tlvs = 2;
+
+  // When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table
+  // 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour
+  // with a deliberately missing End TLV.
+  // default = True
+  optional bool append_end_tlv = 3;
+}
+
+// Loopback Reply (LBR) messages are unicast frames sent by a Maintenance Association
+// End Point (MEP) or Intermediate Point (MIP) to a source MEP in response to a Loopback
+// Message (LBM). LBR flag bits are reserved and set to zero.
+message FlowCfmLbr {
+
+  // Description missing in models
+  PatternFlowCfmLbrTransactionId transaction_id = 1;
+
+  // Description missing in models
+  repeated FlowCfmTlvs tlvs = 2;
+
+  // When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table
+  // 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour
+  // with a deliberately missing End TLV.
+  // default = True
+  optional bool append_end_tlv = 3;
+}
+
+// CFM TLV entry. The Type byte (IEEE 802.1Q-2018 Table 21-17) is set automatically
+// from the choice: Sender ID=1, Port Status=2, Data=3, Interface Status=4. Length (2
+// octets) and Value are defined per TLV type.
+message FlowCfmTlvs {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      sender_id = 1;
+      port_status = 2;
+      interface_status = 3;
+      data = 4;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.sender_id
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  PatternFlowCfmTlvsLength length = 2;
+
+  // Description missing in models
+  FlowCfmSenderIdTlv sender_id = 3;
+
+  // Description missing in models
+  FlowCfmPortStatusTlv port_status = 4;
+
+  // Description missing in models
+  FlowCfmInterfaceStatusTlv interface_status = 5;
+
+  // Description missing in models
+  FlowCfmDataTlv data = 6;
+}
+
+// Sender ID TLV (Type 1) carries the sender's chassis identity and optionally a Management
+// Address so that the receiving MEP can identify and reach back to the sender, as defined
+// in IEEE 802.1Q-2018 Section 21.5.5, Table 21-16.
+message FlowCfmSenderIdTlv {
+
+  // Chassis identifier of the sender. When absent, the Chassis ID Length field is set
+  // to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
+  FlowCfmSenderIdTlvChassisId chassis_id = 1;
+}
+
+// Sender ID TLV with Chassis ID
+message FlowCfmSenderIdTlvChassisId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      chassis_component = 1;
+      interface_alias = 2;
+      port_component = 3;
+      mac_address = 4;
+      network_address = 5;
+      interface_name = 6;
+      locally_assigned = 7;
+    }
+  }
+  // Select the LLDP Chassis ID Subtype (IEEE 802.1AB-2016 Table 8-3).
+  // default = Choice.Enum.mac_address
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  FlowCfmLength length = 2;
+
+  // Identifies the hardware component FRU/shelf.
+  // default =
+  optional string chassis_component = 3;
+
+  // Identifies the interface by its manager-assigned name.
+  // default =
+  optional string interface_alias = 4;
+
+  // Identifies a port-class physical component of the chassis.
+  // default =
+  optional string port_component = 5;
+
+  // MAC address identifying the chassis.
+  // default = 00:00:00:00:00:00
+  optional string mac_address = 6;
+
+  // Network address identifying the chassis (IEEE 802.1AB-2016 Chassis ID Subtype 5).
+  FlowCfmNetwork network_address = 7;
+
+  // Identifies the interface by a system-assigned name.
+  // default =
+  optional string interface_name = 8;
+
+  // String assigned by the local administrator.
+  // default =
+  optional string locally_assigned = 9;
+
+  // Management Address Domain and address of the sender. When absent, the Management
+  // Address Domain Length field is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section
+  // 21.5.5.1).
+  FlowCfmSenderIdTlvMADomain management_address_domain = 10;
+}
+
+// Sender ID TLV with Management Address Domain
+message FlowCfmSenderIdTlvMADomain {
+
+  // Description missing in models
+  FlowCfmLength length = 1;
+
+  // The domain is a full BER-encoded OID identifying the transport/protocol, CFM follows
+  // the SNMPv3 RFC 3411.
+  // default = 00
+  optional string domain = 2;
+
+  // Management Address of the sender. When absent, the Management Address Length field
+  // is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
+  FlowCfmSenderIdTlvMgmtAddress management_address = 3;
+}
+
+// Sender ID TLV with Management Address
+message FlowCfmSenderIdTlvMgmtAddress {
+
+  // Description missing in models
+  FlowCfmLength length = 1;
+
+  // The address is in the format defined by the domain. This lets the receiver know exactly
+  // how to dial back into the sender's management stack.
+  // default = 00
+  optional string address = 2;
+}
+
+// Typed network address used as the Sender ID TLV Chassis ID Subtype 5 (IEEE 802.1AB-2016
+// Table 8-3). On the wire, the choice value encodes the leading IANA address family
+// octet (1 = IPv4, 2 = IPv6), followed by the corresponding IP address bytes.
+message FlowCfmNetwork {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  // IANA address family, encodes the first octet of the network address.
+  // default = Choice.Enum.ipv4
+  optional Choice.Enum choice = 1;
+
+  // Chassis ID IPv4 address
+  // default = 0.0.0.0
+  optional string ipv4 = 2;
+
+  // Chassis ID IPv6 address
+  // default = ::0
+  optional string ipv6 = 3;
+}
+
+// Port Status TLV (Type 2) indicates the ability of the Bridge Port to pass ordinary
+// data traffic, as defined in IEEE 802.1Q-2018 Section 12.14.3.3.
+message FlowCfmPortStatusTlv {
+
+  message Status {
+    enum Enum {
+      unspecified = 0;
+      port_blocked = 1;
+      port_up = 2;
+    }
+  }
+  // Port status can be either port blocked or port up.
+  // default = Status.Enum.port_up
+  optional Status.Enum status = 1;
+}
+
+// Interface Status TLV (Type 4) indicates the operational state of a physical or logical
+// interface between Provider Edge (PE) and Customer Edge (CE) devices. As defined in
+// IEEE 802.1Q-2018 Section 12.14.3.4.
+message FlowCfmInterfaceStatusTlv {
+
+  message Status {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+      testing = 3;
+      unknown = 4;
+      dormant = 5;
+      not_present = 6;
+      lower_layer_down = 7;
+    }
+  }
+  // Defined Interface status.
+  // default = Status.Enum.up
+  optional Status.Enum status = 1;
+}
+
+// Data TLV (Type 3) used to carry arbitrary test data, typically for loopback testing.
+// As defined in IEEE 802.1Q-2018 Section 12.14.3.2.
+message FlowCfmDataTlv {
+
+  // Arbitrary test data payload. The length field of the parent TLV entry should be set
+  // to auto to match the byte count of this value.
+  // default = 00
+  optional string data = 1;
+}
+
+// Length field with auto-compute or explicit-value choice. When auto, the implementation
+// derives the value from the associated data field.
+message FlowCfmLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      value = 2;
+    }
+  }
+  // auto or configured value.
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // The OTG implementation will provide a system generated value for this property.
+  // If the OTG implementation is unable to generate a value the default value must be
+  // used.
+  // default = 1
+  optional uint32 auto = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 value = 3;
 }
 
 // The frame size which overrides the total length of the packet
@@ -14292,6 +14572,7 @@ message PortProtocol {
     enum Enum {
       unspecified = 0;
       rocev2 = 1;
+      macsec = 2;
     }
   }
   // list of protocols that have per port settings
@@ -14300,6 +14581,9 @@ message PortProtocol {
 
   // Description missing in models
   Rocev2PerPortSettings rocev2 = 2;
+
+  // Description missing in models
+  MacsecPerPortSettings macsec = 3;
 }
 
 // Data plane traffic flow configuration for a test port.
@@ -14532,6 +14816,154 @@ message Rocev2DCQCN {
   // the hyper increment rate recovery mode.
   // default = 0.001
   optional float hyper_increment_rate = 14;
+}
+
+// MACsec hardware acceleration settings of a test port. These settings are applicable
+// to all MACsec devices configured on this port. These settings are not applicable
+// to MACsec configured on LAG member port.
+message MacsecPerPortSettings {
+
+  // Description missing in models
+  MacsecHardwareAcceleration hardware_acceleration = 1;
+
+  // Description missing in models
+  MacsecValidateFrames validate_frames = 2;
+}
+
+// Hardware acceleration configuration for offloading MACsec processing to hardware.
+message MacsecHardwareAcceleration {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      none = 1;
+      inline_crypto = 2;
+    }
+  }
+  // Hardware acceleration types.
+  // default = Choice.Enum.none
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  MacsecHardwareAccelerationInlineCrypto inline_crypto = 2;
+}
+
+// Controls validation of received frames.
+message MacsecValidateFrames {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      check = 1;
+      strict = 2;
+    }
+  }
+  // Controls validation of received frames. check - enable validation, do not discard
+  // invalid frames and increment in_pkts_invalid stats. strict - enable validation and
+  // discard invalid frames and increment in_pkts_not_valid stats.
+  // default = Choice.Enum.check
+  optional Choice.Enum choice = 1;
+}
+
+// Inline cryto engine configuration. Encryption/ decryption are offloaded to hardware.
+// Also dynamic fields e.g. packet number(PN) and integrity check value(ICV) are updated
+// in MACsec header on transmit.
+message MacsecHardwareAccelerationInlineCrypto {
+
+  // Offset of Rx secTAG from the first byte in packet. It is set to 12 when the secTAG
+  // includes the 'ethernet type' field which has value “0x88E5”.
+  // default = 12
+  optional uint32 rx_sectag_offset = 1;
+
+  message RxScIdentifyingField {
+    enum Enum {
+      unspecified = 0;
+      source_mac = 1;
+      sci_system_id = 2;
+      sci_port_id = 3;
+    }
+  }
+  // The field based on which secure channel(SC) will be identified by the receiving port.
+  // Supported fields are:- - 1) source MAC - identify SC based on source MAC field. 2)
+  // SCI system ID - identify SC based on SCI system ID field. 3) SCI port ID - identify
+  // based on SCI port ID field.
+  // default = RxScIdentifyingField.Enum.source_mac
+  optional RxScIdentifyingField.Enum rx_sc_identifying_field = 2;
+
+  // Description missing in models
+  MacsecHardwareAccelerationInlineCryptoTypeOfCa type_of_ca = 3;
+
+  message MaxCaCount {
+    enum Enum {
+      unspecified = 0;
+      one = 1;
+      two = 2;
+      four = 3;
+      eight = 4;
+      sixteen = 5;
+      thirty_two = 6;
+      sixty_four = 7;
+      one_twenty_eight = 8;
+      two_fifty_six = 9;
+    }
+  }
+  // The number of CAs configured in MKA can be determined by the number of devices having
+  // different VLANs, and within the same VLAN, by the number of distinct CKNs (CAK Names).
+  // The maximum number of CAs permitted on the port. The value should be rounded to the
+  // power of 2 to the ceiling of actual number of CAs. E.g. for 5 CAs, maximum CA count
+  // should be set to 8. The maximum count supported per port is 256 for Pair-wise CA,
+  // each CA having one MACsec device. Product of maximum CA count and MACsec device count
+  // per CA can have a maximum value of 256. E.g. for maximum CA count of 1, maximum 256
+  // devices are permitted. For maximum CA count of 8, maximum 32 devices are permitted
+  // per CA. For maximum CA count of 256, maximum 1 device is permitted per CA.
+  // default = MaxCaCount.Enum.two_fifty_six
+  optional MaxCaCount.Enum max_ca_count = 4;
+}
+
+// Type of connectivity association(CA).
+message MacsecHardwareAccelerationInlineCryptoTypeOfCa {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      pairwise_ca = 1;
+      group_ca = 2;
+    }
+  }
+  // Type of connectivity association(CA).
+  // default = Choice.Enum.pairwise_ca
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  MacsecHardwareAccelerationInlineCryptoTypeOfCaGroupCa group_ca = 2;
+}
+
+// Group onnectivity association(CA).
+message MacsecHardwareAccelerationInlineCryptoTypeOfCaGroupCa {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      single_dut_tx_sc = 1;
+      multiple_dut_tx_sc = 2;
+    }
+  }
+  // DUT Tx secure channel(SC) count in group connectivity association(CA).
+  // default = Choice.Enum.multiple_dut_tx_sc
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  MacsecHardwareAccelerationInlineCryptoTypeOfCaGroupCaMultipleDutTxSc multiple_dut_tx_sc = 2;
+}
+
+// Maximum possible DUT Tx secure channel(SC) count per group connectivity association(CA).
+message MacsecHardwareAccelerationInlineCryptoTypeOfCaGroupCaMultipleDutTxSc {
+
+  // When there are multiple DUTs connected to a group CA, set the maximum possible number
+  // of DUT transmit SCs per CA. If max_ca_count is N then the value should be <= (256/N).
+  // If any greater value is given, it should be set to (256/ N).
+  // default = 1
+  optional uint32 max_dut_tx_sc_per_ca = 1;
 }
 
 // Error response generated while serving API request.
@@ -15836,6 +16268,7 @@ message ActionProtocolIsis {
     enum Enum {
       unspecified = 0;
       initiate_graceful_restart = 1;
+      update_overload_bit = 2;
     }
   }
   // Description missing in models
@@ -15844,6 +16277,9 @@ message ActionProtocolIsis {
 
   // Configuration for the initiation of the IS-IS Graceful Restart.
   ActionProtocolIsisInitiateRestart initiate_graceful_restart = 2;
+
+  // Configuration for setting or clearing the IS-IS overload bit on selected routers.
+  ActionProtocolIsisOverloadBit update_overload_bit = 3;
 }
 
 // Timers T1 and T2 are used both by a restarting router and a starting router. Timer
@@ -15938,6 +16374,43 @@ message ActionProtocolIsisPlannedRestart {
   // and hold_timer is reset to normal.
   // default = 10
   optional uint32 restart_after = 3;
+}
+
+// Sets or clears the LSP Database Overload (OL) bit (Bit 3 of the
+// P/ATT/LSPDBOL/IS-Type octet, ISO/IEC 10589:2002 Section 9.8) in
+// LSP Number zero of the selected routers without restarting the IS-IS
+// session (Section 7.2.5).
+// When set, other routers exclude this router from transit IS SPF
+// calculations; End System reachability through it is preserved
+// (Section 7.2.8.1, RFC 3787 Section 4).
+// The router re-originates LSP Number zero with an incremented sequence
+// number; IS-IS floods it domain-wide so all routers recompute SPF.
+// Typical uses: planned maintenance; simulating an overloaded router.
+message ActionProtocolIsisOverloadBit {
+
+  // The names of IS-IS routers on which to apply the overload bit state. If no names
+  // are specified then the action is applied to all configured IS-IS routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.IsisRouter/properties/name
+  // 
+  repeated string router_names = 1;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      set = 1;
+      unset = 2;
+    }
+  }
+  // set: The router sets the OL bit in its LSP Number zero. Other routers
+  // exclude this router from transit SPF path calculations for Intermediate
+  // System neighbours. End System reachability through this router is
+  // preserved.
+  // unset: The router clears the OL bit from its LSP Number zero. Normal
+  // transit path calculations resume for all routers.
+  // default = Choice.Enum.set
+  optional Choice.Enum choice = 2;
 }
 
 // Request to traffic generator for metrics of choice.
@@ -17953,7 +18426,7 @@ message MacsecMetricsRequest {
   // results for all secYs.
   // 
   // x-constraint:
-  // - /components/schemas/Macsec/properties/name
+  // - /components/schemas/SecureEntity/properties/name
   // 
   repeated string secure_entity_names = 1;
 
@@ -18017,6 +18490,7 @@ message MacsecMetric {
   optional uint64 in_pkts_ok = 6;
 
   // The total number of received bad packets that failed atleast one validation check.
+  // Either ICV could not be verified or the packet is late.
   optional uint64 in_pkts_bad = 7;
 
   // InPktsBadTag, the number of packets discarded due to bad tag/ICV.
@@ -18025,22 +18499,28 @@ message MacsecMetric {
   // InPktsLate, the number of packets discarded out of window.
   optional uint64 in_pkts_late = 9;
 
-  // InPktsNoSCI,the number of packets discarded due to unknown SCI.
+  // InPktsNoSCI,the number of packets discarded due to unknown SCI. MACsec validate frames
+  // mode is strict.
   optional uint64 in_pkts_no_sci = 10;
 
-  // InPktsNotUsingSA, the number of packets discarded due to unused SA.
+  // InPktsNotUsingSA, the number of packets discarded due to unused SA. MACsec validate
+  // frames mode is strict.
   optional uint64 in_pkts_not_using_sa = 11;
 
-  // InPktsNotValid, the number of packets discarded due to invalid ICV.
+  // InPktsNotValid, the number of packets discarded due to invalid ICV. MACsec validate
+  // frames mode is strict or confidentiality in enabled.
   optional uint64 in_pkts_not_valid = 12;
 
-  // InPktsUnknownSCI, the number of packets received with unknown SCI.
+  // InPktsUnknownSCI, the number of packets received with unknown SCI. MACsec validate
+  // frames mode is not strict.
   optional uint64 in_pkts_unknown_sci = 13;
 
-  // InPktsUnusedSA, the number of packets received with unused SA.
+  // InPktsUnusedSA, the number of packets received with unused SA. MACsec validate frames
+  // mode is not strict.
   optional uint64 in_pkts_unused_sa = 14;
 
-  // InPktsInvalid, the number of packets received with invalid ICV.
+  // InPktsInvalid, the number of packets received with invalid ICV. MACsec validate frames
+  // mode is check.
   optional uint64 in_pkts_invalid = 15;
 
   // InPktsUntagged, the number of non-MACsec packets received.
@@ -18117,16 +18597,18 @@ message MkaMetric {
   // Number of MKA protocol data unit(MKPDU) frames Rx.
   optional uint64 mkpdu_rx = 5;
 
-  // Number of MKA live peers.
+  // Number of MKA live peers. A live peer is a network device (peer) that has actively
+  // exchanged and confirmed recent key agreement messages (MKPDUs) with another device.
   optional uint64 live_peer_count = 6;
 
-  // Number of MKA potential peers.
+  // Number of MKA potential peers. A potential peer is a candidate neighbor sending MKA
+  // messages but not yet fully authenticated.
   optional uint64 potential_peer_count = 7;
 
-  // Number of MKA latest key Tx peers.
+  // Number of live peers ready to transmit with latest distributed key.
   optional uint64 latest_key_tx_peer_count = 8;
 
-  // Number of MKA latest key Rx peers.
+  // Number of live peers ready to receive with latest distributed key.
   optional uint64 latest_key_rx_peer_count = 9;
 
   // Number of malformed MKA Protocol Data Unit(MKPDU) frames Rx.
@@ -25399,7 +25881,7 @@ message PatternFlowIpv6DstMetricTag {
   optional uint32 length = 3;
 }
 
-// Destination address in IPv6 packet header. If dest_usids is configured, the locator
+// Destination address in IPv6 packet header. If dst_usids is configured, the locator
 // and usids provided in that should be used to construct the IPv6 destination address
 // instead of this field.
 message PatternFlowIpv6Dst {
@@ -25507,8 +25989,10 @@ message PatternFlowIpv6UsidDstLocatorLengthCounter {
 }
 
 // Length of the Locator Block in bits (RFC 9800 Section 3). Determines how many high-order
-// bits of locator are used as the LB and how many bits remain for uSID packing. For
-// F3216: 32. For F3208: 32. Valid range: 1-112.
+// bits of locator are used as the LB and how many bits remain for CSID packing. Valid
+// range: 1-112. For NEXT-CSID F3216 (RFC 9800 Section 3): 32. For REPLACE-CSID first
+// container (RFC 9800 Section 4.2): use the LB length (e.g. 32 or 48); the outer IPv6
+// DA always carries a fully formed SRv6 SID with a LB.
 message PatternFlowIpv6UsidDstLocatorLength {
 
   message Choice {
@@ -37319,7 +37803,8 @@ message PatternFlowIpv6SegmentRoutingUsidSegmentLocatorCounter {
 // The Locator Block (LB) IPv6 prefix shared by all uSIDs in this container (RFC 9800
 // Section 3). Defines the common high-order bits of every uSID assembled from this
 // entry. For F3216, this is a /32 prefix (e.g., fc00::). The prefix length is given
-// by locator_length.
+// by locator_length. Ignored when locator_length is 0 (REPLACE-CSID flavor, RFC 9800
+// Section 5).
 message PatternFlowIpv6SegmentRoutingUsidSegmentLocator {
 
   message Choice {
@@ -37366,9 +37851,16 @@ message PatternFlowIpv6SegmentRoutingUsidSegmentLocatorLengthCounter {
   optional uint32 count = 3;
 }
 
-// Length of the Locator Block in bits (RFC 9800 Section 3). Determines how many high-order
-// bits of locator are used as the LB and how many bits remain for uSID packing. For
-// F3216: 32. For F3208: 32. Valid range: 1-112.
+// Length of the Locator Block in bits (RFC 9800 Section 3).
+// Valid range: 0-112.
+// For NEXT-CSID (locator_length > 0): high-order locator_length bits of
+// locator form the LB; usids are packed after it in forward order.
+// For REPLACE-CSID first container (locator_length > 0): same as NEXT-CSID
+// structure; use a single usid = Locator-Node+Function value (LNFL bits).
+// For REPLACE-CSID packed containers (locator_length = 0): the locator
+// field is ignored; the 128-bit SRH entry is K = floor(128/LNFL) slots
+// of LNFL bits each; exactly K usids must be provided in wire order (MSB first);
+// see usids field description for examples (RFC 9800 Section 4.2).
 message PatternFlowIpv6SegmentRoutingUsidSegmentLocatorLength {
 
   message Choice {
@@ -37698,6 +38190,252 @@ message PatternFlowIpv6SRHPadTlvLength {
 
   // Description missing in models
   PatternFlowIpv6SRHPadTlvLengthCounter decrement = 7;
+}
+
+// integer counter pattern
+message PatternFlowCfmCcmSequenceNumberCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// CCM unique sequence number.
+message PatternFlowCfmCcmSequenceNumber {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowCfmCcmSequenceNumberCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowCfmCcmSequenceNumberCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowCfmCcmMaEndpointIdentifierCounter {
+
+  // Description missing in models
+  // default = 1
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Maintenance Association End Point Identifier (MEP ID). Unique within the MA. Range
+// 1-8191 per IEEE 802.1Q-2018 Section 12.14.6.3.2.
+message PatternFlowCfmCcmMaEndpointIdentifier {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [1]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowCfmCcmMaEndpointIdentifierCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowCfmCcmMaEndpointIdentifierCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowCfmLbmTransactionIdCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Transaction identifier copied verbatim into the corresponding LBR, allowing the sender
+// to match the reply to this request (IEEE 802.1Q-2018 Figure 21-5).
+message PatternFlowCfmLbmTransactionId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowCfmLbmTransactionIdCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowCfmLbmTransactionIdCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowCfmLbrTransactionIdCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Transaction id or sequence number copied from the LBM to match the reply to the specific
+// request.
+message PatternFlowCfmLbrTransactionId {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.value
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // Description missing in models
+  PatternFlowCfmLbrTransactionIdCounter increment = 5;
+
+  // Description missing in models
+  PatternFlowCfmLbrTransactionIdCounter decrement = 6;
+}
+
+// integer counter pattern
+message PatternFlowCfmTlvsLengthCounter {
+
+  // Description missing in models
+  // default = 0
+  optional uint32 start = 1;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 step = 2;
+
+  // Description missing in models
+  // default = 1
+  optional uint32 count = 3;
+}
+
+// Length of the TLV value field in octets (IEEE 802.1Q-2018 Table 21-16). When auto,
+// derived from the selected TLV sub-object.
+message PatternFlowCfmTlvsLength {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      value = 2;
+      values = 3;
+      auto = 1;
+      increment = 4;
+      decrement = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.auto
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  // default = 0
+  optional uint32 value = 2;
+
+  // Description missing in models
+  // default = [0]
+  repeated uint32 values = 3;
+
+  // The OTG implementation can provide a system generated
+  // value for this property. If the OTG is unable to generate a value
+  // the default value must be used.
+  // default = 0
+  optional uint32 auto = 4;
+
+  // Description missing in models
+  PatternFlowCfmTlvsLengthCounter increment = 6;
+
+  // Description missing in models
+  PatternFlowCfmTlvsLengthCounter decrement = 7;
 }
 
 // Version details

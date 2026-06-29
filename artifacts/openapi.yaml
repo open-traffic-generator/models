@@ -7,7 +7,7 @@ info:
     \ issue](https://github.com/open-traffic-generator/models/issues) in the models\
     \ repository\n- [fork the models repository](https://github.com/open-traffic-generator/models)\
     \ and submit a PR"
-  version: 1.54.0
+  version: 1.58.0
   contact:
     url: https://github.com/open-traffic-generator/models
   license:
@@ -468,6 +468,9 @@ components:
         ethernet:
           $ref: '#/components/schemas/Device.EthernetBase'
           x-field-uid: 3
+        macsec:
+          $ref: '#/components/schemas/Lag.Port.Macsec'
+          x-field-uid: 4
     Lag.Protocol:
       type: object
       properties:
@@ -1886,6 +1889,1418 @@ components:
             UTF-8 strings are parameters needed for booting, e.g., kernel parameters.
           type: string
           x-field-uid: 1
+    Lag.Port.Macsec:
+      description: |-
+        Configuration of MACsec per LAG member port. This MACsec configuration per LAG member port and MACsec configuration in any Ethernet device a) on this port or b) on this LAG are mutually exclusive.
+      type: object
+      required:
+      - secure_entity
+      properties:
+        secure_entity:
+          description: |-
+            This contains the properties of Secure Entity (SecY) per LAG member port.
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity'
+          x-field-uid: 1
+        exclude_protocols:
+          description: |-
+            Protocols excluded from MACsec encapsulation at Tx from the LAG member port.
+          $ref: '#/components/schemas/Lag.Port.Macsec.ExcludeProtocols'
+          x-field-uid: 2
+    Lag.Port.Macsec.ExcludeProtocols:
+      description: |-
+        Protocols excluded from MACsec encapsulation at Tx from the LAG member port.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Choose none to exclude no protocols i.e. all protocols are MACsec encapsulated at Tx. Choose per_protocol to opt per protocol.
+          type: string
+          default: none
+          x-field-uid: 1
+          x-enum:
+            none:
+              x-field-uid: 1
+            per_protocol:
+              x-field-uid: 2
+          enum:
+          - none
+          - per_protocol
+        per_protocol:
+          $ref: '#/components/schemas/Lag.Port.Macsec.ExcludeProtocols.PerProtocol'
+          x-field-uid: 2
+    Lag.Port.Macsec.ExcludeProtocols.PerProtocol:
+      description: |-
+        Per protocol choice to exclude from MACsec encapsulation at Tx from this LAG member port.
+      type: object
+      properties:
+        lacp:
+          description: |-
+            Determines whether LACP should be excluded from MACsec encapsulation or not.
+          type: boolean
+          default: false
+          x-field-uid: 1
+    Lag.Port.Macsec.SecureEntity:
+      description: |-
+        Configuration of Secure Entity (SecY) per LAG member port.
+      type: object
+      required:
+      - name
+      - key_generation_protocol
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          x-unique: global
+        key_generation_protocol:
+          description: |-
+            This contains the properties of key generation protocol of Secure Entity (SecY).
+          $ref: '#/components/schemas/SecureEntity.KeyGenerationProtocol'
+          x-field-uid: 2
+        data_plane:
+          description: |-
+            This contains the properties of data plane of Secure Entity (SecY).
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity.DataPlane'
+          x-field-uid: 3
+    Device.Macsec:
+      description: |-
+        A container of properties for a MACsec capable device. Reference https://1.ieee802.org/security/802-1ae/.
+      type: object
+      required:
+      - ethernet_interfaces
+      properties:
+        ethernet_interfaces:
+          description: |-
+            Ethernet Interfaces
+          type: array
+          items:
+            $ref: '#/components/schemas/Device.Macsec.EthernetInterface'
+          x-field-uid: 1
+    Device.Macsec.EthernetInterface:
+      description: |-
+        Configuration for single MACsec interface.
+      type: object
+      required:
+      - eth_name
+      - secure_entity
+      properties:
+        eth_name:
+          description: |
+            The unique name of the Ethernet interface on which MACsec is enabled.
+
+            x-constraint:
+            - /components/schemas/Device.Ethernet/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ethernet/properties/name
+          x-field-uid: 1
+        secure_entity:
+          description: |-
+            This contains the properties of Secure Entity (SecY).
+          $ref: '#/components/schemas/SecureEntity'
+          x-field-uid: 2
+    SecureEntity:
+      description: |-
+        Configuration of a Secure Entity (SecY).
+      type: object
+      required:
+      - name
+      - key_generation_protocol
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          x-unique: global
+        key_generation_protocol:
+          description: |-
+            This contains the properties of key generation protocol of Secure Entity (SecY).
+          $ref: '#/components/schemas/SecureEntity.KeyGenerationProtocol'
+          x-field-uid: 2
+        data_plane:
+          description: |-
+            This contains the properties of data plane of Secure Entity (SecY).
+          $ref: '#/components/schemas/SecureEntity.DataPlane'
+          x-field-uid: 3
+    SecureEntity.KeyGenerationProtocol:
+      description: |-
+        Container of Key generation protocol configuration.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Key generation protocol choices. Choose "mka" for dynamic key distribution using MACsec key agreement(MKA) protocol. Choose "static_key" for static configuration of secure association key(SAK).
+          type: string
+          default: mka
+          x-field-uid: 1
+          x-enum:
+            mka:
+              x-field-uid: 1
+            static_key:
+              x-field-uid: 2
+          enum:
+          - mka
+          - static_key
+        mka:
+          description: |-
+            This contains the properties of Key Agreement Entity (KaY) in MKA supplicant.
+          x-field-uid: 2
+          $ref: '#/components/schemas/Mka'
+        static_key:
+          description: |-
+            Static key properties properties of SecY. Static key is used in absence MKA.
+          $ref: '#/components/schemas/SecureEntity.StaticKey'
+          x-field-uid: 3
+    SecureEntity.DataPlane:
+      description: |-
+        A container of data plane properties.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Choose "encapsulation" so that data packets are sent with MACsec encapsulation. Choose "no_encapsulation" so that data packets are sent without MACsec encapsulation.
+          type: string
+          default: encapsulation
+          x-field-uid: 1
+          x-enum:
+            encapsulation:
+              x-field-uid: 1
+            no_encapsulation:
+              x-field-uid: 2
+          enum:
+          - encapsulation
+          - no_encapsulation
+        encapsulation:
+          description: |-
+            A container of encapsulation properties for a secure entity(SecY).
+          $ref: '#/components/schemas/SecureEntity.DataPlane.Encapsulation'
+          x-field-uid: 2
+    SecureEntity.DataPlane.Encapsulation:
+      description: |-
+        A container of encapsulation properties for a secure entity(SecY).
+      type: object
+      required:
+      - crypto_engine
+      properties:
+        tx:
+          description: |-
+            Tx properties of SecY.
+          $ref: '#/components/schemas/SecureEntity.DataPlane.Tx'
+          x-field-uid: 1
+        rx:
+          description: |-
+            Rx properties of SecY.
+          $ref: '#/components/schemas/SecureEntity.DataPlane.Rx'
+          x-field-uid: 2
+        crypto_engine:
+          description: |-
+            Crypto engine properties of SecY.
+          $ref: '#/components/schemas/SecureEntity.CryptoEngine'
+          x-field-uid: 3
+        vlan_options:
+          description: |-
+            VLAN options of SecY.
+          $ref: '#/components/schemas/SecureEntity.VlanOptions'
+          x-field-uid: 4
+    SecureEntity.DataPlane.Tx:
+      description: |-
+        A container of Tx properties of SecY.
+      type: object
+      properties:
+        end_station:
+          description: |-
+            End station or not.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        include_sci:
+          description: |-
+            Include SCI or not.
+          type: boolean
+          default: true
+          x-field-uid: 2
+    SecureEntity.DataPlane.Rx:
+      description: |-
+        A container for Rx settings of SecY.
+      type: object
+      properties:
+        replay_protection:
+          description: |-
+            Enable replay protection or not.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        replay_window:
+          description: |-
+            Replay window size.
+          type: integer
+          format: uint32
+          minimum: 1
+          default: 1
+          x-field-uid: 2
+    SecureEntity.CryptoEngine:
+      description: |-
+        A container of crypto engine properties of a SecY.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Engine type based on encryption and/ or decryption capability. Supported types: 1) encrypt_only - engine can only encrypt transmitted packets but it cannot decrypt packets upon arrival. As the packets cannot be decrypted on arrival, such packets cannot be delivered to the receiving device. Hence only stateless traffic can be sent. 2) encrypt_decrypt - engine can both encrypt transmitted packets and decrypt packets on arrival. Such engine can have hardware acceleration for faster encryption/ decryption. As both encryption and decryption are possible, stateful (e.g. TCP) traffic can be sent/ received.
+          type: string
+          default: encrypt_only
+          x-field-uid: 1
+          x-enum:
+            encrypt_only:
+              x-field-uid: 1
+            encrypt_decrypt:
+              x-field-uid: 2
+          enum:
+          - encrypt_only
+          - encrypt_decrypt
+        encrypt_only:
+          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly'
+          x-field-uid: 2
+        encrypt_decrypt:
+          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptDecrypt'
+          x-field-uid: 3
+    SecureEntity.CryptoEngine.EncryptOnly:
+      description: |-
+        The container for encrypt only engine configuration.
+      type: object
+      properties:
+        secure_channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.TxSc'
+          x-field-uid: 1
+        traffic_options:
+          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.TrafficOptions'
+          x-field-uid: 2
+    SecureEntity.CryptoEngine.EncryptDecrypt:
+      description: |-
+        The container for encrypt and decrypt engine configuration.
+      type: object
+      properties:
+        tx_pn:
+          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptDecrypt.TxPn'
+          x-field-uid: 1
+        hardware_acceleration:
+          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptDecrypt.HardwareAcceleration'
+          x-field-uid: 2
+    SecureEntity.CryptoEngine.EncryptOnly.TxSc:
+      description: |-
+        The container for Tx secure channel configuration.
+      type: object
+      properties:
+        tx_pn:
+          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.TxSc.TxPn'
+          x-field-uid: 1
+    SecureEntity.CryptoEngine.EncryptOnly.TxSc.TxPn:
+      description: |-
+        Tx packet number(PN) configuration.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Types of Tx packet number(PN) series. Supported choices: 1) fixed PN - MACsec packets will be sent out with the configured fixed PN or lower half of configured fixed XPN. 2) incrementing PN - MACsec packets will be sent out by single device with an incrementing PN or XPN.
+          type: string
+          default: fixed_pn
+          x-field-uid: 1
+          x-enum:
+            fixed_pn:
+              x-field-uid: 1
+            incrementing_pn:
+              x-field-uid: 2
+          enum:
+          - fixed_pn
+          - incrementing_pn
+        fixed:
+          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.FixedPn'
+          x-field-uid: 2
+        incrementing:
+          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.IncrementingPn'
+          x-field-uid: 3
+    SecureEntity.CryptoEngine.EncryptOnly.FixedPn:
+      description: |-
+        Fixed packet number(PN) configuration.
+      type: object
+      properties:
+        pn:
+          description: |-
+            Fixed Tx packet number(PN). 4 bytes PN with which all packets will be sent out.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 4294967295
+          default: 6
+          x-field-uid: 1
+        xpn:
+          description: |-
+            Fixed Tx extended packet number(XPN). 8 bytes XPN with which all packets will be sent out.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 16
+          minimum: 1
+          default: '06'
+          x-field-uid: 2
+    SecureEntity.CryptoEngine.EncryptOnly.IncrementingPn:
+      description: |-
+        Incrementing packet number(PN) configuration.
+      type: object
+      properties:
+        count:
+          description: "Count of packet numbers in series. "
+          type: integer
+          format: uint32
+          minimum: 2
+          maximum: 1000000
+          default: 100
+          x-field-uid: 1
+        starting_pn:
+          description: |-
+            The starting packet number(PN).
+          type: integer
+          format: uint32
+          minimum: 1
+          default: 10000
+          x-field-uid: 2
+        starting_xpn:
+          description: |-
+            The starting extended packet number(XPN).
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 16
+          minimum: 1
+          default: '01'
+          x-field-uid: 3
+    SecureEntity.CryptoEngine.EncryptOnly.TrafficOptions:
+      description: |-
+        Encrypt only traffic options.
+      type: object
+      properties:
+        send_gratuitous_arp:
+          description: |-
+            Send gratuitous ARP or not.
+          type: boolean
+          default: true
+          x-field-uid: 1
+    SecureEntity.CryptoEngine.EncryptDecrypt.TxPn:
+      description: |-
+        Tx packet number(PN) configuration.
+      type: object
+      properties:
+        starting_pn:
+          description: |-
+            The starting packet number(PN).
+          type: integer
+          format: uint32
+          minimum: 1
+          default: 1
+          x-field-uid: 1
+        starting_xpn:
+          description: |-
+            The starting extended packet number(XPN).
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 16
+          minimum: 1
+          default: '01'
+          x-field-uid: 2
+    SecureEntity.CryptoEngine.EncryptDecrypt.HardwareAcceleration:
+      description: |-
+        Hardware acceleration configuration for offloading MACsec processing to hardware.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Hardware acceleration types. Per port global parameters for chosen hardware acceleration mode applicable for all MACsec sessions from the test port are available at options.per_port_options.protocols.macsec.hardware_acceleration.
+          type: string
+          default: none
+          x-field-uid: 1
+          x-enum:
+            none:
+              x-field-uid: 1
+            inline_crypto:
+              x-field-uid: 2
+          enum:
+          - none
+          - inline_crypto
+    SecureEntity.VlanOptions:
+      description: |-
+        A container for VLAN options of SecY.
+      type: object
+      properties:
+        encrypt_interface_vlans:
+          description: |-
+            Send interface VLANS as encrypted or not. If it is false, VLANs go in cleartext. If hardware_accelerated.inline_crypto mode is chosen, option related to offset must be changed from default 12 (to 16 for example for single cleartext VLAN) at appropriate place to handle cleartext VLAN in receive direction.
+          type: boolean
+          default: true
+          x-field-uid: 1
+    Mka:
+      description: |-
+        Configuration of a MKA Key Agreement Entity (KaY). Reference https://1.ieee802.org/security/802-1x/.
+      type: object
+      required:
+      - name
+      - basic
+      - tx
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          x-unique: global
+        basic:
+          description: |-
+            This contains the basic properties of KaY.
+          $ref: '#/components/schemas/Mka.Basic'
+          x-field-uid: 2
+        key_server:
+          description: |-
+            Key server attributes.
+          $ref: '#/components/schemas/Mka.KeyServer'
+          x-field-uid: 3
+        tx:
+          description: |-
+            Tx Properties.
+          $ref: '#/components/schemas/Mka.Tx'
+          x-field-uid: 4
+    Mka.Basic:
+      description: |-
+        A container of basic properties for a KaY.
+      type: object
+      required:
+      - key_source
+      properties:
+        key_derivation_function:
+          description: |-
+            Key Derivation Function.
+          type: string
+          default: aes_cmac_128
+          x-field-uid: 1
+          x-enum:
+            aes_cmac_128:
+              x-field-uid: 1
+            aes_cmac_256:
+              x-field-uid: 2
+          enum:
+          - aes_cmac_128
+          - aes_cmac_256
+        key_source:
+          description: |-
+            Key source.
+          x-field-uid: 2
+          $ref: '#/components/schemas/Mka.Basic.KeySource'
+        actor_priority:
+          description: |-
+            Actor priority.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 2
+          default: '70'
+          x-field-uid: 3
+        macsec_desired:
+          description: |-
+            Determines whether MACsec is desired or not. It is advertised in periodic Hellos.
+          type: boolean
+          default: true
+          x-field-uid: 4
+        macsec_capability:
+          description: |-
+            MACSec Capability.
+          type: string
+          default: macsec_integrity_with_confidentiality_offset
+          x-field-uid: 5
+          x-enum:
+            macsec_not_implemented:
+              x-field-uid: 1
+            macsec_integrity_without_confidentiality:
+              x-field-uid: 2
+            macsec_integrity_with_no_confidentiality_offset:
+              x-field-uid: 3
+            macsec_integrity_with_confidentiality_offset:
+              x-field-uid: 4
+          enum:
+          - macsec_not_implemented
+          - macsec_integrity_without_confidentiality
+          - macsec_integrity_with_no_confidentiality_offset
+          - macsec_integrity_with_confidentiality_offset
+        supported_cipher_suites:
+          description: |-
+            Supported Cipher Suites.
+          x-field-uid: 6
+          $ref: '#/components/schemas/Mka.Basic.SupportedCipherSuites'
+        eapol_ethernet_type:
+          description: |-
+            EAPOL Ethernet type.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 4
+          default: 888E
+          x-field-uid: 7
+        mka_version:
+          description: |-
+            MKA Version.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 255
+          default: 3
+          x-field-uid: 8
+        mka_hello_time:
+          description: |-
+            MKA Hello Time (msec).
+          type: integer
+          format: uint32
+          minimum: 500
+          maximum: 10000
+          default: 2000
+          x-field-uid: 9
+        mka_life_time:
+          description: |-
+            MKA Life Time (sec).
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 255
+          default: 6
+          x-field-uid: 10
+        send_icv_indicatior_in_mkpdu:
+          description: |-
+            Send ICV Indicator in MKPDU.
+          type: boolean
+          default: true
+          x-field-uid: 11
+        delay_protect:
+          description: |-
+            Delay Protect or not. When delay protect is enabled, it guards against delaying the delivery of MACsec encrypted frames by an attacker to the recipient.
+          type: boolean
+          default: false
+          x-field-uid: 12
+        rekey_mode:
+          description: |-
+            Rekey Mode.
+          $ref: '#/components/schemas/Mka.Basic.RekeyMode'
+          x-field-uid: 13
+        psk_chain_start_time:
+          $ref: '#/components/schemas/Mka.Basic.PskChainStartTime'
+          x-field-uid: 14
+    Mka.Basic.SupportedCipherSuites:
+      description: |-
+        The container for supported cipher suites.
+      type: object
+      properties:
+        gcm_aes_128:
+          description: |-
+            GCM-AES-128.
+          type: boolean
+          default: true
+          x-field-uid: 1
+        gcm_aes_256:
+          description: |-
+            GCM-AES-256.
+          type: boolean
+          default: true
+          x-field-uid: 2
+        gcm_aes_xpn_128:
+          description: |-
+            GCM-AES-XPN-128.
+          type: boolean
+          default: true
+          x-field-uid: 3
+        gcm_aes_xpn_256:
+          description: |-
+            GCM-AES-XPN-256.
+          type: boolean
+          default: true
+          x-field-uid: 4
+    Mka.Basic.KeySource:
+      description: |-
+        The container for key source settings.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Key source. Current choice is PSK only.
+          type: string
+          default: psk
+          x-field-uid: 1
+          x-enum:
+            psk:
+              x-field-uid: 1
+          enum:
+          - psk
+        psks:
+          description: |-
+            PSK chain.
+          type: array
+          items:
+            $ref: '#/components/schemas/Mka.Basic.KeySource.Psk'
+          x-field-uid: 2
+    Mka.Basic.KeySource.Psk:
+      description: |-
+        The container for Pre-shared key(PSK).
+      type: object
+      properties:
+        cak_value:
+          description: |-
+            Connectivity association key(CAK) value. It can be 128 bits or 256 bits long depending on the chosen MKA key derivation function.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 64
+          default: F123456789ABCDEF0123456789ABCDEF
+          x-field-uid: 1
+        cak_name:
+          description: |-
+            Connectivity association key(CAK) name. The value should be in sync with CAK name in DUT.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 64
+          default: ABCD
+          x-field-uid: 2
+        start_offset_time:
+          description: ""
+          $ref: '#/components/schemas/Mka.Basic.StartOffsetTime'
+          x-field-uid: 3
+        end_offset_time:
+          description: ""
+          $ref: '#/components/schemas/Mka.Basic.EndOffsetTime'
+          x-field-uid: 4
+    Mka.Basic.StartOffsetTime:
+      description: |-
+        Key start offset time in HH:MM. This is relative to key chain start time.
+      type: object
+      properties:
+        hh:
+          description: |-
+            Hours in HH format.
+          type: integer
+          format: uint32
+          minimum: 0
+          default: 0
+          x-field-uid: 1
+        mm:
+          description: |-
+            Minutes in MM format.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 59
+          default: 0
+          x-field-uid: 2
+    Mka.Basic.EndOffsetTime:
+      description: |-
+        Key end offset time in HH:MM. This is relative to key chain start time. A value of "00:00" makes the key valid for lifetime.
+      type: object
+      properties:
+        hh:
+          description: |-
+            Hours in HH format.
+          type: integer
+          format: uint32
+          minimum: 0
+          default: 0
+          x-field-uid: 1
+        mm:
+          description: |-
+            Minutes in MM format.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 59
+          default: 0
+          x-field-uid: 2
+    Mka.Basic.PskChainStartTime:
+      description: |-
+        Pre-shared key(PSK) chain start time in UTC time format DD-MM-YYYY HH:MM:SS. For any key in chain, key start offset time and end offset time will be relative to this chain start time. There can be two cases depending on number of keys in key chain. 1) Single key in key chain - Test port and DUT need not be time synced for single key if key chain start time is set to some past time. As default key chain start time is Unix epoch time, default value suffices for single key in chain. 2) More than one key - Test program should set key chain start time to some future time e.g. few minutes ahead of current time in both test config and DUT config. This requires both test port and DUT to be time synced.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Timezone choice. Currently only Coordinated Universal Time(UTC) is supported.
+          type: string
+          default: utc
+          x-field-uid: 1
+          x-enum:
+            utc:
+              x-field-uid: 1
+          enum:
+          - utc
+        utc:
+          description: |-
+            Coordinated Universal Time(UTC) time.
+          $ref: '#/components/schemas/Mka.Basic.TimeUtc'
+          x-field-uid: 2
+    Mka.Basic.TimeUtc:
+      description: |-
+        Coordinated Universal Time(UTC).
+      type: object
+      properties:
+        day:
+          description: |-
+            Day of the month in DD format.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 31
+          default: 1
+          x-field-uid: 1
+        month:
+          description: |-
+            Month of the year in MM format.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 12
+          default: 1
+          x-field-uid: 2
+        year:
+          description: |-
+            Year from the start of common era(CE) in YYYY format.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 9999
+          default: 1970
+          x-field-uid: 3
+        hour:
+          description: |-
+            Hour of the day in HH format.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 23
+          default: 0
+          x-field-uid: 4
+        minute:
+          description: |-
+            Minute of the hour in MM format.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 59
+          default: 0
+          x-field-uid: 5
+        second:
+          description: |-
+            Second of the minute in SS format.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 59
+          default: 0
+          x-field-uid: 6
+    Mka.Basic.RekeyMode:
+      description: |-
+        Rekey mode.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Mode choices.
+          type: string
+          default: dont_rekey
+          x-field-uid: 1
+          x-enum:
+            dont_rekey:
+              x-field-uid: 1
+            timer_based:
+              x-field-uid: 2
+            pn_based:
+              x-field-uid: 3
+          enum:
+          - dont_rekey
+          - timer_based
+          - pn_based
+        timer_based:
+          description: |-
+            Container for timer based periodic rekey properties.
+          x-field-uid: 2
+          $ref: '#/components/schemas/Mka.Basic.RekeyMode.TimerBased'
+    Mka.Basic.RekeyMode.TimerBased:
+      description: |-
+        Timer based periodic rekey properties.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Periodic Rekey count.
+          type: string
+          default: continuous
+          x-field-uid: 1
+          x-enum:
+            continuous:
+              x-field-uid: 1
+            fixed_count:
+              x-field-uid: 2
+          enum:
+          - continuous
+          - fixed_count
+        fixed_count:
+          description: |-
+            Fixed rekey attempts.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 65535
+          default: 10
+          x-field-uid: 2
+        interval:
+          description: |-
+            Periodic rekey interval (sec).
+          type: integer
+          format: uint32
+          minimum: 30
+          maximum: 65535
+          default: 300
+          x-field-uid: 3
+    Mka.KeyServer:
+      description: |-
+        Key server attributes of a KaY.
+      properties:
+        confidentialty_offset:
+          description: |-
+            Confidentiality Offset.
+          type: string
+          default: no_confidentiality_offset
+          x-field-uid: 1
+          x-enum:
+            no_confidentiality:
+              x-field-uid: 1
+            no_confidentiality_offset:
+              x-field-uid: 2
+            confidentiality_offset_30_octets:
+              x-field-uid: 3
+            confidentiality_offset_50_octets:
+              x-field-uid: 4
+          enum:
+          - no_confidentiality
+          - no_confidentiality_offset
+          - confidentiality_offset_30_octets
+          - confidentiality_offset_50_octets
+        cipher_suite:
+          description: |-
+            The cipher suite. Choose one from GCM-AES-128 GCM-AES-256 GCM-AES-XPN-128 GCM-AES-XPN-256
+          type: string
+          default: gcm_aes_128
+          x-field-uid: 2
+          x-enum:
+            gcm_aes_128:
+              x-field-uid: 1
+            gcm_aes_256:
+              x-field-uid: 2
+            gcm_aes_xpn_128:
+              x-field-uid: 3
+            gcm_aes_xpn_256:
+              x-field-uid: 4
+          enum:
+          - gcm_aes_128
+          - gcm_aes_256
+          - gcm_aes_xpn_128
+          - gcm_aes_xpn_256
+        starting_key_number:
+          description: |-
+            Starting Key Number.
+          type: integer
+          format: uint32
+          minimum: 1
+          default: 1
+          x-field-uid: 3
+        starting_distributed_an:
+          description: |-
+            Starting Distributed AN.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 3
+          default: 0
+          x-field-uid: 4
+        rekey_threshold_pn:
+          description: |-
+            Determines the PN rekey threshold.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 8
+          default: C0000000
+          x-field-uid: 5
+        rekey_threshold_xpn:
+          description: |-
+            Determines the XPN rekey threshold.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 16
+          default: C000000000000000
+          x-field-uid: 6
+    Mka.Tx:
+      description: |-
+        A container of Tx properties.
+      type: object
+      required:
+      - secure_channels
+      properties:
+        secure_channels:
+          description: |-
+            Tx secure channels.
+          type: array
+          items:
+            $ref: '#/components/schemas/Mka.TxSc'
+          x-field-uid: 1
+    Mka.TxSc:
+      description: |-
+        Tx secure channel(SC) properties.
+      type: object
+      required:
+      - name
+      - system_id
+      properties:
+        name:
+          description: |-
+            Tx SC name.
+          type: string
+          x-field-uid: 1
+        system_id:
+          description: "System ID. "
+          type: string
+          format: mac
+          x-field-uid: 2
+        port_id:
+          description: "Port ID. "
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 65535
+          default: 1
+          x-field-uid: 3
+        starting_message_number:
+          description: |-
+            Starting Message Number.
+          type: integer
+          format: uint64
+          minimum: 1
+          maximum: 4294967295
+          default: 1
+          x-field-uid: 4
+    SecureEntity.StaticKey:
+      description: |-
+        A container of static key properties for a secure entity(SecY). This configuration is applicable when no dynamic key management protocol i.e. MACsec key agreement(MKA) is configured. If MKA is configured, any static key configuration is not applicable.
+      type: object
+      properties:
+        cipher_suite:
+          description: |-
+            The cipher suite. Choose one from GCM-AES-128 GCM-AES-128 GCM-AES-256 GCM-AES-XPN-128 GCM-AES-XPN-256
+          type: string
+          default: gcm_aes_128
+          x-field-uid: 1
+          x-enum:
+            gcm_aes_128:
+              x-field-uid: 1
+            gcm_aes_256:
+              x-field-uid: 2
+            gcm_aes_xpn_128:
+              x-field-uid: 3
+            gcm_aes_xpn_256:
+              x-field-uid: 4
+          enum:
+          - gcm_aes_128
+          - gcm_aes_256
+          - gcm_aes_xpn_128
+          - gcm_aes_xpn_256
+        confidentiality:
+          description: "Encrypt or not. "
+          type: boolean
+          default: true
+          x-field-uid: 2
+        confidentiality_offset:
+          description: |-
+            Confidentiality offset.
+          type: string
+          default: zero
+          x-field-uid: 3
+          x-enum:
+            zero:
+              x-field-uid: 1
+            thirty:
+              x-field-uid: 2
+            fifty:
+              x-field-uid: 3
+          enum:
+          - zero
+          - thirty
+          - fifty
+        tx:
+          description: |-
+            Tx properties of SecY.
+          $ref: '#/components/schemas/SecureEntity.StaticKey.Tx'
+          x-field-uid: 4
+        rx:
+          description: |-
+            Rx properties of SecY.
+          $ref: '#/components/schemas/SecureEntity.StaticKey.Rx'
+          x-field-uid: 5
+    SecureEntity.StaticKey.RekeyMode:
+      description: |-
+        Rekey mode.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Rekey mode choices.
+          type: string
+          default: dont_rekey
+          x-field-uid: 1
+          x-enum:
+            dont_rekey:
+              x-field-uid: 1
+            timer_based:
+              x-field-uid: 2
+            pn_based:
+              x-field-uid: 3
+          enum:
+          - dont_rekey
+          - timer_based
+          - pn_based
+        timer_based:
+          description: |-
+            Container for timer based periodic rekey properties.
+          x-field-uid: 2
+          $ref: '#/components/schemas/SecureEntity.StaticKey.RekeyMode.TimerBased'
+    SecureEntity.StaticKey.RekeyMode.TimerBased:
+      description: |-
+        Timer based periodic rekey properties.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Periodic rekey attempt choices.
+          type: string
+          default: continuous
+          x-field-uid: 1
+          x-enum:
+            continuous:
+              x-field-uid: 1
+            fixed_count:
+              x-field-uid: 2
+          enum:
+          - continuous
+          - fixed_count
+        fixed_count:
+          description: |-
+            Fixed rekey attempts.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 65535
+          default: 10
+          x-field-uid: 2
+        interval:
+          description: |-
+            Periodic rekey interval (sec).
+          type: integer
+          format: uint32
+          minimum: 30
+          maximum: 65535
+          default: 300
+          x-field-uid: 3
+    SecureEntity.StaticKey.Sak:
+      description: |-
+        The container for SAK.
+      type: object
+      properties:
+        sak:
+          description: |-
+            Secure association key(SAK) bits as hex string. Either 128 bits or 256 bits depending on the chosen cipher suite.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 64
+          default: F123456789ABCDEF0123456789ABCDEF
+          x-field-uid: 1
+        ssci:
+          description: |-
+            4 bytes short SCI(SSCI) used in case of XPN cipher suites.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 8
+          default: '00000001'
+          x-field-uid: 2
+        salt:
+          description: |-
+            12 bytes salt used in case of XPN cipher suites.
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 24
+          default: '000000000000000000000001'
+          x-field-uid: 3
+    SecureEntity.StaticKey.Tx:
+      description: |-
+        A container of static key Tx properties.
+      type: object
+      properties:
+        secure_channels:
+          description: |-
+            Tx secure channels.
+          type: array
+          items:
+            $ref: '#/components/schemas/SecureEntity.StaticKey.TxSc'
+          x-field-uid: 1
+        rekey_mode:
+          $ref: '#/components/schemas/SecureEntity.StaticKey.RekeyMode'
+          x-field-uid: 2
+    SecureEntity.StaticKey.TxSc:
+      description: |-
+        Tx SC setting for static key.
+      type: object
+      properties:
+        system_id:
+          description: "System ID. "
+          type: string
+          format: mac
+          x-field-uid: 1
+        port_id:
+          description: "Port ID. "
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 65535
+          default: 1
+          x-field-uid: 2
+        saks:
+          description: |-
+            Tx SAK pool.
+          type: array
+          items:
+            $ref: '#/components/schemas/SecureEntity.StaticKey.Sak'
+          x-field-uid: 3
+    SecureEntity.StaticKey.Rx:
+      description: |-
+        A container of static key Rx properties.
+      type: object
+      properties:
+        secure_channels:
+          description: |-
+            Rx secure channels.
+          type: array
+          items:
+            $ref: '#/components/schemas/SecureEntity.StaticKey.RxSc'
+          x-field-uid: 1
+    SecureEntity.StaticKey.RxSc:
+      description: |-
+        Rx SC settings.
+      type: object
+      properties:
+        dut_sci_system_id:
+          description: "System ID in DUT SCI. "
+          type: string
+          format: mac
+          x-field-uid: 1
+        dut_sci_port_id:
+          description: "Port ID in DUT SCI. "
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 65535
+          default: 1
+          x-field-uid: 2
+        dut_msb_xpn:
+          description: |-
+            DUT MSB of XPN. The 32 most significant bits of the XPN that DUT will be using to construct the 64 bits XPN value when test starts.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 4294967295
+          default: 0
+          x-field-uid: 3
+        saks:
+          description: |-
+            Rx SAK pool.
+          type: array
+          items:
+            $ref: '#/components/schemas/SecureEntity.StaticKey.Sak'
+          x-field-uid: 4
+    Lag.Port.Macsec.SecureEntity.DataPlane:
+      description: |-
+        A container of data plane properties.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Choose "encapsulation" so that data packets are sent with MACsec encapsulation. Choose "no_encapsulation" so that data packets are sent without MACsec encapsulation.
+          type: string
+          default: encapsulation
+          x-field-uid: 1
+          x-enum:
+            encapsulation:
+              x-field-uid: 1
+            no_encapsulation:
+              x-field-uid: 2
+          enum:
+          - encapsulation
+          - no_encapsulation
+        encapsulation:
+          description: |-
+            A container of encapsulation properties for a secure entity(SecY).
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity.DataPlane.Encapsulation'
+          x-field-uid: 2
+    Lag.Port.Macsec.SecureEntity.DataPlane.Encapsulation:
+      description: |-
+        A container of encapsulation properties for a secure entity(SecY).
+      type: object
+      required:
+      - crypto_engine
+      properties:
+        tx:
+          description: |-
+            Tx properties of SecY.
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity.DataPlane.Tx'
+          x-field-uid: 1
+        rx:
+          description: |-
+            Rx properties of SecY.
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity.DataPlane.Rx'
+          x-field-uid: 2
+        crypto_engine:
+          description: |-
+            Crypto engine properties of SecY.
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity.CryptoEngine'
+          x-field-uid: 3
+    Lag.Port.Macsec.SecureEntity.DataPlane.Tx:
+      description: |-
+        A container of Tx properties of SecY.
+      type: object
+      properties:
+        end_station:
+          description: |-
+            End station or not.
+          type: boolean
+          default: false
+          x-field-uid: 1
+    Lag.Port.Macsec.SecureEntity.DataPlane.Rx:
+      description: |-
+        A container for Rx settings of SecY.
+      type: object
+      properties:
+        replay_protection:
+          description: |-
+            Enable replay protection or not.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        replay_window:
+          description: |-
+            Replay window size.
+          type: integer
+          format: uint32
+          minimum: 1
+          default: 1
+          x-field-uid: 2
+        validate_frames:
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity.DataPlane.Rx.ValidateFrames'
+          x-field-uid: 3
+    Lag.Port.Macsec.SecureEntity.DataPlane.Rx.ValidateFrames:
+      description: |-
+        Controls validation of received frames.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Controls validation of received frames. check - enable validation, do not discard invalid frames and increment in_pkts_invalid stats. strict - enable validation and discard invalid frames and increment in_pkts_not_valid stats.
+          type: string
+          default: check
+          x-field-uid: 1
+          x-enum:
+            check:
+              x-field-uid: 1
+            strict:
+              x-field-uid: 2
+          enum:
+          - check
+          - strict
+    Lag.Port.Macsec.SecureEntity.CryptoEngine:
+      description: |-
+        A container of crypto engine properties of a SecY.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Engine type based on encryption and/ or decryption capability. Supported type: encrypt_decrypt - engine can both encrypt transmitted packets and decrypt packets on arrival. Such engine can have hardware acceleration for faster encryption/ decryption. As both encryption and decryption are possible, stateful (e.g. TCP) traffic can be sent/ received.
+          type: string
+          default: encrypt_decrypt
+          x-field-uid: 1
+          x-enum:
+            encrypt_decrypt:
+              x-field-uid: 1
+          enum:
+          - encrypt_decrypt
+        encrypt_decrypt:
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity.CryptoEngine.EncryptDecrypt'
+          x-field-uid: 2
+    Lag.Port.Macsec.SecureEntity.CryptoEngine.EncryptDecrypt:
+      description: |-
+        The container for configuration of crypto engine of encrypt and decrypt type.
+      type: object
+      properties:
+        tx_pn:
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity.CryptoEngine.EncryptDecrypt.TxPn'
+          x-field-uid: 1
+        hardware_acceleration:
+          $ref: '#/components/schemas/Lag.Port.Macsec.SecureEntity.CryptoEngine.EncryptDecrypt.HardwareAcceleration'
+          x-field-uid: 2
+    Lag.Port.Macsec.SecureEntity.CryptoEngine.EncryptDecrypt.TxPn:
+      description: |-
+        Tx packet number(PN) configuration.
+      type: object
+      properties:
+        starting_pn:
+          description: |-
+            The starting packet number(PN).
+          type: integer
+          format: uint32
+          minimum: 1
+          default: 1
+          x-field-uid: 1
+        starting_xpn:
+          description: |-
+            The starting extended packet number(XPN).
+          type: string
+          format: hex
+          minLength: 1
+          maxLength: 16
+          minimum: 1
+          default: '01'
+          x-field-uid: 2
+    Lag.Port.Macsec.SecureEntity.CryptoEngine.EncryptDecrypt.HardwareAcceleration:
+      description: |-
+        Hardware acceleration configuration for offloading MACsec processing to hardware.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Hardware acceleration types.
+          type: string
+          default: none
+          x-field-uid: 1
+          x-enum:
+            none:
+              x-field-uid: 1
+            inline_crypto:
+              x-field-uid: 2
+          enum:
+          - none
+          - inline_crypto
     Layer1:
       description: |-
         A container for layer1 settings.
@@ -2760,11 +4175,6 @@ components:
           items:
             $ref: '#/components/schemas/IsisInterface.AdjacencySid'
           x-field-uid: 14
-        srv6_adjacency_sids:
-          description: |-
-            When present, advertises SRv6 adjacency SID sub-TLVs and per-link MSD sub-TLVs for this interface. Reference: RFC 9352 Sections 6, 8.1-8.2.
-          $ref: '#/components/schemas/IsisSRv6.AdjSidContainer'
-          x-field-uid: 15
     IsisInterface.Level:
       description: |-
         Configuration for the properties of Level 1 Hello.
@@ -3144,522 +4554,6 @@ components:
           minimum: 0
           maximum: 255
           x-field-uid: 9
-    IsisSRv6.NodeCapability:
-      description: |-
-        SRv6 Capabilities Sub-TLV (sub-TLV type 25) carried within the IS-IS Router CAPABILITY TLV (TLV 242, RFC 7981). Announces that this IS-IS router is an SRv6 Segment Endpoint Node and optionally supports the O-bit for OAM operations. Reference: RFC 9352 Section 2.
-      type: object
-      properties:
-        o_flag:
-          description: |-
-            OAM flag (bit 0 of the Flags field in the SRv6 Capabilities Sub-TLV). When set, indicates that this router supports the use of the O-bit in the Segment Routing Header (SRH) for Operations, Administration and Maintenance (OAM) operations as defined in RFC 9259.
-          type: boolean
-          default: false
-          x-field-uid: 1
-        node_msds:
-          description: |-
-            When present, advertises SRv6 Maximum SID Depth (MSD) sub-TLVs within the IS-IS Router CAPABILITY TLV (TLV 242, RFC 7981). Each populated child object causes the corresponding MSD sub-TLV to be advertised; omit a child object to suppress that MSD type. Reference: RFC 9352 Section 6.
-          $ref: '#/components/schemas/IsisSRv6.Msd'
-          x-field-uid: 2
-        c_flag:
-          description: |-
-            Compression (uSID) flag (RFC 9800). When set, announces that this IS-IS router supports Micro-SID (uSID) compressed SRv6 encoding. Acts as a node-level prerequisite; individual End SIDs and Adj SIDs must also set their own c_flag to be treated as uSIDs. Carried in the SRv6 Capabilities Sub-TLV (sub-TLV type 25) Flags field. Reference: RFC 9352 Section 2, RFC 9800.
-          type: boolean
-          default: false
-          x-field-uid: 3
-    IsisSRv6.Locator:
-      description: |-
-        IS-IS SRv6 Locator TLV (TLV type 27), as defined in RFC 9352 Section 7.1. Advertises an SRv6 locator prefix that identifies this SRv6-capable router and binds it to a specific IGP algorithm (standard SPF or Flex-Algo per RFC 9350). One Locator TLV is required per topology/algorithm combination. The SRv6 SID space is structured as: Locator prefix | Function | Argument, where the locator prefix is routable and the function identifies the specific endpoint behavior (RFC 8986 Section 3.1).
-      type: object
-      required:
-      - locator
-      - locator_name
-      properties:
-        locator_name:
-          x-field-uid: 1
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          x-unique: global
-        locator:
-          description: |-
-            The SRv6 locator IPv6 prefix for this TLV. This routable IPv6 prefix identifies the advertising node within the SRv6 domain. All SRv6 SIDs advertised under this locator must be allocated from this prefix.
-          type: string
-          format: ipv6
-          x-field-uid: 2
-        prefix_length:
-          description: |-
-            Number of significant bits in the locator field (1-128). Defines the length of the SRv6 locator prefix. The combined bit budget of the locator, function, and argument fields must not exceed 128 bits (RFC 9352 Section 3.1).
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 128
-          default: 64
-          x-field-uid: 3
-        algorithm:
-          description: |-
-            IGP Algorithm identifier for this locator (RFC 8665). 0 = standard SPF, 1 = Strict SPF. Values 128-255 represent Flexible Algorithms (Flex-Algo) as defined in RFC 9350. The algorithm determines the path computation method used to reach this locator. One Locator TLV is required per algorithm binding.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 255
-          default: 0
-          x-field-uid: 4
-        metric:
-          description: |-
-            The metric (cost) associated with this SRv6 locator prefix. Uses the same semantics as IS-IS Extended IP reachability metric (RFC 9352 Section 7.1).
-          type: integer
-          format: uint32
-          maximum: 16777215
-          default: 0
-          x-field-uid: 5
-        d_flag:
-          description: |-
-            Down bit (D-flag, bit 0 of the Flags field in the SRv6 Locator TLV). MUST be set when the locator is leaked from Level 2 to Level 1 to prevent routing loops. Locator TLVs with the D-flag set MUST NOT be re-advertised from L1 to L2 (RFC 9352 Section 7.1).
-          type: boolean
-          default: false
-          x-field-uid: 6
-        mt_id:
-          description: |-
-            List of Multi-Topology Identifiers (MT-IDs) for this locator advertisement. Specifies the IS-IS topologies this locator belongs to. 0 = default topology. Valid range 0-4095 per RFC 5120 Section 2 (12-bit field).
-          type: array
-          items:
-            type: integer
-            format: uint32
-            maximum: 4095
-          x-field-uid: 7
-        end_sids:
-          description: |-
-            List of SRv6 End SID Sub-TLVs (sub-TLV type 5) associated with this locator. Each End SID advertises a locally instantiated node-local SRv6 SID and its endpoint behavior (End, End.DT4, End.DT6, End.DT46 and their flavor variants). Reference: RFC 9352 Section 7.2.
-          type: array
-          items:
-            $ref: '#/components/schemas/IsisSRv6.EndSid'
-          x-field-uid: 8
-        sid_structure:
-          description: |-
-            SRv6 SID Structure Sub-Sub-TLV (type 1) describing the internal bit-field decomposition shared by all SIDs within this locator. Specifies the Locator Block, Locator Node, Function, and Argument lengths in bits. The sum of all four lengths must not exceed 128. All End SIDs and Adjacency SIDs under this locator share the same structure. Typically set when c_flag is true (RFC 9352 Section 9).
-          $ref: '#/components/schemas/IsisSRv6.SidStructure'
-          x-field-uid: 9
-        advertise_locator_as_prefix:
-          description: |-
-            When present, the locator prefix is also advertised as an IS-IS IPv6 Reachability prefix (TLV 236/237) in addition to the SRv6 Locator TLV (type 27). This enables non-SRv6-capable routers to route toward the locator as an ordinary IPv6 prefix. Absence of this object suppresses the secondary prefix advertisement.
-          $ref: '#/components/schemas/IsisSRv6.AdvertiseLocatorAsPrefix'
-          x-field-uid: 10
-    IsisSRv6.AdvertiseLocatorAsPrefix:
-      description: |-
-        Controls advertisement of the SRv6 locator prefix as an IS-IS IPv6 Reachability prefix (TLV 236/237) alongside the SRv6 Locator TLV (type 27). When this object is present the secondary prefix advertisement is enabled; when absent it is suppressed. Reference: RFC 9352 Section 7.1.
-      type: object
-      properties:
-        route_metric:
-          description: |-
-            Metric value used when advertising the locator prefix in the IPv6 Reachability TLV (TLV 236/237).
-          type: integer
-          format: uint32
-          maximum: 16777215
-          default: 0
-          x-field-uid: 1
-        redistribution_type:
-          description: |-
-            Controls the Up/Down redistribution bit for this locator prefix when advertised in the IPv6 Reachability TLV (TLV 236/237). 'up' = normal advertisement (default); 'down' = the locator has been leaked from Level 2 to Level 1 (RFC 5305).
-          type: string
-          default: up
-          x-enum:
-            up:
-              x-field-uid: 1
-            down:
-              x-field-uid: 2
-          x-field-uid: 2
-          enum:
-          - up
-          - down
-        route_origin:
-          description: |-
-            Origin type for the locator prefix in the IPv6 Reachability TLV (TLV 236/237). 'internal' = intra-area prefix (default); 'external' = redistributed from another protocol.
-          type: string
-          default: internal
-          x-enum:
-            internal:
-              x-field-uid: 1
-            external:
-              x-field-uid: 2
-          x-field-uid: 3
-          enum:
-          - internal
-          - external
-        prefix_attributes:
-          description: |-
-            When present, the Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) is included in this prefix advertisement, carrying the X, R, and N flags. Absence suppresses the sub-TLV.
-          $ref: '#/components/schemas/IsisSRv6.PrefixAttributes'
-          x-field-uid: 4
-    IsisSRv6.PrefixAttributes:
-      description: |-
-        Prefix Attribute Flags Sub-TLV (sub-TLV type 4, RFC 7794) for an SRv6 locator prefix advertisement. Carried within the IS-IS IPv6 Reachability TLV (TLV 236/237) when the locator is also advertised as a prefix. Presence of this object causes the sub-TLV to be included; absence suppresses it. Reference: RFC 7794.
-      type: object
-      properties:
-        x_flag:
-          description: |-
-            External prefix flag (bit 0, RFC 7794). When set, indicates this locator prefix was redistributed from another protocol.
-          type: boolean
-          default: false
-          x-field-uid: 1
-        r_flag:
-          description: |-
-            Re-advertisement flag (bit 1, RFC 7794). When set, indicates this locator prefix has been leaked between IS-IS levels.
-          type: boolean
-          default: false
-          x-field-uid: 2
-        n_flag:
-          description: |-
-            Node flag (bit 2, RFC 7794). When set, indicates this prefix identifies the advertising router (e.g., a loopback or router-ID prefix).
-          type: boolean
-          default: false
-          x-field-uid: 3
-    IsisSRv6.EndSid:
-      description: |-
-        SRv6 End SID Sub-TLV (sub-TLV type 5) nested within the enclosing SRv6 Locator TLV (TLV type 27, RFC 9352 Section 7.2). Advertises a locally instantiated, node-level SRv6 SID and its associated endpoint behavior. The locator prefix is taken from the parent IsisSRv6.Locator; only the Function and Argument fields need to be specified here. The full 128-bit SID is assembled as:
-          <parent locator prefix> | Function | Argument
-        Example - given parent locator fc00:0:1:: /48 with sid_structure lb=32, ln=16, fn=16, arg=0:
-          function "0001", argument "0000" => SID fc00:0:1:1::
-          function "0064", argument "0000" => SID fc00:0:1:64::
-        Valid behaviors are End variants (with PSP/USP/USD flavors) and decapsulation behaviors (End.DT4, End.DT6, End.DT46). Reference: RFC 9352 Section 7.2, RFC 8986.
-      type: object
-      properties:
-        function:
-          description: |-
-            The Function part of this End SID expressed as a hex string, occupying the function bits immediately after the locator prefix in the 128-bit SID (RFC 8986 Section 3.1). The number of hex digits must equal function_length from the parent IsisSRv6.Locator.sid_structure divided by 4 - for example, a function_length of 16 requires a 4-nibble string. Example: "0001" with parent locator fc00:0:1:: /48 gives SID fc00:0:1:1::.
-          type: string
-          format: hex
-          x-field-uid: 5
-        argument:
-          description: |-
-            The Argument part of this End SID expressed as a hex string, occupying the argument bits immediately after the function in the 128-bit SID (RFC 8986 Section 3.1). The number of hex digits must equal argument_length from the parent IsisSRv6.Locator.sid_structure divided by 4. Use the default "0000" when no argument is carried (argument_length is 0).
-          type: string
-          format: hex
-          default: '0000'
-          x-field-uid: 6
-        endpoint_behavior:
-          description: |-
-            The endpoint behavior for this SRv6 End SID, encoded as a 2-octet behavior codepoint (RFC 8986 Section 7.4). Defines how the router processes packets arriving with this SID as the Active Segment. Valid node-level behaviors for End SID Sub-TLV type 5 are End variants (with PSP/USP/USD flavors) and decapsulation behaviors.
-          type: string
-          default: end
-          x-enum:
-            end:
-              description: |-
-                End (RFC 8986 codepoint 1). Basic node SID; decrements Segments Left and performs a FIB lookup in the default VRF using the next SID as the destination address.
-              x-field-uid: 1
-            end_with_psp:
-              description: |-
-                End with Penultimate Segment Pop (PSP) flavor (RFC 8986 codepoint 2). At the penultimate segment the SRH is removed before forwarding to the ultimate endpoint node.
-              x-field-uid: 2
-            end_with_usp:
-              description: |-
-                End with Ultimate Segment Pop (USP) flavor (RFC 8986 codepoint 3). At the ultimate endpoint the SRH is removed before upper-layer protocol processing.
-              x-field-uid: 3
-            end_with_psp_usp:
-              description: |-
-                End with PSP and USP flavors combined (RFC 8986 codepoint 4).
-              x-field-uid: 4
-            end_with_usd:
-              description: |-
-                End with Ultimate Segment Decapsulation (USD) flavor (RFC 8986 codepoint 28). Removes the outer IPv6 header at the ultimate segment and forwards the inner packet.
-              x-field-uid: 5
-            end_with_psp_usd:
-              description: |-
-                End with PSP and USD flavors combined (RFC 8986 codepoint 29).
-              x-field-uid: 6
-            end_with_usp_usd:
-              description: |-
-                End with USP and USD flavors combined (RFC 8986 codepoint 30).
-              x-field-uid: 7
-            end_with_psp_usp_usd:
-              description: |-
-                End with PSP, USP and USD flavors combined (RFC 8986 codepoint 31).
-              x-field-uid: 8
-            end_dt4:
-              description: |-
-                End.DT4 decapsulation and IPv4 table lookup (RFC 8986 codepoint 17, 0x0011). Decapsulates the outer IPv6 header and performs an IPv4 FIB lookup in a specific VRF table T. Used for IPv4 L3VPN services over SRv6.
-              x-field-uid: 9
-            end_dt6:
-              description: |-
-                End.DT6 decapsulation and IPv6 table lookup (RFC 8986 codepoint 16, 0x0010). Decapsulates the outer IPv6 header and performs an IPv6 FIB lookup in a specific VRF table T. Used for IPv6 L3VPN services over SRv6.
-              x-field-uid: 10
-            end_dt46:
-              description: |-
-                End.DT46 decapsulation and dual-stack IP table lookup (RFC 8986 codepoint 18, 0x0012). Decapsulates and performs FIB lookup for both IPv4 and IPv6 inner packets in the appropriate VRF table. Used for dual-stack L3VPN over SRv6.
-              x-field-uid: 11
-          x-field-uid: 2
-          enum:
-          - end
-          - end_with_psp
-          - end_with_usp
-          - end_with_psp_usp
-          - end_with_usd
-          - end_with_psp_usd
-          - end_with_usp_usd
-          - end_with_psp_usp_usd
-          - end_dt4
-          - end_dt6
-          - end_dt46
-        c_flag:
-          description: |-
-            Compression (uSID) flag. When set, this End SID is a Micro-SID (uSID) per RFC 9800. A headend router can pack it into a shared 128-bit uSID container alongside uSIDs from other nodes in the same /32 uSID block, steering a multi-hop path without a Segment Routing Header. The node-level IsisSRv6.NodeCapability.c_flag must also be set. The SID bit layout is governed by the parent IsisSRv6.Locator.sid_structure. Example using F3216 (lb=32, ln=16, fn=16, arg=0), uSID block fc00::/32, locator fc00:0:1:: /48:
-              c_flag=true, function "0001" => uSID fc00:0:1:1::  (End)
-              c_flag=true, function "0002" => uSID fc00:0:1:2::  (End.DT46)
-            For a 2-hop path via node 1 (End "0001") then node 2 (End "0001"), the headend builds container DA = fc00:0:1:1:2:1:: - two 32-bit uSID slots [LN=1,FN=1] and [LN=2,FN=1] packed after the /32 block prefix. Reference: RFC 9800.
-          type: boolean
-          default: false
-          x-field-uid: 3
-    IsisSRv6.AdjSidContainer:
-      description: |-
-        Container for SRv6 adjacency-related sub-TLVs advertised on an IS-IS interface. Groups the list of End.X SID sub-TLVs (RFC 9352 Sections 8.1-8.2) with the per-link Maximum SID Depth (MSD) sub-TLVs (RFC 9352 Section 6) that are advertised together in the Extended IS Reachability TLV for this interface.
-      type: object
-      properties:
-        sids:
-          description: |-
-            List of SRv6 Adjacency SID sub-TLVs (End.X SID) for this interface. Point-to-point interfaces advertise End.X SID sub-TLV (sub-TLV type 43); broadcast interfaces advertise LAN End.X SID sub-TLV (sub-TLV type 44). Each entry binds a 128-bit SRv6 SID to this specific outgoing adjacency and advertises the associated endpoint behavior. Reference: RFC 9352 Sections 8.1-8.2.
-          type: array
-          items:
-            $ref: '#/components/schemas/IsisSRv6.AdjSid'
-          x-field-uid: 1
-        srv6_link_msd:
-          description: |-
-            When present, advertises per-link SRv6 Maximum SID Depth (MSD) sub-TLVs within the IS-IS Extended IS Reachability TLV for this interface. Each populated child object causes the corresponding link MSD sub-TLV to be advertised; omit a child object to suppress that MSD type. Reference: RFC 9352 Section 6.
-          $ref: '#/components/schemas/IsisSRv6.Msd'
-          x-field-uid: 2
-    IsisSRv6.AdjSid:
-      description: |-
-        SRv6 Adjacency SID Sub-TLV for IS-IS interfaces. Point-to-point adjacencies use End.X SID Sub-TLV (sub-TLV type 43); LAN adjacencies use LAN End.X SID Sub-TLV (sub-TLV type 44). The End.X SID binds a 128-bit SRv6 SID to a specific outgoing interface and next-hop, enabling traffic steering across a specific L3 adjacency. The full 128-bit SID is assembled as:
-          Locator (selected via locator/custom_locator_reference) | Function | Argument
-        Example  - given locator fc00:0:1:: /48 with sid_structure lb=32, ln=16, fn=16, arg=0:
-          locator auto (=> fc00:0:1::), function "00c8"
-          => final adjacency SID: fc00:0:1:c8::
-          locator custom_locator_reference "loc2" (fc00:0:2:: /48), function "00c9"
-          => final adjacency SID: fc00:0:2:c9::
-        Valid behaviors include End.X variants (with PSP/USP/USD flavors) and cross-connect decapsulation behaviors (End.DX4, End.DX6). Reference: RFC 9352 Sections 8.1-8.2, RFC 8986 Section 4.3. The SID bit-field structure (locator block, locator node, function, and argument lengths) is inherited from IsisSRv6.Locator.sid_structure of the selected locator per RFC 9352 Section 9. No per-adjacency structure override is defined in the RFC.
-      type: object
-      properties:
-        locator:
-          description: |-
-            Selects which locator from the IsisSRv6.Locator list to use as the locator part of this adjacency SID. 'auto' (default) uses the first locator defined in isis.segment_routing.srv6_locators  - suitable when only one locator is configured. 'custom_locator_reference' uses the specific locator identified by custom_locator_reference  - use this when multiple locators are configured and a particular one must be selected, e.g. for a Flex-Algo binding.
-          type: string
-          default: auto
-          x-enum:
-            auto:
-              x-field-uid: 1
-            custom_locator_reference:
-              x-field-uid: 2
-          x-field-uid: 10
-          enum:
-          - auto
-          - custom_locator_reference
-        custom_locator_reference:
-          description: |
-            Name of the IsisSRv6.Locator to use when locator is set to 'custom_locator_reference'. Must match the locator_name of a locator configured in isis.segment_routing.srv6_locators. Example: "loc2" selects the locator whose locator_name is "loc2".
-
-            x-constraint:
-            - /components/schemas/IsisSRv6.Locator/properties/locator_name
-          type: string
-          x-constraint:
-          - /components/schemas/IsisSRv6.Locator/properties/locator_name
-          x-field-uid: 11
-        function:
-          description: |-
-            The Function part of this adjacency SID expressed as a hex string, occupying the function bits immediately after the locator prefix in the 128-bit SID (RFC 8986 Section 3.1). The number of hex digits must match function_length in the selected IsisSRv6.Locator.sid_structure divided by 4  - e.g. function_length 16 requires a 4-nibble string. Example: "00c8" places the value 200 (0xc8) in the function field; with locator fc00:0:1:: /48 (selected via auto or custom_locator_reference) the resulting SID is fc00:0:1:c8::.
-          type: string
-          format: hex
-          x-field-uid: 12
-        endpoint_behavior:
-          description: |-
-            The endpoint behavior for this adjacency SID, encoded as a 2-octet behavior codepoint (RFC 8986 Section 7.4). Valid adjacency-level behaviors for End.X SID Sub-TLV types 43/44 are End.X variants (with PSP/USP/USD flavors) and per-CE cross-connect decapsulation behaviors (End.DX4, End.DX6).
-          type: string
-          default: end_x
-          x-enum:
-            end_x:
-              description: |-
-                End.X adjacency L3 cross-connect (RFC 8986 codepoint 5). Decrements Segments Left and forwards the packet over the specific adjacency set J to the next-hop node.
-              x-field-uid: 1
-            end_x_with_psp:
-              description: |-
-                End.X with Penultimate Segment Pop (PSP) flavor (RFC 8986 codepoint 6). Removes the SRH at the penultimate node before forwarding over adjacency J.
-              x-field-uid: 2
-            end_x_with_usp:
-              description: |-
-                End.X with Ultimate Segment Pop (USP) flavor (RFC 8986 codepoint 7). Removes the SRH at the ultimate adjacency endpoint before upper-layer processing.
-              x-field-uid: 3
-            end_x_with_psp_usp:
-              description: |-
-                End.X with PSP and USP flavors combined (RFC 8986 codepoint 8).
-              x-field-uid: 4
-            end_x_with_usd:
-              description: |-
-                End.X with Ultimate Segment Decapsulation (USD) flavor (RFC 8986 codepoint 32). Removes outer IPv6 header at the ultimate adjacency endpoint.
-              x-field-uid: 5
-            end_x_with_psp_usd:
-              description: |-
-                End.X with PSP and USD flavors combined (RFC 8986 codepoint 33).
-              x-field-uid: 6
-            end_x_with_usp_usd:
-              description: |-
-                End.X with USP and USD flavors combined (RFC 8986 codepoint 34).
-              x-field-uid: 7
-            end_x_with_psp_usp_usd:
-              description: |-
-                End.X with PSP, USP and USD flavors combined (RFC 8986 codepoint 35).
-              x-field-uid: 8
-            end_dx4:
-              description: |-
-                End.DX4 per-CE IPv4 cross-connect (RFC 8986 codepoint 15, 0x000F). Decapsulates the outer IPv6 header and forwards the inner IPv4 packet to a CE peer over adjacency J. Used for IPv4 VPWS and per-CE L3VPN services over SRv6.
-              x-field-uid: 9
-            end_dx6:
-              description: |-
-                End.DX6 per-CE IPv6 cross-connect (RFC 8986 codepoint 14, 0x000E). Decapsulates the outer IPv6 header and forwards the inner IPv6 packet to a CE peer over adjacency J. Used for IPv6 VPWS and per-CE L3VPN services over SRv6.
-              x-field-uid: 10
-          x-field-uid: 2
-          enum:
-          - end_x
-          - end_x_with_psp
-          - end_x_with_usp
-          - end_x_with_psp_usp
-          - end_x_with_usd
-          - end_x_with_psp_usd
-          - end_x_with_usp_usd
-          - end_x_with_psp_usp_usd
-          - end_dx4
-          - end_dx6
-        b_flag:
-          description: |-
-            Backup flag (B-flag, bit 0). When set, the End.X SID is eligible for IP Fast-ReRoute (IP-FRR) protection, indicating a backup adjacency that can protect traffic when the primary adjacency fails (RFC 9352 Section 8.1).
-          type: boolean
-          default: false
-          x-field-uid: 3
-        s_flag:
-          description: |-
-            Set flag (S-flag, bit 1). When set, the End.X SID refers to a set of adjacencies (e.g., parallel links, ECMP group). The same SID value may be assigned to multiple adjacencies forming the set (RFC 9352 Section 8.1).
-          type: boolean
-          default: false
-          x-field-uid: 4
-        p_flag:
-          description: |-
-            Persistent flag (P-flag, bit 2). When set, the End.X SID value is persistently allocated and remains consistent across router restarts and interface flap events (RFC 9352 Section 8.1).
-          type: boolean
-          default: false
-          x-field-uid: 5
-        weight:
-          description: |-
-            Weight for load balancing across adjacencies sharing the same End.X SID (applicable when S-flag is set). Traffic is distributed proportionally across the adjacency set according to the weight values (RFC 9352 Section 8.1).
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 255
-          default: 0
-          x-field-uid: 6
-        algorithm:
-          description: |-
-            IGP algorithm associated with this adjacency SID (RFC 8665). 0 = standard SPF, 1 = Strict SPF, 128-255 = Flex-Algo (RFC 9350). Binds the adjacency SID to the corresponding topology or path computation algorithm.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 255
-          default: 0
-          x-field-uid: 7
-        c_flag:
-          description: |-
-            Compression (uSID) flag. When set, this adjacency SID is a Micro-SID (uSID) End.X per RFC 9800. A headend can pack it into a shared 128-bit uSID container alongside node uSIDs from the same /32 block, directing traffic over a specific L3 adjacency within a compressed segment list. The node-level IsisSRv6.NodeCapability.c_flag must also be set. The SID bit layout is governed by the selected IsisSRv6.Locator.sid_structure. Example using F3216 (lb=32, ln=16, fn=16, arg=0), uSID block fc00::/32, locator fc00:0:1:: /48:
-              c_flag=true, function "00c8" => uSID fc00:0:1:c8::  (End.X)
-              c_flag=true, function "00c9" => uSID fc00:0:1:c9::  (End.X alternate link)
-            For a path routed via node 1's adjacency "00c8" then node 2 End "0001", the headend builds DA = fc00:0:1:c8:2:1:: encoding both hops in a single 128-bit address. Reference: RFC 9800.
-          type: boolean
-          default: false
-          x-field-uid: 8
-    IsisSRv6.Msd:
-      description: |-
-        SRv6 Maximum SID Depth (MSD) sub-TLV values, used for both node-level advertisement (carried in IS-IS Router CAPABILITY TLV 242 via Node MSD sub-TLV type 23, RFC 9352 Section 6) and link-level advertisement (carried in Extended IS Reachability TLV via Link MSD sub-TLV type 15, RFC 9352 Section 6). When a property is present, the corresponding MSD sub-TLV is advertised with the configured value. Omit a property to suppress advertisement of that MSD type. Reference: RFC 9352 Section 6.
-      type: object
-      properties:
-        max_sl:
-          description: |-
-            When present, advertises Maximum Segments Left (Max-SL, MSD type 41, RFC 9352 Section 6) - the maximum value of the Segments Left field in an SRH that this node can correctly process.
-          $ref: '#/components/schemas/IsisSRv6.MsdValue'
-          x-field-uid: 1
-        max_end_pop_srh:
-          description: |-
-            When present, advertises Maximum End Pop SRH (Max-End-Pop, MSD type 42, RFC 9352 Section 6) - the maximum size of the SRH this node can remove when processing an End.Pop operation.
-          $ref: '#/components/schemas/IsisSRv6.MsdValue'
-          x-field-uid: 2
-        max_h_encaps:
-          description: |-
-            When present, advertises Maximum H.Encaps (Max-H.Encaps, MSD type 44, RFC 9352 Section 6) - the maximum number of SRv6 SID encapsulations this node can perform as a headend.
-          $ref: '#/components/schemas/IsisSRv6.MsdValue'
-          x-field-uid: 3
-        max_end_d_srh:
-          description: |-
-            When present, advertises Maximum End.D SRH (Max-End-D, MSD type 45, RFC 9352 Section 6) - the maximum size of the SRH this node can process when performing an End.D decapsulation function.
-          $ref: '#/components/schemas/IsisSRv6.MsdValue'
-          x-field-uid: 4
-        max_t_insert:
-          description: |-
-            When present, advertises Maximum T.Insert (Max-T.Insert, MSD type 46, RFC 9352 Section 6) - the maximum size of the SRH this node can insert using a T.Insert operation.
-          $ref: '#/components/schemas/IsisSRv6.MsdValue'
-          x-field-uid: 5
-        max_t_encaps:
-          description: |-
-            When present, advertises Maximum T.Encaps (Max-T.Encaps, MSD type 47, RFC 9352 Section 6) - the maximum size of the SRH this node can insert using a T.Encaps operation.
-          $ref: '#/components/schemas/IsisSRv6.MsdValue'
-          x-field-uid: 6
-    IsisSRv6.MsdValue:
-      description: |-
-        A single MSD (Maximum SID Depth) value entry (RFC 9352 Section 6). When this object is present, the parent MSD type is advertised with the configured value. Omit the object to suppress advertisement of that MSD type.
-      type: object
-      properties:
-        value:
-          description: |-
-            The MSD depth value (0-255, RFC 9352 Section 6). A value of 0 indicates that the node has no capability for the corresponding SRH operation but still causes the sub-TLV to be advertised. To suppress advertisement entirely, omit the parent object.
-          type: integer
-          format: uint32
-          maximum: 255
-          x-field-uid: 1
-    IsisSRv6.SidStructure:
-      description: |-
-        SRv6 SID Structure Sub-Sub-TLV (type 1), carried within SRv6 SID Sub-TLVs (End SID type 5, End.X SID type 43/44). Describes the internal bit-field decomposition of the SRv6 SID value so that receiving routers can interpret each field independently. The four length fields (lb_length + ln_length + function_length + argument_length) MUST NOT exceed 128 bits. Required when advertising Micro-SID (uSID) SIDs to describe the compressed encoding. Example for common uSID F3216 format:
-          lb_length=32, ln_length=16, function_length=16, argument_length=0
-        Reference: RFC 9352 Section 9, RFC 9800.
-      type: object
-      properties:
-        locator_block_length:
-          description: |-
-            Number of bits in the Locator Block (LB) field of the SID. The Locator Block is the common IPv6 prefix shared across all SIDs within the same SRv6 domain block (e.g., 32 bits in the uSID F3216 format). Minimum value 1 (a zero-bit locator block is not meaningful).
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 128
-          default: 32
-          x-field-uid: 1
-        locator_node_length:
-          description: |-
-            Number of bits in the Locator Node (LN) field of the SID. Identifies the specific node within the Locator Block (e.g., 16 bits in the uSID F3216 format, providing up to 65534 addressable nodes per domain block).
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 128
-          default: 16
-          x-field-uid: 2
-        function_length:
-          description: |-
-            Number of bits in the Function field of the SID. Identifies the specific endpoint behavior instantiated on this node (e.g., 16 bits in the uSID F3216 format, supporting up to 65534 distinct functions per node).
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 128
-          default: 16
-          x-field-uid: 3
-        argument_length:
-          description: |-
-            Number of bits in the Argument field of the SID. Carries additional per-behavior information such as VPN table identifiers or compressed next-SID encodings for Micro-SID stacking. Set to 0 for standard SIDs that carry no argument. When non-zero in a uSID context, enables packing multiple micro-segment identifiers within a single 128-bit SID carrier (RFC 9800).
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 128
-          default: 0
-          x-field-uid: 4
     Isis.Basic:
       description: |-
         This contains ISIS router basic properties.
@@ -4277,13 +5171,6 @@ components:
             capabilities within an IS-IS level or the entire routing domain.
           $ref: '#/components/schemas/Isis.RouterCapability'
           x-field-uid: 1
-        srv6_locators:
-          description: |-
-            List of SRv6 Locator TLVs (TLV type 27) to be advertised by this IS-IS router. Each locator binds an IPv6 prefix to an IGP algorithm (standard SPF or Flex-Algo per RFC 9350) and carries End SID Sub-TLVs for locally instantiated node-level SRv6 SIDs. One Locator TLV is required per topology/algorithm combination. Locators are scoped to this IS-IS instance and cannot be shared across other protocol instances. Reference: RFC 9352 Section 7.1.
-          type: array
-          items:
-            $ref: '#/components/schemas/IsisSRv6.Locator'
-          x-field-uid: 2
     Isis.RouterCapability:
       description: |-
         Container for the configuration of IS-IS Router CAPABILITY TLV.
@@ -4392,11 +5279,6 @@ components:
           items:
             $ref: '#/components/schemas/IsisSR.Srlb'
           x-field-uid: 7
-        srv6_capability:
-          description: |-
-            SRv6 Capabilities Sub-TLV (sub-TLV type 25) carried within this Router CAPABILITY TLV. Announces that this router is an SRv6 Segment Endpoint Node and advertises optional OAM (O-flag) support and node-level SRv6 Maximum SID Depth (MSD) values. Reference: RFC 9352 Section 2, RFC 8491.
-          $ref: '#/components/schemas/IsisSRv6.NodeCapability'
-          x-field-uid: 8
     Isis.SRCapability:
       description: "Container for the configuration of IS-IS SR-CAPABILITY TLV that\
         \ Segment Routing requires \neach router to advertise its SR data plane capability\
@@ -11736,1093 +12618,6 @@ components:
           type: boolean
           default: false
           x-field-uid: 2
-    Device.Macsec:
-      description: |-
-        A container of properties for a MACsec capable device. Reference https://1.ieee802.org/security/802-1ae/.
-      type: object
-      required:
-      - ethernet_interfaces
-      properties:
-        ethernet_interfaces:
-          description: |-
-            Ethernet Interfaces
-          type: array
-          items:
-            $ref: '#/components/schemas/Device.Macsec.EthernetInterface'
-          x-field-uid: 1
-    Device.Macsec.EthernetInterface:
-      description: |-
-        Configuration for single MACsec interface.
-      type: object
-      required:
-      - eth_name
-      - secure_entity
-      properties:
-        eth_name:
-          description: |
-            The unique name of the Ethernet interface on which MACsec is enabled.
-
-            x-constraint:
-            - /components/schemas/Device.Ethernet/properties/name
-          type: string
-          x-constraint:
-          - /components/schemas/Device.Ethernet/properties/name
-          x-field-uid: 1
-        secure_entity:
-          description: |-
-            This contains the properties of Secure Entity (SecY).
-          $ref: '#/components/schemas/SecureEntity'
-          x-field-uid: 2
-    SecureEntity:
-      description: |-
-        Configuration of a Secure Entity (SecY).
-      type: object
-      required:
-      - name
-      - key_generation_protocol
-      properties:
-        name:
-          x-field-uid: 1
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          x-unique: global
-        key_generation_protocol:
-          description: |-
-            This contains the properties of key generation protocol of Secure Entity (SecY).
-          $ref: '#/components/schemas/SecureEntity.KeyGenerationProtocol'
-          x-field-uid: 2
-        data_plane:
-          description: |-
-            This contains the properties of data plane of Secure Entity (SecY).
-          $ref: '#/components/schemas/SecureEntity.DataPlane'
-          x-field-uid: 3
-    SecureEntity.KeyGenerationProtocol:
-      description: |-
-        Container of Key generation protocol configuration.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Key generation protocol choices. Choose "mka" for dynamic key distribution using MACsec key agreement(MKA) protocol. Choose "static_key" for static configuration of secure association key(SAK).
-          type: string
-          default: mka
-          x-field-uid: 1
-          x-enum:
-            mka:
-              x-field-uid: 1
-            static_key:
-              x-field-uid: 2
-          enum:
-          - mka
-          - static_key
-        mka:
-          description: |-
-            This contains the properties of Key Agreement Entity (KaY) in MKA supplicant.
-          x-field-uid: 2
-          $ref: '#/components/schemas/Mka'
-        static_key:
-          description: |-
-            Static key properties properties of SecY. Static key is used in absence MKA.
-          $ref: '#/components/schemas/SecureEntity.StaticKey'
-          x-field-uid: 3
-    SecureEntity.DataPlane:
-      description: |-
-        A container of data plane properties.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Choose "encapsulation" so that data packets are sent with MACsec encapsulation. Choose "no_encapsulation" so that data packets are sent without MACsec encapsulation.
-          type: string
-          default: encapsulation
-          x-field-uid: 1
-          x-enum:
-            encapsulation:
-              x-field-uid: 1
-            no_encapsulation:
-              x-field-uid: 2
-          enum:
-          - encapsulation
-          - no_encapsulation
-        encapsulation:
-          description: |-
-            A container of encapsulation properties for a secure entity(SecY).
-          $ref: '#/components/schemas/SecureEntity.DataPlane.Encapsulation'
-          x-field-uid: 2
-    SecureEntity.DataPlane.Encapsulation:
-      description: |-
-        A container of encapsulation properties for a secure entity(SecY).
-      type: object
-      required:
-      - crypto_engine
-      properties:
-        tx:
-          description: |-
-            Tx properties of SecY.
-          $ref: '#/components/schemas/SecureEntity.DataPlane.Tx'
-          x-field-uid: 1
-        rx:
-          description: |-
-            Rx properties of SecY.
-          $ref: '#/components/schemas/SecureEntity.DataPlane.Rx'
-          x-field-uid: 2
-        crypto_engine:
-          description: |-
-            Crypto engine properties of SecY.
-          $ref: '#/components/schemas/SecureEntity.CryptoEngine'
-          x-field-uid: 3
-    SecureEntity.DataPlane.Tx:
-      description: |-
-        A container of Tx properties of SecY.
-      type: object
-      properties:
-        end_station:
-          description: |-
-            End station on not.
-          type: boolean
-          default: false
-          x-field-uid: 1
-        include_sci:
-          description: |-
-            Include SCI on not.
-          type: boolean
-          default: false
-          x-field-uid: 2
-    SecureEntity.DataPlane.Rx:
-      description: |-
-        A container for Rx settings of SecY.
-      type: object
-      properties:
-        replay_protection:
-          description: "Enable replay protection on not. "
-          type: boolean
-          default: false
-          x-field-uid: 1
-        replay_window:
-          description: "Replay window size. "
-          type: integer
-          format: uint32
-          minimum: 1
-          default: 1
-          x-field-uid: 2
-    SecureEntity.CryptoEngine:
-      description: |-
-        A container of crypto engine properties of a SecY.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Engine type based on encryption and/ or decryption capability. Supported types: encrypt_only - engine can only encrypt transmitted packets but it cannot decrypt packets upon arrival. As the packets cannot be decrypted on arrival, such packets cannot be delivered to the receiving device. Hence only stateless traffic can be sent.
-          type: string
-          default: encrypt_only
-          x-field-uid: 1
-          x-enum:
-            encrypt_only:
-              x-field-uid: 1
-          enum:
-          - encrypt_only
-        encrypt_only:
-          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly'
-          x-field-uid: 2
-    SecureEntity.CryptoEngine.EncryptOnly:
-      description: |-
-        The container for encrypt only engine configuration.
-      type: object
-      properties:
-        secure_channels:
-          type: array
-          items:
-            $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.TxSc'
-          x-field-uid: 1
-        traffic_options:
-          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.TrafficOptions'
-          x-field-uid: 2
-    SecureEntity.CryptoEngine.EncryptOnly.TxSc:
-      description: |-
-        The container for Tx secure channel configuration.
-      type: object
-      properties:
-        tx_pn:
-          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.TxSc.TxPn'
-          x-field-uid: 1
-    SecureEntity.CryptoEngine.EncryptOnly.TxSc.TxPn:
-      description: |-
-        Tx packet number(PN) configuration.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Types of Tx packet number(PN) series. Supported choices: 1) fixed PN - MACsec packets will be sent out with the configured fixed PN or lower half of configured fixed XPN. 2) incrementing PN - MACsec packets will be sent out by single device with an incrementing PN or XPN.
-          type: string
-          default: fixed_pn
-          x-field-uid: 1
-          x-enum:
-            fixed_pn:
-              x-field-uid: 1
-            incrementing_pn:
-              x-field-uid: 2
-          enum:
-          - fixed_pn
-          - incrementing_pn
-        fixed:
-          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.FixedPn'
-          x-field-uid: 2
-        incrementing:
-          $ref: '#/components/schemas/SecureEntity.CryptoEngine.EncryptOnly.IncrementingPn'
-          x-field-uid: 3
-    SecureEntity.CryptoEngine.EncryptOnly.FixedPn:
-      description: |-
-        Fixed packet number(PN) configuration.
-      type: object
-      properties:
-        pn:
-          description: |-
-            Fixed Tx packet number(PN). 4 bytes PN with which all packets will be sent out.
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 4294967295
-          default: 6
-          x-field-uid: 1
-        xpn:
-          description: |-
-            Fixed Tx extended packet number(XPN). 8 bytes XPN with which all packets will be sent out.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 16
-          minimum: 1
-          default: '0x06'
-          x-field-uid: 2
-    SecureEntity.CryptoEngine.EncryptOnly.IncrementingPn:
-      description: |-
-        Incrementing packet number(PN) configuration.
-      type: object
-      properties:
-        count:
-          description: "Count of packet numbers in series. "
-          type: integer
-          format: uint32
-          minimum: 2
-          maximum: 1000000
-          default: 100
-          x-field-uid: 1
-        starting_pn:
-          description: |-
-            The starting packet number(PN).
-          type: integer
-          format: uint32
-          minimum: 1
-          default: 10000
-          x-field-uid: 2
-        starting_xpn:
-          description: |-
-            The starting extended packet number(XPN).
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 16
-          minimum: 1
-          default: '0x010000'
-          x-field-uid: 3
-    SecureEntity.CryptoEngine.EncryptOnly.TrafficOptions:
-      description: |-
-        Encrypt only traffic options.
-      type: object
-      properties:
-        send_gratuitous_arp:
-          description: |-
-            Send gratuitous ARP or not.
-          type: boolean
-          default: true
-          x-field-uid: 1
-    Mka:
-      description: |-
-        Configuration of a MKA Key Agreement Entity (KaY). Reference https://1.ieee802.org/security/802-1x/.
-      type: object
-      required:
-      - name
-      - basic
-      - tx
-      properties:
-        name:
-          x-field-uid: 1
-          description: |-
-            Globally unique name of an object. It also serves as the primary key for arrays of objects.
-          type: string
-          x-unique: global
-        basic:
-          description: |-
-            This contains the basic properties of KaY.
-          $ref: '#/components/schemas/Mka.Basic'
-          x-field-uid: 2
-        key_server:
-          description: |-
-            Key server attributes.
-          $ref: '#/components/schemas/Mka.KeyServer'
-          x-field-uid: 3
-        tx:
-          description: |-
-            Tx Properties.
-          $ref: '#/components/schemas/Mka.Tx'
-          x-field-uid: 4
-    Mka.Basic:
-      description: |-
-        A container of basic properties for a KaY.
-      type: object
-      required:
-      - key_source
-      properties:
-        key_derivation_function:
-          description: |-
-            Key Derivation Function.
-          type: string
-          default: aes_cmac_128
-          x-field-uid: 1
-          x-enum:
-            aes_cmac_128:
-              x-field-uid: 1
-            aes_cmac_256:
-              x-field-uid: 2
-          enum:
-          - aes_cmac_128
-          - aes_cmac_256
-        key_source:
-          description: |-
-            Key source.
-          x-field-uid: 2
-          $ref: '#/components/schemas/Mka.Basic.KeySource'
-        actor_priority:
-          description: |-
-            Actor priority.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 2
-          default: '70'
-          x-field-uid: 3
-        macsec_desired:
-          description: |-
-            Determines whether MACsec is desired or not. It is advertised in periodic Hellos.
-          type: boolean
-          default: true
-          x-field-uid: 4
-        macsec_capability:
-          description: |-
-            MACSec Capability.
-          type: string
-          default: macsec_integrity_with_confidentiality_offset
-          x-field-uid: 5
-          x-enum:
-            macsec_not_implemented:
-              x-field-uid: 1
-            macsec_integrity_without_confidentiality:
-              x-field-uid: 2
-            macsec_integrity_with_no_confidentiality_offset:
-              x-field-uid: 3
-            macsec_integrity_with_confidentiality_offset:
-              x-field-uid: 4
-          enum:
-          - macsec_not_implemented
-          - macsec_integrity_without_confidentiality
-          - macsec_integrity_with_no_confidentiality_offset
-          - macsec_integrity_with_confidentiality_offset
-        supported_cipher_suites:
-          description: |-
-            Supported Cipher Suites.
-          x-field-uid: 6
-          $ref: '#/components/schemas/Mka.Basic.SupportedCipherSuites'
-        eapol_ethernet_type:
-          description: |-
-            EAPOL Ethernet type.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 4
-          default: 888E
-          x-field-uid: 7
-        mka_version:
-          description: |-
-            MKA Version.
-          type: integer
-          format: uint32
-          default: 3
-          x-field-uid: 8
-        mka_hello_time:
-          description: |-
-            MKA Hello Time (msec).
-          type: integer
-          format: uint32
-          minimum: 500
-          maximum: 10000
-          default: 2000
-          x-field-uid: 9
-        mka_life_time:
-          description: |-
-            MKA Life Time (sec).
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 255
-          default: 6
-          x-field-uid: 10
-        send_icv_indicatior_in_mkpdu:
-          description: |-
-            Send ICV Indicator in MKPDU.
-          type: boolean
-          default: true
-          x-field-uid: 11
-        delay_protect:
-          description: |-
-            Delay Protect or not. When delay protect is enabled, it guards against delaying the delivery of MACsec encrypted frames by an attacker to the recipient.
-          type: boolean
-          default: true
-          x-field-uid: 12
-        rekey_mode:
-          description: |-
-            Rekey Mode.
-          $ref: '#/components/schemas/Mka.Basic.RekeyMode'
-          x-field-uid: 13
-        psk_chain_start_time:
-          $ref: '#/components/schemas/Mka.Basic.PskChainStartTime'
-          x-field-uid: 14
-    Mka.Basic.SupportedCipherSuites:
-      description: |-
-        The container for supported cipher suites.
-      type: object
-      properties:
-        gcm_aes_128:
-          description: |-
-            GCM-AES-128.
-          type: boolean
-          default: true
-          x-field-uid: 1
-        gcm_aes_256:
-          description: |-
-            GCM-AES-256.
-          type: boolean
-          default: true
-          x-field-uid: 2
-        gcm_aes_xpn_128:
-          description: |-
-            GCM-AES-XPN-128.
-          type: boolean
-          default: true
-          x-field-uid: 3
-        gcm_aes_xpn_256:
-          description: |-
-            GCM-AES-XPN-256.
-          type: boolean
-          default: true
-          x-field-uid: 4
-    Mka.Basic.KeySource:
-      description: |-
-        The container for key source settings.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Key source. Choose one from PSK or MSK.
-          type: string
-          default: psk
-          x-field-uid: 1
-          x-enum:
-            psk:
-              x-field-uid: 1
-            msk:
-              x-field-uid: 2
-          enum:
-          - psk
-          - msk
-        psks:
-          description: |-
-            PSK chain.
-          type: array
-          items:
-            $ref: '#/components/schemas/Mka.Basic.KeySource.Psk'
-          x-field-uid: 2
-    Mka.Basic.KeySource.Psk:
-      description: |-
-        The container for Pre-shared key(PSK).
-      type: object
-      properties:
-        cak_value:
-          description: |-
-            Connectivity association key(CAK) value. It can be 128 bits or 256 bits long depending on the chosen MKA key derivation function.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 64
-          default: F123456789ABCDEF0123456789ABCDEF
-          x-field-uid: 1
-        cak_name:
-          description: |-
-            Connectivity association key(CAK) name.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 64
-          default: F123456789ABCDEF0123456789ABCDEFF123456789ABCDEF0123456789ABCDEF
-          x-field-uid: 2
-        start_offset_time:
-          description: ""
-          $ref: '#/components/schemas/Mka.Basic.StartOffsetTime'
-          x-field-uid: 3
-        end_offset_time:
-          description: ""
-          $ref: '#/components/schemas/Mka.Basic.EndOffsetTime'
-          x-field-uid: 4
-    Mka.Basic.StartOffsetTime:
-      description: |-
-        Key start offset time in HH:MM. This is relative to key chain start time.
-      type: object
-      properties:
-        hh:
-          description: |-
-            Hours in HH format.
-          type: integer
-          format: uint32
-          minimum: 0
-          default: 0
-          x-field-uid: 1
-        mm:
-          description: |-
-            Minutes in MM format.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 59
-          default: 0
-          x-field-uid: 2
-    Mka.Basic.EndOffsetTime:
-      description: |-
-        Key end offset time in HH:MM. This is relative to key chain start time. A value of "00:00" makes the key valid for lifetime.
-      type: object
-      properties:
-        hh:
-          description: |-
-            Hours in HH format.
-          type: integer
-          format: uint32
-          minimum: 0
-          default: 0
-          x-field-uid: 1
-        mm:
-          description: |-
-            Minutes in MM format.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 59
-          default: 0
-          x-field-uid: 2
-    Mka.Basic.PskChainStartTime:
-      description: |-
-        Pre-shared key(PSK) chain start time in UTC time format DD-MM-YYYY HH:MM:SS. If this time is set, the key start time will be relative to this value. Otherwise if this value is not set, key start time will be relative to test start time.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Timezone choice. Currently only Coordinated Universal Time(UTC) is supported.
-          type: string
-          default: utc
-          x-field-uid: 1
-          x-enum:
-            utc:
-              x-field-uid: 1
-          enum:
-          - utc
-        utc:
-          description: |-
-            Coordinated Universal Time(UTC) time.
-          $ref: '#/components/schemas/Mka.Basic.TimeUtc'
-          x-field-uid: 2
-    Mka.Basic.TimeUtc:
-      description: |-
-        Coordinated Universal Time(UTC).
-      type: object
-      properties:
-        day:
-          description: |-
-            Day of the month in DD format.
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 31
-          x-field-uid: 1
-        month:
-          description: |-
-            Month of the year in MM format.
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 12
-          x-field-uid: 2
-        year:
-          description: |-
-            Year from the start of common era(CE) in YYYY format.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 9999
-          x-field-uid: 3
-        hour:
-          description: |-
-            Hour of the day in HH format.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 23
-          x-field-uid: 4
-        minute:
-          description: |-
-            Minute of the hour in MM format.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 59
-          x-field-uid: 5
-        second:
-          description: |-
-            Second of the minute in SS format.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 59
-          x-field-uid: 6
-    Mka.Basic.RekeyMode:
-      description: |-
-        Rekey mode.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Mode choices.
-          type: string
-          default: dont_rekey
-          x-field-uid: 1
-          x-enum:
-            dont_rekey:
-              x-field-uid: 1
-            timer_based:
-              x-field-uid: 2
-            pn_based:
-              x-field-uid: 3
-          enum:
-          - dont_rekey
-          - timer_based
-          - pn_based
-        timer_based:
-          description: |-
-            Container for timer based periodic rekey properties.
-          x-field-uid: 2
-          $ref: '#/components/schemas/Mka.Basic.RekeyMode.TimerBased'
-    Mka.Basic.RekeyMode.TimerBased:
-      description: |-
-        Timer based periodic rekey properties.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Periodic Rekey count.
-          type: string
-          default: continuous
-          x-field-uid: 1
-          x-enum:
-            continuous:
-              x-field-uid: 1
-            fixed_count:
-              x-field-uid: 2
-          enum:
-          - continuous
-          - fixed_count
-        fixed_count:
-          description: |-
-            Fixed rekey attempts.
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 65535
-          default: 10
-          x-field-uid: 2
-        interval:
-          description: |-
-            Periodic rekey interval (sec).
-          type: integer
-          format: uint32
-          minimum: 30
-          maximum: 65535
-          default: 300
-          x-field-uid: 3
-    Mka.KeyServer:
-      description: |-
-        Key server attributes of a KaY.
-      properties:
-        confidentialty_offset:
-          description: |-
-            Confidentiality Offset.
-          type: string
-          default: no_confidentiality_offset
-          x-field-uid: 1
-          x-enum:
-            no_confidentiality:
-              x-field-uid: 1
-            no_confidentiality_offset:
-              x-field-uid: 2
-            confidentiality_offset_30_octets:
-              x-field-uid: 3
-            confidentiality_offset_50_octets:
-              x-field-uid: 4
-          enum:
-          - no_confidentiality
-          - no_confidentiality_offset
-          - confidentiality_offset_30_octets
-          - confidentiality_offset_50_octets
-        cipher_suite:
-          description: |-
-            The cipher suite. Choose one from GCM-AES-128 GCM-AES-256 GCM-AES-XPN-128 GCM-AES-XPN-256
-          type: string
-          default: gcm_aes_128
-          x-field-uid: 2
-          x-enum:
-            gcm_aes_128:
-              x-field-uid: 1
-            gcm_aes_256:
-              x-field-uid: 2
-            gcm_aes_xpn_128:
-              x-field-uid: 3
-            gcm_aes_xpn_256:
-              x-field-uid: 4
-          enum:
-          - gcm_aes_128
-          - gcm_aes_256
-          - gcm_aes_xpn_128
-          - gcm_aes_xpn_256
-        starting_key_number:
-          description: |-
-            Starting Key Number.
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 65535
-          default: 1
-          x-field-uid: 3
-        starting_distributed_an:
-          description: |-
-            Starting Distributed AN.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 3
-          default: 0
-          x-field-uid: 4
-        rekey_threshold_pn:
-          description: |-
-            Determines the PN rekey threshold.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 8
-          default: C0000000
-          x-field-uid: 5
-        rekey_threshold_xpn:
-          description: |-
-            Determines the XPN rekey threshold.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 16
-          default: C000000000000000
-          x-field-uid: 6
-    Mka.Tx:
-      description: |-
-        A container of Tx properties.
-      type: object
-      required:
-      - secure_channels
-      properties:
-        secure_channels:
-          description: |-
-            Tx secure channels.
-          type: array
-          items:
-            $ref: '#/components/schemas/Mka.TxSc'
-          x-field-uid: 1
-    Mka.TxSc:
-      description: |-
-        Tx secure channel(SC) properties.
-      type: object
-      required:
-      - name
-      - system_id
-      properties:
-        name:
-          description: |-
-            Tx SC name.
-          type: string
-          x-field-uid: 1
-        system_id:
-          description: "System ID. "
-          type: string
-          format: mac
-          x-field-uid: 2
-        port_id:
-          description: "Port ID. "
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 65535
-          default: 1
-          x-field-uid: 3
-        starting_message_number:
-          description: |-
-            Starting Message Number.
-          type: integer
-          format: uint64
-          minimum: 1
-          maximum: 4294967295
-          default: 1
-          x-field-uid: 4
-    SecureEntity.StaticKey:
-      description: |-
-        A container of static key properties for a secure entity(SecY). This configuration is applicable when no dynamic key management protocol i.e. MACsec key agreement(MKA) is configured. If MKA is configured, any static key configuration is not applicable.
-      type: object
-      properties:
-        cipher_suite:
-          description: |-
-            The cipher suite. Choose one from GCM-AES-128 GCM-AES-128 GCM-AES-256 GCM-AES-XPN-128 GCM-AES-XPN-256
-          type: string
-          default: gcm_aes_128
-          x-field-uid: 1
-          x-enum:
-            gcm_aes_128:
-              x-field-uid: 1
-            gcm_aes_256:
-              x-field-uid: 2
-            gcm_aes_xpn_128:
-              x-field-uid: 3
-            gcm_aes_xpn_256:
-              x-field-uid: 4
-          enum:
-          - gcm_aes_128
-          - gcm_aes_256
-          - gcm_aes_xpn_128
-          - gcm_aes_xpn_256
-        confidentiality:
-          description: "Encrypt or not. "
-          type: boolean
-          default: true
-          x-field-uid: 2
-        confidentiality_offset:
-          description: |-
-            Confidentiality offset.
-          type: string
-          default: zero
-          x-field-uid: 3
-          x-enum:
-            zero:
-              x-field-uid: 1
-            thirty:
-              x-field-uid: 2
-            fifty:
-              x-field-uid: 3
-          enum:
-          - zero
-          - thirty
-          - fifty
-        tx:
-          description: |-
-            Tx properties of SecY.
-          $ref: '#/components/schemas/SecureEntity.StaticKey.Tx'
-          x-field-uid: 4
-        rx:
-          description: |-
-            Rx properties of SecY.
-          $ref: '#/components/schemas/SecureEntity.StaticKey.Rx'
-          x-field-uid: 5
-    SecureEntity.StaticKey.RekeyMode:
-      description: |-
-        Rekey mode.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Rekey mode choices.
-          type: string
-          default: dont_rekey
-          x-field-uid: 1
-          x-enum:
-            dont_rekey:
-              x-field-uid: 1
-            timer_based:
-              x-field-uid: 2
-            pn_based:
-              x-field-uid: 3
-          enum:
-          - dont_rekey
-          - timer_based
-          - pn_based
-        timer_based:
-          description: |-
-            Container for timer based periodic rekey properties.
-          x-field-uid: 2
-          $ref: '#/components/schemas/SecureEntity.StaticKey.RekeyMode.TimerBased'
-    SecureEntity.StaticKey.RekeyMode.TimerBased:
-      description: |-
-        Timer based periodic rekey properties.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Periodic rekey attempt choices.
-          type: string
-          default: continuous
-          x-field-uid: 1
-          x-enum:
-            continuous:
-              x-field-uid: 1
-            fixed_count:
-              x-field-uid: 2
-          enum:
-          - continuous
-          - fixed_count
-        fixed_count:
-          description: |-
-            Fixed rekey attempts.
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 65535
-          default: 10
-          x-field-uid: 2
-        interval:
-          description: |-
-            Periodic rekey interval (sec).
-          type: integer
-          format: uint32
-          minimum: 30
-          maximum: 65535
-          default: 300
-          x-field-uid: 3
-    SecureEntity.StaticKey.Sak:
-      description: |-
-        The container for SAK.
-      type: object
-      properties:
-        sak:
-          description: |-
-            Secure association key(SAK) bits as hex string. Either 128 bits or 256 bits depending on the chosen cipher suite.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 64
-          default: F123456789ABCDEF0123456789ABCDEF
-          x-field-uid: 1
-        ssci:
-          description: |-
-            4 bytes short SCI(SSCI) used in case of XPN cipher suites.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 8
-          default: '00000001'
-          x-field-uid: 2
-        salt:
-          description: |-
-            12 bytes salt used in case of XPN cipher suites.
-          type: string
-          format: hex
-          minLength: 1
-          maxLength: 24
-          default: '000000000000000000000001'
-          x-field-uid: 3
-    SecureEntity.StaticKey.Tx:
-      description: |-
-        A container of static key Tx properties.
-      type: object
-      properties:
-        secure_channels:
-          description: |-
-            Tx secure channels.
-          type: array
-          items:
-            $ref: '#/components/schemas/SecureEntity.StaticKey.TxSc'
-          x-field-uid: 1
-        rekey_mode:
-          $ref: '#/components/schemas/SecureEntity.StaticKey.RekeyMode'
-          x-field-uid: 2
-    SecureEntity.StaticKey.TxSc:
-      description: |-
-        Tx SC setting for static key.
-      type: object
-      properties:
-        system_id:
-          description: "System ID. "
-          type: string
-          format: mac
-          x-field-uid: 1
-        port_id:
-          description: "Port ID. "
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 65535
-          default: 1
-          x-field-uid: 2
-        saks:
-          description: |-
-            Tx SAK pool.
-          type: array
-          items:
-            $ref: '#/components/schemas/SecureEntity.StaticKey.Sak'
-          x-field-uid: 3
-    SecureEntity.StaticKey.Rx:
-      description: |-
-        A container of static key Rx properties.
-      type: object
-      properties:
-        secure_channels:
-          description: |-
-            Rx secure channels.
-          type: array
-          items:
-            $ref: '#/components/schemas/SecureEntity.StaticKey.RxSc'
-          x-field-uid: 1
-    SecureEntity.StaticKey.RxSc:
-      description: |-
-        Rx SC settings.
-      type: object
-      properties:
-        dut_sci_system_id:
-          description: "System ID in DUT SCI. "
-          type: string
-          format: mac
-          x-field-uid: 1
-        dut_sci_port_id:
-          description: "Port ID in DUT SCI. "
-          type: integer
-          format: uint32
-          minimum: 1
-          maximum: 65535
-          default: 1
-          x-field-uid: 2
-        dut_msb_xpn:
-          description: |-
-            DUT MSB of XPN. The 32 most significant bits of the XPN that DUT will be using to construct the 64 bits XPN value when test starts.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 4294967295
-          default: 0
-          x-field-uid: 3
-        saks:
-          description: |-
-            Rx SAK pool.
-          type: array
-          items:
-            $ref: '#/components/schemas/SecureEntity.StaticKey.Sak'
-          x-field-uid: 4
     Device.Ospfv3Router:
       description: |-
         A container of properties for an OSPFv3 router.
@@ -14272,6 +14067,8 @@ components:
               x-field-uid: 23
             ipv6_extension_header:
               x-field-uid: 24
+            cfm:
+              x-field-uid: 25
           enum:
           - custom
           - ethernet
@@ -14297,6 +14094,7 @@ components:
           - macsec
           - lacp
           - ipv6_extension_header
+          - cfm
         custom:
           $ref: '#/components/schemas/Flow.Custom'
           x-field-uid: 2
@@ -14369,6 +14167,9 @@ components:
         ipv6_extension_header:
           $ref: '#/components/schemas/Flow.Ipv6ExtHeader'
           x-field-uid: 25
+        cfm:
+          $ref: '#/components/schemas/Flow.Cfm'
+          x-field-uid: 26
     Flow.Custom:
       type: object
       description: |-
@@ -14856,23 +14657,13 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6.UsidDst.LocatorLength'
         usids:
           description: |-
-            Ordered list of uSID values to pack after the Locator Block (RFC 9800 Section 3). For F3216 each uSID is 16 bits (4 hex chars); up to 6 uSIDs fit per container. The End-of-Container zero-pad is appended automatically by the implementation. Example: ["0001","0002","0003"] with locator fc00::/32 assembles to fc00:0:1:2:3::
+            Ordered list of uSID values (hex strings) to pack after the Locator Block (RFC 9800 Section 3). For F3216 each uSID is 16 bits (4 hex chars); up to 6 uSIDs fit per container. The End-of-Container zero-pad is appended automatically by the implementation. The value 0x0000 is reserved as the End-of-Container marker and must not be used. Example: ["0001","0002","0003"] with locator fc00::/32 assembles to fc00:0:1:2:3::
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/Flow.Ipv6.UsidDst.uSid'
+            type: string
+            format: hex
           x-field-uid: 3
-    Flow.Ipv6.UsidDst.uSid:
-      description: |-
-        One uSID value within the no-SRH uSID container (RFC 9800 Section 3). For F3216 (16-bit uSID): 4 hex characters. The value 0x0000 is reserved as the End-of-Container marker and must not be used.
-      type: object
-      properties:
-        usid:
-          description: |-
-            The uSID value as a hex string. For F3216: 4 hex characters. Any '0' padding before the before uSID value should be explicitly configured. Example: "0001".
-          type: string
-          format: hex
-          x-field-uid: 1
     Flow.Ipv6.Auto:
       description: |-
         The OTG implementation can provide a system generated, value for this property.
@@ -16783,7 +16574,7 @@ components:
       properties:
         choice:
           description: |-
-            Currently only auto choice is allowed. If choice is auto, MACsec header is autogenerated. If auto choice is selected, MACsec protocol must be configured in device; flow.tx_rx.choice must be of type 'device' and flow.tx_rx.device.tx_names[0] must be chosen to be an endpoint that is on or behind a MACSec enabled ethernet to be able to correctly auto-fill the fields of the MACsec header. If one of the conditions is not true, the implementation should return an error specifying the issue. A custom choice can be added in future to allow user to set specific MACsec header fields and/ or to generate flow.tx_rx.port type of traffic with MACSec header fields explicitly specified by the user.
+            Currently only auto choice is allowed. If choice is auto, MACsec header is autogenerated. If auto choice is selected, MACsec protocol must be configured in either device or LAG members (ports); flow.tx_rx.choice must be of type 'device' and flow.tx_rx.device.tx_names[0] must be chosen to be an endpoint that is on or behind a MACSec enabled ethernet to be able to correctly auto-fill the fields of the MACsec header. If one of the conditions is not true, the implementation should return an error specifying the issue. A custom choice can be added in future to allow user to set specific MACsec header fields and/ or to generate flow.tx_rx.port type of traffic with MACSec header fields explicitly specified by the user.
           type: string
           default: auto
           x-field-uid: 1
@@ -17039,7 +16830,7 @@ components:
           x-field-uid: 3
     Flow.Ipv6SegmentRouting:
       description: |-
-        IPv6 Segment Routing Header (SRH, Routing Type 4, RFC 8754 Section 2) carrying full 128-bit SRv6 SIDs. Each segment list entry is a complete SID (locator + function + argument) as a 128-bit IPv6 address. Segment list encoded in reverse path order: Segment[0] is the last hop, Segment[n-1] is the first hop (active, placed in outer IPv6 dst).
+        IPv6 Segment Routing Header (SRH, Routing Type 4, RFC 8754 Section 2) carrying full 128-bit SRv6 SIDs. Each segment list entry is a complete SID (locator + function + argument) as a 128-bit IPv6 address. Segment list encoded in reverse path order: Segment[0] is the last hop, Segment[n-1] is the first hop.
       type: object
       properties:
         segments_left:
@@ -17076,25 +16867,40 @@ components:
           x-field-uid: 1
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRouting.Segment.Segment'
     Flow.Ipv6SegmentRoutingUsid:
-      description: "IPv6 Segment Routing Header (SRH, Routing Type 4, RFC 8754 Section\
-        \ 2)\nwhose segment list carries compressed uSID containers (RFC 9800 Section\
-        \ 4).\nEach entry in segment_list represents one 128-bit compressed uSID container.\n\
-        The user supplies a structured locator prefix and a list of uSID values;\n\
-        the implementation assembles the 128-bit wire value by packing them as:\n\
-        LB (Locator Block bits) || uSID-1 || uSID-2 || ... || EoC (zeros).\n\nFor\
-        \ F3216 format (RFC 9800 Section 3): LB = 32 bits, each uSID = 16 bits,\n\
-        maximum 6 uSIDs per container.\nExample - locator fc00::/32 with uSIDs 0x0001,\
-        \ 0x0002 assembles to\ncontainer fc00:0:1:2:: placed in the SRH segment list\
-        \ entry.\n\nThe segment list is encoded in reverse path order per RFC 8754\
-        \ Section 2.1:\nsegment[0] is the last container to visit, segment[n-1] is\
-        \ the first\n(active) container, whose value is also placed in the outer ipv6.dst_usids\
-        \ field. \nThe active container is determined by the segments_left pointer,\
-        \ \nwhich is decremented as the packet progresses through the path and containers\
-        \ are exhausted,\nwhere n is the number of compressed uSID containers.\n\n\
-        Use this schema when the SR path requires more containers than fit in\nthe\
-        \ outer ipv6.dst_usids alone. \nFor single-container paths with no SRH, set\
-        \ the locator and uSID list in ipv6.dst_usids from which \ndestination IPv6\
-        \ address will be generated by the implementation."
+      description: |-
+        SRH (Routing Type 4, RFC 8754 Section 2) whose segment_list entries each
+        represent one 128-bit CSID container (RFC 9800 Section 4). Supports two flavors:
+
+        NEXT-CSID (locator_length > 0, RFC 9800 Section 4.1):
+          Each SRH entry is a fully formed SRv6 SID: LB (locator_length bits) || CSID-1 || ... || EoC (zeros).
+          F3216 (LB=32, CSID=16): locator fc00::/32, CSIDs [0x0001, 0x0002] -> fc00:0:1:2::
+          Processing: the router reads its own CSID from the DA function field, then
+          left-shifts the DA by one CSID width so the next CSID moves into the active
+          function position. When the shifted suffix is all-zero (End-of-Container), the
+          container is exhausted: segments_left is decremented and the next SRH entry
+          is loaded as the new DA.
+
+        REPLACE-CSID (RFC 9800 Section 4.2):
+          First entry (locator_length > 0): fully formed SRv6 SID, same structure as NEXT-CSID.
+          Subsequent entries (locator_length = 0): K = floor(128 / LNFL) CSID slots packed
+          into a 128-bit SRH entry. Provide exactly K CSIDs in wire order (left to right,
+          MSB first). Use "00000000" (32-bit) or "0000" (16-bit) for unused slots.
+          CSID width is inferred from hex string length (8 chars = 32-bit, 4 chars = 16-bit).
+
+          Example LNFL=32, K=4, fully packed (4 CSIDs):
+            usids ["00050005","00040004","00030003","00020002"]
+            wire: [00050005][00040004][00030003][00020002] (MSB->LSB) -> 5:5:4:4:3:3:2:2
+            DA.Arg.Index starts at K-1=3; usids[3]=00020002 is processed first.
+
+          Example LNFL=32, K=4, partially used (2 CSIDs, unused MSB slots set to zero):
+            usids ["00000000","00000000","00030004","00010002"]
+            wire: [00000000][00000000][00030004][00010002] (MSB->LSB) -> ::3:4:1:2
+            usids[3]=00010002 is at LSB and processed first by the router.
+
+        Segment list is in reverse path order (RFC 8754 Section 2.1): segment[n-1] is the
+        first active container.
+
+        For single-container NEXT-CSID paths with no SRH, use ipv6.dst_usids instead.
       type: object
       properties:
         segments_left:
@@ -17124,15 +16930,23 @@ components:
           x-field-uid: 6
     Flow.Ipv6SegmentRoutingUsid.Segment:
       description: |-
-        One compressed uSID container entry in the SRH segment list (RFC 9800 Section 4,
-        RFC 8754 Section 2.1). The implementation assembles the 128-bit wire
-        value by packing the locator block followed by the uSID values in order,
-        zero-padding the remainder to 128 bits (End-of-Container marker).
+        One CSID container entry in the SRH segment list (RFC 9800, RFC 8754 Section 2.1).
+        Supports both NEXT-CSID (locator_length > 0) and REPLACE-CSID packed format
+        (locator_length = 0) as described in Flow.Ipv6SegmentRoutingUsid.
 
-        For F3216 format (RFC 9800 Section 3): Locator Block = 32 bits, each uSID = 16 bits,
-        up to 6 uSIDs per container.
-        Example - locator fc00::/32 (locator_length 32), usids ["0001","0002","0003"]
-        assembles to the 128-bit SRH entry fc00:0:1:2:3::
+        NEXT-CSID example (F3216: locator_length=32, 16-bit CSIDs):
+          locator fc00::/32, usids ["0001","0002","0003"] -> SRH entry fc00:0:1:2:3::
+
+        REPLACE-CSID packed examples (LNFL=32, K=4, locator_length=0):
+          Fully used (4 CSIDs):
+            usids ["00050005","00040004","00030003","00020002"]
+            wire: [00050005][00040004][00030003][00020002] -> 5:5:4:4:3:3:2:2
+            (usids[3]=00020002 at LSB is processed first by the router)
+
+          Partially used (2 CSIDs; unused MSB slots set to zero explicitly):
+            usids ["00000000","00000000","00030004","00010002"]
+            wire: [00000000][00000000][00030004][00010002] -> ::3:4:1:2
+            (usids[3]=00010002 at LSB is processed first by the router)
       type: object
       properties:
         locator:
@@ -17143,23 +16957,35 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SegmentRoutingUsid.Segment.LocatorLength'
         usids:
           description: |-
-            Ordered list of uSID values to pack into this container after the Locator Block (RFC 9800 Section 3). Each uSID occupies ((128 - locator_length) / no of uSIDs) bits. For F3216 each uSID is 16 bits (4 hex chars) and up to 6 uSIDs fit per container. The implementation appends the End-of-Container zero-pad automatically. Example for F3216: ["0001","0002","0003"] with locator fc00::/32 assembles to SRH entry fc00:0:1:2:3::
+            Ordered list of CSID hex strings for this container (RFC 9800 Section 3).
+            For NEXT-CSID (locator_length > 0): CSIDs are packed in forward order after
+            the Locator Block. usids[0] immediately follows the LB, usids[1] follows, etc.
+            The value 0x0 (all zeros) is reserved as the End-of-Container marker.
+            Example F3216: ["0001","0002","0003"] with locator fc00::/32 -> fc00:0:1:2:3::
+
+            For REPLACE-CSID packed containers (locator_length = 0): provide exactly
+            K = floor(128/LNFL) CSIDs in wire order (left to right, MSB first).
+            Use "00000000" (32-bit) or "0000" (16-bit) for unused slots.
+            LNFL is inferred from hex string width (8 chars = 32-bit, K = 4;
+            4 chars = 16-bit, K = 8).
+            Per RFC 9800 Section 4.2, DA.Arg.Index starts at K-1 (LSB slot);
+            usids[K-1] is the first CSID the router processes, usids[0] is the last.
+
+            Example LNFL=32, K=4, fully used (4 CSIDs):
+              usids ["00050005","00040004","00030003","00020002"]
+              wire: [00050005][00040004][00030003][00020002] (MSB->LSB) -> 5:5:4:4:3:3:2:2
+              Router processes: 00020002 first, then 00030003, 00040004, 00050005.
+
+            Example LNFL=32, K=4, partially used (2 CSIDs; unused MSB slots set to zero):
+              usids ["00000000","00000000","00030004","00010002"]
+              wire: [00000000][00000000][00030004][00010002] (MSB->LSB) -> ::3:4:1:2
+              Router processes: 00010002 first, then 00030004.
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/Flow.Ipv6SegmentRoutingUsid.uSid'
+            type: string
+            format: hex
           x-field-uid: 3
-    Flow.Ipv6SegmentRoutingUsid.uSid:
-      description: |-
-        One uSID value within a compressed uSID container (RFC 9800 Section 3). Represents a single network function (node SID, adjacency SID, or service SID) packed consecutively after the Locator Block inside the 128-bit container. For F3216 (RFC 9800 Section 3), each uSID is 16 bits (4 hex characters).
-      type: object
-      properties:
-        usid:
-          description: |-
-            The uSID value expressed as a hex string (RFC 9800 Section 3). The string width must match the uSID bit length divided by 4. For F3216 (16-bit uSID): 4 hex characters. The value 0x0000 is reserved as the End-of-Container (EoC) marker and must not be used as a uSID value (RFC 9800 Section 3). Example: "0001" identifies node 1; with locator fc00::/32 this contributes the 0001 field to produce container fc00:0:1:...::
-          type: string
-          format: hex
-          x-field-uid: 1
     Flow.Ipv6SegmentRouting.uSidFlags:
       description: |-
         SRH Flags field (RFC 8754 Section 2.1). An 8-bit field; RFC 8754 marks all bits as reserved.
@@ -17193,6 +17019,594 @@ components:
         length:
           x-field-uid: 2
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SRH.PadTlv.Length'
+    Flow.Cfm:
+      description: |-
+        Defines the fields of a Connectivity Fault Management (CFM) Packet Data Unit (PDU) as specified in IEEE 802.1Q-2018 Clause 21. CCM destination MAC is a multicast address derived from the maintenance domain level (IEEE 802.1Q-2018 Table 21-3).
+      type: object
+      properties:
+        md_level:
+          description: |-
+            Maintenance Domain Level (0-7). Determines the CCM multicast destination MAC address: 01:80:c2:00:00:3X where X is the level in hex (e.g. level 5 = 01:80:c2:00:00:35, level 0 = 01:80:c2:00:00:30). Defined in IEEE 802.1Q-2018 Table 21-3.
+          type: integer
+          format: uint32
+          default: 0
+          maximum: 7
+          x-field-uid: 1
+        version:
+          description: |-
+            CFM Common Header version field (IEEE 802.1Q-2018 Table 21-6). Must be 0 for all frames compliant with this standard.
+          type: integer
+          format: uint32
+          default: 0
+          maximum: 31
+          x-field-uid: 2
+        op_code:
+          $ref: '#/components/schemas/Flow.Cfm.SelectOpCode'
+          x-field-uid: 3
+    Flow.Cfm.SelectOpCode:
+      description: |-
+        Select message header. The opcode byte in the CFM Common Header is automatically set based on the choice as defined in IEEE 802.1Q-2018 Table 21-7. Currently only Continuity Check Message (CCM), Loopback Message (LBM) and Loopback Reply (LBR) are supported.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: ccm
+          x-field-uid: 1
+          x-enum:
+            ccm:
+              x-field-uid: 1
+            lbm:
+              x-field-uid: 2
+            lbr:
+              x-field-uid: 3
+          enum:
+          - ccm
+          - lbm
+          - lbr
+        ccm:
+          $ref: '#/components/schemas/Flow.Cfm.Ccm'
+          x-field-uid: 2
+        lbm:
+          $ref: '#/components/schemas/Flow.Cfm.Lbm'
+          x-field-uid: 3
+        lbr:
+          $ref: '#/components/schemas/Flow.Cfm.Lbr'
+          x-field-uid: 4
+    Flow.Cfm.Ccm:
+      description: |-
+        CCM is a multicast PDU used to detect continuity and configuration errors within a Maintenance Association (MA). As defined in IEEE 802.1Q-2018 Section 12.14.6.
+      type: object
+      properties:
+        flags:
+          $ref: '#/components/schemas/Flow.Cfm.Ccm.Flags'
+          x-field-uid: 1
+        sequence_number:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.SequenceNumber'
+        ma_endpoint_identifier:
+          x-field-uid: 3
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier'
+        ethernet_oam_protocol:
+          $ref: '#/components/schemas/Flow.Cfm.OamProtocol'
+          x-field-uid: 4
+        tlvs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
+          x-field-uid: 5
+        append_end_tlv:
+          description: |-
+            When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour with a deliberately missing End TLV.
+          type: boolean
+          default: true
+          x-field-uid: 6
+    Flow.Cfm.Ccm.Flags:
+      description: |-
+        CCM flags byte has RDI and CCM Interval.
+      type: object
+      properties:
+        rdi:
+          description: |-
+            Remote Defect Indicator. When true the MEP is reporting a local defect to its remote peers (IEEE 802.1Q-2018 Section 12.14.6.1.3).
+          type: boolean
+          default: false
+          x-field-uid: 1
+        ccm_interval:
+          description: |-
+            CCM transmission interval. Encoded as a 3-bit integer in the flags byte as defined in IEEE 802.1Q-2018 Table 21-15. 0 = invalid, 1 = 3.33 ms, 2 = 10 ms, 3 = 100 ms, 4 = 1 s, 5 = 10 s, 6 = 1 min, 7 = 10 min.
+          type: integer
+          format: uint32
+          default: 4
+          maximum: 7
+          x-field-uid: 2
+    Flow.Cfm.OamProtocol:
+      description: |-
+        Ethernet OAM standard used to encode the 48-byte identifier field in the CCM PDU. Currently only the cfm choice is available; IEEE 802.1Q-2018 MAID encoding (MD Name + Short MA Name) is used. Future choices may include ITU-T Y.1731 MEG ID encoding.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: cfm
+          x-field-uid: 1
+          x-enum:
+            cfm:
+              x-field-uid: 1
+          enum:
+          - cfm
+        cfm:
+          $ref: '#/components/schemas/Flow.Cfm.MaidCfm'
+          x-field-uid: 2
+    Flow.Cfm.MaidCfm:
+      description: |-
+        IEEE 802.1Q-2018 MAID encoding: MD Name (optional) + Short MA Name, zero-padded to fill 48 bytes in the CCM PDU. The choice selects the Short MA Name Format as defined in IEEE 802.1Q-2018 Table 21-20 and provides a typed input for each format.
+      type: object
+      properties:
+        md_name:
+          description: |-
+            Maintenance domain name encoding. When present, the MD Name field is included in the MAID using the selected format (IEEE 802.1Q-2018 Table 21-19 Formats 2-4). When absent, Format 1 (No MD Name) is encoded and the MAID begins directly with the Short MA Name.
+          $ref: '#/components/schemas/Flow.Cfm.MDNameFormat'
+          x-field-uid: 1
+        short_ma_name:
+          description: |-
+            Short MA Name encoding. The Short MA Name field is mandatory in the MAID and identifies the Maintenance Association within its Maintenance Domain. The selected format determines the on-wire encoding per IEEE 802.1Q-2018 Table 21-20 (Formats 1-4).
+          $ref: '#/components/schemas/Flow.Cfm.ShortMANameFormat'
+          x-field-uid: 2
+    Flow.Cfm.MDNameFormat:
+      type: object
+      description: |-
+        Maintenance domain name encoding. The choice selects the MD Name Format as defined in IEEE 802.1Q-2018 Table 21-19 and provides a typed input for each format. Length is auto-computed from the value unless overridden.
+      properties:
+        choice:
+          type: string
+          default: char_str
+          x-enum:
+            domain_name_str:
+              x-field-uid: 1
+            mac_addr:
+              x-field-uid: 2
+            char_str:
+              x-field-uid: 3
+          x-field-uid: 1
+          enum:
+          - domain_name_str
+          - mac_addr
+          - char_str
+        length:
+          description: |-
+            Length of the MD Name value in octets. Auto-computed by default.
+          $ref: '#/components/schemas/Flow.Cfm.Length'
+          x-field-uid: 2
+        domain_name_str:
+          description: |-
+            DNS-like domain name, e.g. "example.com" (RFC 1034 encoding). Maximum 43 octets (IEEE 802.1Q-2018 Table 21-19).
+          type: string
+          default: ''
+          x-field-uid: 3
+        mac_addr:
+          description: |-
+            MAC address + 2-octet integer (IEEE Format 3). See Flow.Cfm.MDNameMacAddr.
+          $ref: '#/components/schemas/Flow.Cfm.MDNameMacAddr'
+          x-field-uid: 4
+        char_str:
+          description: |-
+            Character string (ASCII), up to 43 octets (IEEE 802.1Q-2018 Table 21-19).
+          type: string
+          default: ''
+          x-field-uid: 5
+    Flow.Cfm.MDNameMacAddr:
+      description: |-
+        MD Name Format 3 encoding as defined in IEEE 802.1Q-2018 Table 21-19. Consists of a 6-octet MAC address followed by a 2-octet unsigned integer in network byte order. Total wire length is always 8 octets.
+      type: object
+      properties:
+        mac:
+          description: |-
+            6-octet MAC address component, e.g. "00:11:22:33:44:55".
+          type: string
+          format: mac
+          default: 00:00:00:00:00:00
+          x-field-uid: 1
+        id:
+          description: |-
+            Locally assigned 2-octet unsigned integer in network byte order that distinguishes multiple maintenance domains sharing the same MAC address (IEEE 802.1Q-2018 Table 21-19).
+          type: integer
+          format: uint32
+          maximum: 65535
+          default: 0
+          x-field-uid: 2
+    Flow.Cfm.ShortMANameFormat:
+      type: object
+      description: |-
+        Short MA Name encoding (IEEE 802.1Q-2018 Table 21-20). Choose one of four formats and provide its typed value. Length is auto-computed from the value unless overridden.
+      properties:
+        choice:
+          type: string
+          default: char_str
+          x-enum:
+            primary_vid:
+              x-field-uid: 1
+            char_str:
+              x-field-uid: 2
+            two_oct_int:
+              x-field-uid: 3
+            rfc_2685_vpn_id:
+              x-field-uid: 4
+          x-field-uid: 1
+          enum:
+          - primary_vid
+          - char_str
+          - two_oct_int
+          - rfc_2685_vpn_id
+        length:
+          description: |-
+            Length of the Short MA Name value in octets. Auto-computed by default.
+          $ref: '#/components/schemas/Flow.Cfm.Length'
+          x-field-uid: 2
+        primary_vid:
+          description: |-
+            Primary VLAN ID (1-4094). Encoded as a 2-octet unsigned integer.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 4094
+          default: 1
+          x-field-uid: 3
+        char_str:
+          description: |-
+            Character string (ASCII), up to 45 octets (RFC 2579 DisplayString).
+          type: string
+          default: ''
+          x-field-uid: 4
+        two_oct_int:
+          description: |-
+            2-octet unsigned integer, e.g. a locally assigned VLAN tag.
+          type: integer
+          format: uint32
+          maximum: 65535
+          default: 0
+          x-field-uid: 5
+        rfc_2685_vpn_id:
+          description: |-
+            RFC 2685 VPN ID, exactly 7 octets (3-octet OUI + 4-octet index). Encode as 14 hex characters, e.g. "00000000000000".
+          type: string
+          format: hex
+          default: '00000000000000'
+          x-field-uid: 6
+    Flow.Cfm.Lbm:
+      description: |-
+        Loopback Message (LBM) is a diagnostic frame used to verify connectivity between Maintenance End Points (MEPs) and Maintenance Intermediate Points (MIPs). LBM flag bits are reserved and set to zero.
+      type: object
+      properties:
+        transaction_id:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbm.TransactionId'
+        tlvs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
+          x-field-uid: 2
+        append_end_tlv:
+          description: |-
+            When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour with a deliberately missing End TLV.
+          type: boolean
+          default: true
+          x-field-uid: 3
+    Flow.Cfm.Lbr:
+      description: |-
+        Loopback Reply (LBR) messages are unicast frames sent by a Maintenance Association End Point (MEP) or Intermediate Point (MIP) to a source MEP in response to a Loopback Message (LBM). LBR flag bits are reserved and set to zero.
+      type: object
+      properties:
+        transaction_id:
+          x-field-uid: 1
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbr.TransactionId'
+        tlvs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
+          x-field-uid: 2
+        append_end_tlv:
+          description: |-
+            When true, the implementation appends an End TLV (Type 0, IEEE 802.1Q-2018 Table 21-17) after all TLVs in the tlvs list. Set to false only when testing DUT behaviour with a deliberately missing End TLV.
+          type: boolean
+          default: true
+          x-field-uid: 3
+    Flow.Cfm.Tlvs:
+      description: |-
+        CFM TLV entry. The Type byte (IEEE 802.1Q-2018 Table 21-17) is set automatically from the choice: Sender ID=1, Port Status=2, Data=3, Interface Status=4. Length (2 octets) and Value are defined per TLV type.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: sender_id
+          x-field-uid: 1
+          x-enum:
+            sender_id:
+              x-field-uid: 1
+            port_status:
+              x-field-uid: 2
+            interface_status:
+              x-field-uid: 3
+            data:
+              x-field-uid: 4
+          enum:
+          - sender_id
+          - port_status
+          - interface_status
+          - data
+        length:
+          x-field-uid: 2
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Tlvs.Length'
+        sender_id:
+          $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv'
+          x-field-uid: 3
+        port_status:
+          $ref: '#/components/schemas/Flow.Cfm.PortStatusTlv'
+          x-field-uid: 4
+        interface_status:
+          $ref: '#/components/schemas/Flow.Cfm.InterfaceStatusTlv'
+          x-field-uid: 5
+        data:
+          $ref: '#/components/schemas/Flow.Cfm.DataTlv'
+          x-field-uid: 6
+    Flow.Cfm.SenderIdTlv:
+      description: |-
+        Sender ID TLV (Type 1) carries the sender's chassis identity and optionally a Management Address so that the receiving MEP can identify and reach back to the sender, as defined in IEEE 802.1Q-2018 Section 21.5.5, Table 21-16.
+      type: object
+      properties:
+        chassis_id:
+          description: |-
+            Chassis identifier of the sender. When absent, the Chassis ID Length field is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
+          $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv.ChassisId'
+          x-field-uid: 1
+    Flow.Cfm.SenderIdTlv.ChassisId:
+      description: |-
+        Sender ID TLV with Chassis ID
+      type: object
+      properties:
+        choice:
+          description: |-
+            Select the LLDP Chassis ID Subtype (IEEE 802.1AB-2016 Table 8-3).
+          type: string
+          default: mac_address
+          x-enum:
+            chassis_component:
+              x-field-uid: 1
+            interface_alias:
+              x-field-uid: 2
+            port_component:
+              x-field-uid: 3
+            mac_address:
+              x-field-uid: 4
+            network_address:
+              x-field-uid: 5
+            interface_name:
+              x-field-uid: 6
+            locally_assigned:
+              x-field-uid: 7
+          x-field-uid: 1
+          enum:
+          - chassis_component
+          - interface_alias
+          - port_component
+          - mac_address
+          - network_address
+          - interface_name
+          - locally_assigned
+        length:
+          $ref: '#/components/schemas/Flow.Cfm.Length'
+          x-field-uid: 2
+        chassis_component:
+          description: |-
+            Identifies the hardware component FRU/shelf.
+          type: string
+          default: ''
+          x-field-uid: 3
+        interface_alias:
+          description: |-
+            Identifies the interface by its manager-assigned name.
+          type: string
+          default: ''
+          x-field-uid: 4
+        port_component:
+          description: |-
+            Identifies a port-class physical component of the chassis.
+          type: string
+          default: ''
+          x-field-uid: 5
+        mac_address:
+          description: |-
+            MAC address identifying the chassis.
+          type: string
+          format: mac
+          default: 00:00:00:00:00:00
+          x-field-uid: 6
+        network_address:
+          description: |-
+            Network address identifying the chassis (IEEE 802.1AB-2016 Chassis ID Subtype 5).
+          $ref: '#/components/schemas/Flow.Cfm.Network'
+          x-field-uid: 7
+        interface_name:
+          description: |-
+            Identifies the interface by a system-assigned name.
+          type: string
+          default: ''
+          x-field-uid: 8
+        locally_assigned:
+          description: |-
+            String assigned by the local administrator.
+          type: string
+          default: ''
+          x-field-uid: 9
+        management_address_domain:
+          description: |-
+            Management Address Domain and address of the sender. When absent, the Management Address Domain Length field is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
+          $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv.MADomain'
+          x-field-uid: 10
+    Flow.Cfm.SenderIdTlv.MADomain:
+      description: |-
+        Sender ID TLV with Management Address Domain
+      type: object
+      properties:
+        length:
+          $ref: '#/components/schemas/Flow.Cfm.Length'
+          x-field-uid: 1
+        domain:
+          description: |-
+            The domain is a full BER-encoded OID identifying the transport/protocol, CFM follows the SNMPv3 RFC 3411.
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 2
+        management_address:
+          description: |-
+            Management Address of the sender. When absent, the Management Address Length field is set to 0 in the Sender ID TLV (IEEE 802.1Q-2018 Section 21.5.5.1).
+          $ref: '#/components/schemas/Flow.Cfm.SenderIdTlv.MgmtAddress'
+          x-field-uid: 3
+    Flow.Cfm.SenderIdTlv.MgmtAddress:
+      description: |-
+        Sender ID TLV with Management Address
+      type: object
+      properties:
+        length:
+          $ref: '#/components/schemas/Flow.Cfm.Length'
+          x-field-uid: 1
+        address:
+          description: |-
+            The address is in the format defined by the domain. This lets the receiver know exactly how to dial back into the sender's management stack.
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 2
+    Flow.Cfm.Network:
+      description: |-
+        Typed network address used as the Sender ID TLV Chassis ID Subtype 5 (IEEE 802.1AB-2016 Table 8-3). On the wire, the choice value encodes the leading IANA address family octet (1 = IPv4, 2 = IPv6), followed by the corresponding IP address bytes.
+      type: object
+      properties:
+        choice:
+          description: |-
+            IANA address family, encodes the first octet of the network address.
+          type: string
+          default: ipv4
+          x-enum:
+            ipv4:
+              x-field-uid: 1
+            ipv6:
+              x-field-uid: 2
+          x-field-uid: 1
+          enum:
+          - ipv4
+          - ipv6
+        ipv4:
+          description: |-
+            Chassis ID IPv4 address
+          type: string
+          format: ipv4
+          default: 0.0.0.0
+          x-field-uid: 2
+        ipv6:
+          description: |-
+            Chassis ID IPv6 address
+          type: string
+          format: ipv6
+          default: ::0
+          x-field-uid: 3
+    Flow.Cfm.PortStatusTlv:
+      description: |-
+        Port Status TLV (Type 2) indicates the ability of the Bridge Port to pass ordinary data traffic, as defined in IEEE 802.1Q-2018 Section 12.14.3.3.
+      type: object
+      properties:
+        status:
+          description: |-
+            Port status can be either port blocked or port up.
+          type: string
+          default: port_up
+          x-enum:
+            port_blocked:
+              x-field-uid: 1
+            port_up:
+              x-field-uid: 2
+          x-field-uid: 1
+          enum:
+          - port_blocked
+          - port_up
+    Flow.Cfm.InterfaceStatusTlv:
+      description: |-
+        Interface Status TLV (Type 4) indicates the operational state of a physical or logical interface between Provider Edge (PE) and Customer Edge (CE) devices. As defined in IEEE 802.1Q-2018 Section 12.14.3.4.
+      type: object
+      properties:
+        status:
+          description: |-
+            Defined Interface status.
+          type: string
+          default: up
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+            testing:
+              x-field-uid: 3
+            unknown:
+              x-field-uid: 4
+            dormant:
+              x-field-uid: 5
+            not_present:
+              x-field-uid: 6
+            lower_layer_down:
+              x-field-uid: 7
+          x-field-uid: 1
+          enum:
+          - up
+          - down
+          - testing
+          - unknown
+          - dormant
+          - not_present
+          - lower_layer_down
+    Flow.Cfm.DataTlv:
+      description: |-
+        Data TLV (Type 3) used to carry arbitrary test data, typically for loopback testing. As defined in IEEE 802.1Q-2018 Section 12.14.3.2.
+      type: object
+      properties:
+        data:
+          description: |-
+            Arbitrary test data payload. The length field of the parent TLV entry should be set to auto to match the byte count of this value.
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 1
+    Flow.Cfm.Length:
+      description: |-
+        Length field with auto-compute or explicit-value choice. When auto, the implementation derives the value from the associated data field.
+      type: object
+      properties:
+        choice:
+          description: |-
+            auto or configured value.
+          type: string
+          default: auto
+          x-field-uid: 1
+          x-enum:
+            auto:
+              x-field-uid: 1
+            value:
+              x-field-uid: 2
+          enum:
+          - auto
+          - value
+        auto:
+          description: |-
+            The OTG implementation will provide a system generated value for this property.  If the OTG implementation is unable to generate a value the default value must be used.
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 1
+          x-field-uid: 2
+        value:
+          type: integer
+          format: uint32
+          maximum: 255
+          default: 1
+          x-field-uid: 3
     Flow.Size:
       description: |-
         The frame size which overrides the total length of the packet
@@ -18598,12 +19012,18 @@ components:
           x-enum:
             rocev2:
               x-field-uid: 1
+            macsec:
+              x-field-uid: 2
           x-field-uid: 1
           enum:
           - rocev2
+          - macsec
         rocev2:
           $ref: '#/components/schemas/Rocev2.PerPortSettings'
           x-field-uid: 2
+        macsec:
+          $ref: '#/components/schemas/Macsec.PerPortSettings'
+          x-field-uid: 3
     Rocev2.PerPortSettings:
       description: |-
         Data plane traffic flow configuration for a test port.
@@ -18930,6 +19350,184 @@ components:
           maximum: 100
           default: 0.001
           x-field-uid: 14
+    Macsec.PerPortSettings:
+      description: |-
+        MACsec hardware acceleration settings of a test port. These settings are applicable to all MACsec devices configured on this port. These settings are not applicable to MACsec configured on LAG member port.
+      type: object
+      properties:
+        hardware_acceleration:
+          $ref: '#/components/schemas/Macsec.HardwareAcceleration'
+          x-field-uid: 1
+        validate_frames:
+          $ref: '#/components/schemas/Macsec.ValidateFrames'
+          x-field-uid: 2
+    Macsec.HardwareAcceleration:
+      description: |-
+        Hardware acceleration configuration for offloading MACsec processing to hardware.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Hardware acceleration types.
+          type: string
+          default: none
+          x-field-uid: 1
+          x-enum:
+            none:
+              x-field-uid: 1
+            inline_crypto:
+              x-field-uid: 2
+          enum:
+          - none
+          - inline_crypto
+        inline_crypto:
+          $ref: '#/components/schemas/Macsec.HardwareAcceleration.InlineCrypto'
+          x-field-uid: 2
+    Macsec.ValidateFrames:
+      description: |-
+        Controls validation of received frames.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Controls validation of received frames. check - enable validation, do not discard invalid frames and increment in_pkts_invalid stats. strict - enable validation and discard invalid frames and increment in_pkts_not_valid stats.
+          type: string
+          default: check
+          x-field-uid: 1
+          x-enum:
+            check:
+              x-field-uid: 1
+            strict:
+              x-field-uid: 2
+          enum:
+          - check
+          - strict
+    Macsec.HardwareAcceleration.InlineCrypto:
+      description: |-
+        Inline cryto engine configuration. Encryption/ decryption are offloaded to hardware. Also dynamic fields e.g. packet number(PN) and integrity check value(ICV) are updated in MACsec header on transmit.
+      type: object
+      properties:
+        rx_sectag_offset:
+          description: |-
+            Offset of Rx secTAG from the first byte in packet. It is set to 12 when the secTAG includes the 'ethernet type' field which has value “0x88E5”.
+          type: integer
+          format: uint32
+          minimum: 12
+          default: 12
+          x-field-uid: 1
+        rx_sc_identifying_field:
+          description: |-
+            The field based on which secure channel(SC) will be identified by the receiving port. Supported fields are:- - 1) source MAC - identify SC based on source MAC field. 2) SCI system ID - identify SC based on SCI system ID field. 3) SCI port ID - identify based on SCI port ID field.
+          type: string
+          default: source_mac
+          x-field-uid: 2
+          x-enum:
+            source_mac:
+              x-field-uid: 1
+            sci_system_id:
+              x-field-uid: 2
+            sci_port_id:
+              x-field-uid: 3
+          enum:
+          - source_mac
+          - sci_system_id
+          - sci_port_id
+        type_of_ca:
+          $ref: '#/components/schemas/Macsec.HardwareAcceleration.InlineCrypto.TypeOfCa'
+          x-field-uid: 3
+        max_ca_count:
+          description: |-
+            The number of CAs configured in MKA can be determined by the number of devices having different VLANs, and within the same VLAN, by the number of distinct CKNs (CAK Names). The maximum number of CAs permitted on the port. The value should be rounded to the power of 2 to the ceiling of actual number of CAs. E.g. for 5 CAs, maximum CA count should be set to 8. The maximum count supported per port is 256 for Pair-wise CA, each CA having one MACsec device. Product of maximum CA count and MACsec device count per CA can have a maximum value of 256. E.g. for maximum CA count of 1, maximum 256 devices are permitted. For maximum CA count of 8, maximum 32 devices are permitted per CA. For maximum CA count of 256, maximum 1 device is permitted per CA.
+          type: string
+          default: two_fifty_six
+          x-field-uid: 4
+          x-enum:
+            one:
+              x-field-uid: 1
+            two:
+              x-field-uid: 2
+            four:
+              x-field-uid: 3
+            eight:
+              x-field-uid: 4
+            sixteen:
+              x-field-uid: 5
+            thirty_two:
+              x-field-uid: 6
+            sixty_four:
+              x-field-uid: 7
+            one_twenty_eight:
+              x-field-uid: 8
+            two_fifty_six:
+              x-field-uid: 9
+          enum:
+          - one
+          - two
+          - four
+          - eight
+          - sixteen
+          - thirty_two
+          - sixty_four
+          - one_twenty_eight
+          - two_fifty_six
+    Macsec.HardwareAcceleration.InlineCrypto.TypeOfCa:
+      description: |-
+        Type of connectivity association(CA).
+      type: object
+      properties:
+        choice:
+          description: |-
+            Type of connectivity association(CA).
+          type: string
+          default: pairwise_ca
+          x-field-uid: 1
+          x-enum:
+            pairwise_ca:
+              x-field-uid: 1
+            group_ca:
+              x-field-uid: 2
+          enum:
+          - pairwise_ca
+          - group_ca
+        group_ca:
+          $ref: '#/components/schemas/Macsec.HardwareAcceleration.InlineCrypto.TypeOfCa.GroupCa'
+          x-field-uid: 2
+    Macsec.HardwareAcceleration.InlineCrypto.TypeOfCa.GroupCa:
+      description: |-
+        Group onnectivity association(CA).
+      type: object
+      properties:
+        choice:
+          description: |-
+            DUT Tx secure channel(SC) count in group connectivity association(CA).
+          type: string
+          default: multiple_dut_tx_sc
+          x-field-uid: 1
+          x-enum:
+            single_dut_tx_sc:
+              x-field-uid: 1
+            multiple_dut_tx_sc:
+              x-field-uid: 2
+          enum:
+          - single_dut_tx_sc
+          - multiple_dut_tx_sc
+        multiple_dut_tx_sc:
+          $ref: '#/components/schemas/Macsec.HardwareAcceleration.InlineCrypto.TypeOfCa.GroupCa.MultipleDutTxSc'
+          x-field-uid: 2
+    Macsec.HardwareAcceleration.InlineCrypto.TypeOfCa.GroupCa.MultipleDutTxSc:
+      description: |-
+        Maximum possible DUT Tx secure channel(SC) count per group connectivity association(CA).
+      type: object
+      properties:
+        max_dut_tx_sc_per_ca:
+          description: |-
+            When there are multiple DUTs connected to a group CA, set the maximum possible number of DUT transmit SCs per CA. If max_ca_count is N then the value should be <= (256/N). If any greater value is given, it should be set to (256/ N).
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 256
+          default: 1
+          x-field-uid: 1
     Error:
       description: |-
         Error response generated while serving API request.
@@ -20520,14 +21118,22 @@ components:
           x-enum:
             initiate_graceful_restart:
               x-field-uid: 1
+            update_overload_bit:
+              x-field-uid: 2
           x-field-uid: 1
           enum:
           - initiate_graceful_restart
+          - update_overload_bit
         initiate_graceful_restart:
           description: |-
             Configuration for the initiation of the IS-IS Graceful Restart.
           $ref: '#/components/schemas/Action.Protocol.Isis.InitiateRestart'
           x-field-uid: 2
+        update_overload_bit:
+          description: |-
+            Configuration for setting or clearing the IS-IS overload bit on selected routers.
+          $ref: '#/components/schemas/Action.Protocol.Isis.OverloadBit'
+          x-field-uid: 3
     Action.Protocol.Isis.InitiateRestart:
       description: "Timers T1 and T2 are used both by a restarting router and a starting\
         \ router. Timer T3 is used only by a restarting router.\n- Timer T1 is maintained\
@@ -20619,6 +21225,51 @@ components:
           default: 10
           minimum: 0
           x-field-uid: 3
+    Action.Protocol.Isis.OverloadBit:
+      description: |-
+        Sets or clears the LSP Database Overload (OL) bit (Bit 3 of the
+        P/ATT/LSPDBOL/IS-Type octet, ISO/IEC 10589:2002 Section 9.8) in
+        LSP Number zero of the selected routers without restarting the IS-IS
+        session (Section 7.2.5).
+        When set, other routers exclude this router from transit IS SPF
+        calculations; End System reachability through it is preserved
+        (Section 7.2.8.1, RFC 3787 Section 4).
+        The router re-originates LSP Number zero with an incremented sequence
+        number; IS-IS floods it domain-wide so all routers recompute SPF.
+        Typical uses: planned maintenance; simulating an overloaded router.
+      type: object
+      properties:
+        router_names:
+          description: |
+            The names of IS-IS routers on which to apply the overload bit state. If no names are specified then the action is applied to all configured IS-IS routers.
+
+            x-constraint:
+            - /components/schemas/Device.IsisRouter/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.IsisRouter/properties/name
+          x-field-uid: 1
+        choice:
+          description: |-
+            set: The router sets the OL bit in its LSP Number zero. Other routers
+            exclude this router from transit SPF path calculations for Intermediate
+            System neighbours. End System reachability through this router is
+            preserved.
+            unset: The router clears the OL bit from its LSP Number zero. Normal
+            transit path calculations resume for all routers.
+          type: string
+          x-field-uid: 2
+          default: set
+          x-enum:
+            set:
+              x-field-uid: 1
+            unset:
+              x-field-uid: 2
+          enum:
+          - set
+          - unset
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice.
@@ -24103,12 +24754,12 @@ components:
             The names of secure entities(secYs) to return results for. An empty list will return results for all secYs.
 
             x-constraint:
-            - /components/schemas/Macsec/properties/name
+            - /components/schemas/SecureEntity/properties/name
           type: array
           items:
             type: string
           x-constraint:
-          - /components/schemas/Macsec/properties/name
+          - /components/schemas/SecureEntity/properties/name
           x-field-uid: 1
         column_names:
           description: |-
@@ -24225,7 +24876,7 @@ components:
           x-field-uid: 6
         in_pkts_bad:
           description: |-
-            The total number of received bad packets that failed atleast one validation check.
+            The total number of received bad packets that failed atleast one validation check. Either ICV could not be verified or the packet is late.
           type: integer
           format: uint64
           x-field-uid: 7
@@ -24243,37 +24894,37 @@ components:
           x-field-uid: 9
         in_pkts_no_sci:
           description: |-
-            InPktsNoSCI,the number of packets discarded due to unknown SCI.
+            InPktsNoSCI,the number of packets discarded due to unknown SCI. MACsec validate frames mode is strict.
           type: integer
           format: uint64
           x-field-uid: 10
         in_pkts_not_using_sa:
           description: |-
-            InPktsNotUsingSA, the number of packets discarded due to unused SA.
+            InPktsNotUsingSA, the number of packets discarded due to unused SA. MACsec validate frames mode is strict.
           type: integer
           format: uint64
           x-field-uid: 11
         in_pkts_not_valid:
           description: |-
-            InPktsNotValid, the number of packets discarded due to invalid ICV.
+            InPktsNotValid, the number of packets discarded due to invalid ICV. MACsec validate frames mode is strict or confidentiality in enabled.
           type: integer
           format: uint64
           x-field-uid: 12
         in_pkts_unknown_sci:
           description: |-
-            InPktsUnknownSCI, the number of packets received with unknown SCI.
+            InPktsUnknownSCI, the number of packets received with unknown SCI. MACsec validate frames mode is not strict.
           type: integer
           format: uint64
           x-field-uid: 13
         in_pkts_unused_sa:
           description: |-
-            InPktsUnusedSA, the number of packets received with unused SA.
+            InPktsUnusedSA, the number of packets received with unused SA. MACsec validate frames mode is not strict.
           type: integer
           format: uint64
           x-field-uid: 14
         in_pkts_invalid:
           description: |-
-            InPktsInvalid, the number of packets received with invalid ICV.
+            InPktsInvalid, the number of packets received with invalid ICV. MACsec validate frames mode is check.
           type: integer
           format: uint64
           x-field-uid: 15
@@ -24406,25 +25057,25 @@ components:
           x-field-uid: 5
         live_peer_count:
           description: |-
-            Number of MKA live peers.
+            Number of MKA live peers. A live peer is a network device (peer) that has actively exchanged and confirmed recent key agreement messages (MKPDUs) with another device.
           type: integer
           format: uint64
           x-field-uid: 6
         potential_peer_count:
           description: |-
-            Number of MKA potential peers.
+            Number of MKA potential peers. A potential peer is a candidate neighbor sending MKA messages but not yet fully authenticated.
           type: integer
           format: uint64
           x-field-uid: 7
         latest_key_tx_peer_count:
           description: |-
-            Number of MKA latest key Tx peers.
+            Number of live peers ready to transmit with latest distributed key.
           type: integer
           format: uint64
           x-field-uid: 8
         latest_key_rx_peer_count:
           description: |-
-            Number of MKA latest key Rx peers.
+            Number of live peers ready to receive with latest distributed key.
           type: integer
           format: uint64
           x-field-uid: 9
@@ -35363,7 +36014,7 @@ components:
           x-field-uid: 3
     Pattern.Flow.Ipv6.Dst:
       description: |-
-        Destination address in IPv6 packet header. If dest_usids is configured, the locator and usids provided in that should be used to construct the IPv6 destination address instead of this field.
+        Destination address in IPv6 packet header. If dst_usids is configured, the locator and usids provided in that should be used to construct the IPv6 destination address instead of this field.
       type: object
       properties:
         choice:
@@ -35503,7 +36154,7 @@ components:
           maximum: 256
     Pattern.Flow.Ipv6.UsidDst.LocatorLength:
       description: |-
-        Length of the Locator Block in bits (RFC 9800 Section 3). Determines how many high-order bits of locator are used as the LB and how many bits remain for uSID packing. For F3216: 32. For F3208: 32. Valid range: 1-112.
+        Length of the Locator Block in bits (RFC 9800 Section 3). Determines how many high-order bits of locator are used as the LB and how many bits remain for CSID packing. Valid range: 1-112. For NEXT-CSID F3216 (RFC 9800 Section 3): 32. For REPLACE-CSID first container (RFC 9800 Section 4.2): use the LB length (e.g. 32 or 48); the outer IPv6 DA always carries a fully formed SRv6 SID with a LB.
       type: object
       properties:
         choice:
@@ -52158,7 +52809,7 @@ components:
           format: uint32
     Pattern.Flow.Ipv6SegmentRoutingUsid.Segment.Locator:
       description: |-
-        The Locator Block (LB) IPv6 prefix shared by all uSIDs in this container (RFC 9800 Section 3). Defines the common high-order bits of every uSID assembled from this entry. For F3216, this is a /32 prefix (e.g., fc00::). The prefix length is given by locator_length.
+        The Locator Block (LB) IPv6 prefix shared by all uSIDs in this container (RFC 9800 Section 3). Defines the common high-order bits of every uSID assembled from this entry. For F3216, this is a /32 prefix (e.g., fc00::). The prefix length is given by locator_length. Ignored when locator_length is 0 (REPLACE-CSID flavor, RFC 9800 Section 5).
       type: object
       properties:
         choice:
@@ -52223,7 +52874,16 @@ components:
           maximum: 256
     Pattern.Flow.Ipv6SegmentRoutingUsid.Segment.LocatorLength:
       description: |-
-        Length of the Locator Block in bits (RFC 9800 Section 3). Determines how many high-order bits of locator are used as the LB and how many bits remain for uSID packing. For F3216: 32. For F3208: 32. Valid range: 1-112.
+        Length of the Locator Block in bits (RFC 9800 Section 3).
+        Valid range: 0-112.
+        For NEXT-CSID (locator_length > 0): high-order locator_length bits of
+        locator form the LB; usids are packed after it in forward order.
+        For REPLACE-CSID first container (locator_length > 0): same as NEXT-CSID
+        structure; use a single usid = Locator-Node+Function value (LNFL bits).
+        For REPLACE-CSID packed containers (locator_length = 0): the locator
+        field is ignored; the 128-bit SRH entry is K = floor(128/LNFL) slots
+        of LNFL bits each; exactly K usids must be provided in wire order (MSB first);
+        see usids field description for examples (RFC 9800 Section 4.2).
       type: object
       properties:
         choice:
@@ -52716,6 +53376,339 @@ components:
           x-field-uid: 6
         decrement:
           $ref: '#/components/schemas/Pattern.Flow.Ipv6SRH.PadTlv.Length.Counter'
+          x-field-uid: 7
+    Pattern.Flow.Cfm.Ccm.SequenceNumber.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+    Pattern.Flow.Cfm.Ccm.SequenceNumber:
+      description: |-
+        CCM unique sequence number.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.SequenceNumber.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.SequenceNumber.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 1
+          format: uint32
+          maximum: 65535
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 65535
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 65536
+    Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier:
+      description: |-
+        Maintenance Association End Point Identifier (MEP ID). Unique within the MA. Range 1-8191 per IEEE 802.1Q-2018 Section 12.14.6.3.2.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 65535
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 65535
+          x-field-uid: 3
+          default:
+          - 1
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Ccm.MaEndpointIdentifier.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Cfm.Lbm.TransactionId.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+    Pattern.Flow.Cfm.Lbm.TransactionId:
+      description: |-
+        Transaction identifier copied verbatim into the corresponding LBR, allowing the sender to match the reply to this request (IEEE 802.1Q-2018 Figure 21-5).
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbm.TransactionId.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbm.TransactionId.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Cfm.Lbr.TransactionId.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+    Pattern.Flow.Cfm.Lbr.TransactionId:
+      description: |-
+        Transaction id or sequence number copied from the LBM to match the reply to the specific request.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: value
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+          x-field-uid: 3
+          default:
+          - 0
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbr.TransactionId.Counter'
+          x-field-uid: 5
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Lbr.TransactionId.Counter'
+          x-field-uid: 6
+    Pattern.Flow.Cfm.Tlvs.Length.Counter:
+      description: |-
+        integer counter pattern
+      type: object
+      properties:
+        start:
+          type: integer
+          x-field-uid: 1
+          default: 0
+          format: uint32
+          maximum: 65535
+        step:
+          type: integer
+          x-field-uid: 2
+          default: 1
+          format: uint32
+          maximum: 65535
+        count:
+          type: integer
+          x-field-uid: 3
+          default: 1
+          format: uint32
+          maximum: 65536
+    Pattern.Flow.Cfm.Tlvs.Length:
+      description: |-
+        Length of the TLV value field in octets (IEEE 802.1Q-2018 Table 21-16). When auto, derived from the selected TLV sub-object.
+      type: object
+      properties:
+        choice:
+          type: string
+          x-enum:
+            value:
+              x-field-uid: 2
+            values:
+              x-field-uid: 3
+            auto:
+              x-field-uid: 1
+            increment:
+              x-field-uid: 4
+            decrement:
+              x-field-uid: 5
+          default: auto
+          x-field-uid: 1
+          enum:
+          - value
+          - values
+          - auto
+          - increment
+          - decrement
+        value:
+          type: integer
+          x-field-uid: 2
+          default: 0
+          format: uint32
+          maximum: 65535
+        values:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            maximum: 65535
+          x-field-uid: 3
+          default:
+          - 0
+        auto:
+          description: |-
+            The OTG implementation can provide a system generated
+            value for this property. If the OTG is unable to generate a value
+            the default value must be used.
+          type: integer
+          x-field-uid: 4
+          default: 0
+          format: uint32
+          maximum: 65535
+        increment:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Tlvs.Length.Counter'
+          x-field-uid: 6
+        decrement:
+          $ref: '#/components/schemas/Pattern.Flow.Cfm.Tlvs.Length.Counter'
           x-field-uid: 7
     Version:
       description: |-

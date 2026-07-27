@@ -1,0 +1,91 @@
+components:
+  schemas:
+    Ospfv2SR.PrefixSid:
+      description: |-
+        This contains the properties of an OSPFv2 Prefix-SID sub-TLV and its attributes.
+        The Prefix-SID sub-TLV is carried inside the OSPFv2 Extended Prefix TLV of the
+        Extended Prefix Opaque LSA and is associated with a specific IPv4 prefix.
+        Reference: https://datatracker.ietf.org/doc/html/rfc8665#name-prefix-sid-sub-tlv.
+      type: object
+      properties:
+        choice:
+          description: |-
+            Choice of whether the Prefix-SID carries absolute values (local labels) or relative
+            indices into the SRGB. This choice sets the V-Flag (Value/Index) and the L-Flag
+            (Local/Global) of the Prefix-SID sub-TLV as follows:
+            - sid_indices: V-Flag and L-Flag are unset (both 0). Each Prefix-SID carries a 4-octet
+              index that is an offset into the SRGB advertised by the router. Please refer to
+              device.ospfv2.segment_routing.srgb_ranges.
+            - sid_values: V-Flag and L-Flag are set (both 1). Each Prefix-SID carries a 3-octet
+              local label value with local significance.
+            A user needs to configure at least one entry of SID value or SID index. If no entry is
+            configured, an implementation may advertise an appropriate default SID value/index
+            based on the choice, e.g. the first value from the SRGB range.
+          type: string
+          default: sid_indices
+          x-field-uid: 1
+          x-enum:
+            sid_values:
+              x-field-uid: 1
+            sid_indices:
+              x-field-uid: 2
+        sid_values:
+          description: >-
+            SID/Label as one or more absolute local label values associated with the IGP Prefix
+            segment attached to the specific IPv4 prefix. Used when the choice is sid_values.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            default: 16
+            minimum: 16
+            maximum: 1048575
+          x-field-uid: 2
+        sid_indices:
+          description: >-
+            One or more SID/Label indices associated with the IGP Prefix segment attached to the
+            specific IPv4 prefix. Each index is an offset into the SRGB. Used when the choice is
+            sid_indices.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            default: 0
+            minimum: 0
+            maximum: 4294967295
+          x-field-uid: 3
+        np_flag:
+          description: |-
+            NP-Flag: No-PHP (No Penultimate Hop-Popping) Flag.
+            If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering the
+            packet to the node that advertised the Prefix-SID.
+          type: boolean
+          default: true
+          x-field-uid: 4
+        m_flag:
+          description: |-
+            M-Flag: Mapping Server Flag.
+            If set, then the SID was advertised by an SR Mapping Server. When set, the NP-Flag and
+            the E-Flag MUST be ignored on reception.
+          type: boolean
+          default: false
+          x-field-uid: 5
+        e_flag:
+          description: |-
+            E-Flag: Explicit-Null Flag.
+            If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID
+            with the Explicit-NULL label before forwarding the packet.
+          type: boolean
+          default: false
+          x-field-uid: 6
+        algorithm:
+          description: |-
+            The Segment Routing Algorithm the Prefix-SID is associated with. The value matches an
+            algorithm advertised in the SR-Algorithm TLV, e.g. 0 for SPF or 1 for Strict SPF.
+            Reference: https://datatracker.ietf.org/doc/html/rfc8665#name-sr-algorithm-tlv.
+          type: integer
+          format: uint32
+          default: 0
+          minimum: 0
+          maximum: 255
+          x-field-uid: 7

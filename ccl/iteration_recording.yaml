@@ -1,0 +1,80 @@
+openapi: 3.0.3
+info:
+  title: CCL iteration recording models
+  version: ^0.0.0
+components:
+  schemas:
+    Ccl.Config.IterationRecording:
+      description: >-
+        Per-iteration recording configuration. Evaluated during test execution:
+        an iteration is recorded when any configured threshold is exceeded.
+
+        Follows the same SetConfig-time pattern as
+        Config.events.dp_events.rx_rate_threshold. No additional flags are
+        needed in Ccl.Metrics.Request — when enabled, recorded data is always
+        included in the response as Ccl.Metric.iteration_metrics[].
+
+        Recording stops silently when max_record_count is reached to bound
+        memory usage during long runs.
+      type: object
+      properties:
+        enable:
+          description: Enable per-iteration threshold-triggered recording.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        jct_percent_threshold:
+          description: >-
+            Record the iteration if jct / ideal_jct * 100 exceeds this value.
+            Default 105.0 flags iterations more than 5% slower than ideal,
+            matching the standard acceptance threshold for jct_percent.
+          type: number
+          format: double
+          default: 105.0
+          minimum: 0
+          x-field-uid: 2
+        drop_percent_threshold:
+          description: >-
+            Record the iteration if drop_count / total_packets * 100 exceeds
+            this value. Set to 0 to disable. Default 5.0 flags iterations
+            where more than 5% of packets were dropped.
+            For strict lossless validation set a smaller value (e.g. 0.001).
+          type: number
+          format: double
+          default: 5.0
+          minimum: 0
+          x-field-uid: 3
+        reorder_percent_threshold:
+          description: >-
+            Record the iteration if reorder_count / total_packets * 100
+            exceeds this value. Set to 0 to disable. Default 5.0.
+            Non-zero reorder in RC mode indicates fabric routing instability
+            or ECMP asymmetry.
+          type: number
+          format: double
+          default: 5.0
+          minimum: 0
+          x-field-uid: 4
+        l1_bus_bw_tx_time_percent_threshold:
+          description: >-
+            Record the iteration if l1_bus_bw_tx_time / ideal_l1_bus_bw * 100
+            exceeds this value. Captures iterations where L1 wire utilization
+            (tx_time basis) falls outside acceptable range.
+            Default 105.0 matches the JCT threshold convention.
+            Set to 0 to disable this threshold independently.
+          type: number
+          format: double
+          default: 105.0
+          minimum: 0
+          x-field-uid: 6
+        max_record_count:
+          description: >-
+            Maximum number of iteration records retained per communicator.
+            Recording stops silently when this cap is reached. Use to bound
+            memory during long fixed_seconds runs where many iterations may
+            exceed thresholds.
+          type: integer
+          format: uint32
+          default: 5000
+          minimum: 1
+          x-field-uid: 5

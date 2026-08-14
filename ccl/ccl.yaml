@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: CCL config models
+  description: >-
+    Collective Communication Library configuration schemas.
+  version: ^0.0.0
+components:
+  schemas:
+    Ccl.Config:
+      description: >-
+        Collective communication configuration. Simulates NCCL-style
+        AllReduce / AllToAll operations and measures Job Completion Time (JCT).
+        Algorithm, communicators, and generation parameters are configured per
+        communicator inside stages[]. For a simple single-algorithm test,
+        define one stage with one communicator.
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          description: >-
+            Unique name for this CCL configuration. Used as a reference
+            in metrics requests.
+          type: string
+          x-field-uid: 1
+        transport:
+          description: >-
+            Underlying transport type for CCL traffic.
+            rocev2: RoCEv2 QP-based transport (production AI Fabric).
+            uet: Ultra Ethernet Transport (UEC v1.0, 2024+).
+          type: string
+          default: rocev2
+          x-field-uid: 2
+          x-enum:
+            rocev2:
+              x-field-uid: 1
+            uet:
+              x-field-uid: 2
+        send_mode:
+          description: >-
+            async: next iteration starts without waiting for all ranks to complete
+            (pipelined).
+            sync: each iteration waits for all ranks to complete before proceeding.
+          type: string
+          default: async
+          x-field-uid: 4
+          x-enum:
+            async:
+              x-field-uid: 1
+            sync:
+              x-field-uid: 2
+        sync_rank_interval_ms:
+          description: >-
+            Interval between consecutive rank starts in sync send mode (ms).
+            Rank 0 starts first; each subsequent rank (in device_names order)
+            waits an additional interval before starting its traffic.
+            Only effective when send_mode = sync.
+          type: integer
+          format: uint32
+          default: 0
+          minimum: 0
+          x-field-uid: 5
+        stage_mode:
+          description: >-
+            sequential: stages are executed in array order; each stage starts
+            only after all communicators in the previous stage have completed.
+            llm: LLM-specific multi-phase mode (Prefill/Decode etc.); enables
+            LLM-aware Sequencer behavior in the backend.
+          type: string
+          default: sequential
+          x-field-uid: 6
+          x-enum:
+            sequential:
+              x-field-uid: 1
+            llm:
+              x-field-uid: 3
+        llm_index:
+          description: >-
+            0-based index into stages[] where the Decode loop begins.
+            Stages[0 .. llm_index-1] run once (Prefill phases).
+            Stages[llm_index ..] repeat stage_loop_count times (Decode loop).
+            Only effective when stage_mode = llm.
+            Must be less than the length of stages[].
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          x-field-uid: 17
+        stage_loop_count:
+          description: >-
+            Number of times to repeat the full stage sequence (all stages in order = one loop pass).
+            stage_loop_count = 1 means a single pass (default, no repetition).
+            stage_loop_count > 1 repeats all stages N times; use with include_loop_metrics
+            to detect JCT drift across loop passes.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          x-field-uid: 7
+        stages:
+          description: >-
+            Ordered list of stages. Each stage defines its own algorithm,
+            communicators, and generation parameters. For a single-algorithm test,
+            provide exactly one stage.
+          type: array
+          items:
+            $ref: './stage.yaml#/components/schemas/Ccl.Stage'
+          x-field-uid: 14
+        iteration_recording:
+          description: >-
+            Per-iteration threshold-triggered recording configuration.
+            Evaluated during test execution; recorded data is returned in
+            Ccl.Metric.iteration_metrics[] without additional request flags.
+            Disabled by default.
+          $ref: './iteration_recording.yaml#/components/schemas/Ccl.Config.IterationRecording'
+          x-field-uid: 15
+        tail_latency_recording:
+          description: >-
+            Per-QP-pair per-step rolling TOP-N recording configuration.
+            Evaluated during test execution; recorded data is returned in
+            Ccl.Metric.tail_latency_metrics[] without additional request flags.
+            Disabled by default.
+          $ref: './tail_latency_recording.yaml#/components/schemas/Ccl.Config.TailLatencyRecording'
+          x-field-uid: 16
+        tail_latency_cdf:
+          description: >-
+            Tail latency CDF collection configuration. When enabled, the
+            backend collects a distribution of per-iteration tail latency
+            values and returns them in Ccl.Metric.tail_latency_cdf[].
+            Disabled by default.
+          $ref: './tail_latency_cdf.yaml#/components/schemas/Ccl.Config.TailLatencyCdf'
+          x-field-uid: 18

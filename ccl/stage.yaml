@@ -1,0 +1,134 @@
+openapi: 3.0.3
+info:
+  title: CCL stage models
+  version: ^0.0.0
+components:
+  schemas:
+    Ccl.Stage:
+      description: >-
+        One stage in a CCL test. Each stage defines its own algorithm,
+        communicators, generation parameters, and run control.
+        Stages are executed in the order they appear in Ccl.Config.stages[].
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          description: Unique name for this stage within the CCL configuration.
+          type: string
+          x-field-uid: 1
+        algorithm:
+          description: >-
+            Default algorithm applied to all communicators in this stage.
+            Individual communicators may override this via their own algorithm field.
+          $ref: './algorithm.yaml#/components/schemas/Ccl.Algorithm'
+          x-field-uid: 3
+        communicators:
+          description: >-
+            List of communicators for this stage. All communicators in a stage
+            run in parallel. Each communicator defines the set of ranks
+            participating in one collective operation and may override the
+            stage-level algorithm via its own algorithm field (e.g. TP group
+            runs ring_allreduce while EP group runs all_to_all_direct
+            simultaneously).
+          type: array
+          items:
+            $ref: './communicator.yaml#/components/schemas/Ccl.Communicator'
+          x-field-uid: 4
+        bg_flow_names:
+          description: >-
+            Names of flows (from Config.flows) to activate as background
+            traffic during this stage. The Sequencer starts these flows when
+            the stage begins and stops them when the stage ends.
+            An empty list means no background traffic runs during this stage.
+            In single-stage mode, background flows can be controlled directly
+            via SetControlState instead of this field.
+          type: array
+          items:
+            type: string
+          x-constraint:
+            - '/components/schemas/Flow/properties/name'
+          x-field-uid: 12
+        duration:
+          description: >-
+            Run control for this stage. Specifies whether to stop after a
+            fixed number of collective operation iterations or after a fixed
+            wall-clock duration.
+          $ref: '#/components/schemas/Ccl.Stage.Duration'
+          x-field-uid: 11
+
+    Ccl.Stage.Duration:
+      description: >-
+        Discriminated union for CCL stage run control.
+        Mirrors the Flow.Duration pattern used by OTG traffic flows.
+      type: object
+      properties:
+        choice:
+          description: >-
+            fixed_iterations: stop after count collective operation iterations.
+            fixed_seconds: stop after the specified wall-clock duration.
+          type: string
+          default: fixed_iterations
+          x-field-uid: 1
+          x-enum:
+            fixed_iterations:
+              x-field-uid: 1
+            fixed_seconds:
+              x-field-uid: 2
+        fixed_iterations:
+          $ref: '#/components/schemas/Ccl.Stage.FixedIterations'
+          x-field-uid: 2
+        fixed_seconds:
+          $ref: '#/components/schemas/Ccl.Stage.FixedSeconds'
+          x-field-uid: 3
+
+    Ccl.Stage.FixedIterations:
+      description: >-
+        Run the stage for a fixed number of collective operation iterations.
+        One iteration = one complete collective communication round
+        (e.g. one AllReduce) across all ranks in the communicator.
+      type: object
+      properties:
+        count:
+          description: Number of collective operation iterations to run.
+          type: integer
+          format: uint32
+          default: 10
+          minimum: 1
+          maximum: 2147483647
+          x-field-uid: 1
+        interval_ms:
+          description: >-
+            Wait time between consecutive iterations in ms.
+            Simulates the inter-iteration gap (e.g. pipeline stall or
+            scheduling overhead) between successive collective rounds.
+          type: integer
+          format: uint32
+          default: 1000
+          minimum: 0
+          x-field-uid: 2
+
+    Ccl.Stage.FixedSeconds:
+      description: >-
+        Run the stage for a fixed wall-clock duration, then stop.
+        The number of completed iterations may vary depending on
+        traffic conditions and DUT behavior.
+      type: object
+      properties:
+        seconds:
+          description: Wall-clock duration in seconds after which the stage stops.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          x-field-uid: 1
+        interval_ms:
+          description: >-
+            Wait time between consecutive iterations in ms.
+            Simulates the inter-iteration gap between successive collective rounds.
+            Set to 0 for back-to-back stress test.
+          type: integer
+          format: uint32
+          default: 1000
+          minimum: 0
+          x-field-uid: 2

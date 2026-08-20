@@ -1,0 +1,109 @@
+openapi: 3.0.3
+info:
+  title: Update OSPFv2 Protocol Config
+  description: >-
+    Schema for updating OSPFv2 protocol configuration attributes on-the-fly.
+  version: ^0.0.0
+components:
+  schemas:
+    UpdateProtocol.Config.Ospfv2:
+      description: >-
+        A container for OSPFv2 properties to be updated. Presence of this object
+        indicates that one or more OSPFv2 properties require updating.
+      type: object
+      properties:
+        interfaces:
+          description: |-
+            List of OSPFv2 interface update groups. One update group targets one or more OSPFv2 interfaces.
+            Use multiple update groups to handle asymmetric changes across different subsets of interfaces.
+
+            All interfaces listed in names in each update group receive every attribute update specified in the attributes list.
+
+            If the session is up but true on-the-fly update is not supported for an attribute (e.g. metric change on an emulated interface),
+            a warning is returned indicating that the session will be disabled and re-enabled, and the updated attribute will be reflected
+            once the session comes back up.
+
+            An error should be returned if any provided name is not found in the current configuration's list of OSPFv2 interface names.
+
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateProtocol.Config.Ospfv2.Interface.UpdateGroup'
+          x-field-uid: 1
+
+    UpdateProtocol.Config.Ospfv2.Interface.UpdateGroup:
+      description: >-
+        An update group targeting one or more OSPFv2 interfaces. All interfaces
+        listed in names receive every attribute update specified in the attributes
+        list. Use multiple update groups to apply different updates to different
+        subsets of interfaces (asymmetric updates).
+
+        If the session is up but true on-the-fly update is not supported for an
+        attribute (e.g. metric change on an emulated interface): a warning is
+        returned indicating that the session will be disabled and re-enabled,
+
+        and the updated attribute will be reflected once the session comes back up.
+        An error should be returned if any provided name is not found in the current
+        configuration's list of OSPFv2 interface names.
+
+      type: object
+      properties:
+        names:
+          description: >-
+            The names of the OSPFv2 interfaces to which all attribute updates in
+            this group will be applied.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Ospfv2.Interface/properties/name
+          x-field-uid: 1
+        attributes:
+          description: >-
+            The list of interface attribute updates to apply. Each entry selects one
+            attribute via the choice discriminator. Multiple attributes can be updated
+            in a single group without repeating the names list.
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateProtocol.Config.Ospfv2.Interface.Attribute'
+          x-field-uid: 2
+
+    UpdateProtocol.Config.Ospfv2.Interface.Attribute:
+      description: >-
+        A single OSPFv2 interface attribute update. The choice field identifies which
+        attribute is being changed.
+      type: object
+      properties:
+        choice:
+          description: >-
+            The interface attribute to be updated.
+          type: string
+          x-enum:
+            metric:
+              x-field-uid: 1
+          x-field-uid: 1
+        metric:
+          description: |-
+            The routing metric (interface output cost) to be updated on the OSPFv2
+            interface. It is advertised as the 16-bit TOS 0 metric of the corresponding
+            link in the Router-LSA (RFC 2328 Appendix A.4.2); the interface output cost
+            has a valid range of 1 to 65535 (RFC 2328 Section C.3). This applies equally
+            to emulated and simulated OSPFv2 interfaces, since a simulated router
+            originates its own Router-LSA carrying the same 16-bit link metric.
+
+            On a simulated OSPFv2 interface (no real adjacency with the DUT; the interface
+            belongs to a simulated router inside a simulated topology), updating the metric
+            is a true on-the-fly operation: the OSPFv2 session remains in the Up state and
+            the simulated router re-originates its Router-LSA (with an incremented LS
+            Sequence Number) carrying the new metric, which neighbors receive without any
+            session interruption.
+
+            On an emulated OSPFv2 interface (real adjacency with the DUT), a true
+            on-the-fly metric update may not be supported. In that case the implementation
+            should return a warning, disable the session, re-enable it with the updated
+            metric, and reflect the new value in the Router-LSA once the session comes
+            back up.
+          type: integer
+          format: uint32
+          default: 10
+          maximum: 65535
+          x-field-uid: 2

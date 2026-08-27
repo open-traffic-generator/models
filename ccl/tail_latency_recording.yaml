@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: CCL tail latency recording models
+  version: ^0.0.0
+components:
+  schemas:
+    Ccl.Config.TailLatencyRecording:
+      description: >-
+        Per-QP-pair per-step recording configuration. During test execution
+        the backend maintains a rolling TOP-N list ranked by top_by; when the
+        list is full a new record evicts the lowest-ranked existing entry.
+
+        This bounds memory regardless of test scale: at N=64 ranks,
+        4 QPs/peer, 100 iterations the raw record count is ~3.2M; the
+        rolling TOP-N keeps only the most diagnostic records.
+
+        No additional flags are needed in Ccl.Metrics.Request — when enabled,
+        recorded data is always included in the response as
+        Ccl.Metric.tail_latency_metrics[].
+      type: object
+      properties:
+        enable:
+          description: Enable per-QP-pair per-step rolling TOP-N recording.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        top_by:
+          description: >-
+            Ranking field for the rolling TOP-N list. The backend retains only
+            the max_record_count records with the highest value of this field;
+            a new record evicts the lowest-ranked existing entry when full.
+            transmission_time_us: retain the slowest streams (tail latency
+            analysis, identifying ECMP hot-spots).
+            drop_count: retain the streams with the most packet drops
+            (lossless fabric validation, identifying lossy paths).
+            reorder_count: retain the streams with the most packet reorders
+            (fabric routing instability, ECMP asymmetry detection).
+          type: string
+          default: transmission_time_us
+          x-field-uid: 2
+          x-enum:
+            transmission_time_us:
+              x-field-uid: 1
+            drop_count:
+              x-field-uid: 2
+            reorder_count:
+              x-field-uid: 3
+        max_record_count:
+          description: >-
+            Size N of the rolling TOP-N list, per communicator. Only the
+            max_record_count records with the highest top_by value are kept.
+            Increase for more comprehensive analysis at the cost of higher
+            memory usage; decrease for tight memory budgets.
+          type: integer
+          format: uint32
+          default: 50
+          minimum: 1
+          x-field-uid: 3

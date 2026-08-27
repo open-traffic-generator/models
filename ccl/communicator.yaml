@@ -1,0 +1,63 @@
+openapi: 3.0.3
+info:
+  title: CCL communicator models
+  version: ^0.0.0
+components:
+  schemas:
+    Ccl.Communicator:
+      description: >-
+        A communicator defines the set of devices (ranks) participating in one
+        collective operation. Corresponds to MPI_Comm / NCCL communicator.
+        Use device_names (IP/MAC taken from devices[]).
+        List order determines rank assignment: index 0 = rank 0.
+        Multiple communicators model parallel training jobs sharing the same fabric.
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          description: Unique name for this communicator. Used as key in metrics results.
+          type: string
+          x-field-uid: 1
+        device_names:
+          description: >-
+            Ordered list of device names (from Config.devices) forming this
+            communicator. Each device must have ethernet + ipv4/ipv6 configured.
+            CCL reads IP/MAC from these devices and generates QP configuration
+            automatically. Do NOT configure device.rocev2 on these devices.
+            List order determines rank assignment: index 0 = rank 0.
+          type: array
+          items:
+            type: string
+          x-constraint:
+            - '/components/schemas/Device/properties/name'
+          x-field-uid: 2
+        algorithm:
+          description: >-
+            Per-communicator algorithm override. When set, this communicator uses
+            the specified algorithm and phase instead of the stage-level default.
+            Use this when different communicators in the same stage run different
+            collective operations simultaneously (e.g., TP group uses ring_allreduce
+            while EP group uses all_to_all_direct).
+            When not set, the communicator inherits stage.algorithm.
+          $ref: './algorithm.yaml#/components/schemas/Ccl.Algorithm'
+          x-field-uid: 3
+        generation:
+          description: >-
+            Traffic generation parameters for this communicator.
+            Different communicators in the same stage may carry different data
+            volumes and pacing (e.g., TP group vs EP group), so generation
+            parameters are configured per communicator.
+            Transport-level settings (ib_mtu, chunk_size_kb, qps_per_peer) are in rocev2.
+          $ref: './generation.yaml#/components/schemas/Ccl.Generation'
+          x-field-uid: 4
+        rocev2:
+          description: >-
+            RoCEv2 transport policy enforced uniformly across all ports in this
+            communicator. Only applicable when transport = rocev2.
+            Per-port variation is not supported: connection type must be identical
+            (protocol constraint), and DSCP/ECN must be identical (PFC correctness
+            constraint) — including across other communicators that share a port
+            with this one (see Ccl.Rocev2Policy for the cross-communicator rule).
+          $ref: './rocev2_params.yaml#/components/schemas/Ccl.Rocev2Policy'
+          x-field-uid: 5

@@ -1,0 +1,722 @@
+components:
+  schemas:
+    UltraEthernet:
+      description: |-
+        A container for Ultra Ethernet (UE) link layer settings applied to one or
+        more test ports.
+
+        The Ultra Ethernet Consortium (UEC) link layer defines optional-to-implement
+        features that enhance performance and reliability of the Ethernet link:
+
+        - Link Layer Retry (LLR): frame based link level retransmission of lost frames.
+        - Credit-based Flow Control (CBFC): per virtual channel (VC) credit based
+          alternative to priority based flow control (PFC).
+        - PHY Control Ordered Set (CtlOS) timing: transmit/receive spacing controls
+          for the ordered sets that carry LLR and CBFC messages.
+
+        These settings usually vary across a variety of test ports and most likely
+        won't be portable.
+      type: object
+      required: [port_names, name]
+      properties:
+        port_names:
+          description: |-
+            A list of unique names of port objects that will share the Ultra Ethernet
+            link layer settings.
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - '/components/schemas/Port/properties/name'
+          x-field-uid: 1
+        phy:
+          description: |-
+            Ultra Ethernet PHY Control Ordered Set (CtlOS) timing settings.
+          $ref: '#/components/schemas/UltraEthernet.Phy'
+          x-field-uid: 2
+        llr:
+          description: |-
+            Ultra Ethernet Link Layer Retry (LLR) settings.
+          $ref: '#/components/schemas/UltraEthernet.Llr'
+          x-field-uid: 3
+        cbfc:
+          description: |-
+            Ultra Ethernet Credit-based Flow Control (CBFC) settings.
+          $ref: '#/components/schemas/UltraEthernet.Cbfc'
+          x-field-uid: 4
+        name:
+          x-include: ../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 5
+
+    UltraEthernet.Phy:
+      description: |-
+        Ultra Ethernet PHY layer settings that control the insertion and validation
+        of Control Ordered Sets (CtlOS). CtlOS carry the LLR (LLR_ACK, LLR_NACK,
+        LLR_INIT, LLR_INIT_ECHO) and CBFC (CF_Update) messages in the 64B/66B block
+        stream.
+      type: object
+      properties:
+        tx_control_ordered_set:
+          description: |-
+            Transmit side Control Ordered Set spacing and timing settings.
+          $ref: '#/components/schemas/UltraEthernet.Phy.TxControlOrderedSet'
+          x-field-uid: 1
+        rx_control_ordered_set:
+          description: |-
+            Receive side Control Ordered Set spacing validation settings.
+          $ref: '#/components/schemas/UltraEthernet.Phy.RxControlOrderedSet'
+          x-field-uid: 2
+        o_code:
+          description: |-
+            The 4-bit O-code used in the CtlOS 64B/66B block format. The UE
+            specification uses the value 0x6 (6).
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 15
+          default: 6
+          x-field-uid: 3
+
+    UltraEthernet.Phy.TxControlOrderedSet:
+      description: |-
+        Transmit side Control Ordered Set (CtlOS) spacing and timing configuration.
+      type: object
+      properties:
+        min_spacing:
+          description: |-
+            The minimum spacing, in bytes, between successive transmitted CtlOS.
+          type: integer
+          format: uint32
+          minimum: 320
+          maximum: 32760
+          default: 400
+          x-field-uid: 1
+        min_spacing_at_frame_start:
+          description: |-
+            The minimum number of bytes from the start of a frame before a CtlOS
+            may be inserted. Used to mitigate the impact on per-frame switch latency.
+          type: integer
+          format: uint32
+          minimum: 64
+          maximum: 1008
+          default: 256
+          x-field-uid: 2
+        min_spacing_within_frame:
+          description: |-
+            The minimum spacing, in bytes, between two CtlOS inserted within the same
+            frame so that underrun can be managed on cut-through switches.
+          type: integer
+          format: uint32
+          minimum: 1024
+          maximum: 8184
+          default: 2048
+          x-field-uid: 3
+        llr_target_spacing:
+          description: |-
+            The target spacing, in bytes, between successive transmitted
+            LLR_ACK / LLR_NACK CtlOS.
+          type: integer
+          format: uint32
+          minimum: 320
+          maximum: 32760
+          default: 2048
+          x-field-uid: 4
+        cbfc_cf_min_timer:
+          description: |-
+            The minimum spacing, in bytes, between successive transmitted CBFC
+            CF_Update messages. Guarantees a minimum spacing so that minimal bandwidth
+            overhead is used for these messages.
+          type: integer
+          format: uint32
+          minimum: 768
+          maximum: 131072
+          default: 800
+          x-field-uid: 5
+        cbfc_cf_max_timer:
+          description: |-
+            The maximum spacing, in bytes, between successive transmitted CBFC
+            CF_Update messages. Used to periodically refresh credit freed values in
+            case a previous CF_Update message was lost.
+          type: integer
+          format: uint32
+          minimum: 16384
+          maximum: 1048576
+          default: 65536
+          x-field-uid: 6
+
+    UltraEthernet.Phy.RxControlOrderedSet:
+      description: |-
+        Receive side Control Ordered Set (CtlOS) spacing validation configuration.
+        Each validation, when enabled, checks that the received CtlOS spacing honors
+        the configured minimum spacing.
+      type: object
+      properties:
+        validate_min_spacing:
+          description: |-
+            Enable validation of the minimum spacing between received CtlOS.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        min_spacing:
+          description: |-
+            The minimum spacing, in bytes, expected between received CtlOS.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 131064
+          default: 400
+          x-field-uid: 2
+        validate_llr_init_min_spacing:
+          description: |-
+            Enable validation of the minimum spacing between received LLR_INIT CtlOS.
+          type: boolean
+          default: false
+          x-field-uid: 3
+        llr_init_min_spacing:
+          description: |-
+            The minimum spacing, in bytes, expected between received LLR_INIT CtlOS.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 131064
+          default: 1600
+          x-field-uid: 4
+        validate_llr_ack_nack_min_spacing:
+          description: |-
+            Enable validation of the minimum spacing between received
+            LLR_ACK / LLR_NACK CtlOS.
+          type: boolean
+          default: false
+          x-field-uid: 5
+        llr_ack_nack_min_spacing:
+          description: |-
+            The minimum spacing, in bytes, expected between received
+            LLR_ACK / LLR_NACK CtlOS.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 131064
+          default: 400
+          x-field-uid: 6
+        validate_cf_min_spacing:
+          description: |-
+            Enable validation of the minimum spacing between received CBFC
+            CF_Update CtlOS.
+          type: boolean
+          default: false
+          x-field-uid: 7
+        cf_min_spacing:
+          description: |-
+            The minimum spacing, in bytes, expected between received CBFC CF_Update
+            CtlOS.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 131064
+          default: 400
+          x-field-uid: 8
+
+    UltraEthernet.Llr:
+      description: |-
+        Ultra Ethernet Link Layer Retry (LLR) settings. LLR provides lossless link
+        operation by assigning a sequence number to LLR-eligible frames, holding them
+        in a replay buffer, and retransmitting them when the link partner reports a
+        loss via LLR_NACK or when a replay timer expires.
+      type: object
+      properties:
+        local_enable:
+          description: |-
+            Enables LLR reception on the port. When enabled, the port is allowed to
+            receive LLR_INIT and operate as an LLR receiver (llr_mode_local).
+          type: boolean
+          default: false
+          x-field-uid: 1
+        remote_enable:
+          description: |-
+            Enables LLR transmission on the port. When enabled, the port may send
+            LLR_INIT and operate as an LLR transmitter (llr_mode_remote).
+          type: boolean
+          default: false
+          x-field-uid: 2
+        outstanding_seq_max:
+          description: |-
+            The maximum number of unacknowledged (in flight) LLR frames permitted.
+            The specification permits an absolute maximum of 524288, however an
+            implementation may support a lower maximum depending on the link speed
+            and minimum frame size.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 524288
+          default: 2047
+          x-field-uid: 3
+        outstanding_data_max:
+          description: |-
+            The maximum number of unacknowledged (in flight) bytes permitted. This
+            should be set to the link's bandwidth-delay product to ensure correct
+            operation of the pause and PFC mechanisms.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 2147483647
+          default: 64000000
+          x-field-uid: 4
+        replay_timer_max:
+          description: |-
+            The time, in nanoseconds, before a missing acknowledgement triggers a
+            replay of the unacknowledged frames held in the replay buffer.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 65535
+          default: 65535
+          x-field-uid: 5
+        replay_count_max:
+          description: |-
+            The maximum number of replay attempts before the LLR gives up and enters
+            the FLUSH state. A value of 255 indicates there is no maximum (unlimited
+            retries).
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 255
+          default: 255
+          x-field-uid: 6
+        pcs_lost_status_timer_max:
+          description: |-
+            The time, in nanoseconds, that the PCS link may remain down before the LLR
+            transmit state machine is forced to transition to the FLUSH state. A value
+            of 0 causes immediate expiration.
+          type: integer
+          format: uint64
+          minimum: 0
+          maximum: 4290000000
+          default: 4200000000
+          x-field-uid: 7
+        data_age_timer_max:
+          description: |-
+            The maximum time, in nanoseconds, that data may sit unacknowledged in the
+            replay buffer before it is discarded as too old.
+          type: integer
+          format: uint64
+          minimum: 2
+          maximum: 4290000000
+          default: 4200000000
+          x-field-uid: 8
+        init_behavior:
+          description: |-
+            Controls how the transmit LLR handles outgoing LLR-desired frames while in
+            the INIT state.
+
+            - discard: frames are discarded without being transmitted.
+            - block: frames are not accepted from the MAC client, blocking transmission.
+            - best_effort: frames are transmitted as LLR-ineligible (no replay protection).
+          type: string
+          default: best_effort
+          x-field-uid: 9
+          x-enum:
+            discard:
+              x-field-uid: 1
+            block:
+              x-field-uid: 2
+            best_effort:
+              x-field-uid: 3
+        flush_behavior:
+          description: |-
+            Controls how the transmit LLR handles outgoing LLR-desired frames while in
+            the FLUSH state.
+
+            - discard: frames are discarded without being transmitted.
+            - block: frames are not accepted from the MAC client, blocking transmission.
+            - best_effort: frames are transmitted as LLR-ineligible (no replay protection).
+          type: string
+          default: best_effort
+          x-field-uid: 10
+          x-enum:
+            discard:
+              x-field-uid: 1
+            block:
+              x-field-uid: 2
+            best_effort:
+              x-field-uid: 3
+        re_init_on_discard:
+          description: |-
+            When true, the LLR automatically re-initializes after a replay failure.
+            When false, it waits for management intervention.
+          type: boolean
+          default: false
+          x-field-uid: 11
+
+    UltraEthernet.Cbfc:
+      description: |-
+        Ultra Ethernet Credit-based Flow Control (CBFC) settings. CBFC is a per
+        virtual channel (VC) credit based flow control mechanism and is an alternative
+        to priority based flow control (PFC). The sender and receiver directions of a
+        link are configured independently.
+      type: object
+      properties:
+        sender:
+          description: |-
+            CBFC sender direction settings. The sender transmits packets on lossless
+            VCs only when enough credits are available at the receiver, and periodically
+            transmits CC_Update messages.
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Sender'
+          x-field-uid: 1
+        receiver:
+          description: |-
+            CBFC receiver direction settings. The receiver returns credits to the
+            sender using CF_Update messages as buffer space is freed.
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Receiver'
+          x-field-uid: 2
+
+    UltraEthernet.Cbfc.Sender:
+      description: |-
+        CBFC sender direction configuration.
+      type: object
+      properties:
+        enable:
+          description: |-
+            Enable the CBFC sender on the port.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        port_credit:
+          description: |-
+            Port level credit configuration (credit mode, total credits, cell size and
+            per-packet overhead).
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.PortCredit'
+          x-field-uid: 2
+        cc_message:
+          description: |-
+            CC_Update (credit consumed) message configuration.
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Sender.CcMessage'
+          x-field-uid: 3
+        mapping_priority:
+          description: |-
+            Selects which packet header field is used to map a packet to a virtual
+            channel.
+
+            - vlan_pcp_dei: use the mac.vlan.pcp_dei value(s) configured per VC.
+            - dscp: use the ip.dscp value(s) configured per VC.
+          type: string
+          default: vlan_pcp_dei
+          x-field-uid: 4
+          x-enum:
+            vlan_pcp_dei:
+              x-field-uid: 1
+            dscp:
+              x-field-uid: 2
+        virtual_channels:
+          description: |-
+            The list of virtual channels (VCs). A maximum of 32 VCs are supported per
+            port, of which a maximum of 4 may be configured as lossless.
+          type: array
+          items:
+            $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc'
+          x-field-uid: 5
+
+    UltraEthernet.Cbfc.Receiver:
+      description: |-
+        CBFC receiver direction configuration.
+      type: object
+      properties:
+        enable:
+          description: |-
+            Enable the CBFC receiver on the port.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        port_credit:
+          description: |-
+            Port level credit configuration (credit mode, total credits, cell size and
+            per-packet overhead).
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.PortCredit'
+          x-field-uid: 2
+        cc_message:
+          description: |-
+            CC_Update (credit consumed) message reception configuration.
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Receiver.CcMessage'
+          x-field-uid: 3
+        mapping_priority:
+          description: |-
+            Selects which packet header field is used to map a received packet to a
+            virtual channel.
+
+            - vlan_pcp_dei: use the mac.vlan.pcp_dei value(s) configured per VC.
+            - dscp: use the ip.dscp value(s) configured per VC.
+          type: string
+          default: vlan_pcp_dei
+          x-field-uid: 4
+          x-enum:
+            vlan_pcp_dei:
+              x-field-uid: 1
+            dscp:
+              x-field-uid: 2
+        virtual_channels:
+          description: |-
+            The list of virtual channels (VCs). A maximum of 32 VCs are supported per
+            port, of which a maximum of 4 may be configured as lossless.
+          type: array
+          items:
+            $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc'
+          x-field-uid: 5
+
+    UltraEthernet.Cbfc.Sender.CcMessage:
+      description: |-
+        CBFC CC_Update (credit consumed) message configuration. CC_Update messages are
+        periodically generated by the sender to recover credits that may have leaked
+        due to packet drops from link errors.
+      type: object
+      properties:
+        enable_type1_message:
+          description: |-
+            Enable generation of the type 1 CC_Update message which carries the credits
+            consumed counters for VC 0 through VC 15.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        enable_type2_message:
+          description: |-
+            Enable generation of the type 2 CC_Update message which carries the credits
+            consumed counters for VC 16 through VC 31.
+          type: boolean
+          default: false
+          x-field-uid: 2
+        timer:
+          description: |-
+            The time interval, in microseconds, between generation of successive
+            CC_Update messages.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 250000
+          default: 10
+          x-field-uid: 3
+        company_id:
+          description: |-
+            The 24-bit UEC Company ID (CID) placed in the CC_Update message, as a
+            6 character hexadecimal string. The UEC CID is FA7ACB.
+          type: string
+          pattern: '^[0-9a-fA-F]{6}$'
+          default: 'FA7ACB'
+          x-field-uid: 4
+        source_address:
+          description: |-
+            The MAC source address of the CC_Update message.
+          type: string
+          format: mac
+          default: '00:00:00:00:00:01'
+          x-field-uid: 5
+        destination_address:
+          description: |-
+            The MAC destination address of the CC_Update message. The specification
+            uses the reserved address 01:80:C2:00:00:01 or the individual address of
+            the destination station.
+          type: string
+          format: mac
+          default: '01:80:C2:00:00:01'
+          x-field-uid: 6
+
+    UltraEthernet.Cbfc.Receiver.CcMessage:
+      description: |-
+        CBFC CC_Update (credit consumed) message reception configuration.
+      type: object
+      properties:
+        expected_company_id:
+          description: |-
+            The 24-bit UEC Company ID (CID) expected in received CC_Update messages, as
+            a 6 character hexadecimal string. The UEC CID is FA7ACB.
+          type: string
+          pattern: '^[0-9a-fA-F]{6}$'
+          default: 'FA7ACB'
+          x-field-uid: 1
+        validate_cc_min_spacing:
+          description: |-
+            Enable validation of the minimum spacing between received CC_Update
+            messages.
+          type: boolean
+          default: false
+          x-field-uid: 2
+        cc_min_spacing:
+          description: |-
+            The minimum spacing, in microseconds, expected between received CC_Update
+            messages.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 250000
+          default: 1
+          x-field-uid: 3
+        validate_cc_max_spacing:
+          description: |-
+            Enable validation of the maximum spacing between received CC_Update
+            messages.
+          type: boolean
+          default: false
+          x-field-uid: 4
+        cc_max_spacing:
+          description: |-
+            The maximum spacing, in microseconds, expected between received CC_Update
+            messages.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 250000
+          default: 250000
+          x-field-uid: 5
+
+    UltraEthernet.Cbfc.PortCredit:
+      description: |-
+        CBFC port level credit configuration. Credits are the unit used to track
+        available buffer space at the receiver.
+      type: object
+      properties:
+        choice:
+          description: |-
+            The method used to set credit limits.
+
+            - per_port: the receiver sets a single total credit limit and the sender
+              distributes those credits among the lossless VCs.
+            - per_vc: the receiver sets an individual credit limit for each lossless VC.
+          type: string
+          default: per_port
+          x-field-uid: 1
+          x-enum:
+            per_port:
+              x-field-uid: 1
+            per_vc:
+              x-field-uid: 2
+        per_port:
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.PortCredit.PerPort'
+          x-field-uid: 2
+        per_vc:
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.PortCredit.PerVc'
+          x-field-uid: 3
+        cell_size:
+          description: |-
+            The number of bytes represented by each credit. This must be a function of
+            the receiver's buffer allocation unit ("cell size"). Valid values are one
+            of 32, 56, 64, 128, 256, 512, 1024 or 2048 bytes.
+          type: integer
+          format: uint32
+          minimum: 32
+          maximum: 2048
+          default: 64
+          x-field-uid: 4
+        packet_overhead:
+          description: |-
+            The number of bytes of per-packet overhead in the receiver's input buffer.
+            May be negative if part of each packet is not stored in the receiver's
+            input buffer (for example if the CRC is stripped before storing).
+          type: integer
+          format: int32
+          minimum: -16
+          maximum: 127
+          default: -4
+          x-field-uid: 5
+
+    UltraEthernet.Cbfc.PortCredit.PerPort:
+      description: |-
+        Port based credit limit configuration. A single total credit limit is set and
+        the sender distributes those credits among the lossless VCs.
+      type: object
+      properties:
+        total_credits:
+          description: |-
+            The total number of credits available at the receiver, based on the
+            receiver's buffer size.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 524287
+          default: 524287
+          x-field-uid: 1
+
+    UltraEthernet.Cbfc.PortCredit.PerVc:
+      description: |-
+        Per virtual channel credit limit configuration. The credit limit for each
+        lossless VC is set individually using the credit_limit field of the VC.
+      type: object
+
+    UltraEthernet.Cbfc.Vc:
+      description: |-
+        A CBFC virtual channel (VC). The position of the VC in the virtual_channels
+        list is its VC number (zero based). A maximum of 4 VCs may be configured as
+        lossless.
+      type: object
+      properties:
+        choice:
+          description: |-
+            The disposition of the virtual channel.
+
+            - best_effort: the VC does not use credits (best effort delivery).
+            - lossless: the VC uses CBFC credits for lossless delivery.
+          type: string
+          default: best_effort
+          x-field-uid: 1
+          x-enum:
+            best_effort:
+              x-field-uid: 1
+            lossless:
+              x-field-uid: 2
+        best_effort:
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.BestEffort'
+          x-field-uid: 2
+        lossless:
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.Lossless'
+          x-field-uid: 3
+        vlan_pcp_dei0:
+          description: |-
+            The VLAN PCP values (with DEI = 0) mapped to this VC. Used when the
+            mapping_priority is vlan_pcp_dei. Valid values are 0 to 7.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+            maximum: 7
+          x-field-uid: 4
+        vlan_pcp_dei1:
+          description: |-
+            The VLAN PCP values (with DEI = 1) mapped to this VC. Used when the
+            mapping_priority is vlan_pcp_dei. Valid values are 0 to 7.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+            maximum: 7
+          x-field-uid: 5
+        dscp:
+          description: |-
+            The IPv4/IPv6 DSCP values mapped to this VC. Used when the mapping_priority
+            is dscp. Valid values are 0 to 63.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+            maximum: 63
+          x-field-uid: 6
+
+    UltraEthernet.Cbfc.Vc.BestEffort:
+      description: |-
+        Best effort virtual channel settings. A best effort VC does not use CBFC
+        credits.
+      type: object
+
+    UltraEthernet.Cbfc.Vc.Lossless:
+      description: |-
+        Lossless virtual channel settings.
+      type: object
+      properties:
+        credit_limit:
+          description: |-
+            The maximum number of credits allowed for this lossless VC. Applies only
+            when the port credit mode is per_vc.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 524287
+          default: 0
+          x-field-uid: 1

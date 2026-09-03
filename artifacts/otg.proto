@@ -62,6 +62,14 @@ message Config {
   // received for each unique value in the bits being tracked from the beginning of the
   // test.
   repeated EgressOnlyTracking egress_only_tracking = 11;
+
+  // A Collective Communication benchmark configuration
+  CollectiveCommunications collective_communications = 101;
+
+  // Under Review: This property may not be included in the upcoming release
+  // 
+  // Artifacts storage configuration.
+  ConfigArtifacts artifacts = 102;
 }
 
 // Global configuration options.
@@ -356,9 +364,10 @@ message EthernetConnection {
       lag_name = 2;
       vxlan_name = 3;
       simulated_link = 4;
+      port_names = 101;
     }
   }
-  // port_name, lag_name, vxlan_name or simulated_link
+  // port_name, lag_name, vxlan_name, simulated_link or port_names
   optional Choice.Enum choice = 1;
 
   // Name of the port that the Ethernet interface is configured on.
@@ -386,6 +395,16 @@ message EthernetConnection {
 
   // Description missing in models
   EthernetSimulatedLink simulated_link = 5;
+
+  // Names of multiple ports that this Ethernet interface may be
+  // emulated across. Traffic to or from this interface may be
+  // generated or received on any of the listed ports. Used when a
+  // single emulated interface is backed by more than one test port.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  repeated string port_names = 101;
 }
 
 // Details of the internal link which can be used to create simulated device topologies
@@ -2320,6 +2339,80 @@ message Layer1 {
   // objects.
   // required = true
   optional string name = 10;
+
+  message Signaling {
+    enum Enum {
+      unspecified = 0;
+      nrz = 1;
+      pam4_53_gbps = 2;
+      pam4_106_gbps = 3;
+    }
+  }
+  // Physical lane signaling for the configured speed. Combined with
+  // 'speed' this determines the number of lanes and the per-lane rate,
+  // e.g. speed_400_gbps with pam4_106_gbps implies 4 lanes at
+  // 106.25 Gbps each.
+  // When no signaling is explicitly set, the interface default
+  // signaling for the configured speed shall be assumed.
+  optional Signaling.Enum signaling = 101;
+
+  message FecMode {
+    enum Enum {
+      unspecified = 0;
+      no_fec = 1;
+      rs_fec = 2;
+      rs_fec_kp4 = 3;
+    }
+  }
+  // Forward error correction mode.
+  // no_fec: FEC disabled.
+  // rs_fec: Reed-Solomon RS(528,514) FEC, IEEE 802.3 Clause 91.
+  // rs_fec_kp4: Reed-Solomon RS(544,514) FEC, IEEE 802.3 Clause 134 (KP4).
+  // When set, this field takes precedence over auto_negotiation.rs_fec.
+  // When no fec_mode is explicitly set, the interface default FEC for
+  // the configured speed shall be assumed.
+  optional FecMode.Enum fec_mode = 102;
+}
+
+// An Ethernet link speed or bandwidth, expressed either as a standard rate or as a
+// custom value in Gbps.
+message Layer1SpeedWithCustom {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      standard = 1;
+      custom = 2;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.standard
+  optional Choice.Enum choice = 1;
+
+  message Standard {
+    enum Enum {
+      unspecified = 0;
+      speed_10_fd_mbps = 1;
+      speed_10_hd_mbps = 2;
+      speed_100_fd_mbps = 3;
+      speed_100_hd_mbps = 4;
+      speed_1_gbps = 5;
+      speed_10_gbps = 6;
+      speed_25_gbps = 7;
+      speed_40_gbps = 8;
+      speed_50_gbps = 9;
+      speed_100_gbps = 10;
+      speed_200_gbps = 11;
+      speed_400_gbps = 12;
+      speed_800_gbps = 13;
+    }
+  }
+  // A standard Ethernet speed.
+  // default = Standard.Enum.speed_800_gbps
+  optional Standard.Enum standard = 2;
+
+  // A custom Ethernet speed, in Gbps.
+  optional int32 custom = 3;
 }
 
 // Configuration for auto negotiation settings
@@ -2484,6 +2577,10 @@ message Capture {
   // objects.
   // required = true
   optional string name = 6;
+
+  // PRIVATE: Maximum capture file size in bytes. A value of 0 or null means no explicit
+  // limit.
+  optional uint32 max_file_size = 101;
 }
 
 // Configuration for capture filters
@@ -10268,7 +10365,7 @@ message Rocev2ConnectionType {
     }
   }
   // Description missing in models
-  // default = Choice.Enum.reliable_connection
+  // required = true
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -15108,6 +15205,853 @@ message EgressOnlyTrackingFilter {
   optional Choice.Enum choice = 1;
 }
 
+// Collective Communications configuration.
+// The configuration consists of high-level configuration objects that describe an AI
+// workload, the infrastructure and platforms it is running on, and bindings that link
+// elements together and attach them to physical test resources. In addition there is
+// an impairment overlay, and a transport section with transport parameters that are
+// unique to collective communications.
+message CollectiveCommunications {
+
+  // Definition of the collective communications traffic to run.
+  CollectiveCommunicationsWorkload workload = 1;
+
+  // The declaration of the system testbed.
+  CollectiveCommunicationsInfrastructure infrastructure = 2;
+
+  // Platform configurations available to this collective benchmark, including the default
+  // platform and per-platform typed settings. Multiple platforms may be configured simultaneously
+  // to support workloads that span more than one platform type.
+  repeated CollectiveCommunicationsPlatformConfig platforms = 3;
+
+  // Links the workload to the infrastructure and the infrastructure to physical test
+  // resources.
+  CollectiveCommunicationsBindings bindings = 4;
+
+  // Network impairment configuration applied during the run.
+  CollectiveCommunicationsImpairments impairments = 5;
+
+  // General information about the collective benchmark Result to populate the collective
+  // benchmark Result with. These fields in the collective benchmark Result itself can
+  // be further edited after the test.
+  CollectiveCommunicationsResultInfo result_info = 6;
+}
+
+// General information about the collective benchmark Result
+message CollectiveCommunicationsResultInfo {
+
+  // The list of tags associated with the collective benchmark.
+  // List of tags associated with this object.
+  // default = []
+  repeated string tags = 1;
+
+  // A detailed description of the collective benchmark.
+  // A detailed description of the object.
+  optional string description = 2;
+}
+
+// Definition of the collective communications traffic to run. Selects the workload
+// type (e.g. single collective, workload replay, etc) and carries its configuration.
+// The definition of what infrastructure it runs on and how it maps to test resources
+// is described by CollectiveCommunications.Infrastructure and CollectiveCommunications.Bindings
+// respectively.
+message CollectiveCommunicationsWorkload {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      single_collective = 1;
+      mix_of_collectives = 2;
+      workload_replay = 3;
+    }
+  }
+  // Selects the workload type.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Single collective benchmark configuration.
+  CollectiveCommunicationsSingleCollective single_collective = 2;
+
+  // Workload replay configuration.
+  CollectiveCommunicationsWorkloadReplay workload_replay = 3;
+
+  // Mix of collectives benchmark configuration.
+  CollectiveCommunicationsMixOfCollectives mix_of_collectives = 4;
+}
+
+// Single collective communication configuration.
+message CollectiveCommunicationsSingleCollective {
+
+  // The collective communication algorithm to use.
+  CollectiveCommunicationsAlgorithm collective_algorithm = 1;
+
+  // Data size specification for each benchmark collective run.
+  CollectiveCommunicationsDatasizes datasizes = 2;
+
+  // Collective-communications-specific transport settings — the rank-scoped properties
+  // that have no native OTG home. The transport itself is expressed natively: see the
+  // schema description.
+  CollectiveCommunicationsTransport transport = 3;
+
+  // Number of collective executions per data size.
+  // default = 1
+  optional uint64 iterations = 4;
+
+  // Delay in milliseconds between iterations.
+  // default = 100
+  optional uint32 iteration_append_delay = 5;
+}
+
+// Multiple collective communication configuration. PLACEHOLDER: configuration schema
+// is not yet defined.
+message CollectiveCommunicationsMixOfCollectives {
+}
+
+// Workload replay configuration. Replays a real AI workload captured as a Chakra trace.
+// PLACEHOLDER: configuration schema is not yet defined.
+message CollectiveCommunicationsWorkloadReplay {
+}
+
+// Data size specification for each benchmark collective run — either an explicit list
+// of sizes or a multiplier-based range.
+message CollectiveCommunicationsDatasizes {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      multiplier = 1;
+      list = 2;
+    }
+  }
+  // Selects the data size specification. Default is list.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Data size range using a multiplier.
+  CollectiveCommunicationsDatasize multiplier = 2;
+
+  // Explicit list of data sizes.
+  CollectiveCommunicationsDatasizeList list = 3;
+}
+
+// Data size range specification for a collective communications benchmark. Starting
+// at start, each subsequent size is obtained by multiplying by multiplier, continuing
+// until end is reached.
+message CollectiveCommunicationsDatasize {
+
+  // Initial data size in bytes. Default 134217728 (128 MiB).
+  // default = 134217728
+  optional uint64 start = 1;
+
+  // Factor by which the data size is multiplied at each step.
+  // default = 2
+  optional uint32 multiplier = 2;
+
+  // Maximum data size in bytes. The last size run is the largest value not exceeding
+  // end. Default 4294967296 (4 GiB).
+  // default = 4294967296
+  optional uint64 end = 3;
+}
+
+// Explicit list of data sizes for a collective communications benchmark.
+message CollectiveCommunicationsDatasizeList {
+
+  // List of data sizes in bytes. Default [1073741824] (1 GiB).
+  // default = [1073741824]
+  repeated uint64 size_bytes = 1;
+}
+
+// Specifies a collective communication algorithm.
+message CollectiveCommunicationsAlgorithm {
+
+  // Selects a system-provided or custom collective algorithm.
+  CollectiveCommunicationsAlgorithmType algorithm_type = 1;
+
+  // Configuration for the flow control mechanism used by this algorithm.
+  CollectiveCommunicationsFlowControl flow_control_config = 2;
+}
+
+// Selects either a system-provided collective algorithm or a custom user-provided implementation.
+message CollectiveCommunicationsAlgorithmType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      system = 1;
+      custom = 2;
+    }
+  }
+  // Selects whether to use a system-provided or custom algorithm. Default is system.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  message System {
+    enum Enum {
+      unspecified = 0;
+      all_to_all_parallel = 1;
+      all_to_all_pxn = 2;
+      all_reduce_unidirectional_ring = 3;
+      all_reduce_bidirectional_ring = 4;
+      all_reduce_vector_halving_doubling = 5;
+      all_reduce_double_binary_tree = 6;
+      all_gather_ring = 7;
+      reduce_scatter_ring = 8;
+      broadcast_parallel = 9;
+      gather_parallel = 10;
+      all_to_all_parallel_pp = 11;
+      all_to_all_pxn_pp = 12;
+      all_reduce_unidirectional_ring_pp = 13;
+      all_reduce_bidirectional_ring_pp = 14;
+      all_reduce_vector_halving_doubling_pp = 15;
+      all_reduce_double_binary_tree_pp = 16;
+      all_gather_ring_pp = 17;
+      reduce_scatter_ring_pp = 18;
+      broadcast_parallel_pp = 19;
+      gather_parallel_pp = 20;
+    }
+  }
+  // A system-supplied collective algorithm. Default is all_to_all_parallel. _pp suffix
+  // variants are MSCCL++ implementations.
+  // default = System.Enum.all_to_all_parallel
+  optional System.Enum system = 2;
+
+  // A path of format package.module.classname to a class that inherits from keys_ai_ml_chakra.Expander.
+  optional string custom = 3;
+}
+
+// Flow control mechanism configuration. Receiver grants credits to sender to control
+// data flow.
+message CollectiveCommunicationsFlowControl {
+
+  // Enable flow control. Default false.
+  // default = False
+  optional bool enable_flow_control = 1;
+
+  // Maximum number of credits allowed in flight.
+  // default = 4
+  optional uint32 max_inflight_credits = 2;
+
+  message CreditDistribution {
+    enum Enum {
+      unspecified = 0;
+      all_streams = 1;
+      single_stream = 2;
+    }
+  }
+  // Determines how credits are distributed across streams. Default is all_streams.
+  // default = CreditDistribution.Enum.all_streams
+  optional CreditDistribution.Enum credit_distribution = 3;
+
+  // Selects whether the compute delay is manually configured or automatically derived.
+  CollectiveCommunicationsComputeDelay compute_delay = 4;
+}
+
+// Selects whether the compute delay used by flow control is manually configured or
+// automatically derived.
+message CollectiveCommunicationsComputeDelay {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      manual = 1;
+      automatic = 2;
+    }
+  }
+  // Selects whether compute delay is manually configured or automatically derived. Default
+  // is manual.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Manual compute delay configuration.
+  CollectiveCommunicationsManualComputeDelay manual = 2;
+
+  // Automatic compute delay configuration.
+  CollectiveCommunicationsAutomaticComputeDelay automatic = 3;
+}
+
+// Manual compute delay configuration for flow control.
+message CollectiveCommunicationsManualComputeDelay {
+
+  // Delay between data reception and credit transmission in microseconds.
+  // default = 0
+  optional uint32 compute_delay = 1;
+}
+
+// Automatic compute delay configuration for flow control. GPU type determines the compute
+// delay function used.
+message CollectiveCommunicationsAutomaticComputeDelay {
+
+  message GpuType {
+    enum Enum {
+      unspecified = 0;
+      a100 = 1;
+      h100 = 2;
+    }
+  }
+  // GPU type used to derive the default compute delay. Default is a100.
+  // default = GpuType.Enum.a100
+  optional GpuType.Enum gpu_type = 1;
+}
+
+// Selects the network transport used to carry the workload's traffic and provides additional
+// settings for that transport, if any.
+message CollectiveCommunicationsTransport {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      rocev2 = 1;
+      tcp = 2;
+    }
+  }
+  // Selects the network transport. Default is rocev2.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // RoCEv2 transport settings.
+  CollectiveCommunicationRocev2TransportSettings rocev2 = 2;
+}
+
+// Workload-level RoCEv2 transport settings, applied uniformly across every rank pair
+// using this transport.
+message CollectiveCommunicationRocev2TransportSettings {
+
+  // (Maximum) RDMA message size in bytes.
+  // default = 131072
+  optional uint32 rdma_message_size = 1;
+
+  // Number of Queue Pairs per rank pair.
+  // default = 1
+  optional uint32 qps_per_rankpair = 2;
+
+  message Verb {
+    enum Enum {
+      unspecified = 0;
+      write = 1;
+      send = 2;
+    }
+  }
+  // RDMA verb used for data transfers in collective communication operations. Default
+  // is write.
+  // default = Verb.Enum.write
+  optional Verb.Enum verb = 3;
+
+  // Enable reuse of Queue Pairs (QPs) for RDMA messages between a rank pair, rather than
+  // opening a new QP per message.
+  // default = True
+  optional bool reuse_qps = 4;
+
+  // Queue Pair negotiation method.
+  CollectiveCommunicationsQpNegotiation qp_negotiation = 5;
+}
+
+// Selects the method used to negotiate Queue Pairs across ranks.
+message CollectiveCommunicationsQpNegotiation {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      automatic = 1;
+      custom = 2;
+      tcp = 3;
+      tcp_store = 4;
+      rdma_cm = 5;
+    }
+  }
+  // Selects the QP negotiation method. Default is automatic.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Vendor/Implementation-specific queue pair negotiation method.
+  CollectiveCommunicationsCustomQpNegotiation custom = 2;
+
+  // TCP store rendezvous endpoint.
+  CollectiveCommunicationsTcpStore tcp_store = 3;
+}
+
+// Vendor/Implementation-specific queue pair negotiation method.
+message CollectiveCommunicationsCustomQpNegotiation {
+
+  // Name of the custom QP negotiation method. Used by the implementation to determine
+  // what custom_settings are defined.
+  optional string negotiation_type = 1;
+
+  // Custom properties for the specified Vendor/Implementation and negotiation_type to
+  // control qp negotiations
+  StringMap custom_settings = 2;
+}
+
+// Rendezvous endpoint for TCP-store-based Queue Pair negotiation. Shared by every rank
+// in the workload.
+message CollectiveCommunicationsTcpStore {
+
+  // TCP store hostname or IP address.
+  // default = localhost
+  optional string address = 1;
+
+  // TCP store port number.
+  // default = 12345
+  optional uint32 port = 2;
+}
+
+// An object that can be described with a string UUID.
+message IdentifiedObject {
+
+  // The unique ID of an object.
+  optional string id = 1;
+}
+
+// A placeholder object for fields that are yet to be properly defined.
+message PlaceholderObject {
+
+  // Placeholder type for fields that are yet to be defined.
+  optional string value = 1;
+}
+
+// An object that has a version.
+// 
+message VersionedObject {
+
+  // Semver (semantic versioning) formatted version of containing object.
+  optional string version = 1;
+}
+
+// A map of string keys to string values.
+message StringMap {
+}
+
+// The declaration of the system testbed
+message CollectiveCommunicationsInfrastructure {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      high_level = 1;
+      low_level = 2;
+    }
+  }
+  // Description missing in models
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsHighLevelInfrastructure high_level = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsInfraGraph low_level = 3;
+}
+
+// Under Review: Low-level infrastructure graph
+// 
+// A low-level graph of the testbed.
+message CollectiveCommunicationsInfraGraph {
+}
+
+// Infrastructure configuration comprising hosts and the network fabric.
+message CollectiveCommunicationsHighLevelInfrastructure {
+
+  // Logical infrastructure name.
+  optional string name = 1;
+
+  // The configuration for this high-level infrastructure.
+  CollectiveCommunicationsInfrastructureConfig config = 2;
+}
+
+// Description of the system testbed: its hosts and the fabric that connects them.
+message CollectiveCommunicationsInfrastructureConfig {
+
+  // Host collection specification for the infrastructure.
+  // required = true
+  CollectiveCommunicationsInfrastructureHosts hosts = 1;
+
+  // Fabric topology for the infrastructure.
+  // required = true
+  CollectiveCommunicationsInfrastructureFabric fabric = 2;
+}
+
+// Host collection specification.
+message CollectiveCommunicationsInfrastructureHosts {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      uniform = 1;
+    }
+  }
+  // Selects how the collection of hosts is described.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // A collection of identical hosts, described by a single host specification and a repeat
+  // count.
+  CollectiveCommunicationsInfrastructureUniformHostCollection uniform = 2;
+}
+
+// A collection of identical hosts, described by a single host specification and a repeat
+// count.
+message CollectiveCommunicationsInfrastructureUniformHostCollection {
+
+  // Number of hosts in the collection.
+  // default = 4
+  optional uint32 count = 1;
+
+  // A host specification that is instantiated multiple times to form the collection of
+  // hosts.
+  // required = true
+  CollectiveCommunicationsInfrastructureHostSpecification host = 2;
+}
+
+// High-level host specification.
+message CollectiveCommunicationsInfrastructureHostSpecification {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      generic = 1;
+    }
+  }
+  // Selects the type of host that the specification describes.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Generic host configuration.
+  CollectiveCommunicationsGenericHost generic = 2;
+}
+
+// A generic host with a 1:1 ratio of NICs to XPUs.
+message CollectiveCommunicationsGenericHost {
+
+  // The name of this host instance.
+  optional string name = 1;
+
+  // Number of XPUs in the host.
+  // default = 1
+  optional uint32 xpu_count = 2;
+
+  // The XPU interconnect bandwidth, in Gbps. If 0, the XPU interconnect will be disabled
+  // and XPUs within the same host will only communicate via the network.
+  // default = 1600
+  optional uint32 xpu_interconnect_bandwidth_gbps = 3;
+}
+
+// Describes the overall fabric topology.
+message CollectiveCommunicationsInfrastructureFabric {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      blackbox = 1;
+    }
+  }
+  // Selects the fabric topology connecting the hosts.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Blackbox fabric configuration.
+  CollectiveCommunicationsBlackboxFabric blackbox = 2;
+}
+
+// A fabric where the internal topology is not modeled.
+message CollectiveCommunicationsBlackboxFabric {
+
+  // Fabric name.
+  optional string name = 1;
+}
+
+// Platform configuration for a collective benchmark run. Specifies per-platform typed
+// settings.
+message CollectiveCommunicationsPlatformConfig {
+
+  // The name of this platform
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  optional string name = 1;
+
+  // The platform type to use for this collective benchmark run.
+  // To avoid requiring a schema update to support new types of platform, the value is
+  // just a string, not an enum. The implementation must validate.
+  // If the platform is unspecified, the server should apply its default.
+  // default = unspecified
+  optional string platform_type = 2;
+
+  // Generic properties. Arbitrary value platform settings. Assign all vendor-specific
+  // properties here.
+  StringMap custom_settings = 3;
+}
+
+// Links the hardware-independent workload to the infrastructure, and the infrastructure
+// to physical test resources. Maps ranks to logical XPUs, associates logical NICs with
+// emulated OTG Ethernet interfaces, and assigns physical test ports and platforms.
+message CollectiveCommunicationsBindings {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      basic_binding = 1;
+    }
+  }
+  // The type of binding to use.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The rank, NIC, and physical bindings.
+  CollectiveCommunicationsBasicBinding basic_binding = 2;
+}
+
+// A set of rank, nic, and physical bindings.
+message CollectiveCommunicationsBasicBinding {
+
+  // List of bindings that map each rank to a specific logical XPU and its available NICs.
+  repeated CollectiveCommunicationsRankBinding rank_bindings = 1;
+
+  // List of NIC bindings associating logical NICs with emulated OTG Ethernet interfaces.
+  repeated CollectiveCommunicationsNicBinding nic_bindings = 2;
+
+  // List of bindings that associate infrastructure elements with physical test resources.
+  repeated CollectiveCommunicationsPhysicalBinding physical_bindings = 3;
+}
+
+// A reference to a infrastructure element.
+message CollectiveCommunicationsInfrastructureRef {
+
+  // Name of the infrastructure device (e.g. the value set for CollectiveCommunications.GenericHost.name).
+  optional string device_instance_name = 1;
+
+  // Zero-based device index.
+  optional uint32 device_index = 2;
+
+  // Name of the infrastructure component.
+  optional string component_name = 3;
+
+  // Zero-based component index.
+  optional uint32 component_index = 4;
+}
+
+// Assigns a rank to a logical XPU and lists the NICs available to that XPU.
+message CollectiveCommunicationsRankBinding {
+
+  // Reference to the XPU used by this rank.
+  CollectiveCommunicationsInfrastructureRef infrastructure_ref = 1;
+
+  // The unique identifier for this rank in the distributed workload.
+  optional uint32 rank_id = 2;
+
+  // List of NICs available to this XPU (in the same host).
+  repeated CollectiveCommunicationsInfrastructureRef nic_refs = 3;
+}
+
+// Defines how ranks are distributed across a communication channel.
+message CollectiveCommunicationsRankDistribution {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      ascending = 1;
+      descending = 2;
+      interleaved = 3;
+      custom = 4;
+    }
+  }
+  // The rank ordering scheme. Default is ascending.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Explicit list of rank IDs in the desired order.
+  repeated uint32 custom = 2;
+}
+
+// Binds a NIC defined in the infrastructure to an emulated OTG Ethernet interface that
+// carries all of its network-stack settings (MTU, MAC, VLANs, IP addressing, QoS, RoCEv2
+// peers).
+message CollectiveCommunicationsNicBinding {
+
+  // Reference to a NIC defined in the infrastructure.
+  CollectiveCommunicationsInfrastructureRef infrastructure_ref = 1;
+
+  // The name of the Device.Ethernet interface that models this NIC. The interface's connection
+  // (port_name or port_names) determines which test ports may generate this NIC's flows.
+  // This reference also designates the NIC's transport: if a Device.rocev2 stack references
+  // one of this interface's ipv4_addresses or ipv6_addresses, the NIC runs RoCEv2 with
+  // the settings on that Device.Rocev2Peer; otherwise it runs TCP. There is no transport
+  // selector to set — see CollectiveCommunications.Transport.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ethernet/properties/name
+  // 
+  optional string ethernet_name = 2;
+}
+
+// Binds a infrastructure element to a physical test resource, specifying the platform
+// and per-platform configuration.
+message CollectiveCommunicationsPhysicalBinding {
+
+  // Reference to the infrastructure element that the physical resource represents.
+  CollectiveCommunicationsInfrastructureRef infrastructure_ref = 1;
+
+  // The name of the CollectiveCommunications.PlatformConfig to use for this physical
+  // binding. Leave blank to let the server apply its default platform.
+  // 
+  // x-constraint:
+  // - /components/schemas/CollectiveCommunications.PlatformConfig/properties/name
+  // 
+  optional string platform_name = 2;
+
+  // Vendor/Implementation-specific properties for this physical binding. Pass all vendor-specific
+  // physical binding parameters here.
+  StringMap custom_settings = 3;
+
+  // The name of the test port representing this physical resource. The port's location,
+  // layer1 and per-port options carry the physical settings previously configured on
+  // this binding.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  optional string port_name = 4;
+}
+
+// Container for configuring network impairments applied during a collective benchmark.
+// Impairments are a test-scenario overlay: their match conditions reference infrastructure
+// elements (via CollectiveCommunications.InfrastructureRef) and workload flows, so
+// they belong to neither the infrastructure nor the workload alone.
+message CollectiveCommunicationsImpairments {
+
+  // Packet drop impairment configuration.
+  CollectiveCommunicationsPacketDrop packet_drop = 1;
+
+  // Packet reorder impairment configuration.
+  CollectiveCommunicationsPacketReorder packet_reorder = 2;
+}
+
+// Simulates packet loss by dropping packets matching any of the specified conditions.
+message CollectiveCommunicationsPacketDrop {
+
+  // Whether packet drop impairment is active. Default false.
+  // default = False
+  optional bool enabled = 1;
+
+  // List of match condition sets (OR logic). Packets matching any set are dropped.
+  repeated CollectiveCommunicationsMatchConditions match_conditions = 2;
+
+  // Number of matching packets to skip before dropping.
+  // default = 0
+  optional uint32 skip_count = 3;
+
+  // Number of consecutive packets to drop after skip_count. When a match condition's
+  // location is dst, drop_count must be 1.
+  // default = 1
+  optional uint32 drop_count = 4;
+}
+
+// Simulates out-of-order packet delivery for testing reordering resilience.
+message CollectiveCommunicationsPacketReorder {
+
+  // Whether packet reorder impairment is active. Default false.
+  // default = False
+  optional bool enabled = 1;
+
+  // List of match condition sets (OR logic).
+  repeated CollectiveCommunicationsMatchConditions match_conditions = 2;
+
+  // Number of matching packets to skip before reordering.
+  // default = 0
+  optional uint32 skip_count = 3;
+
+  // Number of packets to send out-of-order. reorder_count + hold_count must be less than
+  // 512. The reordering stops when the sender receives a NACK and starts retransmitting.
+  // default = 1
+  optional uint32 reorder_count = 4;
+
+  // Number of packets to delay before sending the reordered packets. reorder_count +
+  // hold_count must be less than 512.
+  // default = 1
+  optional uint32 hold_count = 5;
+}
+
+// A set of match conditions — all are required (ANDed).
+message CollectiveCommunicationsMatchConditions {
+
+  message Location {
+    enum Enum {
+      unspecified = 0;
+      src = 1;
+      dst = 2;
+    }
+  }
+  // Whether to impair at the source (sender) or destination (receiver) side. The source
+  // sends data plane traffic; the destination responds with control plane traffic (ACK/NACK/CNP).
+  // Default is src.
+  // default = Location.Enum.src
+  optional Location.Enum location = 1;
+
+  // Collective communication flow to match.
+  CollectiveCommunicationsCollectiveMatchConditions collective = 2;
+
+  // Packet-level conditions to match.
+  repeated CollectiveCommunicationsPacketConditions packet = 3;
+}
+
+// Match conditions for a collective communication flow between two NICs.
+message CollectiveCommunicationsCollectiveMatchConditions {
+
+  // Reference to the source network interface card.
+  CollectiveCommunicationsInfrastructureRef src_nic = 1;
+
+  // Reference to the destination network interface card.
+  CollectiveCommunicationsInfrastructureRef dst_nic = 2;
+
+  // Index identifying a specific flow between source and destination.
+  // default = 0
+  optional uint32 flow_index = 3;
+}
+
+// Packet-level match conditions. Supports different protocol-specific criteria.
+message CollectiveCommunicationsPacketConditions {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      rdma = 1;
+    }
+  }
+  // The type of packet conditions to match.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // RDMA-specific match conditions.
+  CollectiveCommunicationsRdmaMatchConditions rdma = 2;
+}
+
+// Match conditions for RDMA packets. Allows matching on multiple opcodes simultaneously.
+message CollectiveCommunicationsRdmaMatchConditions {
+
+  // List of RDMA opcodes to match (OR logic).
+  repeated CollectiveCommunicationsRdmaOpcodeMatch opcode_list = 1;
+}
+
+// Matches a specific RDMA packet opcode type.
+message CollectiveCommunicationsRdmaOpcodeMatch {
+
+  message Value {
+    enum Enum {
+      unspecified = 0;
+      first = 1;
+      middle = 2;
+      last = 3;
+      source_any = 4;
+      ack = 5;
+      nack = 6;
+      destination_any = 7;
+    }
+  }
+  // The RDMA opcode value to match. Default is source_any.
+  // default = Value.Enum.source_any
+  optional Value.Enum value = 1;
+}
+
+// Artifacts storage configuration. PLACEHOLDER: configuration schema is not yet defined.
+message ConfigArtifacts {
+}
+
 // Port specific configurations.
 message PerPortOptions {
 
@@ -15154,6 +16098,10 @@ message Rocev2PerPortSettings {
 
   // Description missing in models
   Rocev2DCQCN dcqcn_settings = 3;
+
+  // Enable receive-side out-of-order packet handling for this port.
+  // default = False
+  optional bool enable_rx_reordering = 101;
 }
 
 // CNP parameters.
@@ -15166,7 +16114,7 @@ message Rocev2CNP {
     }
   }
   // Description missing in models
-  // default = Choice.Enum.ip_dscp
+  // required = true
   optional Choice.Enum choice = 1;
 
   // IP DSCP value for the CNP packets.
@@ -15202,7 +16150,7 @@ message Rocev2QPConnectionType {
     }
   }
   // Description missing in models
-  // default = Choice.Enum.reliable_connection
+  // required = true
   optional Choice.Enum choice = 1;
 
   // Description missing in models
@@ -15232,6 +16180,14 @@ message Rocev2AckAndNak {
   // Number of retransmission attempts before stopping due to missing ACK/NAK.
   // default = 3
   optional uint32 retransmission_retry_count = 5;
+
+  // Number of retransmission attempts triggered by a Receiver Not Ready (RNR) NAK.
+  // default = 0
+  optional uint32 rnr_nak_retry_count = 101;
+
+  // Request an ACK after every N packets. 0 disables the periodic request.
+  // default = 32
+  optional uint32 ack_request_interval = 102;
 }
 
 // ACK parameters.
@@ -15244,7 +16200,7 @@ message Rocev2ACK {
     }
   }
   // Description missing in models
-  // default = Choice.Enum.ip_dscp
+  // required = true
   optional Choice.Enum choice = 1;
 
   // IP DSCP value for the ACK packets.
@@ -15274,7 +16230,7 @@ message Rocev2NAK {
     }
   }
   // Description missing in models
-  // default = Choice.Enum.ip_dscp
+  // required = true
   optional Choice.Enum choice = 1;
 
   // IP DSCP value for the NAK packets.
@@ -15373,6 +16329,10 @@ message Rocev2DCQCN {
   // the hyper increment rate recovery mode.
   // default = 0.001
   optional float hyper_increment_rate = 14;
+
+  // The coefficient between alpha and the rate reduction factor.
+  // default = 11
+  optional uint32 rate_decrement_coefficient = 101;
 }
 
 // MACsec hardware acceleration settings of a test port. These settings are applicable
@@ -15757,6 +16717,97 @@ message ConfigDeleteResources {
   repeated string flows = 2;
 }
 
+// A configuration that describes a set of new resources to be generated.
+message ConfigGenerateRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      collective_communications = 1;
+    }
+  }
+  // Description missing in models
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The inputs used to generate a Collective Communication Benchmarks
+  // configuration, including the infrastructure the benchmark will run on.
+  CollectiveCommunicationsConfigGenerateRequest collective_communications = 2;
+}
+
+// Inputs used to generate a Collective Communication Benchmarks configuration.
+// The infrastructure is compiled into otg configuration settings, namely:
+// /ports
+// /devices/ethernets/...
+// /layer1
+// /captures
+// along with a partially populated collective communications infrastructure and bindings.
+// The generated config can be further customized by using get_config, modifying the
+// returned config, and calling set_config to update it.
+// If the config is not clear, generation will preserve the existing settings and expand
+// them incrementally to match the specified infrastructure.
+message CollectiveCommunicationsConfigGenerateRequest {
+
+  // The infrastructure to compile into a configuration.
+  // required = true
+  CollectiveCommunicationsHighLevelInfrastructure infrastructure = 1;
+
+  // Assigns platforms to different regions of the infrastructure.
+  repeated CollectiveCommunicationsPlatformRegion platform_regions = 2;
+}
+
+// Assigns a platform to a region within the infrastructure.
+message CollectiveCommunicationsPlatformRegion {
+
+  // The infrastructure region to which a platform is assigned.
+  CollectiveCommunicationsInfrastructureRegion region = 1;
+
+  // The name of the CollectiveCommunications.PlatformConfig assigned to this infrastructure
+  // region.
+  // 
+  // x-constraint:
+  // - /components/schemas/CollectiveCommunications.PlatformConfig/properties/name
+  // 
+  optional string platform_name = 2;
+}
+
+// Defines a region within the infrastructure by specifying boundary components.
+message CollectiveCommunicationsInfrastructureRegion {
+
+  // Components that mark the boundary of this region within the infrastructure.
+  repeated CollectiveCommunicationsInfrastructureRef boundary_refs = 1;
+}
+
+// Strategy for allocating XPUs to the derived process groups.
+message CollectiveCommunicationsAllocationStrategy {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      sequential = 1;
+      round_robin = 2;
+      custom = 3;
+    }
+  }
+  // Selects the allocation strategy. Default is sequential.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Round-robin allocation strategy configuration.
+  CollectiveCommunicationsRoundRobinStrategy round_robin = 2;
+}
+
+// Round-robin XPU allocation strategy. Allocates XPUs in a round-robin fashion across
+// process groups.
+message CollectiveCommunicationsRoundRobinStrategy {
+
+  // Number of consecutive XPUs each group takes before the next group's turn. A step
+  // of 1 interleaves one XPU at a time; larger values take larger contiguous chunks per
+  // turn.
+  // default = 1
+  optional uint32 step = 1;
+}
+
 // Request for setting operational state of configured resources.
 message ControlState {
 
@@ -15766,6 +16817,7 @@ message ControlState {
       port = 1;
       protocol = 2;
       traffic = 3;
+      collective_communications = 4;
     }
   }
   // Description missing in models
@@ -15780,6 +16832,9 @@ message ControlState {
 
   // Description missing in models
   StateTraffic traffic = 4;
+
+  // Description missing in models
+  StateCollectiveCommunications collective_communications = 6;
 }
 
 // States associated with configured ports.
@@ -15862,6 +16917,25 @@ message StateProtocol {
 
   // Description missing in models
   StateProtocolRocev2 rocev2 = 9;
+}
+
+// Execution/runtime control for the AI workload. Set the desired state to request a
+// transition; the runtime engine automatically transitions through any intermediate
+// states to reach it.
+message StateCollectiveCommunications {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      execution = 1;
+    }
+  }
+  // Selects the aspect of the collective benchmark to control.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Requests a collective benchmark execution state transition.
+  StateCollectiveCommunicationsExecution execution = 2;
 }
 
 // Sets the link of configured ports.
@@ -16345,6 +17419,32 @@ message StateProtocolIsisSimLinks {
   // LSP-ID of ST2: 770000000002-00-00: IS-Reachability Neighbors : ['770000000001']
   // LSP-ID of ST3: 770000000003-00-00: IS-Reachability Neighbors : ['770000000001']
   optional State.Enum state = 2;
+}
+
+// Provides state control of AI Workload executions. AI workloads typically run through
+// a number of states until they reach a terminal state, but can end prematurely if
+// an error is encountered, or if the user requests a stop.
+message StateCollectiveCommunicationsExecution {
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      start = 1;
+      stop = 2;
+    }
+  }
+  // The requested AI workload execution state.
+  // 
+  // If the value of the state property is 'start' then the AI workload will be run, if
+  // possible.
+  // 
+  // If the value of the state property is 'stop' then the AI workload will be stopped
+  // before automatically
+  // completing. Normally the AI workload will automatically stop when all the requested
+  // combinations have
+  // been executed, so this is not normally needed.
+  // required = true
+  optional State.Enum state = 1;
 }
 
 // Request for triggering action against configured resources.
@@ -16973,6 +18073,9 @@ message ActionProtocolIsisOverloadBit {
 // Request to traffic generator for metrics of choice.
 message MetricsRequest {
 
+  // Description missing in models
+  MetricsPagination pagination = 26;
+
   message Choice {
     enum Enum {
       unspecified = 0;
@@ -16999,6 +18102,7 @@ message MetricsRequest {
       rocev2_flow = 21;
       egress_only_tracking = 22;
       bmp_server = 23;
+      collective_communications = 24;
     }
   }
   // Description missing in models
@@ -17073,10 +18177,17 @@ message MetricsRequest {
 
   // Description missing in models
   BmpServerMetricsRequest bmp_server = 24;
+
+  // Description missing in models
+  CollectiveCommunicationsMetricsRequest collective_communications = 25;
 }
 
 // Response containing chosen traffic generator metrics.
 message MetricsResponse {
+
+  // Description missing in models
+  // required = true
+  MetricsPaginationResponse pagination = 26;
 
   message Choice {
     enum Enum {
@@ -17104,6 +18215,7 @@ message MetricsResponse {
       rocev2_flow_per_qp_metrics = 21;
       egress_only_tracking_metrics = 22;
       bmp_server_metrics = 23;
+      collective_communications_metrics = 24;
     }
   }
   // Description missing in models
@@ -17178,6 +18290,37 @@ message MetricsResponse {
 
   // Description missing in models
   repeated BmpServerMetric bmp_server_metrics = 24;
+
+  // Description missing in models
+  CollectiveCommunicationsMetricsResponse collective_communications_metrics = 25;
+}
+
+// Controls which slice of result rows is returned for a metrics request.
+message MetricsPagination {
+
+  // Zero-based index of the first row to return from the full result set.
+  optional uint32 start = 1;
+
+  // Maximum number of rows to return starting at `start`.
+  optional uint32 count = 2;
+}
+
+// Metadata describing the rows returned for a metrics request and how they relate to
+// the full result set.
+message MetricsPaginationResponse {
+
+  // The number of rows returned in this response.
+  // required = true
+  optional uint32 number_of_rows_returned = 1;
+
+  // The total number of rows available for the request across all pages, before pagination
+  // is applied.
+  // required = true
+  optional uint32 total_rows = 2;
+
+  // The zero-based index of the first returned row within the full result set.
+  // required = true
+  optional uint32 start_index = 3;
 }
 
 // The port result request to the traffic generator
@@ -19990,6 +21133,3842 @@ message BmpServerMetric {
   optional uint64 post_policy_ipv6_unicast_routes_received = 14;
 }
 
+// Request to the traffic generator for Collective Communications metrics of a chosen
+// type.
+message CollectiveCommunicationsMetricsRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      single_collective = 1;
+      workload_replay = 2;
+      mix_of_collectives = 3;
+    }
+  }
+  // The Collective Communications type to fetch metrics for.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveMetricsRequest single_collective = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplayMetricsRequest workload_replay = 3;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesMetricsRequest mix_of_collectives = 4;
+}
+
+// Response containing Collective Communications metrics of the chosen type.
+message CollectiveCommunicationsMetricsResponse {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      single_collective = 1;
+      workload_replay = 2;
+      mix_of_collectives = 3;
+    }
+  }
+  // The Collective Communications type the metrics in the response belong to.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveMetricsResponse single_collective = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplayMetricsResponse workload_replay = 3;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesMetricsResponse mix_of_collectives = 4;
+}
+
+// Request for metrics from a Collective Communication Benchmark run with a single collective.
+message CollectiveCommunicationsSingleCollectiveMetricsRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      data_chunk = 2;
+      flows = 3;
+      qpairs = 4;
+      ports = 5;
+      iterations_summary = 6;
+      iteration = 7;
+      packet_drop = 8;
+    }
+  }
+  // The type of Single Collective metrics to fetch.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveSummaryMetricsRequest summary = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveDataChunkMetricsRequest data_chunk = 3;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveFlowMetricsRequest flows = 4;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveQpMetricsRequest qpairs = 5;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectivePortsMetricsRequest ports = 6;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveIterationsSummaryMetricsRequest iterations_summary = 7;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveIterationMetricsRequest iteration = 8;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectivePacketDropMetricsRequest packet_drop = 9;
+}
+
+// Response containing Single Collective metrics of the chosen type.
+message CollectiveCommunicationsSingleCollectiveMetricsResponse {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      data_chunk = 2;
+      flows = 3;
+      qpairs = 4;
+      ports = 5;
+      iterations_summary = 6;
+      iteration = 7;
+      packet_drop = 8;
+    }
+  }
+  // The type of Single Collective metrics contained in the response.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The rows of summary metrics.
+  repeated CollectiveCommunicationsSingleCollectiveSummaryMetric summary = 2;
+
+  // The rows of data-chunk-transfer metrics.
+  repeated CollectiveCommunicationsSingleCollectiveDataChunkMetric data_chunk = 3;
+
+  // The rows of flow metrics.
+  repeated CollectiveCommunicationsSingleCollectiveFlowMetric flows = 4;
+
+  // The rows of queue-pair (QP) metrics.
+  repeated CollectiveCommunicationsSingleCollectiveQpMetric qpairs = 5;
+
+  // The rows of port metrics.
+  repeated CollectiveCommunicationsSingleCollectivePortsMetric ports = 6;
+
+  // The rows of iteration summary metrics.
+  repeated CollectiveCommunicationsSingleCollectiveIterationsSummaryMetric iterations_summary = 7;
+
+  // The rows of iteration metrics.
+  repeated CollectiveCommunicationsSingleCollectiveIterationMetric iteration = 8;
+
+  // The rows of packet drop metrics.
+  repeated CollectiveCommunicationsSingleCollectivePacketDropMetric packet_drop = 9;
+}
+
+// Request for summary metrics. Summarizes the completion times and throughput rates
+// per collective datasize.
+message CollectiveCommunicationsSingleCollectiveSummaryMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size = 1;
+      collective = 2;
+      iterations = 3;
+      completion_time = 4;
+      algo_bw = 5;
+      bus_bw = 6;
+      ideal = 7;
+      pfc_rx = 8;
+      ecn_ce_rx = 9;
+      frames_retx = 10;
+      total_time = 11;
+      duty_cycle = 12;
+      total_bytes_tx = 13;
+      total_bytes_rx = 14;
+      cnp_tx = 15;
+      cnp_rx = 16;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of summary metrics.
+message CollectiveCommunicationsSingleCollectiveSummaryMetric {
+
+  // Collective operation data size (in Bytes).
+  optional uint64 data_size = 2;
+
+  // Collective operation name.
+  optional string collective = 3;
+
+  // Number of benchmark runs per data size.
+  optional uint64 iterations = 4;
+
+  // Time to complete collective operation, in milliseconds.
+  optional float completion_time = 5;
+
+  // Algorithm bandwidth, calculated as Collective Size / Time (in 1e9 Bytes/sec).
+  optional float algo_bw = 6;
+
+  // Bus bandwidth, calculated as `algo_bw` multiplied by a collective-dependent compensation
+  // factor (in GB/s).
+  optional float bus_bw = 7;
+
+  // Bus bandwidth divided by ideal goodput (as percentage).
+  optional float ideal = 8;
+
+  // Total number of Priority Flow Control frames received.
+  optional float pfc_rx = 9;
+
+  // Total number of frames received with ECN congestion encountered.
+  optional float ecn_ce_rx = 10;
+
+  // Frames Retransmitted count.
+  optional float frames_retx = 11;
+
+  // Time to complete all iterations, in seconds.
+  optional float total_time = 12;
+
+  // Ratio of total execution time utilized for actual collective operation (as percentage).
+  optional float duty_cycle = 13;
+
+  // Total number of bytes transmitted.
+  optional uint64 total_bytes_tx = 14;
+
+  // Total number of bytes received.
+  optional uint64 total_bytes_rx = 15;
+
+  // Total number of Congestion Notification Packets transmitted.
+  optional float cnp_tx = 16;
+
+  // Total number of Congestion Notification Packets received.
+  optional float cnp_rx = 17;
+}
+
+// Request for data-chunk-transfer metrics. Contains payload size and timing information
+// for each logical transfer from rank to rank.
+message CollectiveCommunicationsSingleCollectiveDataChunkMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      collective = 3;
+      iteration = 4;
+      name = 5;
+      data_chunk_transfer_id = 6;
+      channel_id = 7;
+      buffer_offset = 8;
+      chunk_count = 9;
+      data_size = 10;
+      chunk_size = 11;
+      start_ms = 12;
+      end_ms = 13;
+      completion_time_ms = 14;
+      transmit_type = 15;
+      emulated_tx_component = 16;
+      payload_bytes = 17;
+      hop_count = 18;
+      hop_latency_us = 19;
+      source_rank = 20;
+      destination_rank = 21;
+      source_nic = 22;
+      destination_nic = 23;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of data-chunk-transfer metrics.
+message CollectiveCommunicationsSingleCollectiveDataChunkMetric {
+
+  // Source rank of the chunk transfer.
+  optional int32 source_rank = 2;
+
+  // Destination rank of the chunk transfer.
+  optional int32 destination_rank = 3;
+
+  // Source NIC.
+  optional int32 source_nic = 4;
+
+  // Destination NIC.
+  optional int32 destination_nic = 5;
+
+  // Collective operation name.
+  optional string collective = 8;
+
+  // Iteration number.
+  optional int32 iteration = 9;
+
+  // Name of the chunk transfer.
+  optional string name = 10;
+
+  // Data Chunk Transfer ID.
+  optional int32 data_chunk_transfer_id = 11;
+
+  // Communication channel ID.
+  optional int32 channel_id = 12;
+
+  // Buffer offset where the chunk starts.
+  optional int32 buffer_offset = 13;
+
+  // Number of chunks being transmitted.
+  optional int32 chunk_count = 14;
+
+  // Configured collective data size in Bytes.
+  optional uint64 data_size = 15;
+
+  // Chunk size in Bytes.
+  optional uint64 chunk_size = 16;
+
+  // Start time of the chunk transfer expressed in ms.
+  optional float start_ms = 17;
+
+  // End time of the chunk transfer expressed in ms.
+  optional float end_ms = 18;
+
+  // Completion time of the chunk transfer expressed in ms.
+  optional float completion_time_ms = 19;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 20;
+
+  // Emulated infra component source of the chunk transfer.
+  optional string emulated_tx_component = 21;
+
+  // Payload bytes.
+  optional uint64 payload_bytes = 22;
+
+  // Number of network switches the data passes through between the source and destination
+  // NICs. For example, 1 when both endpoints connect to the same switch, or 3 when the
+  // path goes through two edge switches and a spine switch. Only present when hop latency
+  // modeling is enabled.
+  optional int32 hop_count = 23;
+
+  // Extra latency, in microseconds, added to this transfer's completion time to account
+  // for the time spent crossing network switches. It increases with `hop_count`; it is
+  // 0 only when no switches are crossed. Only present when hop latency modeling is enabled.
+  optional float hop_latency_us = 24;
+}
+
+// Request for flow metrics. Contains flow size and timing statistics for each queue
+// pair per logical transfer from rank to rank.
+message CollectiveCommunicationsSingleCollectiveFlowMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      collective = 3;
+      data_size = 4;
+      iteration = 5;
+      data_chunk_transfer_id = 6;
+      qp_id = 7;
+      channel_id = 8;
+      buffer_offset = 9;
+      chunk_count = 10;
+      start_ms = 11;
+      end_ms = 12;
+      completion_time_ms = 13;
+      transmit_type = 14;
+      emulated_tx_component = 15;
+      flow_size = 16;
+      hop_count = 17;
+      hop_latency_us = 18;
+      source_rank = 19;
+      destination_rank = 20;
+      source_nic = 21;
+      destination_nic = 22;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of flow metrics.
+message CollectiveCommunicationsSingleCollectiveFlowMetric {
+
+  // Source rank of the flow.
+  optional int32 source_rank = 2;
+
+  // Destination rank of the flow.
+  optional int32 destination_rank = 3;
+
+  // Source NIC.
+  optional int32 source_nic = 4;
+
+  // Destination NIC.
+  optional int32 destination_nic = 5;
+
+  // Collective operation name.
+  optional string collective = 8;
+
+  // Configured collective data size in Bytes.
+  optional uint64 data_size = 9;
+
+  // Iteration number.
+  optional int32 iteration = 10;
+
+  // Data Chunk Transfer ID.
+  optional int32 data_chunk_transfer_id = 11;
+
+  // Destination Queue pair ID.
+  optional int32 qp_id = 12;
+
+  // Communication channel ID.
+  optional int32 channel_id = 13;
+
+  // Buffer offset where the chunk starts.
+  optional int32 buffer_offset = 14;
+
+  // Number of chunks being transmitted.
+  optional int32 chunk_count = 15;
+
+  // Start time of the flow expressed in ms.
+  optional float start_ms = 16;
+
+  // End time of the flow expressed in ms.
+  optional float end_ms = 17;
+
+  // Completion time of the flow expressed in ms.
+  optional float completion_time_ms = 18;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 19;
+
+  // Emulated infra component source of the flow transfer.
+  optional string emulated_tx_component = 20;
+
+  // Flow size in Bytes.
+  optional uint64 flow_size = 21;
+
+  // Number of network switches the data passes through between the source and destination
+  // NICs. For example, 1 when both endpoints connect to the same switch, or 3 when the
+  // path goes through two edge switches and a spine switch. Only present when hop latency
+  // modeling is enabled.
+  optional int32 hop_count = 22;
+
+  // Extra latency, in microseconds, added to this flow's completion time to account for
+  // the time spent crossing network switches. It increases with `hop_count`; it is 0
+  // only when no switches are crossed. Only present when hop latency modeling is enabled.
+  optional float hop_latency_us = 23;
+}
+
+// Request for queue-pair (QP) metrics. Contains detailed message statistics for each
+// queue-pair used in the collective.
+message CollectiveCommunicationsSingleCollectiveQpMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size = 1;
+      collective = 2;
+      messages_sent = 3;
+      messages_received = 4;
+      messages_failed = 5;
+      bytes_tx = 6;
+      bytes_rx = 7;
+      frames_tx = 8;
+      frames_rx = 9;
+      frames_delta = 10;
+      frames_seq_error = 11;
+      frames_retx = 12;
+      ack_tx = 13;
+      ack_rx = 14;
+      nack_tx = 15;
+      nack_rx = 16;
+      nack_rnr_rx = 17;
+      reordered_rx = 18;
+      duplicate_rx = 19;
+      ecn_ce_rx = 20;
+      cnp_tx = 21;
+      cnp_rx = 22;
+      min_latency_ns = 23;
+      avg_latency_ns = 24;
+      max_latency_ns = 25;
+      source_rank = 26;
+      destination_rank = 27;
+      source_qp_id = 28;
+      destination_qp_id = 29;
+      source_nic = 30;
+      destination_nic = 31;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of queue-pair (QP) metrics.
+message CollectiveCommunicationsSingleCollectiveQpMetric {
+
+  // Source rank.
+  optional int32 source_rank = 2;
+
+  // Destination rank.
+  optional int32 destination_rank = 3;
+
+  // Source QP ID.
+  optional int32 source_qp_id = 4;
+
+  // Destination QP ID.
+  optional int32 destination_qp_id = 5;
+
+  // Source NIC index.
+  optional int32 source_nic = 6;
+
+  // Destination NIC index.
+  optional int32 destination_nic = 7;
+
+  // Data size in Bytes.
+  optional uint64 data_size = 8;
+
+  // Collective operation name.
+  optional string collective = 9;
+
+  // Messages sent.
+  optional uint64 messages_sent = 10;
+
+  // Messages received.
+  optional uint64 messages_received = 11;
+
+  // Messages failed.
+  optional uint64 messages_failed = 12;
+
+  // Total bytes transmitted (this includes retransmitted bytes as well).
+  optional uint64 bytes_tx = 13;
+
+  // Total bytes received (this includes retransmitted bytes as well).
+  optional uint64 bytes_rx = 14;
+
+  // Frames transmitted.
+  optional uint64 frames_tx = 15;
+
+  // Frames received.
+  optional uint64 frames_rx = 16;
+
+  // Frames delta.
+  optional int32 frames_delta = 17;
+
+  // Frames sequence error.
+  optional uint64 frames_seq_error = 18;
+
+  // Frames retransmitted.
+  optional uint64 frames_retx = 19;
+
+  // ACK transmitted.
+  optional uint64 ack_tx = 20;
+
+  // ACK received.
+  optional uint64 ack_rx = 21;
+
+  // NACK transmitted.
+  optional uint64 nack_tx = 22;
+
+  // NACK received.
+  optional uint64 nack_rx = 23;
+
+  // NACK RNR received.
+  optional uint64 nack_rnr_rx = 24;
+
+  // Reordered frames received.
+  optional uint64 reordered_rx = 25;
+
+  // Duplicate frames received.
+  optional uint64 duplicate_rx = 26;
+
+  // ECN-CE received.
+  optional uint64 ecn_ce_rx = 27;
+
+  // CNP transmitted.
+  optional uint64 cnp_tx = 28;
+
+  // CNP received.
+  optional uint64 cnp_rx = 29;
+
+  // Minimum latency in nanoseconds.
+  optional uint64 min_latency_ns = 30;
+
+  // Average latency in nanoseconds.
+  optional uint64 avg_latency_ns = 31;
+
+  // Maximum latency in nanoseconds.
+  optional uint64 max_latency_ns = 32;
+}
+
+// Request for port metrics. Contains byte, frame, and congestion packet counts for
+// each port device.
+message CollectiveCommunicationsSingleCollectivePortsMetricsRequest {
+
+  // Filter results by port name. An empty list returns all rows.
+  repeated string port_name = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      ranks = 1;
+      nic_name = 2;
+      server = 3;
+      link_speed = 4;
+      link_state = 5;
+      frames_tx = 6;
+      frames_rx = 7;
+      bytes_tx = 8;
+      bytes_rx = 9;
+      pause_frames_rx = 10;
+      ecn_ce_rx = 11;
+      cnp_tx = 12;
+      cnp_rx = 13;
+      crc_errors = 14;
+      discards_tx = 15;
+      discards_rx = 16;
+      pause_frames_tx = 17;
+      link_down_events = 18;
+      roce_v2_qps_configured = 19;
+      roce_v2_qps_ready = 20;
+      roce_v2_data_frames_tx = 21;
+      roce_v2_data_frames_rx = 22;
+      roce_v2_ack_tx = 23;
+      roce_v2_ack_rx = 24;
+      roce_v2_nack_tx = 25;
+      roce_v2_nack_rx = 26;
+      roce_v2_nak_tx = 27;
+      roce_v2_nak_rx = 28;
+      roce_v2_frame_sequence_errors = 29;
+      frames_retx = 30;
+      queue_buffer_overflows_rx = 31;
+      buffer_threshold_passed_rx = 32;
+      frames_rx_64b = 33;
+      frames_rx_65_127b = 34;
+      frames_rx_128_255b = 35;
+      frames_rx_256_511b = 36;
+      frames_rx_512_1023b = 37;
+      frames_rx_1024_1518b = 38;
+      frames_rx_1519_2047b = 39;
+      frames_rx_2048_4095b = 40;
+      frames_rx_4096_8191b = 41;
+      frames_rx_4096_9216b = 42;
+      frames_rx_8192_10239b = 43;
+      frames_rx_9217_16383b = 44;
+      bytes_tx_priority_0 = 45;
+      bytes_rx_priority_0 = 46;
+      frames_tx_priority_0 = 47;
+      frames_rx_priority_0 = 48;
+      pause_frames_tx_priority_0 = 49;
+      pause_frames_rx_priority_0 = 50;
+      pause_duration_rx_priority_0 = 51;
+      pause_transition_rx_priority_0 = 52;
+      discards_rx_priority_0 = 53;
+      bytes_tx_priority_1 = 54;
+      bytes_rx_priority_1 = 55;
+      frames_tx_priority_1 = 56;
+      frames_rx_priority_1 = 57;
+      pause_frames_tx_priority_1 = 58;
+      pause_frames_rx_priority_1 = 59;
+      pause_duration_rx_priority_1 = 60;
+      pause_transition_rx_priority_1 = 61;
+      discards_rx_priority_1 = 62;
+      bytes_tx_priority_2 = 63;
+      bytes_rx_priority_2 = 64;
+      frames_tx_priority_2 = 65;
+      frames_rx_priority_2 = 66;
+      pause_frames_tx_priority_2 = 67;
+      pause_frames_rx_priority_2 = 68;
+      pause_duration_rx_priority_2 = 69;
+      pause_transition_rx_priority_2 = 70;
+      discards_rx_priority_2 = 71;
+      bytes_tx_priority_3 = 72;
+      bytes_rx_priority_3 = 73;
+      frames_tx_priority_3 = 74;
+      frames_rx_priority_3 = 75;
+      pause_frames_tx_priority_3 = 76;
+      pause_frames_rx_priority_3 = 77;
+      pause_duration_rx_priority_3 = 78;
+      pause_transition_rx_priority_3 = 79;
+      discards_rx_priority_3 = 80;
+      bytes_tx_priority_4 = 81;
+      bytes_rx_priority_4 = 82;
+      frames_tx_priority_4 = 83;
+      frames_rx_priority_4 = 84;
+      pause_frames_tx_priority_4 = 85;
+      pause_frames_rx_priority_4 = 86;
+      pause_duration_rx_priority_4 = 87;
+      pause_transition_rx_priority_4 = 88;
+      discards_rx_priority_4 = 89;
+      bytes_tx_priority_5 = 90;
+      bytes_rx_priority_5 = 91;
+      frames_tx_priority_5 = 92;
+      frames_rx_priority_5 = 93;
+      pause_frames_tx_priority_5 = 94;
+      pause_frames_rx_priority_5 = 95;
+      pause_duration_rx_priority_5 = 96;
+      pause_transition_rx_priority_5 = 97;
+      discards_rx_priority_5 = 98;
+      bytes_tx_priority_6 = 99;
+      bytes_rx_priority_6 = 100;
+      frames_tx_priority_6 = 101;
+      frames_rx_priority_6 = 102;
+      pause_frames_tx_priority_6 = 103;
+      pause_frames_rx_priority_6 = 104;
+      pause_duration_rx_priority_6 = 105;
+      pause_transition_rx_priority_6 = 106;
+      discards_rx_priority_6 = 107;
+      bytes_tx_priority_7 = 108;
+      bytes_rx_priority_7 = 109;
+      frames_tx_priority_7 = 110;
+      frames_rx_priority_7 = 111;
+      pause_frames_tx_priority_7 = 112;
+      pause_frames_rx_priority_7 = 113;
+      pause_duration_rx_priority_7 = 114;
+      pause_transition_rx_priority_7 = 115;
+      discards_rx_priority_7 = 116;
+      device = 117;
+      port = 118;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of port metrics.
+message CollectiveCommunicationsSingleCollectivePortsMetric {
+
+  // Chassis FQDN or IP address.
+  optional string device = 1;
+
+  // Chassis test port ID.
+  optional string port = 2;
+
+  // Associated rank ID.
+  optional string ranks = 3;
+
+  // Network interface card name.
+  optional string nic_name = 4;
+
+  // Server name.
+  optional string server = 5;
+
+  // Physical link speed.
+  optional string link_speed = 6;
+
+  // Link state (UP/DOWN).
+  optional string link_state = 7;
+
+  // Total frames transmitted.
+  optional uint64 frames_tx = 8;
+
+  // Total frames received.
+  optional uint64 frames_rx = 9;
+
+  // Total bytes transmitted.
+  optional uint64 bytes_tx = 10;
+
+  // Total bytes received.
+  optional uint64 bytes_rx = 11;
+
+  // Priority Pause Frames received.
+  optional uint64 pause_frames_rx = 12;
+
+  // Frames received with ECN congestion encountered (Explicit Congestion Notification
+  // - Congestion Experienced).
+  optional uint64 ecn_ce_rx = 13;
+
+  // Congestion notification packets transmitted.
+  optional uint64 cnp_tx = 14;
+
+  // Congestion notification packets received.
+  optional uint64 cnp_rx = 15;
+
+  // Number of CRC errors detected.
+  optional uint64 crc_errors = 16;
+
+  // Transmit discards.
+  optional uint64 discards_tx = 17;
+
+  // Receive discards.
+  optional uint64 discards_rx = 18;
+
+  // Pause frames transmitted.
+  optional uint64 pause_frames_tx = 19;
+
+  // Link down event count.
+  optional uint64 link_down_events = 20;
+
+  // RoCEv2 Queue Pairs configured.
+  optional uint64 roce_v2_qps_configured = 21;
+
+  // RoCEv2 Queue Pairs ready.
+  optional uint64 roce_v2_qps_ready = 22;
+
+  // RoCEv2 frames transmitted.
+  optional uint64 roce_v2_data_frames_tx = 23;
+
+  // RoCEv2 frames received.
+  optional uint64 roce_v2_data_frames_rx = 24;
+
+  // RoCEv2 Acknowledgement frames transmitted.
+  optional uint64 roce_v2_ack_tx = 25;
+
+  // RoCEv2 Acknowledgement frames received.
+  optional uint64 roce_v2_ack_rx = 26;
+
+  // RoCEv2 Negative Acknowledgement frames transmitted.
+  optional uint64 roce_v2_nack_tx = 27;
+
+  // RoCEv2 Negative Acknowledgement frames received.
+  optional uint64 roce_v2_nack_rx = 28;
+
+  // RoCEv2 NAKs transmitted (software platform only).
+  optional uint64 roce_v2_nak_tx = 29;
+
+  // RoCEv2 NAKs received (software platform only).
+  optional uint64 roce_v2_nak_rx = 30;
+
+  // RoCEv2 Sequence Error Frames.
+  optional uint64 roce_v2_frame_sequence_errors = 31;
+
+  // Frames Retransmitted count.
+  optional uint64 frames_retx = 32;
+
+  // Receive queue buffer overflows.
+  optional uint64 queue_buffer_overflows_rx = 33;
+
+  // Buffer threshold passed events.
+  optional uint64 buffer_threshold_passed_rx = 34;
+
+  // Frames received of size 64 bytes.
+  optional uint64 frames_rx_64b = 35;
+
+  // Frames received of size 65-127 bytes.
+  optional uint64 frames_rx_65_127b = 36;
+
+  // Frames received of size 128-255 bytes.
+  optional uint64 frames_rx_128_255b = 37;
+
+  // Frames received of size 256-511 bytes.
+  optional uint64 frames_rx_256_511b = 38;
+
+  // Frames received of size 512-1023 bytes.
+  optional uint64 frames_rx_512_1023b = 39;
+
+  // Frames received of size 1024-1518 bytes.
+  optional uint64 frames_rx_1024_1518b = 40;
+
+  // Frames received of size 1519-2047 bytes.
+  optional uint64 frames_rx_1519_2047b = 41;
+
+  // Frames received of size 2048-4095 bytes.
+  optional uint64 frames_rx_2048_4095b = 42;
+
+  // Frames received of size 4096-8191 bytes (Mellanox only).
+  optional uint64 frames_rx_4096_8191b = 43;
+
+  // Frames received of size 4096-9216 bytes (Broadcom only).
+  optional uint64 frames_rx_4096_9216b = 44;
+
+  // Frames received of size 8192-10239 bytes (Mellanox only).
+  optional uint64 frames_rx_8192_10239b = 45;
+
+  // Frames received of size 9217-16383 bytes (Broadcom only).
+  optional uint64 frames_rx_9217_16383b = 46;
+
+  // Bytes transmitted on priority 0.
+  optional uint64 bytes_tx_priority_0 = 47;
+
+  // Bytes received on priority 0.
+  optional uint64 bytes_rx_priority_0 = 48;
+
+  // Frames transmitted on priority 0.
+  optional uint64 frames_tx_priority_0 = 49;
+
+  // Frames received on priority 0.
+  optional uint64 frames_rx_priority_0 = 50;
+
+  // Pause frames transmitted on priority 0.
+  optional uint64 pause_frames_tx_priority_0 = 51;
+
+  // Pause frames received on priority 0.
+  optional uint64 pause_frames_rx_priority_0 = 52;
+
+  // Pause duration received on priority 0.
+  optional uint64 pause_duration_rx_priority_0 = 53;
+
+  // Pause transitions received on priority 0.
+  optional uint64 pause_transition_rx_priority_0 = 54;
+
+  // Discards received on priority 0.
+  optional uint64 discards_rx_priority_0 = 55;
+
+  // Bytes transmitted on priority 1.
+  optional uint64 bytes_tx_priority_1 = 56;
+
+  // Bytes received on priority 1.
+  optional uint64 bytes_rx_priority_1 = 57;
+
+  // Frames transmitted on priority 1.
+  optional uint64 frames_tx_priority_1 = 58;
+
+  // Frames received on priority 1.
+  optional uint64 frames_rx_priority_1 = 59;
+
+  // Pause frames transmitted on priority 1.
+  optional uint64 pause_frames_tx_priority_1 = 60;
+
+  // Pause frames received on priority 1.
+  optional uint64 pause_frames_rx_priority_1 = 61;
+
+  // Pause duration received on priority 1.
+  optional uint64 pause_duration_rx_priority_1 = 62;
+
+  // Pause transitions received on priority 1.
+  optional uint64 pause_transition_rx_priority_1 = 63;
+
+  // Discards received on priority 1.
+  optional uint64 discards_rx_priority_1 = 64;
+
+  // Bytes transmitted on priority 2.
+  optional uint64 bytes_tx_priority_2 = 65;
+
+  // Bytes received on priority 2.
+  optional uint64 bytes_rx_priority_2 = 66;
+
+  // Frames transmitted on priority 2.
+  optional uint64 frames_tx_priority_2 = 67;
+
+  // Frames received on priority 2.
+  optional uint64 frames_rx_priority_2 = 68;
+
+  // Pause frames transmitted on priority 2.
+  optional uint64 pause_frames_tx_priority_2 = 69;
+
+  // Pause frames received on priority 2.
+  optional uint64 pause_frames_rx_priority_2 = 70;
+
+  // Pause duration received on priority 2.
+  optional uint64 pause_duration_rx_priority_2 = 71;
+
+  // Pause transitions received on priority 2.
+  optional uint64 pause_transition_rx_priority_2 = 72;
+
+  // Discards received on priority 2.
+  optional uint64 discards_rx_priority_2 = 73;
+
+  // Bytes transmitted on priority 3.
+  optional uint64 bytes_tx_priority_3 = 74;
+
+  // Bytes received on priority 3.
+  optional uint64 bytes_rx_priority_3 = 75;
+
+  // Frames transmitted on priority 3.
+  optional uint64 frames_tx_priority_3 = 76;
+
+  // Frames received on priority 3.
+  optional uint64 frames_rx_priority_3 = 77;
+
+  // Pause frames transmitted on priority 3.
+  optional uint64 pause_frames_tx_priority_3 = 78;
+
+  // Pause frames received on priority 3.
+  optional uint64 pause_frames_rx_priority_3 = 79;
+
+  // Pause duration received on priority 3.
+  optional uint64 pause_duration_rx_priority_3 = 80;
+
+  // Pause transitions received on priority 3.
+  optional uint64 pause_transition_rx_priority_3 = 81;
+
+  // Discards received on priority 3.
+  optional uint64 discards_rx_priority_3 = 82;
+
+  // Bytes transmitted on priority 4.
+  optional uint64 bytes_tx_priority_4 = 83;
+
+  // Bytes received on priority 4.
+  optional uint64 bytes_rx_priority_4 = 84;
+
+  // Frames transmitted on priority 4.
+  optional uint64 frames_tx_priority_4 = 85;
+
+  // Frames received on priority 4.
+  optional uint64 frames_rx_priority_4 = 86;
+
+  // Pause frames transmitted on priority 4.
+  optional uint64 pause_frames_tx_priority_4 = 87;
+
+  // Pause frames received on priority 4.
+  optional uint64 pause_frames_rx_priority_4 = 88;
+
+  // Pause duration received on priority 4.
+  optional uint64 pause_duration_rx_priority_4 = 89;
+
+  // Pause transitions received on priority 4.
+  optional uint64 pause_transition_rx_priority_4 = 90;
+
+  // Discards received on priority 4.
+  optional uint64 discards_rx_priority_4 = 91;
+
+  // Bytes transmitted on priority 5.
+  optional uint64 bytes_tx_priority_5 = 92;
+
+  // Bytes received on priority 5.
+  optional uint64 bytes_rx_priority_5 = 93;
+
+  // Frames transmitted on priority 5.
+  optional uint64 frames_tx_priority_5 = 94;
+
+  // Frames received on priority 5.
+  optional uint64 frames_rx_priority_5 = 95;
+
+  // Pause frames transmitted on priority 5.
+  optional uint64 pause_frames_tx_priority_5 = 96;
+
+  // Pause frames received on priority 5.
+  optional uint64 pause_frames_rx_priority_5 = 97;
+
+  // Pause duration received on priority 5.
+  optional uint64 pause_duration_rx_priority_5 = 98;
+
+  // Pause transitions received on priority 5.
+  optional uint64 pause_transition_rx_priority_5 = 99;
+
+  // Discards received on priority 5.
+  optional uint64 discards_rx_priority_5 = 100;
+
+  // Bytes transmitted on priority 6.
+  optional uint64 bytes_tx_priority_6 = 101;
+
+  // Bytes received on priority 6.
+  optional uint64 bytes_rx_priority_6 = 102;
+
+  // Frames transmitted on priority 6.
+  optional uint64 frames_tx_priority_6 = 103;
+
+  // Frames received on priority 6.
+  optional uint64 frames_rx_priority_6 = 104;
+
+  // Pause frames transmitted on priority 6.
+  optional uint64 pause_frames_tx_priority_6 = 105;
+
+  // Pause frames received on priority 6.
+  optional uint64 pause_frames_rx_priority_6 = 106;
+
+  // Pause duration received on priority 6.
+  optional uint64 pause_duration_rx_priority_6 = 107;
+
+  // Pause transitions received on priority 6.
+  optional uint64 pause_transition_rx_priority_6 = 108;
+
+  // Discards received on priority 6.
+  optional uint64 discards_rx_priority_6 = 109;
+
+  // Bytes transmitted on priority 7.
+  optional uint64 bytes_tx_priority_7 = 110;
+
+  // Bytes received on priority 7.
+  optional uint64 bytes_rx_priority_7 = 111;
+
+  // Frames transmitted on priority 7.
+  optional uint64 frames_tx_priority_7 = 112;
+
+  // Frames received on priority 7.
+  optional uint64 frames_rx_priority_7 = 113;
+
+  // Pause frames transmitted on priority 7.
+  optional uint64 pause_frames_tx_priority_7 = 114;
+
+  // Pause frames received on priority 7.
+  optional uint64 pause_frames_rx_priority_7 = 115;
+
+  // Pause duration received on priority 7.
+  optional uint64 pause_duration_rx_priority_7 = 116;
+
+  // Pause transitions received on priority 7.
+  optional uint64 pause_transition_rx_priority_7 = 117;
+
+  // Discards received on priority 7.
+  optional uint64 discards_rx_priority_7 = 118;
+}
+
+// Request for iteration summary metrics. Each row summarizes the iterations per collective
+// datasize.
+message CollectiveCommunicationsSingleCollectiveIterationsSummaryMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size = 1;
+      collective = 2;
+      iterations = 3;
+      min_cct = 4;
+      avg_cct = 5;
+      max_cct = 6;
+      min_algo_bw = 7;
+      avg_algo_bw = 8;
+      max_algo_bw = 9;
+      min_bus_bw = 10;
+      avg_bus_bw = 11;
+      max_bus_bw = 12;
+      min_ideal = 13;
+      avg_ideal = 14;
+      max_ideal = 15;
+      pfc_rx = 16;
+      ecn_ce_rx = 17;
+      frames_retx = 18;
+      total_time = 19;
+      duty_cycle = 20;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of iteration summary metrics.
+message CollectiveCommunicationsSingleCollectiveIterationsSummaryMetric {
+
+  // Collective operation data size (in Bytes).
+  optional uint64 data_size = 2;
+
+  // Collective operation name.
+  optional string collective = 3;
+
+  // Number of benchmark runs per data size.
+  optional uint64 iterations = 4;
+
+  // Minimum collective time in milliseconds.
+  optional float min_cct = 5;
+
+  // Average collective time in milliseconds.
+  optional float avg_cct = 6;
+
+  // Maximum collective time in milliseconds.
+  optional float max_cct = 7;
+
+  // Minimum algorithm bandwidth (GB/s).
+  optional float min_algo_bw = 8;
+
+  // Average algorithm bandwidth (GB/s).
+  optional float avg_algo_bw = 9;
+
+  // Maximum algorithm bandwidth (GB/s).
+  optional float max_algo_bw = 10;
+
+  // Minimum bus bandwidth (GB/s).
+  optional float min_bus_bw = 11;
+
+  // Average bus bandwidth (GB/s).
+  optional float avg_bus_bw = 12;
+
+  // Maximum bus bandwidth (GB/s).
+  optional float max_bus_bw = 13;
+
+  // Minimum bus bandwidth divided by ideal goodput (as percentage).
+  optional float min_ideal = 14;
+
+  // Average bus bandwidth divided by ideal goodput (as percentage).
+  optional float avg_ideal = 15;
+
+  // Maximum bus bandwidth divided by ideal goodput (as percentage).
+  optional float max_ideal = 16;
+
+  // Number of Priority Flow Control frames received.
+  optional uint64 pfc_rx = 17;
+
+  // Number of frames received with ECN congestion encountered.
+  optional uint64 ecn_ce_rx = 18;
+
+  // Frames Retransmitted count.
+  optional uint64 frames_retx = 19;
+
+  // Time to complete all iterations, in seconds.
+  optional float total_time = 20;
+
+  // Ratio of total execution time utilized for actual collective operation (as percentage).
+  optional float duty_cycle = 21;
+}
+
+// Request for detailed iteration metrics. Contains completion time and throughput details
+// for each iteration of each collective datasize.
+message CollectiveCommunicationsSingleCollectiveIterationMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size = 1;
+      collective = 2;
+      iteration = 3;
+      collective_start_time_ms = 4;
+      collective_end_time_ms = 5;
+      collective_completion_time_ms = 6;
+      algo_bw = 7;
+      bus_bw = 8;
+      ideal = 9;
+      min_fct = 10;
+      p50_fct = 11;
+      p95_fct = 12;
+      max_fct = 13;
+      p99_fct = 14;
+      p99_99_fct = 15;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of iteration metrics.
+message CollectiveCommunicationsSingleCollectiveIterationMetric {
+
+  // Collective operation data size (in Bytes).
+  optional uint64 data_size = 2;
+
+  // Collective operation name.
+  optional string collective = 3;
+
+  // Iteration number.
+  optional int32 iteration = 4;
+
+  // Start time of the collective of the current iteration in milliseconds.
+  optional float collective_start_time_ms = 5;
+
+  // End time of the collective of the current iteration in milliseconds.
+  optional float collective_end_time_ms = 6;
+
+  // Collective completion time of the current iteration in milliseconds.
+  optional float collective_completion_time_ms = 7;
+
+  // Algorithm bandwidth, calculated as Collective Size / Time (in 1e9 Bytes/sec).
+  optional float algo_bw = 8;
+
+  // Bus bandwidth, calculated as `algo_bw` multiplied by a collective-dependent compensation
+  // factor (in GB/s).
+  optional float bus_bw = 9;
+
+  // Bus bandwidth divided by ideal goodput (as percentage).
+  optional float ideal = 10;
+
+  // Smallest Flow Completion Time of any of the flows, in milliseconds.
+  optional float min_fct = 11;
+
+  // 50th percentile of Flow Completion Times, in milliseconds.
+  optional float p50_fct = 12;
+
+  // 95th percentile of Flow Completion Times, in milliseconds.
+  optional float p95_fct = 13;
+
+  // Largest Flow Completion Time of all flows, in milliseconds.
+  optional float max_fct = 14;
+
+  // 99th percentile of Flow Completion Times, in milliseconds.
+  optional float p99_fct = 15;
+
+  // 99.99th percentile of Flow Completion Times, in milliseconds.
+  optional float p99_99_fct = 16;
+}
+
+// Request for packet drop metrics. Contains details about dropped frames and response
+// times.
+message CollectiveCommunicationsSingleCollectivePacketDropMetricsRequest {
+
+  // Filter results by the location where the impairment is applied (Source or Destination).
+  // An empty list returns all rows.
+  repeated string impairment_location = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      tx_drop_count = 1;
+      rx_drop_count = 2;
+      nack_timer_ns = 3;
+      flow_index = 4;
+      flow_source_nic = 5;
+      flow_destination_nic = 6;
+      impairment_location = 7;
+      opcode = 8;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of packet drop metrics.
+message CollectiveCommunicationsSingleCollectivePacketDropMetric {
+
+  // Index of the flow being impaired.
+  optional int32 flow_index = 1;
+
+  // Source NIC used in the impairment.
+  optional string flow_source_nic = 2;
+
+  // Destination NIC used in the impairment.
+  optional string flow_destination_nic = 3;
+
+  // Location where the impairment is applied (Source or Destination).
+  optional string impairment_location = 4;
+
+  // RDMA opcode associated with the impairment.
+  optional string opcode = 5;
+
+  // Number of transmitted packets dropped.
+  optional uint64 tx_drop_count = 6;
+
+  // Number of received packets dropped.
+  optional uint64 rx_drop_count = 7;
+
+  // NACK timer value in nanoseconds.
+  optional float nack_timer_ns = 8;
+}
+
+// Request for metrics from a Collective Communication Benchmark run with workload replay.
+message CollectiveCommunicationsWorkloadReplayMetricsRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      iterations = 2;
+      data_chunk = 3;
+      flows = 4;
+      qpairs = 5;
+      ports = 6;
+      packet_drop = 7;
+      collectives = 8;
+    }
+  }
+  // The type of Workload Replay metrics to fetch.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplaySummaryMetricsRequest summary = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplayIterationsMetricsRequest iterations = 3;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplayDataChunkMetricsRequest data_chunk = 4;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplayFlowMetricsRequest flows = 5;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplayQpMetricsRequest qpairs = 6;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplayPortsMetricsRequest ports = 7;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplayPacketDropMetricsRequest packet_drop = 8;
+
+  // Description missing in models
+  CollectiveCommunicationsWorkloadReplayCollectivesMetricsRequest collectives = 9;
+}
+
+// Response containing Workload Replay metrics of the chosen type.
+message CollectiveCommunicationsWorkloadReplayMetricsResponse {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      iterations = 2;
+      data_chunk = 3;
+      flows = 4;
+      qpairs = 5;
+      ports = 6;
+      packet_drop = 7;
+      collectives = 8;
+    }
+  }
+  // The type of Workload Replay metrics contained in the response.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The rows of summary metrics.
+  repeated CollectiveCommunicationsWorkloadReplaySummaryMetric summary = 2;
+
+  // The rows of iteration metrics.
+  repeated CollectiveCommunicationsWorkloadReplayIterationsMetric iterations = 3;
+
+  // The rows of data-chunk-transfer metrics.
+  repeated CollectiveCommunicationsWorkloadReplayDataChunkMetric data_chunk = 4;
+
+  // The rows of flow metrics.
+  repeated CollectiveCommunicationsWorkloadReplayFlowMetric flows = 5;
+
+  // The rows of queue-pair (QP) metrics.
+  repeated CollectiveCommunicationsWorkloadReplayQpMetric qpairs = 6;
+
+  // The rows of port metrics.
+  repeated CollectiveCommunicationsWorkloadReplayPortsMetric ports = 7;
+
+  // The rows of packet drop metrics.
+  repeated CollectiveCommunicationsWorkloadReplayPacketDropMetric packet_drop = 8;
+
+  // The rows of per-collective summary metrics.
+  repeated CollectiveCommunicationsWorkloadReplayCollectivesMetric collectives = 9;
+}
+
+// Request for Workload Replay summary metrics. Contains JCT and fabric usage statistics
+// for the entire workload.
+message CollectiveCommunicationsWorkloadReplaySummaryMetricsRequest {
+
+  // Filter results by workload name. An empty list returns all rows.
+  repeated string workload_name = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      ranks = 1;
+      iterations = 2;
+      job_completion_time = 3;
+      comp_time = 4;
+      comm_time = 5;
+      exposed_time = 6;
+      overlap_ms = 7;
+      overlap = 8;
+      peak_fabric_utilization = 9;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of summary metrics.
+message CollectiveCommunicationsWorkloadReplaySummaryMetric {
+
+  // Name of the replayed workload.
+  optional string workload_identifier = 1;
+
+  // The total number of parallel nodes participating in the RDMA emulation job.
+  optional string ranks = 2;
+
+  // How many times the communication and computation cycle is repeated during a simulation
+  // job.
+  optional int32 iterations = 3;
+
+  // The total elapsed time (ms) from the start to the end of an emulation job, encompassing
+  // all iterations and all ranks.
+  optional float job_completion_time = 4;
+
+  // The total time (ms) spent on computation across all iterations and ranks, excluding
+  // time spent on communication or waiting for data.
+  optional float comp_time = 5;
+
+  // The cumulative time (ms) spent on data exchange between ranks during all iterations
+  // of the job.
+  optional float comm_time = 6;
+
+  // The total time (ms) during which communication occurs without overlapping with computation,
+  // across all iterations and ranks.
+  optional float exposed_time = 7;
+
+  // The total time (ms) during which communication overlaps with computation.
+  optional float overlap_ms = 8;
+
+  // The percentage of communication time that is overlapped with computation time.
+  optional float overlap = 9;
+
+  // Measures how effectively the underlying network (or 'fabric') is being used during
+  // communication phases (as percentage).
+  optional float peak_fabric_utilization = 10;
+}
+
+// Request for iteration metrics. Contains timing statistics of collectives for each
+// iteration within the workload.
+message CollectiveCommunicationsWorkloadReplayIterationsMetricsRequest {
+
+  // Filter results by workload name. An empty list returns all rows.
+  repeated string workload_name = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      iteration = 1;
+      start = 2;
+      job_completion_time = 3;
+      comp_time = 4;
+      comm_time = 5;
+      exposed_time = 6;
+      overlap_ms = 7;
+      overlap = 8;
+      all_reduce = 9;
+      reduce_scatter = 10;
+      all_gather = 11;
+      all_to_all = 12;
+      broadcast = 13;
+      gather = 14;
+      p50 = 15;
+      p95 = 16;
+      max = 17;
+      comm_skew_p95 = 18;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of replay iterations metrics.
+message CollectiveCommunicationsWorkloadReplayIterationsMetric {
+
+  // Name of the replayed workload.
+  optional string workload_identifier = 1;
+
+  // The iteration of the replayed workload.
+  optional string iteration = 2;
+
+  // The start time (ms) of the replay iteration.
+  optional float start = 3;
+
+  // The total elapsed time (ms) from the start to the end of an emulation job, encompassing
+  // all iterations and all ranks.
+  optional float job_completion_time = 4;
+
+  // The total time (ms) spent on computation, excluding time spent on communication or
+  // waiting for data.
+  optional float comp_time = 5;
+
+  // The cumulative time (ms) spent on data exchange between ranks during all iterations
+  // of the job.
+  optional float comm_time = 6;
+
+  // The total time (ms) during which communication occurs without overlapping with computation,
+  // across all iterations and ranks.
+  optional float exposed_time = 7;
+
+  // The total time (ms) during which communication overlaps with computation.
+  optional float overlap_ms = 8;
+
+  // The percentage of communication time that is overlapped with computation time.
+  optional float overlap = 9;
+
+  // The total execution time (ms) of AllReduce operations.
+  optional float all_reduce = 10;
+
+  // The total execution time (ms) of ReduceScatter operations.
+  optional float reduce_scatter = 11;
+
+  // The total execution time (ms) of AllGather operations.
+  optional float all_gather = 12;
+
+  // The total execution time (ms) of AllToAll operations.
+  optional float all_to_all = 13;
+
+  // The total execution time (ms) of Broadcast operations.
+  optional float broadcast = 14;
+
+  // The total execution time (ms) of Gather operations.
+  optional float gather = 15;
+
+  // The 50th percentile (median) communication time (ms) across all collective operations.
+  optional float p50 = 16;
+
+  // The 95th percentile communication time (ms) across all collective operations.
+  optional float p95 = 17;
+
+  // The maximum communication time (ms) recorded for any collective operation.
+  optional float max = 18;
+
+  // The 95th percentile of communication time variance between ranks (as percentage),
+  // indicating load imbalance.
+  optional float comm_skew_p95 = 19;
+}
+
+// Request for data-chunk-transfer metrics. Contains payload size and timing information
+// for each logical transfer from rank to rank.
+message CollectiveCommunicationsWorkloadReplayDataChunkMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      collective = 3;
+      iteration = 4;
+      name = 5;
+      data_chunk_transfer_id = 6;
+      channel_id = 7;
+      buffer_offset = 8;
+      chunk_count = 9;
+      data_size = 10;
+      chunk_size = 11;
+      start_ms = 12;
+      end_ms = 13;
+      completion_time_ms = 14;
+      transmit_type = 15;
+      emulated_tx_component = 16;
+      payload_bytes = 17;
+      hop_count = 18;
+      hop_latency_us = 19;
+      source_rank = 20;
+      destination_rank = 21;
+      source_nic = 22;
+      destination_nic = 23;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of data-chunk-transfer metrics.
+message CollectiveCommunicationsWorkloadReplayDataChunkMetric {
+
+  // Source rank of the chunk transfer.
+  optional int32 source_rank = 2;
+
+  // Destination rank of the chunk transfer.
+  optional int32 destination_rank = 3;
+
+  // Source NIC.
+  optional int32 source_nic = 4;
+
+  // Destination NIC.
+  optional int32 destination_nic = 5;
+
+  // Collective operation name.
+  optional string collective = 8;
+
+  // Iteration number.
+  optional int32 iteration = 9;
+
+  // Name of the chunk transfer.
+  optional string name = 10;
+
+  // Data Chunk Transfer ID.
+  optional int32 data_chunk_transfer_id = 11;
+
+  // Communication channel ID.
+  optional int32 channel_id = 12;
+
+  // Buffer offset where the chunk starts.
+  optional int32 buffer_offset = 13;
+
+  // Number of chunks being transmitted.
+  optional int32 chunk_count = 14;
+
+  // Configured collective data size in Bytes.
+  optional uint64 data_size = 15;
+
+  // Chunk size in Bytes.
+  optional uint64 chunk_size = 16;
+
+  // Start time of the chunk transfer expressed in ms.
+  optional float start_ms = 17;
+
+  // End time of the chunk transfer expressed in ms.
+  optional float end_ms = 18;
+
+  // Completion time of the chunk transfer expressed in ms.
+  optional float completion_time_ms = 19;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 20;
+
+  // Emulated infra component source of the chunk transfer.
+  optional string emulated_tx_component = 21;
+
+  // Payload bytes.
+  optional uint64 payload_bytes = 22;
+
+  // Number of network switches the data passes through between the source and destination
+  // NICs. For example, 1 when both endpoints connect to the same switch, or 3 when the
+  // path goes through two edge switches and a spine switch. Only present when hop latency
+  // modeling is enabled.
+  optional int32 hop_count = 23;
+
+  // Extra latency, in microseconds, added to this transfer's completion time to account
+  // for the time spent crossing network switches. It increases with `hop_count`; it is
+  // 0 only when no switches are crossed. Only present when hop latency modeling is enabled.
+  optional float hop_latency_us = 24;
+}
+
+// Request for flow metrics. Contains timing statistics for each logical transfer from
+// rank to rank
+message CollectiveCommunicationsWorkloadReplayFlowMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      collective = 3;
+      data_size = 4;
+      iteration = 5;
+      data_chunk_transfer_id = 6;
+      qp_id = 7;
+      channel_id = 8;
+      buffer_offset = 9;
+      chunk_count = 10;
+      start_ms = 11;
+      end_ms = 12;
+      completion_time_ms = 13;
+      transmit_type = 14;
+      emulated_tx_component = 15;
+      flow_size = 16;
+      hop_count = 17;
+      hop_latency_us = 18;
+      source_rank = 19;
+      destination_rank = 20;
+      source_nic = 21;
+      destination_nic = 22;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of flow metrics.
+message CollectiveCommunicationsWorkloadReplayFlowMetric {
+
+  // Source rank of the flow.
+  optional int32 source_rank = 2;
+
+  // Destination rank of the flow.
+  optional int32 destination_rank = 3;
+
+  // Source NIC.
+  optional int32 source_nic = 4;
+
+  // Destination NIC.
+  optional int32 destination_nic = 5;
+
+  // Collective operation name.
+  optional string collective = 8;
+
+  // Configured collective data size in Bytes.
+  optional uint64 data_size = 9;
+
+  // Iteration number.
+  optional int32 iteration = 10;
+
+  // Data Chunk Transfer ID.
+  optional int32 data_chunk_transfer_id = 11;
+
+  // Destination Queue pair ID.
+  optional int32 qp_id = 12;
+
+  // Communication channel ID.
+  optional int32 channel_id = 13;
+
+  // Buffer offset where the chunk starts.
+  optional int32 buffer_offset = 14;
+
+  // Number of chunks being transmitted.
+  optional int32 chunk_count = 15;
+
+  // Start time of the flow expressed in ms.
+  optional float start_ms = 16;
+
+  // End time of the flow expressed in ms.
+  optional float end_ms = 17;
+
+  // Completion time of the flow expressed in ms.
+  optional float completion_time_ms = 18;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 19;
+
+  // Emulated infra component source of the flow transfer.
+  optional string emulated_tx_component = 20;
+
+  // Flow size in Bytes.
+  optional uint64 flow_size = 21;
+
+  // Number of network switches the data passes through between the source and destination
+  // NICs. For example, 1 when both endpoints connect to the same switch, or 3 when the
+  // path goes through two edge switches and a spine switch. Only present when hop latency
+  // modeling is enabled.
+  optional int32 hop_count = 22;
+
+  // Extra latency, in microseconds, added to this flow's completion time to account for
+  // the time spent crossing network switches. It increases with `hop_count`; it is 0
+  // only when no switches are crossed. Only present when hop latency modeling is enabled.
+  optional float hop_latency_us = 23;
+}
+
+// Request for queue-pair (QP) metrics. Contains detailed message statistics for each
+// queue-pair used in the collective.
+message CollectiveCommunicationsWorkloadReplayQpMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size = 1;
+      collective = 2;
+      messages_sent = 3;
+      messages_received = 4;
+      messages_failed = 5;
+      bytes_tx = 6;
+      bytes_rx = 7;
+      frames_tx = 8;
+      frames_rx = 9;
+      frames_delta = 10;
+      frames_seq_error = 11;
+      frames_retx = 12;
+      ack_tx = 13;
+      ack_rx = 14;
+      nack_tx = 15;
+      nack_rx = 16;
+      nack_rnr_rx = 17;
+      reordered_rx = 18;
+      duplicate_rx = 19;
+      ecn_ce_rx = 20;
+      cnp_tx = 21;
+      cnp_rx = 22;
+      min_latency_ns = 23;
+      avg_latency_ns = 24;
+      max_latency_ns = 25;
+      source_rank = 26;
+      destination_rank = 27;
+      source_qp_id = 28;
+      destination_qp_id = 29;
+      source_nic = 30;
+      destination_nic = 31;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of queue-pair (QP) metrics.
+message CollectiveCommunicationsWorkloadReplayQpMetric {
+
+  // Source rank.
+  optional int32 source_rank = 2;
+
+  // Destination rank.
+  optional int32 destination_rank = 3;
+
+  // Source QP ID.
+  optional int32 source_qp_id = 4;
+
+  // Destination QP ID.
+  optional int32 destination_qp_id = 5;
+
+  // Source NIC index.
+  optional int32 source_nic = 6;
+
+  // Destination NIC index.
+  optional int32 destination_nic = 7;
+
+  // Data size in Bytes.
+  optional uint64 data_size = 8;
+
+  // Collective operation name.
+  optional string collective = 9;
+
+  // Messages sent.
+  optional uint64 messages_sent = 10;
+
+  // Messages received.
+  optional uint64 messages_received = 11;
+
+  // Messages failed.
+  optional uint64 messages_failed = 12;
+
+  // Total bytes transmitted (this includes retransmitted bytes as well).
+  optional uint64 bytes_tx = 13;
+
+  // Total bytes received (this includes retransmitted bytes as well).
+  optional uint64 bytes_rx = 14;
+
+  // Frames transmitted.
+  optional uint64 frames_tx = 15;
+
+  // Frames received.
+  optional uint64 frames_rx = 16;
+
+  // Frames delta.
+  optional int32 frames_delta = 17;
+
+  // Frames sequence error.
+  optional uint64 frames_seq_error = 18;
+
+  // Frames retransmitted.
+  optional uint64 frames_retx = 19;
+
+  // ACK transmitted.
+  optional uint64 ack_tx = 20;
+
+  // ACK received.
+  optional uint64 ack_rx = 21;
+
+  // NACK transmitted.
+  optional uint64 nack_tx = 22;
+
+  // NACK received.
+  optional uint64 nack_rx = 23;
+
+  // NACK RNR received.
+  optional uint64 nack_rnr_rx = 24;
+
+  // Reordered frames received.
+  optional uint64 reordered_rx = 25;
+
+  // Duplicate frames received.
+  optional uint64 duplicate_rx = 26;
+
+  // ECN-CE received.
+  optional uint64 ecn_ce_rx = 27;
+
+  // CNP transmitted.
+  optional uint64 cnp_tx = 28;
+
+  // CNP received.
+  optional uint64 cnp_rx = 29;
+
+  // Minimum latency in nanoseconds.
+  optional uint64 min_latency_ns = 30;
+
+  // Average latency in nanoseconds.
+  optional uint64 avg_latency_ns = 31;
+
+  // Maximum latency in nanoseconds.
+  optional uint64 max_latency_ns = 32;
+}
+
+// Request for port metrics. Contains byte, frame, and congestion packet counts for
+// each port device.
+message CollectiveCommunicationsWorkloadReplayPortsMetricsRequest {
+
+  // Filter results by port name. An empty list returns all rows.
+  repeated string port_name = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      ranks = 1;
+      nic_name = 2;
+      server = 3;
+      link_speed = 4;
+      link_state = 5;
+      frames_tx = 6;
+      frames_rx = 7;
+      bytes_tx = 8;
+      bytes_rx = 9;
+      pause_frames_rx = 10;
+      ecn_ce_rx = 11;
+      cnp_tx = 12;
+      cnp_rx = 13;
+      crc_errors = 14;
+      discards_tx = 15;
+      discards_rx = 16;
+      pause_frames_tx = 17;
+      link_down_events = 18;
+      roce_v2_qps_configured = 19;
+      roce_v2_qps_ready = 20;
+      roce_v2_data_frames_tx = 21;
+      roce_v2_data_frames_rx = 22;
+      roce_v2_ack_tx = 23;
+      roce_v2_ack_rx = 24;
+      roce_v2_nack_tx = 25;
+      roce_v2_nack_rx = 26;
+      roce_v2_nak_tx = 27;
+      roce_v2_nak_rx = 28;
+      roce_v2_frame_sequence_errors = 29;
+      frames_retx = 30;
+      queue_buffer_overflows_rx = 31;
+      buffer_threshold_passed_rx = 32;
+      frames_rx_64b = 33;
+      frames_rx_65_127b = 34;
+      frames_rx_128_255b = 35;
+      frames_rx_256_511b = 36;
+      frames_rx_512_1023b = 37;
+      frames_rx_1024_1518b = 38;
+      frames_rx_1519_2047b = 39;
+      frames_rx_2048_4095b = 40;
+      frames_rx_4096_8191b = 41;
+      frames_rx_4096_9216b = 42;
+      frames_rx_8192_10239b = 43;
+      frames_rx_9217_16383b = 44;
+      bytes_tx_priority_0 = 45;
+      bytes_rx_priority_0 = 46;
+      frames_tx_priority_0 = 47;
+      frames_rx_priority_0 = 48;
+      pause_frames_tx_priority_0 = 49;
+      pause_frames_rx_priority_0 = 50;
+      pause_duration_rx_priority_0 = 51;
+      pause_transition_rx_priority_0 = 52;
+      discards_rx_priority_0 = 53;
+      bytes_tx_priority_1 = 54;
+      bytes_rx_priority_1 = 55;
+      frames_tx_priority_1 = 56;
+      frames_rx_priority_1 = 57;
+      pause_frames_tx_priority_1 = 58;
+      pause_frames_rx_priority_1 = 59;
+      pause_duration_rx_priority_1 = 60;
+      pause_transition_rx_priority_1 = 61;
+      discards_rx_priority_1 = 62;
+      bytes_tx_priority_2 = 63;
+      bytes_rx_priority_2 = 64;
+      frames_tx_priority_2 = 65;
+      frames_rx_priority_2 = 66;
+      pause_frames_tx_priority_2 = 67;
+      pause_frames_rx_priority_2 = 68;
+      pause_duration_rx_priority_2 = 69;
+      pause_transition_rx_priority_2 = 70;
+      discards_rx_priority_2 = 71;
+      bytes_tx_priority_3 = 72;
+      bytes_rx_priority_3 = 73;
+      frames_tx_priority_3 = 74;
+      frames_rx_priority_3 = 75;
+      pause_frames_tx_priority_3 = 76;
+      pause_frames_rx_priority_3 = 77;
+      pause_duration_rx_priority_3 = 78;
+      pause_transition_rx_priority_3 = 79;
+      discards_rx_priority_3 = 80;
+      bytes_tx_priority_4 = 81;
+      bytes_rx_priority_4 = 82;
+      frames_tx_priority_4 = 83;
+      frames_rx_priority_4 = 84;
+      pause_frames_tx_priority_4 = 85;
+      pause_frames_rx_priority_4 = 86;
+      pause_duration_rx_priority_4 = 87;
+      pause_transition_rx_priority_4 = 88;
+      discards_rx_priority_4 = 89;
+      bytes_tx_priority_5 = 90;
+      bytes_rx_priority_5 = 91;
+      frames_tx_priority_5 = 92;
+      frames_rx_priority_5 = 93;
+      pause_frames_tx_priority_5 = 94;
+      pause_frames_rx_priority_5 = 95;
+      pause_duration_rx_priority_5 = 96;
+      pause_transition_rx_priority_5 = 97;
+      discards_rx_priority_5 = 98;
+      bytes_tx_priority_6 = 99;
+      bytes_rx_priority_6 = 100;
+      frames_tx_priority_6 = 101;
+      frames_rx_priority_6 = 102;
+      pause_frames_tx_priority_6 = 103;
+      pause_frames_rx_priority_6 = 104;
+      pause_duration_rx_priority_6 = 105;
+      pause_transition_rx_priority_6 = 106;
+      discards_rx_priority_6 = 107;
+      bytes_tx_priority_7 = 108;
+      bytes_rx_priority_7 = 109;
+      frames_tx_priority_7 = 110;
+      frames_rx_priority_7 = 111;
+      pause_frames_tx_priority_7 = 112;
+      pause_frames_rx_priority_7 = 113;
+      pause_duration_rx_priority_7 = 114;
+      pause_transition_rx_priority_7 = 115;
+      discards_rx_priority_7 = 116;
+      device = 117;
+      port = 118;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of port metrics.
+message CollectiveCommunicationsWorkloadReplayPortsMetric {
+
+  // Chassis FQDN or IP address.
+  optional string device = 1;
+
+  // Chassis test port ID.
+  optional string port = 2;
+
+  // Associated rank ID.
+  optional string ranks = 3;
+
+  // Network interface card name.
+  optional string nic_name = 4;
+
+  // Server name.
+  optional string server = 5;
+
+  // Physical link speed.
+  optional string link_speed = 6;
+
+  // Link state (UP/DOWN).
+  optional string link_state = 7;
+
+  // Total frames transmitted.
+  optional uint64 frames_tx = 8;
+
+  // Total frames received.
+  optional uint64 frames_rx = 9;
+
+  // Total bytes transmitted.
+  optional uint64 bytes_tx = 10;
+
+  // Total bytes received.
+  optional uint64 bytes_rx = 11;
+
+  // Priority Pause Frames received.
+  optional uint64 pause_frames_rx = 12;
+
+  // Frames received with ECN congestion encountered (Explicit Congestion Notification
+  // - Congestion Experienced).
+  optional uint64 ecn_ce_rx = 13;
+
+  // Congestion notification packets transmitted.
+  optional uint64 cnp_tx = 14;
+
+  // Congestion notification packets received.
+  optional uint64 cnp_rx = 15;
+
+  // Number of CRC errors detected.
+  optional uint64 crc_errors = 16;
+
+  // Transmit discards.
+  optional uint64 discards_tx = 17;
+
+  // Receive discards.
+  optional uint64 discards_rx = 18;
+
+  // Pause frames transmitted.
+  optional uint64 pause_frames_tx = 19;
+
+  // Link down event count.
+  optional uint64 link_down_events = 20;
+
+  // RoCEv2 Queue Pairs configured.
+  optional uint64 roce_v2_qps_configured = 21;
+
+  // RoCEv2 Queue Pairs ready.
+  optional uint64 roce_v2_qps_ready = 22;
+
+  // RoCEv2 frames transmitted.
+  optional uint64 roce_v2_data_frames_tx = 23;
+
+  // RoCEv2 frames received.
+  optional uint64 roce_v2_data_frames_rx = 24;
+
+  // RoCEv2 Acknowledgement frames transmitted.
+  optional uint64 roce_v2_ack_tx = 25;
+
+  // RoCEv2 Acknowledgement frames received.
+  optional uint64 roce_v2_ack_rx = 26;
+
+  // RoCEv2 Negative Acknowledgement frames transmitted.
+  optional uint64 roce_v2_nack_tx = 27;
+
+  // RoCEv2 Negative Acknowledgement frames received.
+  optional uint64 roce_v2_nack_rx = 28;
+
+  // RoCEv2 NAKs transmitted (software platform only).
+  optional uint64 roce_v2_nak_tx = 29;
+
+  // RoCEv2 NAKs received (software platform only).
+  optional uint64 roce_v2_nak_rx = 30;
+
+  // RoCEv2 Sequence Error Frames.
+  optional uint64 roce_v2_frame_sequence_errors = 31;
+
+  // Frames Retransmitted count.
+  optional uint64 frames_retx = 32;
+
+  // Receive queue buffer overflows.
+  optional uint64 queue_buffer_overflows_rx = 33;
+
+  // Buffer threshold passed events.
+  optional uint64 buffer_threshold_passed_rx = 34;
+
+  // Frames received of size 64 bytes.
+  optional uint64 frames_rx_64b = 35;
+
+  // Frames received of size 65-127 bytes.
+  optional uint64 frames_rx_65_127b = 36;
+
+  // Frames received of size 128-255 bytes.
+  optional uint64 frames_rx_128_255b = 37;
+
+  // Frames received of size 256-511 bytes.
+  optional uint64 frames_rx_256_511b = 38;
+
+  // Frames received of size 512-1023 bytes.
+  optional uint64 frames_rx_512_1023b = 39;
+
+  // Frames received of size 1024-1518 bytes.
+  optional uint64 frames_rx_1024_1518b = 40;
+
+  // Frames received of size 1519-2047 bytes.
+  optional uint64 frames_rx_1519_2047b = 41;
+
+  // Frames received of size 2048-4095 bytes.
+  optional uint64 frames_rx_2048_4095b = 42;
+
+  // Frames received of size 4096-8191 bytes (Mellanox only).
+  optional uint64 frames_rx_4096_8191b = 43;
+
+  // Frames received of size 4096-9216 bytes (Broadcom only).
+  optional uint64 frames_rx_4096_9216b = 44;
+
+  // Frames received of size 8192-10239 bytes (Mellanox only).
+  optional uint64 frames_rx_8192_10239b = 45;
+
+  // Frames received of size 9217-16383 bytes (Broadcom only).
+  optional uint64 frames_rx_9217_16383b = 46;
+
+  // Bytes transmitted on priority 0.
+  optional uint64 bytes_tx_priority_0 = 47;
+
+  // Bytes received on priority 0.
+  optional uint64 bytes_rx_priority_0 = 48;
+
+  // Frames transmitted on priority 0.
+  optional uint64 frames_tx_priority_0 = 49;
+
+  // Frames received on priority 0.
+  optional uint64 frames_rx_priority_0 = 50;
+
+  // Pause frames transmitted on priority 0.
+  optional uint64 pause_frames_tx_priority_0 = 51;
+
+  // Pause frames received on priority 0.
+  optional uint64 pause_frames_rx_priority_0 = 52;
+
+  // Pause duration received on priority 0.
+  optional uint64 pause_duration_rx_priority_0 = 53;
+
+  // Pause transitions received on priority 0.
+  optional uint64 pause_transition_rx_priority_0 = 54;
+
+  // Discards received on priority 0.
+  optional uint64 discards_rx_priority_0 = 55;
+
+  // Bytes transmitted on priority 1.
+  optional uint64 bytes_tx_priority_1 = 56;
+
+  // Bytes received on priority 1.
+  optional uint64 bytes_rx_priority_1 = 57;
+
+  // Frames transmitted on priority 1.
+  optional uint64 frames_tx_priority_1 = 58;
+
+  // Frames received on priority 1.
+  optional uint64 frames_rx_priority_1 = 59;
+
+  // Pause frames transmitted on priority 1.
+  optional uint64 pause_frames_tx_priority_1 = 60;
+
+  // Pause frames received on priority 1.
+  optional uint64 pause_frames_rx_priority_1 = 61;
+
+  // Pause duration received on priority 1.
+  optional uint64 pause_duration_rx_priority_1 = 62;
+
+  // Pause transitions received on priority 1.
+  optional uint64 pause_transition_rx_priority_1 = 63;
+
+  // Discards received on priority 1.
+  optional uint64 discards_rx_priority_1 = 64;
+
+  // Bytes transmitted on priority 2.
+  optional uint64 bytes_tx_priority_2 = 65;
+
+  // Bytes received on priority 2.
+  optional uint64 bytes_rx_priority_2 = 66;
+
+  // Frames transmitted on priority 2.
+  optional uint64 frames_tx_priority_2 = 67;
+
+  // Frames received on priority 2.
+  optional uint64 frames_rx_priority_2 = 68;
+
+  // Pause frames transmitted on priority 2.
+  optional uint64 pause_frames_tx_priority_2 = 69;
+
+  // Pause frames received on priority 2.
+  optional uint64 pause_frames_rx_priority_2 = 70;
+
+  // Pause duration received on priority 2.
+  optional uint64 pause_duration_rx_priority_2 = 71;
+
+  // Pause transitions received on priority 2.
+  optional uint64 pause_transition_rx_priority_2 = 72;
+
+  // Discards received on priority 2.
+  optional uint64 discards_rx_priority_2 = 73;
+
+  // Bytes transmitted on priority 3.
+  optional uint64 bytes_tx_priority_3 = 74;
+
+  // Bytes received on priority 3.
+  optional uint64 bytes_rx_priority_3 = 75;
+
+  // Frames transmitted on priority 3.
+  optional uint64 frames_tx_priority_3 = 76;
+
+  // Frames received on priority 3.
+  optional uint64 frames_rx_priority_3 = 77;
+
+  // Pause frames transmitted on priority 3.
+  optional uint64 pause_frames_tx_priority_3 = 78;
+
+  // Pause frames received on priority 3.
+  optional uint64 pause_frames_rx_priority_3 = 79;
+
+  // Pause duration received on priority 3.
+  optional uint64 pause_duration_rx_priority_3 = 80;
+
+  // Pause transitions received on priority 3.
+  optional uint64 pause_transition_rx_priority_3 = 81;
+
+  // Discards received on priority 3.
+  optional uint64 discards_rx_priority_3 = 82;
+
+  // Bytes transmitted on priority 4.
+  optional uint64 bytes_tx_priority_4 = 83;
+
+  // Bytes received on priority 4.
+  optional uint64 bytes_rx_priority_4 = 84;
+
+  // Frames transmitted on priority 4.
+  optional uint64 frames_tx_priority_4 = 85;
+
+  // Frames received on priority 4.
+  optional uint64 frames_rx_priority_4 = 86;
+
+  // Pause frames transmitted on priority 4.
+  optional uint64 pause_frames_tx_priority_4 = 87;
+
+  // Pause frames received on priority 4.
+  optional uint64 pause_frames_rx_priority_4 = 88;
+
+  // Pause duration received on priority 4.
+  optional uint64 pause_duration_rx_priority_4 = 89;
+
+  // Pause transitions received on priority 4.
+  optional uint64 pause_transition_rx_priority_4 = 90;
+
+  // Discards received on priority 4.
+  optional uint64 discards_rx_priority_4 = 91;
+
+  // Bytes transmitted on priority 5.
+  optional uint64 bytes_tx_priority_5 = 92;
+
+  // Bytes received on priority 5.
+  optional uint64 bytes_rx_priority_5 = 93;
+
+  // Frames transmitted on priority 5.
+  optional uint64 frames_tx_priority_5 = 94;
+
+  // Frames received on priority 5.
+  optional uint64 frames_rx_priority_5 = 95;
+
+  // Pause frames transmitted on priority 5.
+  optional uint64 pause_frames_tx_priority_5 = 96;
+
+  // Pause frames received on priority 5.
+  optional uint64 pause_frames_rx_priority_5 = 97;
+
+  // Pause duration received on priority 5.
+  optional uint64 pause_duration_rx_priority_5 = 98;
+
+  // Pause transitions received on priority 5.
+  optional uint64 pause_transition_rx_priority_5 = 99;
+
+  // Discards received on priority 5.
+  optional uint64 discards_rx_priority_5 = 100;
+
+  // Bytes transmitted on priority 6.
+  optional uint64 bytes_tx_priority_6 = 101;
+
+  // Bytes received on priority 6.
+  optional uint64 bytes_rx_priority_6 = 102;
+
+  // Frames transmitted on priority 6.
+  optional uint64 frames_tx_priority_6 = 103;
+
+  // Frames received on priority 6.
+  optional uint64 frames_rx_priority_6 = 104;
+
+  // Pause frames transmitted on priority 6.
+  optional uint64 pause_frames_tx_priority_6 = 105;
+
+  // Pause frames received on priority 6.
+  optional uint64 pause_frames_rx_priority_6 = 106;
+
+  // Pause duration received on priority 6.
+  optional uint64 pause_duration_rx_priority_6 = 107;
+
+  // Pause transitions received on priority 6.
+  optional uint64 pause_transition_rx_priority_6 = 108;
+
+  // Discards received on priority 6.
+  optional uint64 discards_rx_priority_6 = 109;
+
+  // Bytes transmitted on priority 7.
+  optional uint64 bytes_tx_priority_7 = 110;
+
+  // Bytes received on priority 7.
+  optional uint64 bytes_rx_priority_7 = 111;
+
+  // Frames transmitted on priority 7.
+  optional uint64 frames_tx_priority_7 = 112;
+
+  // Frames received on priority 7.
+  optional uint64 frames_rx_priority_7 = 113;
+
+  // Pause frames transmitted on priority 7.
+  optional uint64 pause_frames_tx_priority_7 = 114;
+
+  // Pause frames received on priority 7.
+  optional uint64 pause_frames_rx_priority_7 = 115;
+
+  // Pause duration received on priority 7.
+  optional uint64 pause_duration_rx_priority_7 = 116;
+
+  // Pause transitions received on priority 7.
+  optional uint64 pause_transition_rx_priority_7 = 117;
+
+  // Discards received on priority 7.
+  optional uint64 discards_rx_priority_7 = 118;
+}
+
+// Request for packet drop metrics. Contains details about dropped frames and response
+// times.
+message CollectiveCommunicationsWorkloadReplayPacketDropMetricsRequest {
+
+  // Filter results by the location where the impairment is applied (Source or Destination).
+  // An empty list returns all rows.
+  repeated string impairment_location = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      tx_drop_count = 1;
+      rx_drop_count = 2;
+      nack_timer_ns = 3;
+      flow_index = 4;
+      flow_source_nic = 5;
+      flow_destination_nic = 6;
+      impairment_location = 7;
+      opcode = 8;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of packet drop metrics.
+message CollectiveCommunicationsWorkloadReplayPacketDropMetric {
+
+  // Index of the flow being impaired.
+  optional int32 flow_index = 1;
+
+  // Source NIC used in the impairment.
+  optional string flow_source_nic = 2;
+
+  // Destination NIC used in the impairment.
+  optional string flow_destination_nic = 3;
+
+  // Location where the impairment is applied (Source or Destination).
+  optional string impairment_location = 4;
+
+  // RDMA opcode associated with the impairment.
+  optional string opcode = 5;
+
+  // Number of transmitted packets dropped.
+  optional uint64 tx_drop_count = 6;
+
+  // Number of received packets dropped.
+  optional uint64 rx_drop_count = 7;
+
+  // NACK timer value in nanoseconds.
+  optional float nack_timer_ns = 8;
+}
+
+// Request for collectives metrics. Summarizes the completion times and throughput rates
+// per collective datasize.
+message CollectiveCommunicationsWorkloadReplayCollectivesMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size = 1;
+      collective = 2;
+      iterations = 3;
+      completion_time = 4;
+      algo_bw = 5;
+      bus_bw = 6;
+      ideal = 7;
+      pfc_rx = 8;
+      ecn_ce_rx = 9;
+      frames_retx = 10;
+      total_time = 11;
+      duty_cycle = 12;
+      total_bytes_tx = 13;
+      total_bytes_rx = 14;
+      cnp_tx = 15;
+      cnp_rx = 16;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of collectives metrics.
+message CollectiveCommunicationsWorkloadReplayCollectivesMetric {
+
+  // Collective operation data size (in Bytes).
+  optional uint64 data_size = 2;
+
+  // Collective operation name.
+  optional string collective = 3;
+
+  // Number of benchmark runs per data size.
+  optional uint64 iterations = 4;
+
+  // Time to complete collective operation, in milliseconds.
+  optional float completion_time = 5;
+
+  // Algorithm bandwidth, calculated as Collective Size / Time (in 1e9 Bytes/sec).
+  optional float algo_bw = 6;
+
+  // Bus bandwidth, calculated as `algo_bw` multiplied by a collective-dependent compensation
+  // factor (in GB/s).
+  optional float bus_bw = 7;
+
+  // Bus bandwidth divided by ideal goodput (as percentage).
+  optional float ideal = 8;
+
+  // Total number of Priority Flow Control frames received.
+  optional float pfc_rx = 9;
+
+  // Total number of frames received with ECN congestion encountered.
+  optional float ecn_ce_rx = 10;
+
+  // Frames Retransmitted count.
+  optional float frames_retx = 11;
+
+  // Time to complete all iterations, in seconds.
+  optional float total_time = 12;
+
+  // Ratio of total execution time utilized for actual collective operation (as percentage).
+  optional float duty_cycle = 13;
+
+  // Total number of bytes transmitted.
+  optional uint64 total_bytes_tx = 14;
+
+  // Total number of bytes received.
+  optional uint64 total_bytes_rx = 15;
+
+  // Total number of Congestion Notification Packets transmitted.
+  optional float cnp_tx = 16;
+
+  // Total number of Congestion Notification Packets received.
+  optional float cnp_rx = 17;
+}
+
+// Request for metrics from a Collective Communication Benchmark run with a mix of collectives.
+message CollectiveCommunicationsMixOfCollectivesMetricsRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      epoch = 2;
+      qpairs = 3;
+      iterations = 4;
+      ports = 5;
+      flows = 6;
+      chunks = 7;
+    }
+  }
+  // The type of Mix of Collectives metrics to fetch.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesSummaryMetricsRequest summary = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesEpochMetricsRequest epoch = 3;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesQpMetricsRequest qpairs = 4;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesIterationMetricsRequest iterations = 5;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesPortsMetricsRequest ports = 6;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesFlowMetricsRequest flows = 7;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesDataChunkMetricsRequest chunks = 8;
+}
+
+// Response containing Mix of Collectives metrics of the chosen type.
+message CollectiveCommunicationsMixOfCollectivesMetricsResponse {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      epoch = 2;
+      qpairs = 3;
+      iterations = 4;
+      ports = 5;
+      flows = 6;
+      chunks = 7;
+    }
+  }
+  // The type of Mix of Collectives metrics contained in the response.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The rows of summary metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesSummaryMetric summary = 2;
+
+  // The rows of epoch metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesEpochMetric epoch = 3;
+
+  // The rows of queue-pair (QP) metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesQpMetric qpairs = 4;
+
+  // The rows of iteration metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesIterationMetric iterations = 5;
+
+  // The rows of port metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesPortsMetric ports = 6;
+
+  // The rows of flow metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesFlowMetric flows = 7;
+
+  // The rows of data-chunk-transfer metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesDataChunkMetric chunks = 8;
+}
+
+// Request for summary metrics. Summarizes the completion times and throughput rates
+// per collective datasize.
+message CollectiveCommunicationsMixOfCollectivesSummaryMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      process_group = 2;
+      data_size = 3;
+      collective = 4;
+      epochs = 5;
+      collective_time = 6;
+      algbw = 7;
+      busbw = 8;
+      ideal_pct = 9;
+      total_time = 10;
+      duty_cycle = 11;
+      pfc_rx = 12;
+      ecn_ce_rx = 13;
+      frames_retx = 14;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of summary metrics.
+message CollectiveCommunicationsMixOfCollectivesSummaryMetric {
+
+  // The name of the workload set (tenant) that owns this collective.
+  optional string workload_set = 1;
+
+  // The process group whose NPUs executed the collective.
+  optional string process_group = 2;
+
+  // The payload size of the collective in bytes.
+  optional uint64 data_size = 3;
+
+  // Identifier of the collective operation aggregated in this row.
+  optional string collective = 4;
+
+  // The number of epochs over which this collective was executed.
+  optional int32 epochs = 5;
+
+  // Average completion time (ms) of the collective across all epochs and iterations.
+  optional float collective_time = 6;
+
+  // Algorithmic bandwidth (data size divided by collective time), GB/s.
+  optional float algbw = 7;
+
+  // Bus bandwidth (GB/s), accounting for the data movement pattern of the collective.
+  optional float busbw = 8;
+
+  // Achieved bus bandwidth as a percentage of the ideal link bandwidth.
+  optional float ideal_pct = 9;
+
+  // Wall-clock time (s) the collective was active across all epochs.
+  optional float total_time = 10;
+
+  // Fraction of total time the collective was actively transferring data (as percentage).
+  optional float duty_cycle = 11;
+
+  // Total Priority Flow Control pause frames received during execution.
+  optional float pfc_rx = 12;
+
+  // Total ECN Congestion Experienced packets received during execution.
+  optional float ecn_ce_rx = 13;
+
+  // Total frames retransmitted during execution.
+  optional float frames_retx = 14;
+}
+
+// Request for epoch metrics. Contains details timing and throughput statistics for
+// each collective in each scheduling round, or Epoch.
+message CollectiveCommunicationsMixOfCollectivesEpochMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      process_group = 2;
+      data_size = 3;
+      collective = 4;
+      epoch = 5;
+      iterations = 6;
+      min_collective_time = 7;
+      avg_collective_time = 8;
+      max_collective_time = 9;
+      min_algbw = 10;
+      avg_algbw = 11;
+      max_algbw = 12;
+      min_busbw = 13;
+      avg_busbw = 14;
+      max_busbw = 15;
+      min_ideal_pct = 16;
+      avg_ideal_pct = 17;
+      max_ideal_pct = 18;
+      epoch_start_time = 19;
+      epoch_end_time = 20;
+      total_time = 21;
+      duty_cycle = 22;
+      pfc_rx = 23;
+      ecn_ce_rx = 24;
+      frames_retx = 25;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of epoch metrics.
+message CollectiveCommunicationsMixOfCollectivesEpochMetric {
+
+  // The name of the workload set (tenant) that owns this collective.
+  optional string workload_set = 1;
+
+  // The process group whose NPUs executed the collective.
+  optional string process_group = 2;
+
+  // The payload size of the collective in bytes.
+  optional uint64 data_size = 3;
+
+  // Identifier of the collective operation aggregated in this row.
+  optional string collective = 4;
+
+  // The epoch index aggregated in this row.
+  optional int32 epoch = 5;
+
+  // The number of iterations of the collective executed in this epoch.
+  optional int32 iterations = 6;
+
+  // Minimum collective completion time (ms) observed across iterations of this epoch.
+  optional float min_collective_time = 7;
+
+  // Average collective completion time (ms) across iterations of this epoch.
+  optional float avg_collective_time = 8;
+
+  // Maximum collective completion time (ms) observed across iterations of this epoch.
+  optional float max_collective_time = 9;
+
+  // Minimum algorithmic bandwidth (GB/s) observed across iterations of this epoch.
+  optional float min_algbw = 10;
+
+  // Average algorithmic bandwidth (GB/s) across iterations of this epoch.
+  optional float avg_algbw = 11;
+
+  // Maximum algorithmic bandwidth (GB/s) observed across iterations of this epoch.
+  optional float max_algbw = 12;
+
+  // Minimum bus bandwidth (GB/s) observed across iterations of this epoch.
+  optional float min_busbw = 13;
+
+  // Average bus bandwidth (GB/s) across iterations of this epoch.
+  optional float avg_busbw = 14;
+
+  // Maximum bus bandwidth (GB/s) observed across iterations of this epoch.
+  optional float max_busbw = 15;
+
+  // Minimum achieved fraction of ideal link bandwidth (as percentage) across iterations
+  // of this epoch.
+  optional float min_ideal_pct = 16;
+
+  // Average achieved fraction of ideal link bandwidth (as percentage) across iterations
+  // of this epoch.
+  optional float avg_ideal_pct = 17;
+
+  // Maximum achieved fraction of ideal link bandwidth (as percentage) across iterations
+  // of this epoch.
+  optional float max_ideal_pct = 18;
+
+  // Start time of the epoch measured in milliseconds since the start of execution.
+  optional float epoch_start_time = 19;
+
+  // End time of the epoch measured in milliseconds since the start of execution.
+  optional float epoch_end_time = 20;
+
+  // Wall-clock time (s) the collective was active during this epoch.
+  optional float total_time = 21;
+
+  // Fraction of epoch time the collective was actively transferring data (as percentage).
+  optional float duty_cycle = 22;
+
+  // Priority Flow Control pause frames received during this epoch.
+  optional float pfc_rx = 23;
+
+  // ECN Congestion Experienced packets received during this epoch.
+  optional float ecn_ce_rx = 24;
+
+  // Frames retransmitted during this epoch.
+  optional float frames_retx = 25;
+}
+
+// Request for queue-pair (QP) metrics. Contains detailed message statistics for each
+// queue-pair used in the collective.
+message CollectiveCommunicationsMixOfCollectivesQpMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      process_group = 2;
+      data_size = 3;
+      collective = 4;
+      src_qp_id = 5;
+      dst_qp_id = 6;
+      source_rank = 7;
+      destination_rank = 8;
+      source_nic = 9;
+      destination_nic = 10;
+      messages_sent = 11;
+      messages_received = 12;
+      messages_failed = 13;
+      bytes_tx = 14;
+      bytes_rx = 15;
+      frames_tx = 16;
+      frames_rx = 17;
+      frames_delta = 18;
+      frames_seq_error = 19;
+      frames_re_tx = 20;
+      ack_tx = 21;
+      ack_rx = 22;
+      nack_tx = 23;
+      nack_rx = 24;
+      nack_rnr_rx = 25;
+      reordered_rx = 26;
+      duplicate_rx = 27;
+      ecn_ce_rx = 28;
+      cnp_tx = 29;
+      cnp_rx = 30;
+      min_latency = 31;
+      avg_latency = 32;
+      max_latency = 33;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of queue-pair (QP) metrics.
+message CollectiveCommunicationsMixOfCollectivesQpMetric {
+
+  // The workload set (tenant) that owns this collective.
+  optional string workload_set = 1;
+
+  // The process group whose NPUs executed the collective.
+  optional string process_group = 2;
+
+  // Data size in bytes.
+  optional uint64 data_size = 3;
+
+  // Identifier of the collective operation.
+  optional string collective = 4;
+
+  // Source QP ID.
+  optional int32 src_qp_id = 5;
+
+  // Destination QP ID.
+  optional int32 dst_qp_id = 6;
+
+  // Source rank.
+  optional int32 source_rank = 7;
+
+  // Destination rank.
+  optional int32 destination_rank = 8;
+
+  // Source NIC index.
+  optional int32 source_nic = 9;
+
+  // Destination NIC index.
+  optional int32 destination_nic = 10;
+
+  // Messages sent.
+  optional uint64 messages_sent = 11;
+
+  // Messages received.
+  optional uint64 messages_received = 12;
+
+  // Messages failed.
+  optional uint64 messages_failed = 13;
+
+  // Total bytes Tx (this includes retransmitted bytes as well).
+  optional uint64 bytes_tx = 14;
+
+  // Total bytes Rx (this includes retransmitted bytes as well).
+  optional uint64 bytes_rx = 15;
+
+  // Frames Tx.
+  optional uint64 frames_tx = 16;
+
+  // Frames Rx.
+  optional uint64 frames_rx = 17;
+
+  // Frames delta.
+  optional int32 frames_delta = 18;
+
+  // Frames sequence error.
+  optional uint64 frames_seq_error = 19;
+
+  // Frames ReTx.
+  optional uint64 frames_re_tx = 20;
+
+  // ACK Tx.
+  optional uint64 ack_tx = 21;
+
+  // ACK Rx.
+  optional uint64 ack_rx = 22;
+
+  // NACK Tx.
+  optional uint64 nack_tx = 23;
+
+  // NACK Rx.
+  optional uint64 nack_rx = 24;
+
+  // NACK RNR Rx.
+  optional uint64 nack_rnr_rx = 25;
+
+  // Reordered Rx.
+  optional uint64 reordered_rx = 26;
+
+  // Duplicate Rx.
+  optional uint64 duplicate_rx = 27;
+
+  // ECN-CE Rx.
+  optional uint64 ecn_ce_rx = 28;
+
+  // CNP Tx.
+  optional uint64 cnp_tx = 29;
+
+  // CNP Rx.
+  optional uint64 cnp_rx = 30;
+
+  // Minimum latency in nanoseconds.
+  optional uint64 min_latency = 31;
+
+  // Average latency in nanoseconds.
+  optional uint64 avg_latency = 32;
+
+  // Maximum latency in nanoseconds.
+  optional uint64 max_latency = 33;
+}
+
+// Request for iteration metrics. Contains completion time and throughput details for
+// each iteration of each collective datasize.
+message CollectiveCommunicationsMixOfCollectivesIterationMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      process_group = 2;
+      data_size = 3;
+      collective = 4;
+      epoch = 5;
+      iteration = 6;
+      collective_start_time = 7;
+      collective_end_time = 8;
+      collective_completion_time = 9;
+      algbw = 10;
+      busbw = 11;
+      ideal_pct = 12;
+      min_fct = 13;
+      p50_fct = 14;
+      p95_fct = 15;
+      max_fct = 16;
+      p99_fct = 17;
+      p99_99_fct = 18;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of iteration metrics.
+message CollectiveCommunicationsMixOfCollectivesIterationMetric {
+
+  // The name of the workload set (tenant) that owns this collective.
+  optional string workload_set = 1;
+
+  // The process group whose NPUs executed the collective.
+  optional string process_group = 2;
+
+  // The payload size of the collective in bytes.
+  optional uint64 data_size = 3;
+
+  // Identifier of the collective operation executed in this row.
+  optional string collective = 4;
+
+  // The epoch index in which this iteration was executed.
+  optional int32 epoch = 5;
+
+  // The iteration index within the epoch for this collective.
+  optional int32 iteration = 6;
+
+  // Start time of the collective iteration measured in milliseconds since the start of
+  // execution.
+  optional float collective_start_time = 7;
+
+  // End time of the collective iteration measured in milliseconds since the start of
+  // execution.
+  optional float collective_end_time = 8;
+
+  // Completion time of the collective iteration (end minus start), in ms.
+  optional float collective_completion_time = 9;
+
+  // Algorithmic bandwidth (GB/s) achieved during this iteration.
+  optional float algbw = 10;
+
+  // Bus bandwidth (GB/s) achieved during this iteration.
+  optional float busbw = 11;
+
+  // Achieved bus bandwidth as a percentage of the ideal link bandwidth.
+  optional float ideal_pct = 12;
+
+  // Minimum per-flow completion time (ms) observed in this iteration.
+  optional float min_fct = 13;
+
+  // 50th percentile (median) per-flow completion time (ms) in this iteration.
+  optional float p50_fct = 14;
+
+  // 95th percentile per-flow completion time (ms) in this iteration.
+  optional float p95_fct = 15;
+
+  // Maximum per-flow completion time (ms) observed in this iteration.
+  optional float max_fct = 16;
+
+  // 99th percentile of Flow Completion Times, in milliseconds.
+  optional float p99_fct = 17;
+
+  // 99.99th percentile of Flow Completion Times, in milliseconds.
+  optional float p99_99_fct = 18;
+}
+
+// Request for port metrics. Contains byte, frame, and congestion packet counts for
+// each port device.
+message CollectiveCommunicationsMixOfCollectivesPortsMetricsRequest {
+
+  // Filter results by port name. An empty list returns all rows.
+  repeated string port_name = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      ranks = 1;
+      nic_name = 2;
+      server = 3;
+      link_speed = 4;
+      link_state = 5;
+      frames_tx = 6;
+      frames_rx = 7;
+      bytes_tx = 8;
+      bytes_rx = 9;
+      pause_frames_rx = 10;
+      ecn_ce_rx = 11;
+      cnp_tx = 12;
+      cnp_rx = 13;
+      crc_errors = 14;
+      discards_tx = 15;
+      discards_rx = 16;
+      pause_frames_tx = 17;
+      link_down_events = 18;
+      roce_v2_qps_configured = 19;
+      roce_v2_qps_ready = 20;
+      roce_v2_data_frames_tx = 21;
+      roce_v2_data_frames_rx = 22;
+      roce_v2_ack_tx = 23;
+      roce_v2_ack_rx = 24;
+      roce_v2_nack_tx = 25;
+      roce_v2_nack_rx = 26;
+      roce_v2_nak_tx = 27;
+      roce_v2_nak_rx = 28;
+      roce_v2_frame_sequence_errors = 29;
+      frames_retx = 30;
+      queue_buffer_overflows_rx = 31;
+      buffer_threshold_passed_rx = 32;
+      frames_rx_64b = 33;
+      frames_rx_65_127b = 34;
+      frames_rx_128_255b = 35;
+      frames_rx_256_511b = 36;
+      frames_rx_512_1023b = 37;
+      frames_rx_1024_1518b = 38;
+      frames_rx_1519_2047b = 39;
+      frames_rx_2048_4095b = 40;
+      frames_rx_4096_8191b = 41;
+      frames_rx_4096_9216b = 42;
+      frames_rx_8192_10239b = 43;
+      frames_rx_9217_16383b = 44;
+      bytes_tx_priority_0 = 45;
+      bytes_rx_priority_0 = 46;
+      frames_tx_priority_0 = 47;
+      frames_rx_priority_0 = 48;
+      pause_frames_tx_priority_0 = 49;
+      pause_frames_rx_priority_0 = 50;
+      pause_duration_rx_priority_0 = 51;
+      pause_transition_rx_priority_0 = 52;
+      discards_rx_priority_0 = 53;
+      bytes_tx_priority_1 = 54;
+      bytes_rx_priority_1 = 55;
+      frames_tx_priority_1 = 56;
+      frames_rx_priority_1 = 57;
+      pause_frames_tx_priority_1 = 58;
+      pause_frames_rx_priority_1 = 59;
+      pause_duration_rx_priority_1 = 60;
+      pause_transition_rx_priority_1 = 61;
+      discards_rx_priority_1 = 62;
+      bytes_tx_priority_2 = 63;
+      bytes_rx_priority_2 = 64;
+      frames_tx_priority_2 = 65;
+      frames_rx_priority_2 = 66;
+      pause_frames_tx_priority_2 = 67;
+      pause_frames_rx_priority_2 = 68;
+      pause_duration_rx_priority_2 = 69;
+      pause_transition_rx_priority_2 = 70;
+      discards_rx_priority_2 = 71;
+      bytes_tx_priority_3 = 72;
+      bytes_rx_priority_3 = 73;
+      frames_tx_priority_3 = 74;
+      frames_rx_priority_3 = 75;
+      pause_frames_tx_priority_3 = 76;
+      pause_frames_rx_priority_3 = 77;
+      pause_duration_rx_priority_3 = 78;
+      pause_transition_rx_priority_3 = 79;
+      discards_rx_priority_3 = 80;
+      bytes_tx_priority_4 = 81;
+      bytes_rx_priority_4 = 82;
+      frames_tx_priority_4 = 83;
+      frames_rx_priority_4 = 84;
+      pause_frames_tx_priority_4 = 85;
+      pause_frames_rx_priority_4 = 86;
+      pause_duration_rx_priority_4 = 87;
+      pause_transition_rx_priority_4 = 88;
+      discards_rx_priority_4 = 89;
+      bytes_tx_priority_5 = 90;
+      bytes_rx_priority_5 = 91;
+      frames_tx_priority_5 = 92;
+      frames_rx_priority_5 = 93;
+      pause_frames_tx_priority_5 = 94;
+      pause_frames_rx_priority_5 = 95;
+      pause_duration_rx_priority_5 = 96;
+      pause_transition_rx_priority_5 = 97;
+      discards_rx_priority_5 = 98;
+      bytes_tx_priority_6 = 99;
+      bytes_rx_priority_6 = 100;
+      frames_tx_priority_6 = 101;
+      frames_rx_priority_6 = 102;
+      pause_frames_tx_priority_6 = 103;
+      pause_frames_rx_priority_6 = 104;
+      pause_duration_rx_priority_6 = 105;
+      pause_transition_rx_priority_6 = 106;
+      discards_rx_priority_6 = 107;
+      bytes_tx_priority_7 = 108;
+      bytes_rx_priority_7 = 109;
+      frames_tx_priority_7 = 110;
+      frames_rx_priority_7 = 111;
+      pause_frames_tx_priority_7 = 112;
+      pause_frames_rx_priority_7 = 113;
+      pause_duration_rx_priority_7 = 114;
+      pause_transition_rx_priority_7 = 115;
+      discards_rx_priority_7 = 116;
+      device = 117;
+      port = 118;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of port metrics.
+message CollectiveCommunicationsMixOfCollectivesPortsMetric {
+
+  // Chassis FQDN or IP address.
+  optional string device = 1;
+
+  // Chassis test port ID.
+  optional string port = 2;
+
+  // Associated rank ID.
+  optional string ranks = 3;
+
+  // Network interface card name.
+  optional string nic_name = 4;
+
+  // Server name.
+  optional string server = 5;
+
+  // Physical link speed.
+  optional string link_speed = 6;
+
+  // Link state (UP/DOWN).
+  optional string link_state = 7;
+
+  // Total frames transmitted.
+  optional uint64 frames_tx = 8;
+
+  // Total frames received.
+  optional uint64 frames_rx = 9;
+
+  // Total bytes transmitted.
+  optional uint64 bytes_tx = 10;
+
+  // Total bytes received.
+  optional uint64 bytes_rx = 11;
+
+  // Priority Pause Frames received.
+  optional uint64 pause_frames_rx = 12;
+
+  // Frames received with ECN congestion encountered (Explicit Congestion Notification
+  // - Congestion Experienced).
+  optional uint64 ecn_ce_rx = 13;
+
+  // Congestion notification packets transmitted.
+  optional uint64 cnp_tx = 14;
+
+  // Congestion notification packets received.
+  optional uint64 cnp_rx = 15;
+
+  // Number of CRC errors detected.
+  optional uint64 crc_errors = 16;
+
+  // Transmit discards.
+  optional uint64 discards_tx = 17;
+
+  // Receive discards.
+  optional uint64 discards_rx = 18;
+
+  // Pause frames transmitted.
+  optional uint64 pause_frames_tx = 19;
+
+  // Link down event count.
+  optional uint64 link_down_events = 20;
+
+  // RoCEv2 Queue Pairs configured.
+  optional uint64 roce_v2_qps_configured = 21;
+
+  // RoCEv2 Queue Pairs ready.
+  optional uint64 roce_v2_qps_ready = 22;
+
+  // RoCEv2 frames transmitted.
+  optional uint64 roce_v2_data_frames_tx = 23;
+
+  // RoCEv2 frames received.
+  optional uint64 roce_v2_data_frames_rx = 24;
+
+  // RoCEv2 Acknowledgement frames transmitted.
+  optional uint64 roce_v2_ack_tx = 25;
+
+  // RoCEv2 Acknowledgement frames received.
+  optional uint64 roce_v2_ack_rx = 26;
+
+  // RoCEv2 Negative Acknowledgement frames transmitted.
+  optional uint64 roce_v2_nack_tx = 27;
+
+  // RoCEv2 Negative Acknowledgement frames received.
+  optional uint64 roce_v2_nack_rx = 28;
+
+  // RoCEv2 NAKs transmitted (software platform only).
+  optional uint64 roce_v2_nak_tx = 29;
+
+  // RoCEv2 NAKs received (software platform only).
+  optional uint64 roce_v2_nak_rx = 30;
+
+  // RoCEv2 Sequence Error Frames.
+  optional uint64 roce_v2_frame_sequence_errors = 31;
+
+  // Frames Retransmitted count.
+  optional uint64 frames_retx = 32;
+
+  // Receive queue buffer overflows.
+  optional uint64 queue_buffer_overflows_rx = 33;
+
+  // Buffer threshold passed events.
+  optional uint64 buffer_threshold_passed_rx = 34;
+
+  // Frames received of size 64 bytes.
+  optional uint64 frames_rx_64b = 35;
+
+  // Frames received of size 65-127 bytes.
+  optional uint64 frames_rx_65_127b = 36;
+
+  // Frames received of size 128-255 bytes.
+  optional uint64 frames_rx_128_255b = 37;
+
+  // Frames received of size 256-511 bytes.
+  optional uint64 frames_rx_256_511b = 38;
+
+  // Frames received of size 512-1023 bytes.
+  optional uint64 frames_rx_512_1023b = 39;
+
+  // Frames received of size 1024-1518 bytes.
+  optional uint64 frames_rx_1024_1518b = 40;
+
+  // Frames received of size 1519-2047 bytes.
+  optional uint64 frames_rx_1519_2047b = 41;
+
+  // Frames received of size 2048-4095 bytes.
+  optional uint64 frames_rx_2048_4095b = 42;
+
+  // Frames received of size 4096-8191 bytes (Mellanox only).
+  optional uint64 frames_rx_4096_8191b = 43;
+
+  // Frames received of size 4096-9216 bytes (Broadcom only).
+  optional uint64 frames_rx_4096_9216b = 44;
+
+  // Frames received of size 8192-10239 bytes (Mellanox only).
+  optional uint64 frames_rx_8192_10239b = 45;
+
+  // Frames received of size 9217-16383 bytes (Broadcom only).
+  optional uint64 frames_rx_9217_16383b = 46;
+
+  // Bytes transmitted on priority 0.
+  optional uint64 bytes_tx_priority_0 = 47;
+
+  // Bytes received on priority 0.
+  optional uint64 bytes_rx_priority_0 = 48;
+
+  // Frames transmitted on priority 0.
+  optional uint64 frames_tx_priority_0 = 49;
+
+  // Frames received on priority 0.
+  optional uint64 frames_rx_priority_0 = 50;
+
+  // Pause frames transmitted on priority 0.
+  optional uint64 pause_frames_tx_priority_0 = 51;
+
+  // Pause frames received on priority 0.
+  optional uint64 pause_frames_rx_priority_0 = 52;
+
+  // Pause duration received on priority 0.
+  optional uint64 pause_duration_rx_priority_0 = 53;
+
+  // Pause transitions received on priority 0.
+  optional uint64 pause_transition_rx_priority_0 = 54;
+
+  // Discards received on priority 0.
+  optional uint64 discards_rx_priority_0 = 55;
+
+  // Bytes transmitted on priority 1.
+  optional uint64 bytes_tx_priority_1 = 56;
+
+  // Bytes received on priority 1.
+  optional uint64 bytes_rx_priority_1 = 57;
+
+  // Frames transmitted on priority 1.
+  optional uint64 frames_tx_priority_1 = 58;
+
+  // Frames received on priority 1.
+  optional uint64 frames_rx_priority_1 = 59;
+
+  // Pause frames transmitted on priority 1.
+  optional uint64 pause_frames_tx_priority_1 = 60;
+
+  // Pause frames received on priority 1.
+  optional uint64 pause_frames_rx_priority_1 = 61;
+
+  // Pause duration received on priority 1.
+  optional uint64 pause_duration_rx_priority_1 = 62;
+
+  // Pause transitions received on priority 1.
+  optional uint64 pause_transition_rx_priority_1 = 63;
+
+  // Discards received on priority 1.
+  optional uint64 discards_rx_priority_1 = 64;
+
+  // Bytes transmitted on priority 2.
+  optional uint64 bytes_tx_priority_2 = 65;
+
+  // Bytes received on priority 2.
+  optional uint64 bytes_rx_priority_2 = 66;
+
+  // Frames transmitted on priority 2.
+  optional uint64 frames_tx_priority_2 = 67;
+
+  // Frames received on priority 2.
+  optional uint64 frames_rx_priority_2 = 68;
+
+  // Pause frames transmitted on priority 2.
+  optional uint64 pause_frames_tx_priority_2 = 69;
+
+  // Pause frames received on priority 2.
+  optional uint64 pause_frames_rx_priority_2 = 70;
+
+  // Pause duration received on priority 2.
+  optional uint64 pause_duration_rx_priority_2 = 71;
+
+  // Pause transitions received on priority 2.
+  optional uint64 pause_transition_rx_priority_2 = 72;
+
+  // Discards received on priority 2.
+  optional uint64 discards_rx_priority_2 = 73;
+
+  // Bytes transmitted on priority 3.
+  optional uint64 bytes_tx_priority_3 = 74;
+
+  // Bytes received on priority 3.
+  optional uint64 bytes_rx_priority_3 = 75;
+
+  // Frames transmitted on priority 3.
+  optional uint64 frames_tx_priority_3 = 76;
+
+  // Frames received on priority 3.
+  optional uint64 frames_rx_priority_3 = 77;
+
+  // Pause frames transmitted on priority 3.
+  optional uint64 pause_frames_tx_priority_3 = 78;
+
+  // Pause frames received on priority 3.
+  optional uint64 pause_frames_rx_priority_3 = 79;
+
+  // Pause duration received on priority 3.
+  optional uint64 pause_duration_rx_priority_3 = 80;
+
+  // Pause transitions received on priority 3.
+  optional uint64 pause_transition_rx_priority_3 = 81;
+
+  // Discards received on priority 3.
+  optional uint64 discards_rx_priority_3 = 82;
+
+  // Bytes transmitted on priority 4.
+  optional uint64 bytes_tx_priority_4 = 83;
+
+  // Bytes received on priority 4.
+  optional uint64 bytes_rx_priority_4 = 84;
+
+  // Frames transmitted on priority 4.
+  optional uint64 frames_tx_priority_4 = 85;
+
+  // Frames received on priority 4.
+  optional uint64 frames_rx_priority_4 = 86;
+
+  // Pause frames transmitted on priority 4.
+  optional uint64 pause_frames_tx_priority_4 = 87;
+
+  // Pause frames received on priority 4.
+  optional uint64 pause_frames_rx_priority_4 = 88;
+
+  // Pause duration received on priority 4.
+  optional uint64 pause_duration_rx_priority_4 = 89;
+
+  // Pause transitions received on priority 4.
+  optional uint64 pause_transition_rx_priority_4 = 90;
+
+  // Discards received on priority 4.
+  optional uint64 discards_rx_priority_4 = 91;
+
+  // Bytes transmitted on priority 5.
+  optional uint64 bytes_tx_priority_5 = 92;
+
+  // Bytes received on priority 5.
+  optional uint64 bytes_rx_priority_5 = 93;
+
+  // Frames transmitted on priority 5.
+  optional uint64 frames_tx_priority_5 = 94;
+
+  // Frames received on priority 5.
+  optional uint64 frames_rx_priority_5 = 95;
+
+  // Pause frames transmitted on priority 5.
+  optional uint64 pause_frames_tx_priority_5 = 96;
+
+  // Pause frames received on priority 5.
+  optional uint64 pause_frames_rx_priority_5 = 97;
+
+  // Pause duration received on priority 5.
+  optional uint64 pause_duration_rx_priority_5 = 98;
+
+  // Pause transitions received on priority 5.
+  optional uint64 pause_transition_rx_priority_5 = 99;
+
+  // Discards received on priority 5.
+  optional uint64 discards_rx_priority_5 = 100;
+
+  // Bytes transmitted on priority 6.
+  optional uint64 bytes_tx_priority_6 = 101;
+
+  // Bytes received on priority 6.
+  optional uint64 bytes_rx_priority_6 = 102;
+
+  // Frames transmitted on priority 6.
+  optional uint64 frames_tx_priority_6 = 103;
+
+  // Frames received on priority 6.
+  optional uint64 frames_rx_priority_6 = 104;
+
+  // Pause frames transmitted on priority 6.
+  optional uint64 pause_frames_tx_priority_6 = 105;
+
+  // Pause frames received on priority 6.
+  optional uint64 pause_frames_rx_priority_6 = 106;
+
+  // Pause duration received on priority 6.
+  optional uint64 pause_duration_rx_priority_6 = 107;
+
+  // Pause transitions received on priority 6.
+  optional uint64 pause_transition_rx_priority_6 = 108;
+
+  // Discards received on priority 6.
+  optional uint64 discards_rx_priority_6 = 109;
+
+  // Bytes transmitted on priority 7.
+  optional uint64 bytes_tx_priority_7 = 110;
+
+  // Bytes received on priority 7.
+  optional uint64 bytes_rx_priority_7 = 111;
+
+  // Frames transmitted on priority 7.
+  optional uint64 frames_tx_priority_7 = 112;
+
+  // Frames received on priority 7.
+  optional uint64 frames_rx_priority_7 = 113;
+
+  // Pause frames transmitted on priority 7.
+  optional uint64 pause_frames_tx_priority_7 = 114;
+
+  // Pause frames received on priority 7.
+  optional uint64 pause_frames_rx_priority_7 = 115;
+
+  // Pause duration received on priority 7.
+  optional uint64 pause_duration_rx_priority_7 = 116;
+
+  // Pause transitions received on priority 7.
+  optional uint64 pause_transition_rx_priority_7 = 117;
+
+  // Discards received on priority 7.
+  optional uint64 discards_rx_priority_7 = 118;
+}
+
+// Request for flow metrics. Contains flow size and timing statistics for each queue
+// pair per logical transfer from rank to rank.
+message CollectiveCommunicationsMixOfCollectivesFlowMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      process_group = 2;
+      collective = 3;
+      data_size = 4;
+      iteration = 5;
+      data_chunk_transfer_id = 6;
+      qp_id = 7;
+      channel_id = 8;
+      buffer_offset = 9;
+      chunk_count = 10;
+      start_ms = 11;
+      end_ms = 12;
+      completion_time_ms = 13;
+      transmit_type = 14;
+      emulated_tx_component = 15;
+      flow_size = 16;
+      hop_count = 17;
+      hop_latency_us = 18;
+      source_rank = 19;
+      destination_rank = 20;
+      source_nic = 21;
+      destination_nic = 22;
+      epoch = 23;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of flow metrics.
+message CollectiveCommunicationsMixOfCollectivesFlowMetric {
+
+  // Source rank of the flow.
+  optional int32 source_rank = 2;
+
+  // Destination rank of the flow.
+  optional int32 destination_rank = 3;
+
+  // Source NIC.
+  optional int32 source_nic = 4;
+
+  // Destination NIC.
+  optional int32 destination_nic = 5;
+
+  // The name of the workload set (tenant) that owns this flow.
+  optional string workload_set = 6;
+
+  // The process group whose NPUs executed this flow.
+  optional string process_group = 7;
+
+  // Collective operation name.
+  optional string collective = 8;
+
+  // Configured collective data size in Bytes.
+  optional uint64 data_size = 9;
+
+  // Iteration number.
+  optional int32 iteration = 10;
+
+  // Data Chunk Transfer ID.
+  optional int32 data_chunk_transfer_id = 11;
+
+  // Destination Queue pair ID.
+  optional int32 qp_id = 12;
+
+  // Communication channel ID.
+  optional int32 channel_id = 13;
+
+  // Buffer offset where the chunk starts.
+  optional int32 buffer_offset = 14;
+
+  // Number of chunks being transmitted.
+  optional int32 chunk_count = 15;
+
+  // Start time of the flow expressed in ms.
+  optional float start_ms = 16;
+
+  // End time of the flow expressed in ms.
+  optional float end_ms = 17;
+
+  // Completion time of the flow expressed in ms.
+  optional float completion_time_ms = 18;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 19;
+
+  // Emulated infra component source of the flow transfer.
+  optional string emulated_tx_component = 20;
+
+  // Flow size in Bytes.
+  optional uint64 flow_size = 21;
+
+  // Number of network switches the data passes through between the source and destination
+  // NICs. For example, 1 when both endpoints connect to the same switch, or 3 when the
+  // path goes through two edge switches and a spine switch. Only present when hop latency
+  // modeling is enabled.
+  optional int32 hop_count = 22;
+
+  // Extra latency, in microseconds, added to this flow's completion time to account for
+  // the time spent crossing network switches. It increases with `hop_count`; it is 0
+  // only when no switches are crossed. Only present when hop latency modeling is enabled.
+  optional float hop_latency_us = 23;
+
+  // Epoch number.
+  optional int32 epoch = 24;
+}
+
+// Request for data-chunk-transfer metrics. Contains payload size and timing information
+// for each logical transfer from rank to rank.
+message CollectiveCommunicationsMixOfCollectivesDataChunkMetricsRequest {
+
+  // Filter results by collective. An empty list returns all rows.
+  repeated string collective = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      process_group = 2;
+      collective = 3;
+      iteration = 4;
+      name = 5;
+      data_chunk_transfer_id = 6;
+      channel_id = 7;
+      buffer_offset = 8;
+      chunk_count = 9;
+      data_size = 10;
+      chunk_size = 11;
+      start_ms = 12;
+      end_ms = 13;
+      completion_time_ms = 14;
+      transmit_type = 15;
+      emulated_tx_component = 16;
+      payload_bytes = 17;
+      hop_count = 18;
+      hop_latency_us = 19;
+      source_rank = 20;
+      destination_rank = 21;
+      source_nic = 22;
+      destination_nic = 23;
+      epoch = 24;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// One row of data-chunk-transfer metrics.
+message CollectiveCommunicationsMixOfCollectivesDataChunkMetric {
+
+  // Source rank of the chunk transfer.
+  optional int32 source_rank = 2;
+
+  // Destination rank of the chunk transfer.
+  optional int32 destination_rank = 3;
+
+  // Source NIC.
+  optional int32 source_nic = 4;
+
+  // Destination NIC.
+  optional int32 destination_nic = 5;
+
+  // The name of the workload set (tenant) that owns this chunk transfer.
+  optional string workload_set = 6;
+
+  // The process group whose NPUs executed this chunk transfer.
+  optional string process_group = 7;
+
+  // Collective operation name.
+  optional string collective = 8;
+
+  // Iteration number.
+  optional int32 iteration = 9;
+
+  // Name of the chunk transfer.
+  optional string name = 10;
+
+  // Data Chunk Transfer ID.
+  optional int32 data_chunk_transfer_id = 11;
+
+  // Communication channel ID.
+  optional int32 channel_id = 12;
+
+  // Buffer offset where the chunk starts.
+  optional int32 buffer_offset = 13;
+
+  // Number of chunks being transmitted.
+  optional int32 chunk_count = 14;
+
+  // Configured collective data size in Bytes.
+  optional uint64 data_size = 15;
+
+  // Chunk size in Bytes.
+  optional uint64 chunk_size = 16;
+
+  // Start time of the chunk transfer expressed in ms.
+  optional float start_ms = 17;
+
+  // End time of the chunk transfer expressed in ms.
+  optional float end_ms = 18;
+
+  // Completion time of the chunk transfer expressed in ms.
+  optional float completion_time_ms = 19;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 20;
+
+  // Emulated infra component source of the chunk transfer.
+  optional string emulated_tx_component = 21;
+
+  // Payload bytes.
+  optional uint64 payload_bytes = 22;
+
+  // Number of network switches the data passes through between the source and destination
+  // NICs. For example, 1 when both endpoints connect to the same switch, or 3 when the
+  // path goes through two edge switches and a spine switch. Only present when hop latency
+  // modeling is enabled.
+  optional int32 hop_count = 23;
+
+  // Extra latency, in microseconds, added to this transfer's completion time to account
+  // for the time spent crossing network switches. It increases with `hop_count`; it is
+  // 0 only when no switches are crossed. Only present when hop latency modeling is enabled.
+  optional float hop_latency_us = 24;
+
+  // Epoch number.
+  optional int32 epoch = 25;
+}
+
 // Request to traffic generator for states of choice
 message StatesRequest {
 
@@ -20010,6 +24989,7 @@ message StatesRequest {
       ospfv3_lsas = 12;
       isis_adjacencies = 13;
       bmp_servers = 14;
+      collective_communications = 15;
     }
   }
   // Description missing in models
@@ -20057,6 +25037,9 @@ message StatesRequest {
 
   // Description missing in models
   BmpServersStateRequest bmp_servers = 15;
+
+  // Description missing in models
+  CollectiveCommunicationsStateRequest collective_communications = 16;
 }
 
 // Response containing chosen traffic generator states
@@ -20079,6 +25062,7 @@ message StatesResponse {
       ospfv3_lsas = 12;
       isis_adjacencies = 13;
       bmp_servers = 14;
+      collective_communications = 15;
     }
   }
   // Description missing in models
@@ -20126,6 +25110,9 @@ message StatesResponse {
 
   // Description missing in models
   repeated BmpServerState bmp_servers = 15;
+
+  // Description missing in models
+  CollectiveCommunicationsState collective_communications = 16;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -22950,6 +27937,118 @@ message BmpPrefixIpv6UnicastState {
   // The multi exit discriminator (MED) is an optional non-transitive attribute and the
   // value is used for route selection. The route with the lowest MED value is preferred.
   optional uint32 multi_exit_discriminator = 13;
+}
+
+// The request to retrieve execution/run states of the configured collective benchmark.
+message CollectiveCommunicationsStateRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      execution = 1;
+    }
+  }
+  // Selects which collective benchmark states to retrieve.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Request for the execution/run states of the collective benchmark.
+  CollectiveCommunicationsStateExecution execution = 2;
+}
+
+// The execution/run states of the configured collective benchmark.
+message CollectiveCommunicationsState {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      execution = 1;
+    }
+  }
+  // Indicates which collective benchmark states are being reported.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The execution/run states of the collective benchmark.
+  CollectiveCommunicationsStateExecution execution = 2;
+}
+
+// The execution/run states of the collective benchmark.
+message CollectiveCommunicationsStateExecution {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      stopped = 1;
+      started = 2;
+      stopping = 3;
+    }
+  }
+  // The current lifecycle state of the AI workload's collective benchmark run.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The reason the collective benchmark has been stopped and possibly results of a successful
+  // run.
+  CollectiveCommunicationsStateStopped stopped = 2;
+}
+
+// Status information about why state has stopped
+message CollectiveCommunicationsStateStopped {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      unrun = 1;
+      success = 2;
+      manual = 3;
+      failure = 4;
+    }
+  }
+  // The reason the collective benchmark is in the stopped state.
+  // required = true
+  optional Choice.Enum choice = 2;
+
+  // Status associated with a run that was successful and complete
+  CollectiveCommunicationsStateStoppedSuccess success = 4;
+
+  // Status associated with a run that failed
+  CollectiveCommunicationsStateStoppedFailure failure = 6;
+}
+
+// Status associated with a run that was successful and complete
+message CollectiveCommunicationsStateStoppedSuccess {
+
+  // A list of any system specific warnings that have occurred while
+  // executing the request.
+  repeated string warnings = 1;
+}
+
+// Status associated with a run that failed
+message CollectiveCommunicationsStateStoppedFailure {
+
+  // Numeric status code based on the underlying transport being used.
+  // The API server MUST set this code explicitly based on following references:
+  // - HTTP 4xx errors: https://datatracker.ietf.org/doc/html/rfc9110#section-15.5
+  // - HTTP 5xx errors: https://datatracker.ietf.org/doc/html/rfc9110#section-15.6
+  // - gRPC errors: https://grpc.github.io/grpc/core/md_doc_statuscodes.html
+  optional int32 code = 1;
+
+  message Kind {
+    enum Enum {
+      unspecified = 0;
+      validation = 1;
+      internal = 2;
+    }
+  }
+  // Classification of error originating from within API server that may not be mapped
+  // to the value in `code`.
+  // Absence of this field may indicate that the error did not originate from within API
+  // server.
+  optional Kind.Enum kind = 2;
+
+  // List of error messages generated while executing the request.
+  repeated string errors = 3;
 }
 
 // The capture result request to the traffic generator.
@@ -39084,6 +44183,14 @@ message DeleteConfigResponse {
 }
 
 
+message GenerateConfigRequest {
+  ConfigGenerateRequest config_generate_request = 1;
+}
+message GenerateConfigResponse {
+  Warning warning = 1;
+}
+
+
 message SetControlStateRequest {
   ControlState control_state = 1;
 }
@@ -39166,6 +44273,10 @@ service Openapi {
   // from SetConfig operation. On successful deletion the fetched configuration shall
   // not reflect the removed configuration.
   rpc DeleteConfig(DeleteConfigRequest) returns (DeleteConfigResponse);
+  // Under Review: This property may not be included in the upcoming release
+  // 
+  // Generate new configuration from a high-level description of the configuration.
+  rpc GenerateConfig(GenerateConfigRequest) returns (GenerateConfigResponse);
   // Sets the operational state of configured resources.
   rpc SetControlState(SetControlStateRequest) returns (SetControlStateResponse);
   // streaming version of the rpc SetControlState

@@ -1,0 +1,447 @@
+components:
+  schemas:
+    CollectiveCommunications.Workload:
+      description: >-
+        Definition of the collective communications traffic to run.
+        Selects the workload type (e.g. single collective, workload replay, etc) and carries its configuration.
+        The definition of what infrastructure it runs on and how it maps to test resources is described
+        by CollectiveCommunications.Infrastructure and CollectiveCommunications.Bindings respectively.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the workload type.
+          x-field-uid: 1
+          x-enum:
+            single_collective:
+              description: >-
+                Run a Collective Communication Benchmark with a single collective.
+              x-field-uid: 1
+            mix_of_collectives:
+              description: >-
+                Run a Collective Communication Benchmark with multiple collectives.
+              x-field-uid: 2
+            workload_replay:
+              description: >-
+                Replay a previously captured Chakra trace.
+              x-field-uid: 3
+        single_collective:
+          $ref: '#/components/schemas/CollectiveCommunications.SingleCollective'
+          description: >-
+            Single collective benchmark configuration.
+          x-field-uid: 2
+        workload_replay:
+          $ref: '#/components/schemas/CollectiveCommunications.WorkloadReplay'
+          description: >-
+            Workload replay configuration.
+          x-field-uid: 3
+        mix_of_collectives:
+          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives'
+          description: >-
+            Mix of collectives benchmark configuration.
+          x-field-uid: 4
+
+    CollectiveCommunications.SingleCollective:
+      description: >-
+        Single collective communication configuration.
+      type: object
+      properties:
+        collective_algorithm:
+          $ref: '#/components/schemas/CollectiveCommunications.Algorithm'
+          description: >-
+            The collective communication algorithm to use.
+          x-field-uid: 1
+        datasizes:
+          $ref: '#/components/schemas/CollectiveCommunications.Datasizes'
+          description: >-
+            Data size specification for each benchmark collective run.
+          x-field-uid: 2
+        transport:
+          $ref: './transport.yaml#/components/schemas/CollectiveCommunications.Transport'
+          description: >-
+            Collective-communications-specific transport settings — the
+            rank-scoped properties that have no native OTG home. The transport
+            itself is expressed natively: see the schema description.
+          x-field-uid: 3
+        iterations:
+          type: integer
+          format: uint64
+          default: 1
+          minimum: 1
+          maximum: 4294967295
+          description: >-
+            Number of collective executions per data size.
+          x-field-uid: 4
+        iteration_append_delay:
+          type: integer
+          format: uint32
+          default: 100
+          minimum: 0
+          maximum: 10000
+          description: >-
+            Delay in milliseconds between iterations.
+          x-field-uid: 5
+
+    CollectiveCommunications.MixOfCollectives:
+      $ref: '../common/common.yaml#/components/schemas/Placeholder.Object'
+      description: >-
+        Multiple collective communication configuration.
+        PLACEHOLDER: configuration schema is not yet defined.
+
+    CollectiveCommunications.WorkloadReplay:
+      $ref: '../common/common.yaml#/components/schemas/Placeholder.Object'
+      description: >-
+        Workload replay configuration. Replays a real AI workload captured as a Chakra trace.
+        PLACEHOLDER: configuration schema is not yet defined.
+
+    CollectiveCommunications.Datasizes:
+      description: >-
+        Data size specification for each benchmark collective run — either an
+        explicit list of sizes or a multiplier-based range.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the data size specification. Default is list.
+          x-field-uid: 1
+          x-enum:
+            multiplier:
+              description: >-
+                Iterate data sizes from start to end by repeatedly multiplying
+                by a factor.
+              x-field-uid: 1
+            list:
+              description: >-
+                Use an explicit list of data sizes.
+              x-field-uid: 2
+        multiplier:
+          $ref: '#/components/schemas/CollectiveCommunications.Datasize'
+          description: >-
+            Data size range using a multiplier.
+          x-field-uid: 2
+        list:
+          $ref: '#/components/schemas/CollectiveCommunications.DatasizeList'
+          description: >-
+            Explicit list of data sizes.
+          x-field-uid: 3
+
+    CollectiveCommunications.Datasize:
+      description: >-
+        Data size range specification for a collective communications benchmark.
+        Starting at start, each subsequent size is obtained by multiplying by multiplier,
+        continuing until end is reached.
+      type: object
+      properties:
+        start:
+          type: integer
+          format: uint64
+          default: 134217728
+          minimum: 1
+          description: >-
+            Initial data size in bytes. Default 134217728 (128 MiB).
+          x-field-uid: 1
+        multiplier:
+          type: integer
+          format: uint32
+          default: 2
+          minimum: 2
+          description: >-
+            Factor by which the data size is multiplied at each step.
+          x-field-uid: 2
+        end:
+          type: integer
+          format: uint64
+          default: 4294967296
+          minimum: 1
+          description: >-
+            Maximum data size in bytes. The last size run is the largest value
+            not exceeding end. Default 4294967296 (4 GiB).
+          x-field-uid: 3
+
+    CollectiveCommunications.DatasizeList:
+      description: >-
+        Explicit list of data sizes for a collective communications benchmark.
+      type: object
+      properties:
+        size_bytes:
+          type: array
+          items:
+            type: integer
+            format: uint64
+            minimum: 1
+          default: [1073741824]
+          description: >-
+            List of data sizes in bytes. Default [1073741824] (1 GiB).
+          x-field-uid: 1
+
+    CollectiveCommunications.CollectiveAlgorithmEnum:
+      description: >-
+        Holder for the collective communication algorithm enum. Not a schema in
+        the bundled artifacts; the value property is merged inline wherever it
+        is included via x-include.
+      type: object
+      properties:
+        value:
+          type: string
+          x-field-uid: 1
+          x-enum:
+            all_to_all_parallel:
+              description: >-
+                All To All collective with chunk transfer in parallel.
+              x-field-uid: 1
+            all_to_all_pxn:
+              description: >-
+                All To All collective that leverages message aggregation and
+                rail-optimized topologies.
+              x-field-uid: 2
+            all_reduce_unidirectional_ring:
+              description: >-
+                All Reduce collective with chunk transfer in a unidirectional ring.
+              x-field-uid: 3
+            all_reduce_bidirectional_ring:
+              description: >-
+                All Reduce collective with chunk transfer in a bidirectional ring.
+              x-field-uid: 4
+            all_reduce_vector_halving_doubling:
+              description: >-
+                All Reduce collective using a vector halving doubling algorithm.
+              x-field-uid: 5
+            all_reduce_double_binary_tree:
+              description: >-
+                All Reduce collective with chunk transfer in a double binary tree.
+              x-field-uid: 6
+            all_gather_ring:
+              description: >-
+                All Gather collective with chunk transfer in a unidirectional ring.
+              x-field-uid: 7
+            reduce_scatter_ring:
+              description: >-
+                Reduce Scatter collective with chunk transfer in a unidirectional ring.
+              x-field-uid: 8
+            broadcast_parallel:
+              description: >-
+                Broadcast collective with chunk transfer in parallel.
+              x-field-uid: 9
+            gather_parallel:
+              description: >-
+                Gather point to point collective (all to one) with chunk transfer
+                in parallel.
+              x-field-uid: 10
+            all_to_all_parallel_pp:
+              description: >-
+                All To All collective with chunk transfer in parallel.
+                MSCCL++ implementation.
+              x-field-uid: 11
+            all_to_all_pxn_pp:
+              description: >-
+                All To All collective that leverages message aggregation and
+                rail-optimized topologies. MSCCL++ implementation.
+              x-field-uid: 12
+            all_reduce_unidirectional_ring_pp:
+              description: >-
+                All Reduce collective with chunk transfer in a unidirectional ring.
+                MSCCL++ implementation.
+              x-field-uid: 13
+            all_reduce_bidirectional_ring_pp:
+              description: >-
+                All Reduce collective with chunk transfer in a bidirectional ring.
+                MSCCL++ implementation.
+              x-field-uid: 14
+            all_reduce_vector_halving_doubling_pp:
+              description: >-
+                All Reduce collective using a vector halving doubling algorithm.
+                MSCCL++ implementation.
+              x-field-uid: 15
+            all_reduce_double_binary_tree_pp:
+              description: >-
+                All Reduce collective with chunk transfer in a double binary tree.
+                MSCCL++ implementation.
+              x-field-uid: 16
+            all_gather_ring_pp:
+              description: >-
+                All Gather collective with chunk transfer in a unidirectional ring.
+                MSCCL++ implementation.
+              x-field-uid: 17
+            reduce_scatter_ring_pp:
+              description: >-
+                Reduce Scatter collective with chunk transfer in a unidirectional ring.
+                MSCCL++ implementation.
+              x-field-uid: 18
+            broadcast_parallel_pp:
+              description: >-
+                Broadcast collective with chunk transfer in parallel.
+                MSCCL++ implementation.
+              x-field-uid: 19
+            gather_parallel_pp:
+              description: >-
+                Gather point to point collective (all to one) with chunk transfer
+                in parallel. MSCCL++ implementation.
+              x-field-uid: 20
+
+    CollectiveCommunications.Algorithm:
+      description: >-
+        Specifies a collective communication algorithm.
+      type: object
+      properties:
+        algorithm_type:
+          $ref: '#/components/schemas/CollectiveCommunications.Algorithm.Type'
+          description: >-
+            Selects a system-provided or custom collective algorithm.
+          x-field-uid: 1
+        flow_control_config:
+          $ref: '#/components/schemas/CollectiveCommunications.FlowControl'
+          description: >-
+            Configuration for the flow control mechanism used by this algorithm.
+          x-field-uid: 2
+
+    CollectiveCommunications.Algorithm.Type:
+      description: >-
+        Selects either a system-provided collective algorithm or a custom
+        user-provided implementation.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects whether to use a system-provided or custom algorithm. Default is system.
+          x-field-uid: 1
+          x-enum:
+            system:
+              description: >-
+                Use a system-supplied collective algorithm.
+              x-field-uid: 1
+            custom:
+              description: >-
+                Use a custom user-provided algorithm implementation.
+              x-field-uid: 2
+        system:
+          type: string
+          default: all_to_all_parallel
+          description: >-
+            A system-supplied collective algorithm.
+            Default is all_to_all_parallel. _pp suffix variants are MSCCL++ implementations.
+          x-include: ./workload.yaml#/components/schemas/CollectiveCommunications.CollectiveAlgorithmEnum/properties/value
+          x-field-uid: 2
+        custom:
+          type: string
+          description: >-
+            A path of format package.module.classname to a class that inherits from
+            keys_ai_ml_chakra.Expander.
+          x-field-uid: 3
+
+    CollectiveCommunications.FlowControl:
+      description: >-
+        Flow control mechanism configuration. Receiver grants credits to sender to control data flow.
+      type: object
+      properties:
+        enable_flow_control:
+          type: boolean
+          default: false
+          description: >-
+            Enable flow control. Default false.
+          x-field-uid: 1
+        max_inflight_credits:
+          type: integer
+          format: uint32
+          default: 4
+          minimum: 1
+          maximum: 8
+          description: >-
+            Maximum number of credits allowed in flight.
+          x-field-uid: 2
+        credit_distribution:
+          type: string
+          default: all_streams
+          description: >-
+            Determines how credits are distributed across streams. Default is all_streams.
+          x-field-uid: 3
+          x-enum:
+            all_streams:
+              description: >-
+                One credit unblocks all streams simultaneously.
+              x-field-uid: 1
+            single_stream:
+              description: >-
+                One credit unblocks one stream at a time.
+              x-field-uid: 2
+        compute_delay:
+          $ref: '#/components/schemas/CollectiveCommunications.ComputeDelay'
+          description: >-
+            Selects whether the compute delay is manually configured or
+            automatically derived.
+          x-field-uid: 4
+
+    CollectiveCommunications.ComputeDelay:
+      description: >-
+        Selects whether the compute delay used by flow control is manually
+        configured or automatically derived.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects whether compute delay is manually configured or automatically
+            derived. Default is manual.
+          x-field-uid: 1
+          x-enum:
+            manual:
+              description: >-
+                The compute delay is manually configured.
+              x-field-uid: 1
+            automatic:
+              description: >-
+                The compute delay is automatically derived from the GPU type.
+              x-field-uid: 2
+        manual:
+          $ref: '#/components/schemas/CollectiveCommunications.ManualComputeDelay'
+          description: >-
+            Manual compute delay configuration.
+          x-field-uid: 2
+        automatic:
+          $ref: '#/components/schemas/CollectiveCommunications.AutomaticComputeDelay'
+          description: >-
+            Automatic compute delay configuration.
+          x-field-uid: 3
+
+    CollectiveCommunications.ManualComputeDelay:
+      description: >-
+        Manual compute delay configuration for flow control.
+      type: object
+      properties:
+        compute_delay:
+          type: integer
+          format: uint32
+          default: 0
+          minimum: 0
+          maximum: 5000
+          description: >-
+            Delay between data reception and credit transmission in microseconds.
+          x-field-uid: 1
+
+    CollectiveCommunications.AutomaticComputeDelay:
+      description: >-
+        Automatic compute delay configuration for flow control.
+        GPU type determines the compute delay function used.
+      type: object
+      properties:
+        gpu_type:
+          type: string
+          default: a100
+          description: >-
+            GPU type used to derive the default compute delay. Default is a100.
+          x-field-uid: 1
+          x-enum:
+            a100:
+              description: >-
+                A100 GPU.
+              x-field-uid: 1
+            h100:
+              description: >-
+                H100 GPU.
+              x-field-uid: 2

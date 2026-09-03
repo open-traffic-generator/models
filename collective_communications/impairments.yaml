@@ -1,0 +1,244 @@
+components:
+  schemas:
+    CollectiveCommunications.Impairments:
+      description: >-
+        Container for configuring network impairments applied during a collective benchmark.
+        Impairments are a test-scenario overlay: their match conditions reference
+        infrastructure elements (via CollectiveCommunications.InfrastructureRef) and workload flows, so they belong to
+        neither the infrastructure nor the workload alone.
+      type: object
+      properties:
+        packet_drop:
+          $ref: '#/components/schemas/CollectiveCommunications.PacketDrop'
+          description: >-
+            Packet drop impairment configuration.
+          x-field-uid: 1
+        packet_reorder:
+          $ref: '#/components/schemas/CollectiveCommunications.PacketReorder'
+          description: >-
+            Packet reorder impairment configuration.
+          x-field-uid: 2
+
+    CollectiveCommunications.PacketDrop:
+      description: >-
+        Simulates packet loss by dropping packets matching any of the specified conditions.
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          default: false
+          description: >-
+            Whether packet drop impairment is active. Default false.
+          x-field-uid: 1
+        match_conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.MatchConditions'
+          description: >-
+            List of match condition sets (OR logic). Packets matching any set are dropped.
+          x-field-uid: 2
+        skip_count:
+          type: integer
+          format: uint32
+          default: 0
+          minimum: 0
+          maximum: 16777215
+          description: >-
+            Number of matching packets to skip before dropping.
+          x-field-uid: 3
+        drop_count:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          maximum: 16777215
+          description: >-
+            Number of consecutive packets to drop after skip_count.
+            When a match condition's location is dst, drop_count must be 1.
+          x-field-uid: 4
+
+    CollectiveCommunications.PacketReorder:
+      description: >-
+        Simulates out-of-order packet delivery for testing reordering resilience.
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          default: false
+          description: >-
+            Whether packet reorder impairment is active. Default false.
+          x-field-uid: 1
+        match_conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.MatchConditions'
+          description: >-
+            List of match condition sets (OR logic).
+          x-field-uid: 2
+        skip_count:
+          type: integer
+          format: uint32
+          default: 0
+          minimum: 0
+          maximum: 16777215
+          description: >-
+            Number of matching packets to skip before reordering.
+          x-field-uid: 3
+        reorder_count:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          maximum: 511
+          description: >-
+            Number of packets to send out-of-order.
+            reorder_count + hold_count must be less than 512.
+            The reordering stops when the sender receives a NACK and starts
+            retransmitting.
+          x-field-uid: 4
+        hold_count:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          maximum: 511
+          description: >-
+            Number of packets to delay before sending the reordered packets.
+            reorder_count + hold_count must be less than 512.
+          x-field-uid: 5
+
+    CollectiveCommunications.MatchConditions:
+      description: >-
+        A set of match conditions — all are required (ANDed).
+      type: object
+      properties:
+        location:
+          type: string
+          default: src
+          description: >-
+            Whether to impair at the source (sender) or destination (receiver) side.
+            The source sends data plane traffic; the destination responds with
+            control plane traffic (ACK/NACK/CNP). Default is src.
+          x-field-uid: 1
+          x-enum:
+            src:
+              description: >-
+                Apply the impairment on the source (sender) side.
+              x-field-uid: 1
+            dst:
+              description: >-
+                Apply the impairment on the destination (receiver) side.
+              x-field-uid: 2
+        collective:
+          $ref: '#/components/schemas/CollectiveCommunications.CollectiveMatchConditions'
+          description: >-
+            Collective communication flow to match.
+          x-field-uid: 2
+        packet:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.PacketConditions'
+          description: >-
+            Packet-level conditions to match.
+          x-field-uid: 3
+
+    CollectiveCommunications.CollectiveMatchConditions:
+      description: >-
+        Match conditions for a collective communication flow between two NICs.
+      type: object
+      properties:
+        src_nic:
+          $ref: './bindings.yaml#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            Reference to the source network interface card.
+          x-field-uid: 1
+        dst_nic:
+          $ref: './bindings.yaml#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            Reference to the destination network interface card.
+          x-field-uid: 2
+        flow_index:
+          type: integer
+          format: uint32
+          default: 0
+          minimum: 0
+          maximum: 16777215
+          description: >-
+            Index identifying a specific flow between source and destination.
+          x-field-uid: 3
+
+    CollectiveCommunications.PacketConditions:
+      description: >-
+        Packet-level match conditions. Supports different protocol-specific criteria.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            The type of packet conditions to match.
+          x-field-uid: 1
+          x-enum:
+            rdma:
+              description: >-
+                Match conditions specific to RDMA packets.
+              x-field-uid: 1
+        rdma:
+          $ref: '#/components/schemas/CollectiveCommunications.RdmaMatchConditions'
+          description: >-
+            RDMA-specific match conditions.
+          x-field-uid: 2
+
+    CollectiveCommunications.RdmaMatchConditions:
+      description: >-
+        Match conditions for RDMA packets. Allows matching on multiple opcodes simultaneously.
+      type: object
+      properties:
+        opcode_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.RdmaOpcodeMatch'
+          description: >-
+            List of RDMA opcodes to match (OR logic).
+          x-field-uid: 1
+
+    CollectiveCommunications.RdmaOpcodeMatch:
+      description: >-
+        Matches a specific RDMA packet opcode type.
+      type: object
+      properties:
+        value:
+          type: string
+          default: source_any
+          description: >-
+            The RDMA opcode value to match. Default is source_any.
+          x-field-uid: 1
+          x-enum:
+            first:
+              description: >-
+                First packet of an RDMA Write or Send operation.
+              x-field-uid: 1
+            middle:
+              description: >-
+                Middle packet of an RDMA Write or Send operation.
+              x-field-uid: 2
+            last:
+              description: >-
+                Last packet of an RDMA Write or Send operation.
+              x-field-uid: 3
+            source_any:
+              description: >-
+                Any packet sent by the source.
+              x-field-uid: 4
+            ack:
+              description: >-
+                Acknowledgment packet from the destination.
+              x-field-uid: 5
+            nack:
+              description: >-
+                Negative acknowledgment packet from the destination.
+              x-field-uid: 6
+            destination_any:
+              description: >-
+                Any packet sent by the destination.
+              x-field-uid: 7

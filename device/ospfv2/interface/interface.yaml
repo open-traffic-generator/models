@@ -11,7 +11,16 @@ components:
           x-field-uid: 1
         ipv4_name:
           description: >-
-            The globally unique name of the IPv4 interface connected to the DUT.            
+            The globally unique name of the IPv4 interface on which OSPFv2 is running.
+            The underlying Ethernet of this IPv4 interface may be an emulated interface
+            (Ethernet connection of type port_name / lag_name, i.e. connected to a port and the DUT)
+            or a simulated interface (Ethernet connection of type simulated_link). When the
+            underlying Ethernet uses a simulated_link, this OSPFv2 interface belongs to a simulated
+            router inside a simulated topology behind the emulated router, connected either by a
+            primary link (internal to the simulated topology) or a secondary link (to a device
+            behind a different simulated topology). This is how OSPFv2 simulated topologies are
+            built - a simulated router is an ordinary Device running ospfv2 whose Ethernets use
+            simulated_link connections.            
           type: string
           x-constraint:
           - '/components/schemas/Device.Ipv4/properties/name'
@@ -63,7 +72,15 @@ components:
             maximum: 16777215
             default: 0
           x-field-uid: 9
-    
+        adjacency_sids:
+          description: >-
+            List of OSPFv2 Adjacency SID sub-TLVs advertised in the Extended Link Opaque LSA
+            for this interface (RFC 8665). Typically used on point-to-point links.
+          type: array
+          items:
+            $ref: '../adjacencysegmentid.yaml#/components/schemas/Ospfv2Interface.AdjacencySid'
+          x-field-uid: 10
+
     Ospfv2Interface.Area:
       description: |-
         Container for OSPF Area ID identifies the routing area to which the host belongs..      
@@ -158,7 +175,11 @@ components:
           x-field-uid: 2
         routing_metric:
           description: |-
-            Routing metric associated with the interface..
+            Routing metric (interface output cost) associated with the interface.
+            It is advertised as the 16-bit TOS 0 metric of the corresponding link in the
+            Router-LSA (RFC 2328 Appendix A.4.2); the interface output cost has a valid
+            range of 1 to 65535 (RFC 2328 Section C.3). This applies equally to emulated
+            and simulated OSPFv2 interfaces.
           type: integer
           format: uint32
           maximum: 65535

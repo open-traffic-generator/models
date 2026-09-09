@@ -15368,24 +15368,9 @@ message UltraEthernetCbfcSender {
   // CC_Update (credit consumed) message configuration.
   UltraEthernetCbfcSenderCcMessage cc_message = 3;
 
-  message MappingPriority {
-    enum Enum {
-      unspecified = 0;
-      vlan_pcp_dei = 1;
-      dscp = 2;
-    }
-  }
-  // Selects which packet header field is used to map a packet to a virtual
-  // channel.
-  // 
-  // - vlan_pcp_dei: use the mac.vlan.pcp_dei value(s) configured per VC.
-  // - dscp: use the ip.dscp value(s) configured per VC.
-  // default = MappingPriority.Enum.vlan_pcp_dei
-  optional MappingPriority.Enum mapping_priority = 4;
-
   // The list of virtual channels (VCs). A maximum of 32 VCs are supported per
   // port, of which a maximum of 4 may be configured as lossless.
-  repeated UltraEthernetCbfcVc virtual_channels = 5;
+  repeated UltraEthernetCbfcVc virtual_channels = 4;
 }
 
 // CBFC receiver direction configuration.
@@ -15402,24 +15387,9 @@ message UltraEthernetCbfcReceiver {
   // CC_Update (credit consumed) message reception configuration.
   UltraEthernetCbfcReceiverCcMessage cc_message = 3;
 
-  message MappingPriority {
-    enum Enum {
-      unspecified = 0;
-      vlan_pcp_dei = 1;
-      dscp = 2;
-    }
-  }
-  // Selects which packet header field is used to map a received packet to a
-  // virtual channel.
-  // 
-  // - vlan_pcp_dei: use the mac.vlan.pcp_dei value(s) configured per VC.
-  // - dscp: use the ip.dscp value(s) configured per VC.
-  // default = MappingPriority.Enum.vlan_pcp_dei
-  optional MappingPriority.Enum mapping_priority = 4;
-
   // The list of virtual channels (VCs). A maximum of 32 VCs are supported per
   // port, of which a maximum of 4 may be configured as lossless.
-  repeated UltraEthernetCbfcVc virtual_channels = 5;
+  repeated UltraEthernetCbfcVc virtual_channels = 4;
 }
 
 // CBFC CC_Update (credit consumed) message configuration. CC_Update messages are
@@ -15512,9 +15482,10 @@ message UltraEthernetCbfcPortCredit {
   // Description missing in models
   UltraEthernetCbfcPortCreditPerVc per_vc = 3;
 
-  // The number of bytes represented by each credit. This must be a function of
-  // the receiver's buffer allocation unit (cell size). Valid values are one
-  // of 32, 56, 64, 128, 256, 512, 1024 or 2048 bytes.
+  // The number of bytes represented by each credit. This is a function of the
+  // receiver's buffer allocation unit (cell size) and is implementation
+  // dependent; a given implementation may support only certain discrete cell
+  // sizes.
   // default = 64
   optional uint32 cell_size = 4;
 
@@ -15565,17 +15536,9 @@ message UltraEthernetCbfcVc {
   // Description missing in models
   UltraEthernetCbfcVcLossless lossless = 3;
 
-  // The VLAN PCP values (with DEI = 0) mapped to this VC. Used when the
-  // mapping_priority is vlan_pcp_dei. Valid values are 0 to 7.
-  repeated uint32 vlan_pcp_dei0 = 4;
-
-  // The VLAN PCP values (with DEI = 1) mapped to this VC. Used when the
-  // mapping_priority is vlan_pcp_dei. Valid values are 0 to 7.
-  repeated uint32 vlan_pcp_dei1 = 5;
-
-  // The IPv4/IPv6 DSCP values mapped to this VC. Used when the mapping_priority
-  // is dscp. Valid values are 0 to 63.
-  repeated uint32 dscp = 6;
+  // The packet header field values that classify packets into this virtual
+  // channel.
+  UltraEthernetCbfcVcMapping mapping = 4;
 }
 
 // Best effort virtual channel settings. A best effort VC does not use CBFC
@@ -15590,6 +15553,49 @@ message UltraEthernetCbfcVcLossless {
   // when the port credit mode is per_vc.
   // default = 0
   optional uint32 credit_limit = 1;
+}
+
+// The packet header field used to classify packets into a virtual channel, and
+// the associated values. At a minimum, mapping from the mac.vlan.pcp_dei and
+// ip.dscp header fields is supported.
+message UltraEthernetCbfcVcMapping {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      vlan_pcp_dei = 1;
+      dscp = 2;
+    }
+  }
+  // The packet header field used to classify packets into this VC.
+  // 
+  // - vlan_pcp_dei: classify by the mac.vlan.pcp_dei value(s).
+  // - dscp: classify by the ip.dscp value(s).
+  // default = Choice.Enum.vlan_pcp_dei
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  UltraEthernetCbfcVcMappingVlanPcpDei vlan_pcp_dei = 2;
+
+  // Description missing in models
+  UltraEthernetCbfcVcMappingDscp dscp = 3;
+}
+
+// VLAN PCP/DEI values that classify packets into this virtual channel.
+message UltraEthernetCbfcVcMappingVlanPcpDei {
+
+  // The VLAN PCP values, with DEI = 0, mapped to this VC. Valid values are 0 to 7.
+  repeated uint32 pcp_dei0 = 1;
+
+  // The VLAN PCP values, with DEI = 1, mapped to this VC. Valid values are 0 to 7.
+  repeated uint32 pcp_dei1 = 2;
+}
+
+// IPv4/IPv6 DSCP values that classify packets into this virtual channel.
+message UltraEthernetCbfcVcMappingDscp {
+
+  // The DSCP values mapped to this VC. Valid values are 0 to 63.
+  repeated uint32 values = 1;
 }
 
 // Port specific configurations.
@@ -20625,6 +20631,12 @@ message UltraEthernetMetricsRequest {
       ue_rx_ctl_os_intra_frame_spacing_error = 38;
       ue_ctl_os_spacing_min = 39;
       ue_ctl_os_spacing_error = 40;
+      llr_mode_local = 41;
+      llr_mode_remote = 42;
+      llr_transmit_state = 43;
+      llr_ack_nack_transmit_state = 44;
+      round_trip_time_ns = 45;
+      mean_time_between_phy_errors = 46;
     }
   }
   // The requested list of column names for the result set. If the list is empty then
@@ -20859,10 +20871,6 @@ message UltraEthernetCbfcVcMetric {
   // Indicates whether a lost credit condition was detected on this VC when the credit
   // mode is per VC.
   optional bool lost_credit_error = 7;
-
-  // The actual configured drain rate for this VC as a percentage of the port line rate.
-  // Applies to the receiver direction only.
-  optional double drain_rate_actual = 8;
 }
 
 // Request to traffic generator for states of choice

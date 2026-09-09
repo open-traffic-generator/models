@@ -19987,24 +19987,6 @@ components:
             CC_Update (credit consumed) message configuration.
           $ref: '#/components/schemas/UltraEthernet.Cbfc.Sender.CcMessage'
           x-field-uid: 3
-        mapping_priority:
-          description: |-
-            Selects which packet header field is used to map a packet to a virtual
-            channel.
-
-            - vlan_pcp_dei: use the mac.vlan.pcp_dei value(s) configured per VC.
-            - dscp: use the ip.dscp value(s) configured per VC.
-          type: string
-          default: vlan_pcp_dei
-          x-field-uid: 4
-          x-enum:
-            vlan_pcp_dei:
-              x-field-uid: 1
-            dscp:
-              x-field-uid: 2
-          enum:
-          - vlan_pcp_dei
-          - dscp
         virtual_channels:
           description: |-
             The list of virtual channels (VCs). A maximum of 32 VCs are supported per
@@ -20012,7 +19994,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc'
-          x-field-uid: 5
+          x-field-uid: 4
     UltraEthernet.Cbfc.Receiver:
       description: |-
         CBFC receiver direction configuration.
@@ -20035,24 +20017,6 @@ components:
             CC_Update (credit consumed) message reception configuration.
           $ref: '#/components/schemas/UltraEthernet.Cbfc.Receiver.CcMessage'
           x-field-uid: 3
-        mapping_priority:
-          description: |-
-            Selects which packet header field is used to map a received packet to a
-            virtual channel.
-
-            - vlan_pcp_dei: use the mac.vlan.pcp_dei value(s) configured per VC.
-            - dscp: use the ip.dscp value(s) configured per VC.
-          type: string
-          default: vlan_pcp_dei
-          x-field-uid: 4
-          x-enum:
-            vlan_pcp_dei:
-              x-field-uid: 1
-            dscp:
-              x-field-uid: 2
-          enum:
-          - vlan_pcp_dei
-          - dscp
         virtual_channels:
           description: |-
             The list of virtual channels (VCs). A maximum of 32 VCs are supported per
@@ -20060,7 +20024,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc'
-          x-field-uid: 5
+          x-field-uid: 4
     UltraEthernet.Cbfc.Sender.CcMessage:
       description: |-
         CBFC CC_Update (credit consumed) message configuration. CC_Update messages are
@@ -20195,9 +20159,10 @@ components:
           x-field-uid: 3
         cell_size:
           description: |-
-            The number of bytes represented by each credit. This must be a function of
-            the receiver's buffer allocation unit ("cell size"). Valid values are one
-            of 32, 56, 64, 128, 256, 512, 1024 or 2048 bytes.
+            The number of bytes represented by each credit. This is a function of the
+            receiver's buffer allocation unit ("cell size") and is implementation
+            dependent; a given implementation may support only certain discrete cell
+            sizes.
           type: integer
           format: uint32
           minimum: 32
@@ -20266,39 +20231,12 @@ components:
         lossless:
           $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.Lossless'
           x-field-uid: 3
-        vlan_pcp_dei0:
+        mapping:
           description: |-
-            The VLAN PCP values (with DEI = 0) mapped to this VC. Used when the
-            mapping_priority is vlan_pcp_dei. Valid values are 0 to 7.
-          type: array
-          items:
-            type: integer
-            format: uint32
-            minimum: 0
-            maximum: 7
+            The packet header field values that classify packets into this virtual
+            channel.
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.Mapping'
           x-field-uid: 4
-        vlan_pcp_dei1:
-          description: |-
-            The VLAN PCP values (with DEI = 1) mapped to this VC. Used when the
-            mapping_priority is vlan_pcp_dei. Valid values are 0 to 7.
-          type: array
-          items:
-            type: integer
-            format: uint32
-            minimum: 0
-            maximum: 7
-          x-field-uid: 5
-        dscp:
-          description: |-
-            The IPv4/IPv6 DSCP values mapped to this VC. Used when the mapping_priority
-            is dscp. Valid values are 0 to 63.
-          type: array
-          items:
-            type: integer
-            format: uint32
-            minimum: 0
-            maximum: 63
-          x-field-uid: 6
     UltraEthernet.Cbfc.Vc.BestEffort:
       description: |-
         Best effort virtual channel settings. A best effort VC does not use CBFC
@@ -20318,6 +20256,76 @@ components:
           minimum: 0
           maximum: 524287
           default: 0
+          x-field-uid: 1
+    UltraEthernet.Cbfc.Vc.Mapping:
+      description: |-
+        The packet header field used to classify packets into a virtual channel, and
+        the associated values. At a minimum, mapping from the mac.vlan.pcp_dei and
+        ip.dscp header fields is supported.
+      type: object
+      properties:
+        choice:
+          description: |-
+            The packet header field used to classify packets into this VC.
+
+            - vlan_pcp_dei: classify by the mac.vlan.pcp_dei value(s).
+            - dscp: classify by the ip.dscp value(s).
+          type: string
+          default: vlan_pcp_dei
+          x-field-uid: 1
+          x-enum:
+            vlan_pcp_dei:
+              x-field-uid: 1
+            dscp:
+              x-field-uid: 2
+          enum:
+          - vlan_pcp_dei
+          - dscp
+        vlan_pcp_dei:
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.Mapping.VlanPcpDei'
+          x-field-uid: 2
+        dscp:
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.Mapping.Dscp'
+          x-field-uid: 3
+    UltraEthernet.Cbfc.Vc.Mapping.VlanPcpDei:
+      description: |-
+        VLAN PCP/DEI values that classify packets into this virtual channel.
+      type: object
+      properties:
+        pcp_dei0:
+          description: |-
+            The VLAN PCP values, with DEI = 0, mapped to this VC. Valid values are 0 to 7.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+            maximum: 7
+          x-field-uid: 1
+        pcp_dei1:
+          description: |-
+            The VLAN PCP values, with DEI = 1, mapped to this VC. Valid values are 0 to 7.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+            maximum: 7
+          x-field-uid: 2
+    UltraEthernet.Cbfc.Vc.Mapping.Dscp:
+      description: |-
+        IPv4/IPv6 DSCP values that classify packets into this virtual channel.
+      type: object
+      properties:
+        values:
+          description: |-
+            The DSCP values mapped to this VC. Valid values are 0 to 63.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+            maximum: 63
           x-field-uid: 1
     PerPort.Options:
       description: |-
@@ -28121,6 +28129,18 @@ components:
                 x-field-uid: 39
               ue_ctl_os_spacing_error:
                 x-field-uid: 40
+              llr_mode_local:
+                x-field-uid: 41
+              llr_mode_remote:
+                x-field-uid: 42
+              llr_transmit_state:
+                x-field-uid: 43
+              llr_ack_nack_transmit_state:
+                x-field-uid: 44
+              round_trip_time_ns:
+                x-field-uid: 45
+              mean_time_between_phy_errors:
+                x-field-uid: 46
             enum:
             - tx_init_ctl_os
             - tx_init_echo_ctl_os
@@ -28162,6 +28182,12 @@ components:
             - ue_rx_ctl_os_intra_frame_spacing_error
             - ue_ctl_os_spacing_min
             - ue_ctl_os_spacing_error
+            - llr_mode_local
+            - llr_mode_remote
+            - llr_transmit_state
+            - llr_ack_nack_transmit_state
+            - round_trip_time_ns
+            - mean_time_between_phy_errors
           x-field-uid: 2
     UltraEthernet.Metric:
       description: |-
@@ -28557,12 +28583,6 @@ components:
             Indicates whether a lost credit condition was detected on this VC when the credit mode is per VC.
           type: boolean
           x-field-uid: 7
-        drain_rate_actual:
-          description: |-
-            The actual configured drain rate for this VC as a percentage of the port line rate. Applies to the receiver direction only.
-          type: number
-          format: double
-          x-field-uid: 8
     States.Request:
       description: |-
         Request to traffic generator for states of choice

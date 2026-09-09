@@ -391,21 +391,6 @@ components:
             CC_Update (credit consumed) message configuration.
           $ref: '#/components/schemas/UltraEthernet.Cbfc.Sender.CcMessage'
           x-field-uid: 3
-        mapping_priority:
-          description: |-
-            Selects which packet header field is used to map a packet to a virtual
-            channel.
-
-            - vlan_pcp_dei: use the mac.vlan.pcp_dei value(s) configured per VC.
-            - dscp: use the ip.dscp value(s) configured per VC.
-          type: string
-          default: vlan_pcp_dei
-          x-field-uid: 4
-          x-enum:
-            vlan_pcp_dei:
-              x-field-uid: 1
-            dscp:
-              x-field-uid: 2
         virtual_channels:
           description: |-
             The list of virtual channels (VCs). A maximum of 32 VCs are supported per
@@ -413,7 +398,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc'
-          x-field-uid: 5
+          x-field-uid: 4
 
     UltraEthernet.Cbfc.Receiver:
       description: |-
@@ -437,21 +422,6 @@ components:
             CC_Update (credit consumed) message reception configuration.
           $ref: '#/components/schemas/UltraEthernet.Cbfc.Receiver.CcMessage'
           x-field-uid: 3
-        mapping_priority:
-          description: |-
-            Selects which packet header field is used to map a received packet to a
-            virtual channel.
-
-            - vlan_pcp_dei: use the mac.vlan.pcp_dei value(s) configured per VC.
-            - dscp: use the ip.dscp value(s) configured per VC.
-          type: string
-          default: vlan_pcp_dei
-          x-field-uid: 4
-          x-enum:
-            vlan_pcp_dei:
-              x-field-uid: 1
-            dscp:
-              x-field-uid: 2
         virtual_channels:
           description: |-
             The list of virtual channels (VCs). A maximum of 32 VCs are supported per
@@ -459,7 +429,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc'
-          x-field-uid: 5
+          x-field-uid: 4
 
     UltraEthernet.Cbfc.Sender.CcMessage:
       description: |-
@@ -594,9 +564,10 @@ components:
           x-field-uid: 3
         cell_size:
           description: |-
-            The number of bytes represented by each credit. This must be a function of
-            the receiver's buffer allocation unit ("cell size"). Valid values are one
-            of 32, 56, 64, 128, 256, 512, 1024 or 2048 bytes.
+            The number of bytes represented by each credit. This is a function of the
+            receiver's buffer allocation unit ("cell size") and is implementation
+            dependent; a given implementation may support only certain discrete cell
+            sizes.
           type: integer
           format: uint32
           minimum: 32
@@ -665,39 +636,12 @@ components:
         lossless:
           $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.Lossless'
           x-field-uid: 3
-        vlan_pcp_dei0:
+        mapping:
           description: |-
-            The VLAN PCP values (with DEI = 0) mapped to this VC. Used when the
-            mapping_priority is vlan_pcp_dei. Valid values are 0 to 7.
-          type: array
-          items:
-            type: integer
-            format: uint32
-            minimum: 0
-            maximum: 7
+            The packet header field values that classify packets into this virtual
+            channel.
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.Mapping'
           x-field-uid: 4
-        vlan_pcp_dei1:
-          description: |-
-            The VLAN PCP values (with DEI = 1) mapped to this VC. Used when the
-            mapping_priority is vlan_pcp_dei. Valid values are 0 to 7.
-          type: array
-          items:
-            type: integer
-            format: uint32
-            minimum: 0
-            maximum: 7
-          x-field-uid: 5
-        dscp:
-          description: |-
-            The IPv4/IPv6 DSCP values mapped to this VC. Used when the mapping_priority
-            is dscp. Valid values are 0 to 63.
-          type: array
-          items:
-            type: integer
-            format: uint32
-            minimum: 0
-            maximum: 63
-          x-field-uid: 6
 
     UltraEthernet.Cbfc.Vc.BestEffort:
       description: |-
@@ -719,4 +663,74 @@ components:
           minimum: 0
           maximum: 524287
           default: 0
+          x-field-uid: 1
+
+    UltraEthernet.Cbfc.Vc.Mapping:
+      description: |-
+        The packet header field used to classify packets into a virtual channel, and
+        the associated values. At a minimum, mapping from the mac.vlan.pcp_dei and
+        ip.dscp header fields is supported.
+      type: object
+      properties:
+        choice:
+          description: |-
+            The packet header field used to classify packets into this VC.
+
+            - vlan_pcp_dei: classify by the mac.vlan.pcp_dei value(s).
+            - dscp: classify by the ip.dscp value(s).
+          type: string
+          default: vlan_pcp_dei
+          x-field-uid: 1
+          x-enum:
+            vlan_pcp_dei:
+              x-field-uid: 1
+            dscp:
+              x-field-uid: 2
+        vlan_pcp_dei:
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.Mapping.VlanPcpDei'
+          x-field-uid: 2
+        dscp:
+          $ref: '#/components/schemas/UltraEthernet.Cbfc.Vc.Mapping.Dscp'
+          x-field-uid: 3
+
+    UltraEthernet.Cbfc.Vc.Mapping.VlanPcpDei:
+      description: |-
+        VLAN PCP/DEI values that classify packets into this virtual channel.
+      type: object
+      properties:
+        pcp_dei0:
+          description: |-
+            The VLAN PCP values, with DEI = 0, mapped to this VC. Valid values are 0 to 7.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+            maximum: 7
+          x-field-uid: 1
+        pcp_dei1:
+          description: |-
+            The VLAN PCP values, with DEI = 1, mapped to this VC. Valid values are 0 to 7.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+            maximum: 7
+          x-field-uid: 2
+
+    UltraEthernet.Cbfc.Vc.Mapping.Dscp:
+      description: |-
+        IPv4/IPv6 DSCP values that classify packets into this virtual channel.
+      type: object
+      properties:
+        values:
+          description: |-
+            The DSCP values mapped to this VC. Valid values are 0 to 63.
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+            maximum: 63
           x-field-uid: 1

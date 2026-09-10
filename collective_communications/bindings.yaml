@@ -1,0 +1,210 @@
+components:
+  schemas:
+    CollectiveCommunications.Bindings:
+      description: >-
+        Links the hardware-independent workload to the infrastructure, and the
+        infrastructure to physical test resources. Maps ranks to logical XPUs,
+        associates logical NICs with emulated OTG Ethernet interfaces, and
+        assigns physical test ports and platforms.
+      type: object
+      required:
+        - choice
+      properties:
+        choice:
+          type: string
+          description: >-
+            The type of binding to use.
+          x-enum:
+            basic_binding:
+              x-field-uid: 1
+          x-field-uid: 1
+        basic_binding:
+          $ref: '#/components/schemas/CollectiveCommunications.BasicBinding'
+          description: >-
+            The rank, NIC, and physical bindings.
+          x-field-uid: 2
+
+    CollectiveCommunications.BasicBinding:
+      type: object
+      description: >-
+        A set of rank, nic, and physical bindings.
+      properties:
+        rank_bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.RankBinding'
+          description: >-
+            List of bindings that map each rank to a specific logical XPU and its available NICs.
+          x-field-uid: 1
+        nic_bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.NicBinding'
+          description: >-
+            List of NIC bindings associating logical NICs with emulated OTG
+            Ethernet interfaces.
+          x-field-uid: 2
+        physical_bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.PhysicalBinding'
+          description: >-
+            List of bindings that associate infrastructure elements with physical test resources.
+          x-field-uid: 3
+
+    CollectiveCommunications.InfrastructureRef:
+      description: >-
+        A reference to a infrastructure element.
+      type: object
+      properties:
+        device_instance_name:
+          type: string
+          description: >-
+            Name of the infrastructure device (e.g. the value set for CollectiveCommunications.GenericHost.name).
+          x-field-uid: 1
+        device_index:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: >-
+            Zero-based device index.
+          x-field-uid: 2
+        component_name:
+          type: string
+          description: >-
+            Name of the infrastructure component.
+          x-field-uid: 3
+        component_index:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: >-
+            Zero-based component index.
+          x-field-uid: 4
+
+    CollectiveCommunications.RankBinding:
+      description: >-
+        Assigns a rank to a logical XPU and lists the NICs available to that XPU.
+      type: object
+      properties:
+        infrastructure_ref:
+          $ref: '#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            Reference to the XPU used by this rank.
+          x-field-uid: 1
+        rank_id:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: >-
+            The unique identifier for this rank in the distributed workload.
+          x-field-uid: 2
+        nic_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            List of NICs available to this XPU (in the same host).
+          x-field-uid: 3
+
+    CollectiveCommunications.RankDistribution:
+      description: >-
+        Defines how ranks are distributed across a communication channel.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            The rank ordering scheme. Default is ascending.
+          x-field-uid: 1
+          x-enum:
+            ascending:
+              description: >-
+                Ranks are assigned in increasing order: 0, 1, 2, 3, ...
+              x-field-uid: 1
+            descending:
+              description: >-
+                Ranks are assigned in decreasing order: N, N-1, N-2, ...
+              x-field-uid: 2
+            interleaved:
+              description: >-
+                Ranks alternate between the first and second half: 0, N/2, 1, N/2+1, ...
+              x-field-uid: 3
+            custom:
+              description: >-
+                Ranks are assigned according to the explicit order in `custom`.
+              x-field-uid: 4
+        custom:
+          type: array
+          items:
+            type: integer
+            format: uint32
+            minimum: 0
+          description: >-
+            Explicit list of rank IDs in the desired order.
+          x-field-uid: 2
+
+    CollectiveCommunications.NicBinding:
+      description: >-
+        Binds a NIC defined in the infrastructure to an emulated OTG
+        Ethernet interface that carries all of its network-stack settings
+        (MTU, MAC, VLANs, IP addressing, QoS, RoCEv2 peers).
+      type: object
+      properties:
+        infrastructure_ref:
+          $ref: '#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            Reference to a NIC defined in the infrastructure.
+          x-field-uid: 1
+        ethernet_name:
+          type: string
+          x-constraint:
+          - '/components/schemas/Device.Ethernet/properties/name'
+          description: >-
+            The name of the Device.Ethernet interface that models this NIC.
+            The interface's connection (port_name or port_names) determines
+            which test ports may generate this NIC's flows.
+
+            This reference also designates the NIC's transport: if a
+            Device.rocev2 stack references one of this interface's
+            ipv4_addresses or ipv6_addresses, the NIC runs RoCEv2 with the
+            settings on that Device.Rocev2Peer; otherwise it runs TCP. There is
+            no transport selector to set — see
+            CollectiveCommunications.Transport.
+          x-field-uid: 2
+
+    CollectiveCommunications.PhysicalBinding:
+      description: >-
+        Binds a infrastructure element to a physical test resource,
+        specifying the platform and per-platform configuration.
+      type: object
+      properties:
+        infrastructure_ref:
+          $ref: '#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            Reference to the infrastructure element that the physical resource represents.
+          x-field-uid: 1
+        platform_name:
+          type: string
+          x-constraint:
+          - '/components/schemas/CollectiveCommunications.PlatformConfig/properties/name'
+          description: >-
+            The name of the CollectiveCommunications.PlatformConfig to use for this physical binding.
+            Leave blank to let the server apply its default platform.
+          x-field-uid: 2
+        custom_settings:
+          $ref: '../common/common.yaml#/components/schemas/StringMap'
+          description: >-
+            Vendor/Implementation-specific properties for this physical binding.
+            Pass all vendor-specific physical binding parameters here.
+          x-field-uid: 3
+        port_name:
+          type: string
+          x-constraint:
+          - '/components/schemas/Port/properties/name'
+          description: >-
+            The name of the test port representing this physical resource.
+            The port's location, layer1 and per-port options carry the
+            physical settings previously configured on this binding.
+          x-field-uid: 4

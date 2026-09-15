@@ -1,0 +1,141 @@
+components:
+  schemas:
+    Bgp.L3vpn.Srv6Sid:
+      description: >-
+        SRv6-based VPN Service SID binding for a VPN-IPv6 route, per RFC 9252
+        (BGP Overlay Services Based on SRv6) Section 4 SRv6 L3 Service TLV and
+        SRv6 SID Information Sub-TLV. Replaces the VPN MPLS label with a
+        128-bit SRv6 SID that a decapsulating PE installs under an
+        End.DT4/End.DT6/End.DT46 endpoint behavior bound to this VRF.
+      type: object
+      required: [sid]
+      properties:
+        sid:
+          description: >-
+            The 128-bit SRv6 SID (Locator | Function | Argument, RFC 8986
+            Section 3.1) advertised in the SRv6 SID Information Sub-TLV
+            (RFC 9252 Section 4) for this route. For a range of routes, each
+            successive route's SID is this value plus a multiple of step.
+          type: string
+          format: ipv6
+          x-field-uid: 1
+        step:
+          description: >-
+            Increments the SID value for successive routes within the route
+            range carrying this SID binding.
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 0
+          x-field-uid: 2
+        endpoint_behavior:
+          description: >-
+            The endpoint behavior advertised for this SID in the SRv6 SID
+            Information Sub-TLV (RFC 9252 Section 4), encoded as the 2-octet
+            behavior codepoint (RFC 8986 Section 7.4). Only the VPN
+            decapsulation behaviors apply to a BGP L3VPN service SID.
+          type: string
+          default: end_dt6
+          x-enum:
+            end_dt4:
+              description: >-
+                End.DT4 decapsulation and IPv4 table lookup (RFC 8986
+                codepoint 17, 0x0011). Used for IPv4 L3VPN services over
+                SRv6.
+              x-field-uid: 1
+            end_dt6:
+              description: >-
+                End.DT6 decapsulation and IPv6 table lookup (RFC 8986
+                codepoint 16, 0x0010). Used for IPv6 L3VPN services over
+                SRv6 (6VPE-over-SRv6).
+              x-field-uid: 2
+            end_dt46:
+              description: >-
+                End.DT46 decapsulation and dual-stack table lookup (RFC 8986
+                codepoint 18, 0x0012). Used for dual-stack L3VPN services
+                over SRv6.
+              x-field-uid: 3
+          x-field-uid: 3
+        locator_length:
+          description: >-
+            Number of bits of sid that form the Locator Block plus Locator
+            Node (the routable locator prefix), per the SRv6 SID Structure
+            Sub-Sub-TLV (RFC 9252 Section 4, RFC 9352 Section 9). The
+            remaining bits form the Function and, if non-zero, the Argument.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 128
+          default: 64
+          x-field-uid: 4
+        function_length:
+          description: >-
+            Number of bits of sid occupied by the Function field, immediately
+            following the locator bits (RFC 9252 Section 4, RFC 8986
+            Section 3.1).
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 128
+          default: 16
+          x-field-uid: 5
+        argument_length:
+          description: >-
+            Number of bits of sid occupied by the Argument field, immediately
+            following the function bits (RFC 9252 Section 4, RFC 8986
+            Section 3.1). 0 when this SID carries no argument.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 128
+          default: 0
+          x-field-uid: 6
+        advertise_locator_in_igp:
+          description: >-
+            When true, the locator portion of sid (per locator_length) is
+            also advertised as reachable via the IGP (e.g. an IS-IS SRv6
+            Locator TLV, RFC 9352 Section 7.1), so that P routers along the
+            path can forward toward it. When false, only the BGP SRv6
+            Service TLV is advertised; IGP reachability for the locator must
+            be provided independently, for example via
+            isis.segment_routing.srv6_locators configured separately.
+          type: boolean
+          default: false
+          x-field-uid: 7
+        transposition:
+          description: >-
+            When present, the Function (and Argument, if any) bits of sid
+            are transposed into the MPLS Label field of the VPN-IPv6 NLRI
+            (RFC 9252 Section 4, transposition scheme), for interoperability
+            with peers that do not parse the SRv6 Service TLV. Omit to
+            advertise the SID only in the SRv6 Service TLV, with no label
+            transposition.
+          $ref: '#/components/schemas/Bgp.L3vpn.Srv6Sid.Transposition'
+          x-field-uid: 8
+
+    Bgp.L3vpn.Srv6Sid.Transposition:
+      description: >-
+        SRv6 SID Structure Sub-Sub-TLV transposition parameters (RFC 9252
+        Section 4). Describes where in the 20 bit MPLS Label field of the
+        VPN-IPv6 NLRI the transposed Function/Argument bits are placed.
+      type: object
+      properties:
+        length:
+          description: >-
+            Number of bits transposed into the MPLS Label field.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 20
+          default: 16
+          x-field-uid: 1
+        offset:
+          description: >-
+            Bit offset within the 20 bit MPLS Label field where the
+            transposed bits begin.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 19
+          default: 0
+          x-field-uid: 2

@@ -8096,7 +8096,188 @@ message BgpL3vpnVrf {
 
   // Emulated IPv6 customer route ranges belonging to this VRF (6VPE, RFC 4659). Each
   // is advertised as VPN-IPv6 NLRI using this VRF's route_distinguisher and route_target_export.
-  repeated BgpV6RouteRange v6_routes = 6;
+  // Each route range's dataplane binding is selected via its own service_binding - a
+  // VPN MPLS label (RFC 4364 Section 3, the default) or an SRv6 Service SID (RFC 9252).
+  repeated BgpL3vpnV6RouteRange v6_routes = 6;
+}
+
+// Emulated VPN-IPv6 customer route range belonging to a Bgp.L3vpn.Vrf (RFC 4659, 6VPE).
+// Same shape as the plain Bgp.V6RouteRange, except the dataplane binding is selected
+// via service_binding, so a VPN-IPv6 route range can advertise either a VPN MPLS label
+// (RFC 4364 Section 3) or an SRv6 Service SID (RFC 9252).
+message BgpL3vpnV6RouteRange {
+
+  // A list of group of IPv6 route addresses.
+  repeated V6RouteAddress addresses = 1;
+
+  message NextHopMode {
+    enum Enum {
+      unspecified = 0;
+      local_ip = 1;
+      manual = 2;
+    }
+  }
+  // Specify the NextHop in MP REACH NLRI. The mode for setting the IP address  of the
+  // NextHop in the MP REACH NLRI can be one of the following:
+  // Local IP: Automatically fills the Nexthop with the Local IP of the BGP
+  // peer.
+  // If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.
+  // Manual: Override the Nexthop with any arbitrary IPv4/IPv6 address.
+  // default = NextHopMode.Enum.local_ip
+  optional NextHopMode.Enum next_hop_mode = 2;
+
+  message NextHopAddressType {
+    enum Enum {
+      unspecified = 0;
+      ipv4 = 1;
+      ipv6 = 2;
+    }
+  }
+  // If the Nexthop Mode is Manual, it sets the type of the NextHop IP address.
+  // default = NextHopAddressType.Enum.ipv6
+  optional NextHopAddressType.Enum next_hop_address_type = 3;
+
+  // The IPv4 address of the next hop if the Nexthop Mode is manual and the Nexthop type
+  // is IPv4. If BGP peer is of type IPv6, Nexthop Encoding capability should be enabled.
+  // default = 0.0.0.0
+  optional string next_hop_ipv4_address = 4;
+
+  // The IPv6 address of the next hop if the Nexthop Mode is manual and the Nexthop type
+  // is IPv6.
+  // default = ::0
+  optional string next_hop_ipv6_address = 5;
+
+  // Description missing in models
+  BgpRouteAdvanced advanced = 6;
+
+  // Optional community settings.
+  repeated BgpCommunity communities = 7;
+
+  // Description missing in models
+  BgpAsPath as_path = 8;
+
+  // Description missing in models
+  BgpAddPath add_path = 9;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 10;
+
+  // Optional Extended Community settings. The Extended Communities Attribute is a transitive
+  // optional BGP attribute, with the Type Code 16. Community and Extended Communities
+  // attributes are utilized to trigger routing decisions, such as acceptance, rejection,
+  // preference, or redistribution. An extended community is an eight byte value. It
+  // is divided into two main parts. The first two bytes of the community encode a type
+  // and sub-type fields and the last six bytes carry a unique set of data in a format
+  // defined by the type and sub-type field. Extended communities provide a larger range
+  // for grouping or categorizing communities.
+  repeated BgpExtendedCommunity extended_communities = 11;
+
+  // Selects and configures this route range's VPN dataplane binding - VPN MPLS label
+  // (default, RFC 4364 Section 3) or SRv6 Service SID (RFC 9252).
+  BgpL3vpnV6ServiceBinding service_binding = 12;
+}
+
+// Selects how a VPN-IPv6 route range's dataplane binding is advertised - either the
+// traditional VPN MPLS label (RFC 4364 Section 3) or an SRv6 Service SID (RFC 9252).
+// Exactly one choice applies per route range.
+message BgpL3vpnV6ServiceBinding {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      mpls_labels = 1;
+      srv6_sid = 2;
+    }
+  }
+  // The VPN dataplane encoding advertised for this route range's routes.
+  // default = Choice.Enum.mpls_labels
+  optional Choice.Enum choice = 1;
+
+  // Optional configuration for a BGP speaker to bind an address prefix to one or more
+  // MPLS labels (RFC 3107/8277, RFC 4364 Section 3).
+  BgpMplsLabelBindings mpls_labels = 2;
+
+  // SRv6 Service SID binding advertised for this route range in place of an MPLS label
+  // (RFC 9252).
+  BgpL3vpnSrv6Sid srv6_sid = 3;
+}
+
+// SRv6-based VPN Service SID binding for a VPN-IPv6 route, per RFC 9252 (BGP Overlay
+// Services Based on SRv6) Section 4 SRv6 L3 Service TLV and SRv6 SID Information Sub-TLV.
+// Replaces the VPN MPLS label with a 128-bit SRv6 SID that a decapsulating PE installs
+// under an End.DT4/End.DT6/End.DT46 endpoint behavior bound to this VRF.
+message BgpL3vpnSrv6Sid {
+
+  // The 128-bit SRv6 SID (Locator | Function | Argument, RFC 8986 Section 3.1) advertised
+  // in the SRv6 SID Information Sub-TLV (RFC 9252 Section 4) for this route. For a range
+  // of routes, each successive route's SID is this value plus a multiple of step.
+  // required = true
+  optional string sid = 1;
+
+  // Increments the SID value for successive routes within the route range carrying this
+  // SID binding.
+  // default = 1
+  optional uint32 step = 2;
+
+  message EndpointBehavior {
+    enum Enum {
+      unspecified = 0;
+      end_dt4 = 1;
+      end_dt6 = 2;
+      end_dt46 = 3;
+    }
+  }
+  // The endpoint behavior advertised for this SID in the SRv6 SID Information Sub-TLV
+  // (RFC 9252 Section 4), encoded as the 2-octet behavior codepoint (RFC 8986 Section
+  // 7.4). Only the VPN decapsulation behaviors apply to a BGP L3VPN service SID.
+  // default = EndpointBehavior.Enum.end_dt6
+  optional EndpointBehavior.Enum endpoint_behavior = 3;
+
+  // Number of bits of sid that form the Locator Block plus Locator Node (the routable
+  // locator prefix), per the SRv6 SID Structure Sub-Sub-TLV (RFC 9252 Section 4, RFC
+  // 9352 Section 9). The remaining bits form the Function and, if non-zero, the Argument.
+  // default = 64
+  optional uint32 locator_length = 4;
+
+  // Number of bits of sid occupied by the Function field, immediately following the locator
+  // bits (RFC 9252 Section 4, RFC 8986 Section 3.1).
+  // default = 16
+  optional uint32 function_length = 5;
+
+  // Number of bits of sid occupied by the Argument field, immediately following the function
+  // bits (RFC 9252 Section 4, RFC 8986 Section 3.1). 0 when this SID carries no argument.
+  // default = 0
+  optional uint32 argument_length = 6;
+
+  // When true, the locator portion of sid (per locator_length) is also advertised as
+  // reachable via the IGP (e.g. an IS-IS SRv6 Locator TLV, RFC 9352 Section 7.1), so
+  // that P routers along the path can forward toward it. When false, only the BGP SRv6
+  // Service TLV is advertised; IGP reachability for the locator must be provided independently,
+  // for example via isis.segment_routing.srv6_locators configured separately.
+  // default = False
+  optional bool advertise_locator_in_igp = 7;
+
+  // When present, the Function (and Argument, if any) bits of sid are transposed into
+  // the MPLS Label field of the VPN-IPv6 NLRI (RFC 9252 Section 4, transposition scheme),
+  // for interoperability with peers that do not parse the SRv6 Service TLV. Omit to advertise
+  // the SID only in the SRv6 Service TLV, with no label transposition.
+  BgpL3vpnSrv6SidTransposition transposition = 8;
+}
+
+// SRv6 SID Structure Sub-Sub-TLV transposition parameters (RFC 9252 Section 4). Describes
+// where in the 20 bit MPLS Label field of the VPN-IPv6 NLRI the transposed Function/Argument
+// bits are placed.
+message BgpL3vpnSrv6SidTransposition {
+
+  // Number of bits transposed into the MPLS Label field.
+  // default = 16
+  optional uint32 length = 1;
+
+  // Bit offset within the 20 bit MPLS Label field where the transposed bits begin.
+  // default = 0
+  optional uint32 offset = 2;
 }
 
 // Configuration for BGPv6 peer settings and routes.

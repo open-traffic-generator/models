@@ -6,11 +6,15 @@ components:
         topologies by encoding paths as sequences of topological sub-paths, called "segments".
         In OSPFv2 the SR-specific information is advertised using Opaque LSAs. The router level
         Segment Routing capabilities (SR-Algorithm, SID/Label Range (SRGB), SR Local Block (SRLB))
-        are carried in the Router Information (RI) Opaque LSA, and the router's own Node Prefix-SID
-        is carried in the Extended Prefix Opaque LSA for the router loopback.
+        are carried in the Router Information (RI) Opaque LSA.
         Reference: https://datatracker.ietf.org/doc/html/rfc8665.
         An implementation may advertise the SR capabilities with default values if a user does
         not set any of the properties of Segment Routing.
+        A router's own Node (loopback) Prefix-SID is not a separate object here: model the
+        loopback as an ordinary device.ospfv2.router.v4_routes entry with an
+        Ospfv2SR.PrefixSid attached, and set n_flag on that route range's Extended Prefix flags
+        (route_origin.<type>.flags.n_flag) to identify it as the router's own prefix
+        (RFC 7684).
       type: object
       properties:
         algorithms:
@@ -29,7 +33,6 @@ components:
             type: integer
             format: uint32
             default: 0
-            minimum: 0
             maximum: 255
           x-field-uid: 1
         srgb_ranges:
@@ -51,13 +54,6 @@ components:
           items:
             $ref: '#/components/schemas/Ospfv2SR.Srlb'
           x-field-uid: 3
-        node_prefix_sid:
-          description: |-
-            Optional Node (loopback) Prefix-SID advertised by this router in the Extended Prefix
-            Opaque LSA for its own loopback address. The Node Prefix-SID identifies the router in
-            the Segment Routing domain.
-          $ref: '#/components/schemas/Ospfv2SR.RouterNodeSid'
-          x-field-uid: 4
 
     Ospfv2SR.Srgb:
       description: |-
@@ -112,97 +108,3 @@ components:
           maximum: 16777215
           default: 8000
           x-field-uid: 2
-
-    Ospfv2SR.RouterNodeSid:
-      description: |-
-        The Node (loopback) Prefix-SID advertised by this router for its own loopback address.
-        It is advertised as a Prefix-SID sub-TLV inside the Extended Prefix TLV of the Extended
-        Prefix Opaque LSA, together with the one-octet Extended Prefix flags.
-        Reference: https://datatracker.ietf.org/doc/html/rfc8665#name-prefix-sid-sub-tlv.
-      type: object
-      properties:
-        choice:
-          description: |-
-            Choice of whether the Node Prefix-SID carries an absolute value (local label) or a
-            relative index into the SRGB. This choice sets the V-Flag (Value/Index) and the L-Flag
-            (Local/Global) as follows:
-            - sid_index: V-Flag and L-Flag are unset (both 0). The SID carries a 4-octet index that
-              is an offset into the SRGB. Please refer to device.ospfv2.segment_routing.srgb_ranges.
-            - sid_value: V-Flag and L-Flag are set (both 1). The SID carries a 3-octet local label
-              value with local significance.
-          type: string
-          default: sid_index
-          x-field-uid: 1
-          x-enum:
-            sid_value:
-              x-field-uid: 1
-            sid_index:
-              x-field-uid: 2
-        sid_value:
-          description: >-
-            The Node SID/Label as an absolute local label value. Used when the choice is sid_value.
-          type: integer
-          format: uint32
-          default: 16
-          minimum: 16
-          maximum: 1048575
-          x-field-uid: 2
-        sid_index:
-          description: >-
-            The Node SID/Label index, an offset into the SRGB. Used when the choice is sid_index.
-          type: integer
-          format: uint32
-          default: 0
-          minimum: 0
-          maximum: 4294967295
-          x-field-uid: 3
-        np_flag:
-          description: |-
-            NP-Flag: No-PHP (No Penultimate Hop-Popping) Flag.
-            If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering the
-            packet to this node.
-          type: boolean
-          default: true
-          x-field-uid: 4
-        m_flag:
-          description: |-
-            M-Flag: Mapping Server Flag.
-            If set, then the SID was advertised by an SR Mapping Server. When set, the NP-Flag and
-            the E-Flag MUST be ignored on reception.
-          type: boolean
-          default: false
-          x-field-uid: 5
-        e_flag:
-          description: |-
-            E-Flag: Explicit-Null Flag.
-            If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID
-            with the Explicit-NULL label before forwarding the packet.
-          type: boolean
-          default: false
-          x-field-uid: 6
-        algorithm:
-          description: |-
-            The Segment Routing Algorithm the Node Prefix-SID is associated with, e.g. 0 for SPF
-            or 1 for Strict SPF.
-          type: integer
-          format: uint32
-          default: 0
-          minimum: 0
-          maximum: 255
-          x-field-uid: 7
-        n_flag:
-          description: |-
-            N-Flag (Node Flag) of the Extended Prefix TLV flags. Set when the prefix identifies the
-            advertising router, i.e. it is a host prefix advertising a globally reachable address
-            typically associated with a loopback address. This is normally set for a Node SID.
-          type: boolean
-          default: true
-          x-field-uid: 8
-        a_flag:
-          description: |-
-            A-Flag (Attach Flag) of the Extended Prefix TLV flags. An Area Border Router (ABR)
-            generating an OSPFv2 Extended Prefix TLV for an inter-area prefix that is locally
-            connected or attached in another connected area SHOULD set this flag.
-          type: boolean
-          default: false
-          x-field-uid: 9

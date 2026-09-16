@@ -1,0 +1,162 @@
+components:
+  schemas:
+    CollectiveCommunications.Transport:
+      description: >-
+        Selects the network transport used to carry the workload's traffic and
+        provides additional settings for that transport, if any.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the network transport. Default is rocev2.
+          x-field-uid: 1
+          x-enum:
+            rocev2:
+              description: >-
+                RoCEv2 transport.
+              x-field-uid: 1
+            tcp:
+              description: >-
+                TCP transport.
+              x-field-uid: 2
+        rocev2:
+          $ref: '#/components/schemas/CollectiveCommunication.Rocev2TransportSettings'
+          description: >-
+            RoCEv2 transport settings.
+          x-field-uid: 2
+
+    CollectiveCommunication.Rocev2TransportSettings:
+      description: >-
+        Workload-level RoCEv2 transport settings, applied uniformly across
+        every rank pair using this transport.
+      type: object
+      properties:
+        rdma_message_size:
+          type: integer
+          format: uint32
+          default: 131072
+          minimum: 1
+          description: >-
+            (Maximum) RDMA message size in bytes.
+          x-field-uid: 1
+        qps_per_rankpair:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          maximum: 128
+          description: >-
+            Number of Queue Pairs per rank pair.
+          x-field-uid: 2
+        verb:
+          type: string
+          default: write
+          description: >-
+            RDMA verb used for data transfers in collective communication
+            operations. Default is write.
+          x-field-uid: 3
+          x-enum:
+            write:
+              description: >-
+                RDMA Write.
+              x-field-uid: 1
+            send:
+              description: >-
+                RDMA Send.
+              x-field-uid: 2
+        reuse_qps:
+          type: boolean
+          default: true
+          description: >-
+            Enable reuse of Queue Pairs (QPs) for RDMA messages between a rank
+            pair, rather than opening a new QP per message.
+          x-field-uid: 4
+        qp_negotiation:
+          $ref: '#/components/schemas/CollectiveCommunications.QpNegotiation'
+          description: >-
+            Queue Pair negotiation method.
+          x-field-uid: 5
+
+    CollectiveCommunications.QpNegotiation:
+      description: >-
+        Selects the method used to negotiate Queue Pairs across ranks.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the QP negotiation method. Default is automatic.
+          x-field-uid: 1
+          x-enum:
+            automatic:
+              description: >-
+                Use the default negotiation method for the selected platform.
+              x-field-uid: 1
+            custom:
+              description: >-
+                Use a custom queue pair negotiation method.
+              x-field-uid: 2
+            tcp:
+              description: >-
+                Negotiate queue pairs using TCP.
+              x-field-uid: 3
+            tcp_store:
+              description: >-
+                Negotiate queue pairs using a TCP-based store implementation.
+              x-field-uid: 4
+            rdma_cm:
+              description: >-
+                Negotiate queue pairs using RDMA Connection Manager.
+              x-field-uid: 5
+        custom:
+          $ref: '#/components/schemas/CollectiveCommunications.CustomQpNegotiation'
+          description: >-
+            Vendor/Implementation-specific queue pair negotiation method.
+          x-field-uid: 2
+        tcp_store:
+          $ref: '#/components/schemas/CollectiveCommunications.TcpStore'
+          description: >-
+            TCP store rendezvous endpoint.
+          x-field-uid: 3
+
+    CollectiveCommunications.CustomQpNegotiation:
+      description: >-
+        Vendor/Implementation-specific queue pair negotiation method.
+      type: object
+      properties:
+        negotiation_type:
+          type: string
+          description: >-
+            Name of the custom QP negotiation method. Used by the implementation to determine
+            what custom_settings are defined.
+          x-field-uid: 1
+        custom_settings:
+          $ref: '../common/common.yaml#/components/schemas/StringMap'
+          description: >-
+            Custom properties for the specified Vendor/Implementation and negotiation_type to control qp negotiations
+          x-field-uid: 2
+
+    CollectiveCommunications.TcpStore:
+      description: >-
+        Rendezvous endpoint for TCP-store-based Queue Pair negotiation. Shared
+        by every rank in the workload.
+      type: object
+      properties:
+        address:
+          type: string
+          default: localhost
+          description: >-
+            TCP store hostname or IP address.
+          x-field-uid: 1
+        port:
+          type: integer
+          format: uint32
+          default: 12345
+          minimum: 1024
+          maximum: 65535
+          description: >-
+            TCP store port number.
+          x-field-uid: 2

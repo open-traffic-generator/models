@@ -38,7 +38,7 @@ components:
             Workload replay configuration.
           x-field-uid: 3
         mix_of_collectives:
-          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives'
+          $ref: './workload/mix_of_collectives.yaml#/components/schemas/CollectiveCommunications.MixOfCollectives'
           description: >-
             Mix of collectives benchmark configuration.
           x-field-uid: 4
@@ -83,12 +83,6 @@ components:
           description: >-
             Delay in milliseconds between iterations.
           x-field-uid: 5
-
-    CollectiveCommunications.MixOfCollectives:
-      $ref: '../common/common.yaml#/components/schemas/Placeholder.Object'
-      description: >-
-        Multiple collective communication configuration.
-        PLACEHOLDER: configuration schema is not yet defined.
 
     CollectiveCommunications.WorkloadReplay:
       $ref: '../common/common.yaml#/components/schemas/Placeholder.Object'
@@ -398,3 +392,73 @@ components:
               description: >-
                 H100 GPU.
               x-field-uid: 2
+
+    CollectiveCommunications.BackgroundTraffic:
+      description: >-
+        Specification for generating background traffic.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects how the background traffic is generated.
+          x-field-uid: 1
+          x-enum:
+            flows:
+              description: >-
+                Activate a collection of flows (from Config.flows).
+              x-field-uid: 1
+            line_rate_percentage:
+              description: >-
+                Traffic is generated such that a given percentage of the line
+                rate is consumed.
+              x-field-uid: 2
+        flows:
+          type: array
+          items:
+            type: string
+          x-constraint:
+            - '/components/schemas/Flow/properties/name'
+          description: >-
+            The names of the flows (configured in Config.flows) to activate.
+          x-field-uid: 2
+        line_rate_percentage:
+          $ref: '#/components/schemas/CollectiveCommunications.BackgroundTraffic.LineRatePercentage'
+          description: >-
+            Traffic is generated such that a given percentage of the line
+            rate is consumed.
+          x-field-uid: 3
+
+    CollectiveCommunications.BackgroundTraffic.LineRatePercentage:
+      description: >-
+        Specification for generating background traffic such that a given percentage of the
+        line rate is consumed.
+
+        The server will automatically set up flows timed and sized appropriately to achieve the
+        target line rate usage percentage.
+      type: object
+      properties:
+        line_rate_percent:
+          type: integer
+          format: uint32
+          default: 5
+          minimum: 1
+          maximum: 100
+          description: >-
+            Target average percentage of NIC line rate used by the
+            background traffic. The remaining line rate is available to
+            other operations.
+          x-field-uid: 1
+        process_group:
+          type: string
+          x-constraint:
+            - '/components/schemas/CollectiveCommunications.ProcessGroup/properties/name'
+          description: >-
+            The name of a process group, for restricting the background traffic effect to only
+            a section of the world. Flows will be generated only between ranks in this
+            process group and the target percentage will apply to the communication within
+            this process group.
+            
+            If unspecified, we default to the entire world (all ranks).
+          x-field-uid: 2

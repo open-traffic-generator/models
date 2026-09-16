@@ -15302,11 +15302,6 @@ message CollectiveCommunicationsSingleCollective {
   optional uint32 iteration_append_delay = 5;
 }
 
-// Multiple collective communication configuration. PLACEHOLDER: configuration schema
-// is not yet defined.
-message CollectiveCommunicationsMixOfCollectives {
-}
-
 // Workload replay configuration. Replays a real AI workload captured as a Chakra trace.
 // PLACEHOLDER: configuration schema is not yet defined.
 message CollectiveCommunicationsWorkloadReplay {
@@ -15463,6 +15458,286 @@ message CollectiveCommunicationsAutomaticComputeDelay {
   optional GpuType.Enum gpu_type = 1;
 }
 
+// Specification for generating background traffic.
+message CollectiveCommunicationsBackgroundTraffic {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      flows = 1;
+      line_rate_percentage = 2;
+    }
+  }
+  // Selects how the background traffic is generated.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The names of the flows (configured in Config.flows) to activate.
+  // 
+  // x-constraint:
+  // - /components/schemas/Flow/properties/name
+  // 
+  repeated string flows = 2;
+
+  // Traffic is generated such that a given percentage of the line rate is consumed.
+  CollectiveCommunicationsBackgroundTrafficLineRatePercentage line_rate_percentage = 3;
+}
+
+// Specification for generating background traffic such that a given percentage of the
+// line rate is consumed.
+// The server will automatically set up flows timed and sized appropriately to achieve
+// the target line rate usage percentage.
+message CollectiveCommunicationsBackgroundTrafficLineRatePercentage {
+
+  // Target average percentage of NIC line rate used by the background traffic. The remaining
+  // line rate is available to other operations.
+  // default = 5
+  optional uint32 line_rate_percent = 1;
+
+  // The name of a process group, for restricting the background traffic effect to only
+  // a section of the world. Flows will be generated only between ranks in this process
+  // group and the target percentage will apply to the communication within this process
+  // group.
+  // If unspecified, we default to the entire world (all ranks).
+  // 
+  // x-constraint:
+  // - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+  // 
+  optional string process_group = 2;
+}
+
+// Multiple collective communication configuration.
+message CollectiveCommunicationsMixOfCollectives {
+
+  // The workload sets that form this run. Workload sets are executed in parallel and
+  // are intended to model independent jobs or spaces within a run (e.g. coming from different
+  // tenants).
+  repeated CollectiveCommunicationsMixOfCollectivesWorkloadSet workload_sets = 1;
+}
+
+// A workload set consisting of a number of workloads, executed on a distinct subset
+// of the infrastructure, as part of a Mix of Collectives run.
+// The workloads run sequentially, each with a potentially different mix of process
+// groups carrying out collective communications. The entire set of workloads can be
+// repeated a configurable number of times.
+message CollectiveCommunicationsMixOfCollectivesWorkloadSet {
+
+  // A unique name for this workload set.
+  // required = true
+  optional string name = 1;
+
+  // The workloads in the set, executed sequentially.
+  repeated CollectiveCommunicationsMixOfCollectivesWorkload workloads = 2;
+
+  // Definitions for the process groups over which collective operations will be executed.
+  repeated CollectiveCommunicationsProcessGroup process_groups = 3;
+
+  // Number of times to repeat the execution of workloads in this set. Each repeat executes
+  // all of the configured workloads.
+  // default = 1
+  optional uint32 repeat_count = 4;
+
+  // Delay between repeats, in microseconds.
+  // default = 100
+  optional uint32 repeat_delay = 5;
+
+  // Optional specification for generating background traffic while this workload is executing.
+  CollectiveCommunicationsBackgroundTraffic background_traffic = 6;
+}
+
+// A workload that consists of one or more operations, executed in sequence or in parallel.
+message CollectiveCommunicationsMixOfCollectivesWorkload {
+
+  // A unique name for this workload.
+  optional string name = 1;
+
+  message ExecutionMode {
+    enum Enum {
+      unspecified = 0;
+      sequential = 1;
+      parallel = 2;
+    }
+  }
+  // Selects whether the operations in this workload are executed sequentially or in parallel.
+  // default = ExecutionMode.Enum.sequential
+  optional ExecutionMode.Enum execution_mode = 2;
+
+  // The operations executed as part of this workload.
+  repeated CollectiveCommunicationsMixOfCollectivesOperation operations = 3;
+
+  // Number of times to repeat the execution of this workload.
+  // default = 1
+  optional uint32 repeat_count = 4;
+
+  // Delay between repeats, in microseconds.
+  // default = 100
+  optional uint32 repeat_delay = 5;
+
+  // Collective-communications-specific transport settings for this workload
+  CollectiveCommunicationsTransport transport = 6;
+}
+
+// An operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+message CollectiveCommunicationsMixOfCollectivesOperation {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      collective = 1;
+      point_to_point = 2;
+    }
+  }
+  // Selects the type of operation to execute.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // A collective communication operation.
+  CollectiveCommunicationsMixOfCollectivesCollectiveOperation collective = 2;
+
+  // A point-to-point (send/recv) operation.
+  CollectiveCommunicationsMixOfCollectivesPointToPointOperation point_to_point = 3;
+}
+
+// A collective operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+message CollectiveCommunicationsMixOfCollectivesCollectiveOperation {
+
+  // The collective communication operation and algorithm to execute.
+  // required = true
+  CollectiveCommunicationsAlgorithm collective_algorithm = 1;
+
+  // Data size of this collective operation in bytes.
+  // default = 1073741824
+  optional uint64 data_size = 2;
+
+  // The name of the process group (defined in the enclosing WorkloadSet's process_groups)
+  // over which this collective operation executes.
+  // 
+  // x-constraint:
+  // - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+  // 
+  // required = true
+  optional string process_group = 3;
+
+  // A description for how many times to execute this operation
+  CollectiveCommunicationsMixOfCollectivesRepeatCount repeat_count = 4;
+
+  // Delay between repeats, in microseconds.
+  // default = 100
+  optional uint32 repeat_delay = 5;
+
+  // Collective-communications-specific transport settings for this operation. If unspecified,
+  // the workload default is used.
+  CollectiveCommunicationsTransport transport = 6;
+}
+
+// A point-to-point (send/recv) operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+message CollectiveCommunicationsMixOfCollectivesPointToPointOperation {
+
+  // A collection of point-to-point flows, specified either explicitly or implicitly.
+  // required = true
+  CollectiveCommunicationsPointToPointFlows flows = 1;
+
+  // Data size for each point-to-point flow, in bytes.
+  // default = 1073741824
+  optional uint64 data_size = 2;
+
+  // A description for how many times to execute this operation
+  CollectiveCommunicationsMixOfCollectivesRepeatCount repeat_count = 3;
+
+  // Delay between repeats, in microseconds.
+  // default = 100
+  optional uint32 repeat_delay = 4;
+
+  // Collective-communications-specific transport settings for this operation. If unspecified,
+  // the workload default is used.
+  CollectiveCommunicationsTransport transport = 5;
+}
+
+// A description for how many times to execute an operation.
+message CollectiveCommunicationsMixOfCollectivesRepeatCount {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      exact_count = 1;
+      fill_time = 2;
+    }
+  }
+  // Selects the way in which the repeat count is specified.
+  // default = Choice.Enum.exact_count
+  optional Choice.Enum choice = 1;
+
+  // The exact number of repeats
+  // default = 1
+  optional uint32 exact_count = 2;
+
+  // The amount of time to fill, in seconds. The total time taken may be slightly longer,
+  // to give the last repeat time to finish in full.
+  // default = 0
+  optional double fill_time = 3;
+}
+
+// Description of a process group over which collective communications are run.
+message CollectiveCommunicationsProcessGroup {
+
+  // A unique name for this process group.
+  // required = true
+  optional string name = 1;
+
+  // The ranks that form this process group. A rank may participate in multiple process
+  // groups at different points in time.
+  // required = true
+  CollectiveCommunicationsRankSet ranks = 2;
+}
+
+// A set of ranks that form a communication group.
+message CollectiveCommunicationsRankSet {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      list = 1;
+      ranges = 2;
+    }
+  }
+  // Selects the representation of the rank set.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // A list of distinct ranks.
+  repeated uint32 list = 2;
+
+  // A collection of non-overlapping rank ranges.
+  repeated CollectiveCommunicationsRankRange ranges = 3;
+}
+
+// A contiguous range of ranks, starting at `start` and advancing by `step`. The extent
+// of the range is given by specifying any one of `length`, `end` or `end_exclusive`,
+// whichever is more convenient. At least one of these must be provided; if more than
+// one is provided, the values must agree.
+message CollectiveCommunicationsRankRange {
+
+  // The first rank in the range.
+  // required = true
+  optional uint32 start = 1;
+
+  // The increment between successive ranks in the range.
+  // default = 1
+  optional uint32 step = 2;
+
+  // The number of ranks in the range. Alternatively, the extent of the range can be set
+  // by specifying either the `end` or `end_exclusive` properties.
+  optional uint32 length = 3;
+
+  // The last rank in the range, inclusive. Alternatively, the extent of the range can
+  // be set by specifying either the `length` or `end_exclusive` properties.
+  optional uint32 end = 4;
+
+  // The rank just past the end of the range, exclusive. Alternatively, the extent of
+  // the range can be set by specifying either the `length` or `end` properties.
+  optional uint32 end_exclusive = 5;
+}
+
 // Selects the network transport used to carry the workload's traffic and provides additional
 // settings for that transport, if any.
 message CollectiveCommunicationsTransport {
@@ -15588,6 +15863,61 @@ message VersionedObject {
 
 // A map of string keys to string values.
 message StringMap {
+}
+
+// A collection of point-to-point flows, specified either explicitly or implicitly.
+message CollectiveCommunicationsPointToPointFlows {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      endpoints = 1;
+      auto_fill = 2;
+    }
+  }
+  // Selects the representation of point-to-point flows.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // A list of the sender/receiver rank pairs for each point-to-point flow in the collection.
+  repeated CollectiveCommunicationsPointToPointFlow endpoints = 2;
+
+  // A specification for automatically generating flows between ranks in a process group.
+  CollectiveCommunicationsPointToPointFlowsAutoFill auto_fill = 3;
+}
+
+// A single directed point-to-point flow: sender transmits to receiver.
+message CollectiveCommunicationsPointToPointFlow {
+
+  // Rank that sends on this flow.
+  // required = true
+  optional uint32 sender = 1;
+
+  // Rank that receives on this flow.
+  // required = true
+  optional uint32 receiver = 2;
+}
+
+// A specification for automatically generating flows between ranks in a process group.
+message CollectiveCommunicationsPointToPointFlowsAutoFill {
+
+  // The name of a process group. Flows will be generated only between ranks in this process
+  // group. If unspecified, we default to the entire world (all ranks).
+  // 
+  // x-constraint:
+  // - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+  // 
+  optional string process_group = 1;
+
+  message Algorithm {
+    enum Enum {
+      unspecified = 0;
+      bidi_consecutive_pairs = 1;
+    }
+  }
+  // Selects the algorithm used to generate flows between ranks.
+  // default = Algorithm.Enum.bidi_consecutive_pairs
+  optional Algorithm.Enum algorithm = 2;
 }
 
 // The declaration of the system testbed

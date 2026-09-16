@@ -19950,10 +19950,6 @@ components:
           description: |-
             Delay in milliseconds between iterations.
           x-field-uid: 5
-    CollectiveCommunications.MixOfCollectives:
-      $ref: '#/components/schemas/Placeholder.Object'
-      description: |-
-        Multiple collective communication configuration. PLACEHOLDER: configuration schema is not yet defined.
     CollectiveCommunications.WorkloadReplay:
       $ref: '#/components/schemas/Placeholder.Object'
       description: |-
@@ -20255,6 +20251,467 @@ components:
           enum:
           - a100
           - h100
+    CollectiveCommunications.BackgroundTraffic:
+      description: |-
+        Specification for generating background traffic.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          description: |-
+            Selects how the background traffic is generated.
+          x-field-uid: 1
+          x-enum:
+            flows:
+              description: |-
+                Activate a collection of flows (from Config.flows).
+              x-field-uid: 1
+            line_rate_percentage:
+              description: |-
+                Traffic is generated such that a given percentage of the line rate is consumed.
+              x-field-uid: 2
+          enum:
+          - flows
+          - line_rate_percentage
+        flows:
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Flow/properties/name
+          description: |
+            The names of the flows (configured in Config.flows) to activate.
+
+            x-constraint:
+            - /components/schemas/Flow/properties/name
+          x-field-uid: 2
+        line_rate_percentage:
+          $ref: '#/components/schemas/CollectiveCommunications.BackgroundTraffic.LineRatePercentage'
+          description: |-
+            Traffic is generated such that a given percentage of the line rate is consumed.
+          x-field-uid: 3
+    CollectiveCommunications.BackgroundTraffic.LineRatePercentage:
+      description: |-
+        Specification for generating background traffic such that a given percentage of the line rate is consumed.
+        The server will automatically set up flows timed and sized appropriately to achieve the target line rate usage percentage.
+      type: object
+      properties:
+        line_rate_percent:
+          type: integer
+          format: uint32
+          default: 5
+          minimum: 1
+          maximum: 100
+          description: |-
+            Target average percentage of NIC line rate used by the background traffic. The remaining line rate is available to other operations.
+          x-field-uid: 1
+        process_group:
+          type: string
+          x-constraint:
+          - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+          description: |
+            The name of a process group, for restricting the background traffic effect to only a section of the world. Flows will be generated only between ranks in this process group and the target percentage will apply to the communication within this process group.
+            If unspecified, we default to the entire world (all ranks).
+
+            x-constraint:
+            - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+          x-field-uid: 2
+    CollectiveCommunications.MixOfCollectives:
+      description: |-
+        Multiple collective communication configuration.
+      type: object
+      required:
+      - workload_sets
+      properties:
+        workload_sets:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.WorkloadSet'
+          minItems: 1
+          description: |-
+            The workload sets that form this run. Workload sets are executed in parallel and are intended to model independent jobs or spaces within a run (e.g. coming from different tenants).
+          x-field-uid: 1
+    CollectiveCommunications.MixOfCollectives.WorkloadSet:
+      description: |-
+        A workload set consisting of a number of workloads, executed on a distinct subset of the infrastructure, as part of a Mix of Collectives run.
+        The workloads run sequentially, each with a potentially different mix of process groups carrying out collective communications. The entire set of workloads can be repeated a configurable number of times.
+      type: object
+      required:
+      - name
+      - workloads
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 35
+          description: |-
+            A unique name for this workload set.
+          x-field-uid: 1
+        workloads:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.Workload'
+          minItems: 1
+          description: |-
+            The workloads in the set, executed sequentially.
+          x-field-uid: 2
+        process_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.ProcessGroup'
+          minItems: 1
+          description: |-
+            Definitions for the process groups over which collective operations will be executed.
+          x-field-uid: 3
+        repeat_count:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          description: |-
+            Number of times to repeat the execution of workloads in this set. Each repeat executes all of the configured workloads.
+          x-field-uid: 4
+        repeat_delay:
+          type: integer
+          format: uint32
+          default: 100
+          minimum: 0
+          maximum: 100000000
+          description: |-
+            Delay between repeats, in microseconds.
+          x-field-uid: 5
+        background_traffic:
+          $ref: '#/components/schemas/CollectiveCommunications.BackgroundTraffic'
+          description: |-
+            Optional specification for generating background traffic while this workload is executing.
+          x-field-uid: 6
+    CollectiveCommunications.MixOfCollectives.Workload:
+      description: |-
+        A workload that consists of one or more operations, executed in sequence or in parallel.
+      type: object
+      required:
+      - operations
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 35
+          description: |-
+            A unique name for this workload.
+          x-field-uid: 1
+        execution_mode:
+          type: string
+          default: sequential
+          description: |-
+            Selects whether the operations in this workload are executed sequentially or in parallel.
+          x-field-uid: 2
+          x-enum:
+            sequential:
+              description: |-
+                Operations are executed one after another.
+              x-field-uid: 1
+            parallel:
+              description: |-
+                Operations are executed concurrently.
+              x-field-uid: 2
+          enum:
+          - sequential
+          - parallel
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.Operation'
+          minItems: 1
+          description: |-
+            The operations executed as part of this workload.
+          x-field-uid: 3
+        repeat_count:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          description: |-
+            Number of times to repeat the execution of this workload.
+          x-field-uid: 4
+        repeat_delay:
+          type: integer
+          format: uint32
+          default: 100
+          minimum: 0
+          maximum: 100000000
+          description: |-
+            Delay between repeats, in microseconds.
+          x-field-uid: 5
+        transport:
+          $ref: '#/components/schemas/CollectiveCommunications.Transport'
+          description: |-
+            Collective-communications-specific transport settings for this workload
+          x-field-uid: 6
+    CollectiveCommunications.MixOfCollectives.Operation:
+      description: |-
+        An operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          description: |-
+            Selects the type of operation to execute.
+          x-field-uid: 1
+          x-enum:
+            collective:
+              description: |-
+                A collective communication operation.
+              x-field-uid: 1
+            point_to_point:
+              description: |-
+                A point-to-point (send/recv) operation.
+              x-field-uid: 2
+          enum:
+          - collective
+          - point_to_point
+        collective:
+          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.CollectiveOperation'
+          description: |-
+            A collective communication operation.
+          x-field-uid: 2
+        point_to_point:
+          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.PointToPointOperation'
+          description: |-
+            A point-to-point (send/recv) operation.
+          x-field-uid: 3
+    CollectiveCommunications.MixOfCollectives.CollectiveOperation:
+      description: |-
+        A collective operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+      type: object
+      required:
+      - collective_algorithm
+      - process_group
+      properties:
+        collective_algorithm:
+          $ref: '#/components/schemas/CollectiveCommunications.Algorithm'
+          description: |-
+            The collective communication operation and algorithm to execute.
+          x-field-uid: 1
+        data_size:
+          type: integer
+          format: uint64
+          default: 1073741824
+          minimum: 1
+          description: |-
+            Data size of this collective operation in bytes.
+          x-field-uid: 2
+        process_group:
+          type: string
+          x-constraint:
+          - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+          description: |
+            The name of the process group (defined in the enclosing WorkloadSet's process_groups) over which this collective operation executes.
+
+            x-constraint:
+            - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+          x-field-uid: 3
+        repeat_count:
+          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.RepeatCount'
+          description: |-
+            A description for how many times to execute this operation
+          x-field-uid: 4
+        repeat_delay:
+          type: integer
+          format: uint32
+          default: 100
+          minimum: 0
+          maximum: 100000000
+          description: |-
+            Delay between repeats, in microseconds.
+          x-field-uid: 5
+        transport:
+          $ref: '#/components/schemas/CollectiveCommunications.Transport'
+          description: |-
+            Collective-communications-specific transport settings for this operation. If unspecified, the workload default is used.
+          x-field-uid: 6
+    CollectiveCommunications.MixOfCollectives.PointToPointOperation:
+      description: |-
+        A point-to-point (send/recv) operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+      type: object
+      required:
+      - flows
+      properties:
+        flows:
+          $ref: '#/components/schemas/CollectiveCommunications.PointToPoint.Flows'
+          description: |-
+            A collection of point-to-point flows, specified either explicitly or implicitly.
+          x-field-uid: 1
+        data_size:
+          type: integer
+          format: uint64
+          default: 1073741824
+          minimum: 1
+          description: |-
+            Data size for each point-to-point flow, in bytes.
+          x-field-uid: 2
+        repeat_count:
+          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.RepeatCount'
+          description: |-
+            A description for how many times to execute this operation
+          x-field-uid: 3
+        repeat_delay:
+          type: integer
+          format: uint32
+          default: 100
+          minimum: 0
+          maximum: 100000000
+          description: |-
+            Delay between repeats, in microseconds.
+          x-field-uid: 4
+        transport:
+          $ref: '#/components/schemas/CollectiveCommunications.Transport'
+          description: |-
+            Collective-communications-specific transport settings for this operation. If unspecified, the workload default is used.
+          x-field-uid: 5
+    CollectiveCommunications.MixOfCollectives.RepeatCount:
+      description: |-
+        A description for how many times to execute an operation.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: exact_count
+          description: |-
+            Selects the way in which the repeat count is specified.
+          x-field-uid: 1
+          x-enum:
+            exact_count:
+              description: |-
+                Specify the number of repeats as an exact count.
+              x-field-uid: 1
+            fill_time:
+              description: |-
+                Specify the number of repeats indirectly, as the number required to fill a given amount of time. At least one iteration will always be executed.
+              x-field-uid: 2
+          enum:
+          - exact_count
+          - fill_time
+        exact_count:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          maximum: 4294967295
+          description: |-
+            The exact number of repeats
+          x-field-uid: 2
+        fill_time:
+          type: number
+          format: double
+          default: 0
+          minimum: 0
+          description: |-
+            The amount of time to fill, in seconds. The total time taken may be slightly longer, to give the last repeat time to finish in full.
+          x-field-uid: 3
+    CollectiveCommunications.ProcessGroup:
+      description: |-
+        Description of a process group over which collective communications are run.
+      type: object
+      required:
+      - name
+      - ranks
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 35
+          description: |-
+            A unique name for this process group.
+          x-field-uid: 1
+        ranks:
+          $ref: '#/components/schemas/CollectiveCommunications.RankSet'
+          description: |-
+            The ranks that form this process group. A rank may participate in multiple process groups at different points in time.
+          x-field-uid: 2
+    CollectiveCommunications.RankSet:
+      description: |-
+        A set of ranks that form a communication group.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          description: |-
+            Selects the representation of the rank set.
+          x-field-uid: 1
+          x-enum:
+            list:
+              description: |-
+                The ranks are represented as an explicit list.
+              x-field-uid: 1
+            ranges:
+              description: |-
+                The ranks are represented as a collection of ranges.
+              x-field-uid: 2
+          enum:
+          - list
+          - ranges
+        list:
+          type: array
+          items:
+            type: integer
+            format: uint32
+          minItems: 1
+          description: |-
+            A list of distinct ranks.
+          x-field-uid: 2
+        ranges:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.RankRange'
+          minItems: 1
+          description: |-
+            A collection of non-overlapping rank ranges.
+          x-field-uid: 3
+    CollectiveCommunications.RankRange:
+      description: |-
+        A contiguous range of ranks, starting at `start` and advancing by `step`. The extent of the range is given by specifying any one of `length`, `end` or `end_exclusive`, whichever is more convenient. At least one of these must be provided; if more than one is provided, the values must agree.
+      type: object
+      required:
+      - start
+      properties:
+        start:
+          type: integer
+          format: uint32
+          description: |-
+            The first rank in the range.
+          x-field-uid: 1
+        step:
+          type: integer
+          format: uint32
+          default: 1
+          description: |-
+            The increment between successive ranks in the range.
+          x-field-uid: 2
+        length:
+          type: integer
+          format: uint32
+          minimum: 1
+          description: |-
+            The number of ranks in the range. Alternatively, the extent of the range can be set by specifying either the `end` or `end_exclusive` properties.
+          x-field-uid: 3
+        end:
+          type: integer
+          format: uint32
+          description: |-
+            The last rank in the range, inclusive. Alternatively, the extent of the range can be set by specifying either the `length` or `end_exclusive` properties.
+          x-field-uid: 4
+        end_exclusive:
+          type: integer
+          format: uint32
+          description: |-
+            The rank just past the end of the range, exclusive. Alternatively, the extent of the range can be set by specifying either the `length` or `end` properties.
+          x-field-uid: 5
     CollectiveCommunications.Transport:
       description: |-
         Selects the network transport used to carry the workload's traffic and provides additional settings for that transport, if any.
@@ -20456,6 +20913,92 @@ components:
       type: object
       additionalProperties:
         type: string
+    CollectiveCommunications.PointToPoint.Flows:
+      description: |-
+        A collection of point-to-point flows, specified either explicitly or implicitly.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          description: |-
+            Selects the representation of point-to-point flows.
+          x-field-uid: 1
+          x-enum:
+            endpoints:
+              description: |-
+                The flows are represented as an explicit list of sender/receiver endpoints.
+              x-field-uid: 1
+            auto_fill:
+              description: |-
+                The flows are automatically specified by selecting among all ranks in a process group according to a filling algorithm.
+              x-field-uid: 2
+          enum:
+          - endpoints
+          - auto_fill
+        endpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.PointToPoint.Flow'
+          description: |-
+            A list of the sender/receiver rank pairs for each point-to-point flow in the collection.
+          x-field-uid: 2
+        auto_fill:
+          $ref: '#/components/schemas/CollectiveCommunications.PointToPoint.FlowsAutoFill'
+          description: |-
+            A specification for automatically generating flows between ranks in a process group.
+          x-field-uid: 3
+    CollectiveCommunications.PointToPoint.Flow:
+      description: |-
+        A single directed point-to-point flow: sender transmits to receiver.
+      type: object
+      required:
+      - sender
+      - receiver
+      properties:
+        sender:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: |-
+            Rank that sends on this flow.
+          x-field-uid: 1
+        receiver:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: |-
+            Rank that receives on this flow.
+          x-field-uid: 2
+    CollectiveCommunications.PointToPoint.FlowsAutoFill:
+      description: |-
+        A specification for automatically generating flows between ranks in a process group.
+      type: object
+      properties:
+        process_group:
+          type: string
+          x-constraint:
+          - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+          description: |
+            The name of a process group. Flows will be generated only between ranks in this process group. If unspecified, we default to the entire world (all ranks).
+
+            x-constraint:
+            - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+          x-field-uid: 1
+        algorithm:
+          type: string
+          default: bidi_consecutive_pairs
+          description: |-
+            Selects the algorithm used to generate flows between ranks.
+          x-field-uid: 2
+          x-enum:
+            bidi_consecutive_pairs:
+              description: |-
+                Bidirectional consecutive pairs. Ranks are ordered and grouped into pairs. Flows will be generated for each pair, in both directions.
+              x-field-uid: 1
+          enum:
+          - bidi_consecutive_pairs
     CollectiveCommunications.Infrastructure:
       description: |-
         The declaration of the system testbed

@@ -92,33 +92,6 @@ components:
           items:
             $ref: '#/components/schemas/Ospfv2.Link'
           x-field-uid: 2
-        sr_capability:
-          description: |-
-            The Segment Routing capability learned for this router, decoded from the Router
-            Information (RI) Opaque LSA: the SR-Algorithm TLV, SID/Label Range (SRGB) TLV and
-            SR Local Block (SRLB) TLV (RFC 8665).
-          $ref: '#/components/schemas/Ospfv2Lsa.SrCapability'
-          x-field-uid: 3
-        prefix_sid:
-          description: |-
-            The Node/Prefix-SID learned for this router, decoded from the Prefix-SID sub-TLV of
-            the OSPFv2 Extended Prefix Opaque LSA advertised for the router's own prefix (RFC 8665).
-          $ref: '#/components/schemas/Ospfv2Lsa.PrefixSid'
-          x-field-uid: 4
-        ri_capabilities:
-          description: |-
-            The Router Informational and Functional Capabilities learned for this router,
-            decoded from the Router Information (RI) Opaque LSA (RFC 7770).
-          $ref: '#/components/schemas/Ospfv2Lsa.RiCapabilities'
-          x-field-uid: 5
-        node_msd:
-          description: |-
-            One or more Maximum SID Depth (MSD) values learned for this router, decoded from the
-            Node MSD TLV of the Router Information (RI) Opaque LSA (RFC 8476 Section 2).
-          type: array
-          items:
-            $ref: '#/components/schemas/Ospfv2Lsa.Msd'
-          x-field-uid: 6
     Ospfv2.NetworkLsa:
       description: >-
         Contents of the Network LSA.
@@ -167,13 +140,6 @@ components:
           type: integer
           format: uint32
           x-field-uid: 3
-        prefix_sid:
-          description: |-
-            The Prefix-SID learned for this prefix, decoded from the Prefix-SID sub-TLV of the
-            OSPFv2 Extended Prefix Opaque LSA whose Extended Prefix TLV references this prefix
-            (RFC 8665).
-          $ref: '#/components/schemas/Ospfv2Lsa.PrefixSid'
-          x-field-uid: 4
     Ospfv2.SummaryAsLsa:
       description: >-
         Contents of OSPFv2 Autonomous System Boundary Router (ASBR) summary LSA - Type 4.
@@ -225,13 +191,6 @@ components:
           type: integer
           format: uint32
           x-field-uid: 4
-        prefix_sid:
-          description: |-
-            The Prefix-SID learned for this prefix, decoded from the Prefix-SID sub-TLV of the
-            OSPFv2 Extended Prefix Opaque LSA whose Extended Prefix TLV references this prefix
-            (RFC 8665).
-          $ref: '#/components/schemas/Ospfv2Lsa.PrefixSid'
-          x-field-uid: 5
     Ospfv2.NssaLsa:
       description: |-
         Contents of OSPFv2 NSSA LSA - Type 7.
@@ -267,13 +226,6 @@ components:
           type: string
           format: ipv4
           x-field-uid: 5
-        prefix_sid:
-          description: |-
-            The Prefix-SID learned for this prefix, decoded from the Prefix-SID sub-TLV of the
-            OSPFv2 Extended Prefix Opaque LSA whose Extended Prefix TLV references this prefix
-            (RFC 8665).
-          $ref: '#/components/schemas/Ospfv2Lsa.PrefixSid'
-          x-field-uid: 6
     Ospfv2.OpaqueLsa:
       description: |-
         Contents of OSPFv2 Opaque LSA - Type 9/10/11 (RFC 5250).
@@ -281,6 +233,14 @@ components:
         an Opaque Type (most significant octet) and an Opaque ID (remaining three octets),
         decoded here as tlv_information and id (RFC 5250 Section 3). header.lsa_id carries
         the raw, undecoded Link State ID value.
+        The Segment Routing and Traffic Engineering information carried by an Opaque LSA is
+        reported on this object, in the LSA it was actually advertised in, rather than on the
+        Router-LSA, Summary-LSA, AS-External-LSA or NSSA-LSA that describes the router, link
+        or prefix it applies to. Exactly one of router_information, traffic_engineering,
+        extended_prefixes or extended_links is populated, selected by tlv_information; every
+        other top-level TLV of the LSA is reported raw in unknown_tlvs. Each of those objects
+        documents how to correlate it back to the LSA that advertises the router, link or
+        prefix it describes.
       type: object
       properties:
         header:
@@ -366,16 +326,199 @@ components:
           minimum: 0
           maximum: 16777215
           x-field-uid: 4
+        router_information:
+          description: |-
+            The decoded contents of a Router Information (RI) Opaque LSA, present when
+            tlv_information is router_information (RFC 7770 Section 2).
+            An RI Opaque LSA is originated per router, so its contents describe the router
+            identified by header.advertising_router_id. Correlate it to the Router-LSA of that
+            router by matching router_lsas[].header.advertising_router_id.
+          $ref: '#/components/schemas/Ospfv2.OpaqueLsa.RouterInformation'
+          x-field-uid: 5
+        traffic_engineering:
+          description: |-
+            The decoded contents of a Traffic Engineering Opaque LSA, present when
+            tlv_information is traffic_engineering (RFC 3630 Section 2.4).
+          $ref: '#/components/schemas/Ospfv2.OpaqueLsa.TrafficEngineering'
+          x-field-uid: 6
+        extended_prefixes:
+          description: |-
+            The decoded OSPFv2 Extended Prefix TLVs of an Extended Prefix Opaque LSA, present
+            when tlv_information is extended_prefix. One Extended Prefix Opaque LSA can carry
+            more than one Extended Prefix TLV, each describing a different prefix
+            (RFC 7684 Section 2.1).
+          type: array
+          items:
+            $ref: '#/components/schemas/Ospfv2.OpaqueLsa.ExtendedPrefix'
+          x-field-uid: 7
+        extended_links:
+          description: |-
+            The decoded OSPFv2 Extended Link TLVs of an Extended Link Opaque LSA, present when
+            tlv_information is extended_link (RFC 7684 Section 3.1).
+          type: array
+          items:
+            $ref: '#/components/schemas/Ospfv2.OpaqueLsa.ExtendedLink'
+          x-field-uid: 8
         unknown_tlvs:
           description: |-
-            TLVs carried in the body of the Opaque LSA that are not decoded into one of the
-            structured fields above or on the correlated Router-LSA/Link/prefix objects
-            (e.g. sr_capability, node_msd, prefix_sid, adjacency_sid, traffic_engineering),
+            TLVs carried in the body of the Opaque LSA that are not decoded into
+            router_information, traffic_engineering, extended_prefixes or extended_links,
             returned raw in the generic type/length/value TLV format used by all OSPFv2 Opaque
             LSAs (RFC 7770 Section 2, RFC 8665, RFC 9492).
           type: array
           items:
             $ref: '#/components/schemas/Ospfv2.OpaqueLsa.Tlv'
+          x-field-uid: 9
+    Ospfv2.OpaqueLsa.RouterInformation:
+      description: |-
+        The decoded Router Information (RI) Opaque LSA contents, Opaque Type 4
+        (RFC 7770 Section 2). The RI Opaque LSA is originated once per router, so everything
+        reported here describes the router named by the parent LSA's
+        header.advertising_router_id.
+      type: object
+      properties:
+        sr_capability:
+          description: |-
+            The Segment Routing capability of the advertising router, decoded from the
+            SR-Algorithm TLV, SID/Label Range (SRGB) TLV and SR Local Block (SRLB) TLV
+            (RFC 8665 Sections 3.1, 3.2, 3.3).
+          $ref: '#/components/schemas/Ospfv2Lsa.SrCapability'
+          x-field-uid: 1
+        ri_capabilities:
+          description: |-
+            The Router Informational and Functional Capabilities of the advertising router,
+            decoded from the Router Informational Capabilities TLV and the Router Functional
+            Capabilities TLV (RFC 7770 Sections 2.5, 2.6).
+          $ref: '#/components/schemas/Ospfv2Lsa.RiCapabilities'
+          x-field-uid: 2
+        node_msd:
+          description: |-
+            One or more Maximum SID Depth (MSD) values of the advertising router, decoded from
+            the Node MSD TLV (RFC 8476 Section 2).
+          type: array
+          items:
+            $ref: '#/components/schemas/Ospfv2Lsa.Msd'
+          x-field-uid: 3
+    Ospfv2.OpaqueLsa.TrafficEngineering:
+      description: |-
+        The decoded Traffic Engineering Opaque LSA contents, Opaque Type 1
+        (RFC 3630 Section 2.4). A TE LSA carries a single top-level TLV: either the Router
+        Address TLV, reported as router_address, or the Link TLV, reported as link_id plus
+        link_attributes.
+      type: object
+      properties:
+        router_address:
+          description: |-
+            The stable IPv4 address of the advertising router, decoded from the Router Address
+            TLV, TLV type 1 (RFC 3630 Section 2.4.1). Present instead of link_id and
+            link_attributes when the LSA carries a Router Address TLV.
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        link_id:
+          description: |-
+            The identifier of the link the Link TLV describes, decoded from its Link ID
+            sub-TLV, sub-type 2 (RFC 3630 Section 2.5.2): the Router ID of the neighbor for a
+            point-to-point link, or the interface address of the Designated Router for a
+            multi-access link. Correlate the link attributes to the link they describe by
+            matching router_lsas[].links[].id of the Router-LSA whose
+            header.advertising_router_id equals that of this Opaque LSA.
+          type: string
+          format: ipv4
+          x-field-uid: 2
+        link_attributes:
+          description: |-
+            The traffic engineering attributes of the link, decoded from the sub-TLVs of the
+            Link TLV, TLV type 2 (RFC 3630 Section 2.5).
+          $ref: '#/components/schemas/Ospfv2Lsa.LinkTrafficEngineering'
+          x-field-uid: 3
+    Ospfv2.OpaqueLsa.ExtendedPrefix:
+      description: |-
+        A decoded OSPFv2 Extended Prefix TLV of an Extended Prefix Opaque LSA, TLV type 1
+        (RFC 7684 Section 2.1).
+        The TLV names the prefix it applies to in its own body, so no reference to another LSA
+        is needed to identify it. Correlate it to the LSA that advertises that prefix by
+        matching prefix against router_lsas[].links[].id of a stub link for an intra-area
+        prefix, or against header.lsa_id of network_summary_lsas[] for an inter-area prefix,
+        external_as_lsas[] for an AS-external prefix or nssa_lsas[] for an NSSA-external
+        prefix. RFC 2328 Sections 12.4.3 and 12.4.4 define the Link State ID of a Summary-LSA
+        and of an AS-External-LSA as the prefix itself, and RFC 3101 gives the NSSA-LSA the
+        same format, so that correlation is a direct value match rather than a new lookup.
+      type: object
+      properties:
+        prefix:
+          description: |-
+            The IPv4 address prefix the TLV applies to, decoded from the Address Prefix field
+            (RFC 7684 Section 2.1).
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        prefix_length:
+          description: |-
+            The length in bits of prefix, decoded from the Prefix Length field
+            (RFC 7684 Section 2.1).
+          type: integer
+          format: uint32
+          maximum: 32
+          x-field-uid: 2
+        prefix_sid:
+          description: |-
+            The Prefix-SID advertised for this prefix, decoded from the Prefix-SID sub-TLV,
+            sub-type 2 (RFC 8665 Section 5).
+          $ref: '#/components/schemas/Ospfv2Lsa.PrefixSid'
+          x-field-uid: 3
+    Ospfv2.OpaqueLsa.ExtendedLink:
+      description: |-
+        A decoded OSPFv2 Extended Link TLV of an Extended Link Opaque LSA, TLV type 1
+        (RFC 7684 Section 3.1).
+        The TLV repeats the Link Type, Link ID and Link Data of the Router-LSA link it extends,
+        so correlate it to that link by matching link_id, and link_data when the same link_id
+        is advertised more than once, against router_lsas[].links[] of the Router-LSA whose
+        header.advertising_router_id equals that of this Opaque LSA.
+      type: object
+      properties:
+        link_type:
+          description: |-
+            The type of the link the TLV extends, decoded from the Link Type field
+            (RFC 7684 Section 3.1). Carries the same value as the Type field of the
+            corresponding Router-LSA link (RFC 2328 Section A.4.2).
+          type: string
+          x-field-uid: 1
+          x-enum:
+            point_to_point:
+              x-field-uid: 1
+            transit:
+              x-field-uid: 2
+            stub:
+              x-field-uid: 3
+            virtual:
+              x-field-uid: 4
+        link_id:
+          description: |-
+            The identifier of the link the TLV extends, decoded from the Link ID field
+            (RFC 7684 Section 3.1).
+          type: string
+          format: ipv4
+          x-field-uid: 2
+        link_data:
+          description: |-
+            The data of the link the TLV extends, decoded from the Link Data field
+            (RFC 7684 Section 3.1). Distinguishes two links that share a link_id, such as
+            parallel point-to-point links to the same neighbor.
+          type: string
+          format: ipv4
+          x-field-uid: 3
+        adjacency_sid:
+          description: |-
+            The Adjacency-SID advertised for this link, decoded from the Adj-SID sub-TLV,
+            sub-type 2, or the LAN Adj-SID sub-TLV, sub-type 3 (RFC 8665 Sections 6.1, 6.2).
+          $ref: '#/components/schemas/Ospfv2Lsa.AdjacencySid'
+          x-field-uid: 4
+        link_attributes:
+          description: |-
+            The link attributes advertised for this link, decoded from the application-specific
+            and legacy link attribute sub-TLVs of the Extended Link TLV (RFC 9492 Section 6).
+          $ref: '#/components/schemas/Ospfv2Lsa.LinkTrafficEngineering'
           x-field-uid: 5
     Ospfv2.OpaqueLsa.Tlv:
       description: >-
@@ -1067,21 +1210,6 @@ components:
           type: integer
           format: uint32
           x-field-uid: 4
-        adjacency_sid:
-          description: |-
-            The Adjacency-SID learned for this link, decoded from the Adj-SID / LAN Adj-SID sub-TLV
-            of the OSPFv2 Extended Link Opaque LSA whose Extended Link TLV references this link
-            (RFC 8665).
-          $ref: '#/components/schemas/Ospfv2Lsa.AdjacencySid'
-          x-field-uid: 5
-        traffic_engineering:
-          description: |-
-            Traffic engineering attributes learned for this link, decoded from the Link TLV of the
-            Traffic Engineering Opaque LSA (RFC 3630) and/or the corresponding sub-TLVs of the
-            Extended Link TLV of the OSPFv2 Extended Link Opaque LSA (RFC 9492) that reference this
-            link.
-          $ref: '#/components/schemas/Ospfv2Lsa.LinkTrafficEngineering'
-          x-field-uid: 6
 
     Ospfv2Lsa.SrCapability:
       description: |-

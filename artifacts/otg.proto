@@ -22469,22 +22469,27 @@ message Ospfv2OpaqueLsa {
   repeated Ospfv2OpaqueLsaTlv unknown_tlvs = 5;
 }
 
-// The decoded body of an OSPFv2 Opaque LSA, selected by Opaque Type (RFC 5250
-// Section 3, IANA Opaque Link-State Advertisements (LSA) Option Types registry).
+// The decoded body of an OSPFv2 Opaque LSA, selected by Opaque Type
+// (RFC 5250 Section 3).
 // choice names the Opaque Type of the LSA, so reading choice is enough to know what
 // to read next. There are three cases:
 // 1. The Opaque Type has a decoded payload in this model: choice is also the name of
 // the field carrying that payload (traffic_engineering, router_information,
 // extended_prefixes, extended_links).
-// 2. The Opaque Type is assigned by IANA but this model does not decode its body
-// (sycamore_optical_topology, grace, l1vpn, inter_as_te_v2, ttz, dynamic_flooding,
-// extended_inter_area_asbr): choice identifies the type, no decoded payload is
-// exposed, and the TLVs of the LSA are reported raw in the parent LSA's unknown_tlvs.
-// 3. The Opaque Type is not assigned by IANA - value 12 to 127 (unassigned) or 128
-// to
-// 255 (reserved for private use, RFC 5250): choice is unknown, the raw Opaque Type
-// value is reported in unknown, and the TLVs of the LSA are reported raw in the
-// parent LSA's unknown_tlvs.
+// 2. The Opaque Type is represented by a choice value but this model does not decode
+// its body (sycamore_optical_topology, grace, l1vpn, inter_as_te_v2, ttz,
+// dynamic_flooding, extended_inter_area_asbr): choice identifies the type, no decoded
+// payload is exposed, and the TLVs of the LSA are reported raw in the parent LSA's
+// unknown_tlvs.
+// 3. The Opaque Type is not represented by any choice value above: choice is unknown,
+// the raw Opaque Type value is reported in unknown, and the TLVs of the LSA are
+// reported raw in the parent LSA's unknown_tlvs. This is the escape hatch for an
+// Opaque Type this model does not support, whichever the reason - not assigned by
+// IANA, reserved for private use, or assigned by IANA after this version of the
+// model.
+// The choice values are not a copy of the IANA registry and are not kept in step with
+// it; the registry is the authoritative list of assigned Opaque Types:
+// https://www.iana.org/assignments/ospf-opaque-types/ospf-opaque-types.xhtml
 // unknown_tlvs is not limited to cases 2 and 3: a TLV of a decoded Opaque Type that
 // this model does not itself decode is reported there too, which is why it stays on
 // the parent LSA rather than inside this object.
@@ -22508,7 +22513,7 @@ message Ospfv2OpaqueLsaTlvInformation {
     }
   }
   // The Opaque Type carried in the most significant octet of the LSA's Link State ID
-  // (RFC 5250 Section 3).
+  // (RFC 5250 Section 3), when this model represents that Opaque Type; unknown otherwise.
   optional Choice.Enum choice = 1;
 
   // The decoded contents of a Traffic Engineering Opaque LSA
@@ -22532,10 +22537,10 @@ message Ospfv2OpaqueLsaTlvInformation {
   // (RFC 7684 Section 3.1).
   repeated Ospfv2OpaqueLsaExtendedLink extended_links = 5;
 
-  // The raw Opaque Type value of an LSA whose Opaque Type IANA has not assigned:
-  // value 12 to 127 (unassigned) or 128 to 255 (reserved for private use,
-  // RFC 5250). The body of such an LSA cannot be decoded, so its TLVs are reported
-  // raw in the parent LSA's unknown_tlvs.
+  // The raw Opaque Type value when the Opaque Type is not represented by a
+  // supported choice in this model (RFC 5250 Section 3). The body of such an LSA
+  // cannot be decoded, so its TLVs are reported raw in the parent LSA's
+  // unknown_tlvs.
   optional uint32 unknown = 6;
 }
 
@@ -22582,6 +22587,12 @@ message Ospfv2OpaqueLsaTrafficEngineering {
   // The traffic engineering attributes of the link, decoded from the sub-TLVs of the
   // Link TLV, TLV type 2 (RFC 3630 Section 2.5).
   Ospfv2LsaLinkTrafficEngineering link_attributes = 3;
+
+  // Sub-TLVs of the Link TLV that are not decoded into link_attributes, returned
+  // raw in the generic type/length/value format (RFC 3630 Section 2.5). This is not
+  // the complete sub-TLV list of the TLV - the decoded ones are reported in
+  // link_attributes and are not repeated here.
+  repeated Ospfv2OpaqueLsaSubTlv unknown_sub_tlvs = 4;
 }
 
 // A decoded OSPFv2 Extended Prefix TLV of an Extended Prefix Opaque LSA, TLV type 1
@@ -22608,6 +22619,12 @@ message Ospfv2OpaqueLsaExtendedPrefix {
   // The Prefix-SID advertised for this prefix, decoded from the Prefix-SID sub-TLV,
   // sub-type 2 (RFC 8665 Section 5).
   Ospfv2LsaPrefixSid prefix_sid = 3;
+
+  // Sub-TLVs of this Extended Prefix TLV that are not decoded into prefix_sid,
+  // returned raw in the generic type/length/value format (RFC 7684 Section 2.1).
+  // This is not the complete sub-TLV list of the TLV - a decoded sub-TLV is
+  // reported in prefix_sid and is not repeated here.
+  repeated Ospfv2OpaqueLsaSubTlv unknown_sub_tlvs = 4;
 }
 
 // A decoded OSPFv2 Extended Link TLV of an Extended Link Opaque LSA, TLV type 1
@@ -22648,10 +22665,23 @@ message Ospfv2OpaqueLsaExtendedLink {
   // The link attributes advertised for this link, decoded from the application-specific
   // and legacy link attribute sub-TLVs of the Extended Link TLV (RFC 9492 Section 6).
   Ospfv2LsaLinkTrafficEngineering link_attributes = 5;
+
+  // Sub-TLVs of this Extended Link TLV that are not decoded into adjacency_sid or
+  // link_attributes, returned raw in the generic type/length/value format
+  // (RFC 7684 Section 3.1). This is not the complete sub-TLV list of the TLV - the
+  // decoded ones are reported in adjacency_sid and link_attributes and are not
+  // repeated here.
+  repeated Ospfv2OpaqueLsaSubTlv unknown_sub_tlvs = 6;
 }
 
-// A top-level TLV carried in the body of an OSPFv2 Opaque LSA that is not decoded into
-// a structured field elsewhere in the model (RFC 7770 Section 2).
+// A top-level TLV carried in the body of an OSPFv2 Opaque LSA that is not decoded
+// into a structured field elsewhere in the model (RFC 7770 Section 2).
+// Only type, length and the raw value are reported. The layout of the value of an
+// undecoded TLV is not knowable from the TLV header alone, so no sub-TLV breakdown
+// is
+// attempted here; sub-TLVs are reported only under a TLV this model does decode,
+// whose definition says its value carries sub-TLVs (see unknown_sub_tlvs on
+// traffic_engineering, extended_prefixes[] and extended_links[]).
 message Ospfv2OpaqueLsaTlv {
 
   message Type {
@@ -22690,7 +22720,9 @@ message Ospfv2OpaqueLsaTlv {
     }
   }
   // The TLV Type field. Its meaning is scoped by the parent LSA's
-  // tlv_information.choice (IANA OSPFv2 TLV registries).
+  // tlv_information.choice. The values below are the TLV types this model names,
+  // not a copy of the authoritative IANA OSPFv2 TLV registries:
+  // https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml
   optional Type.Enum type = 1;
 
   // The TLV Length field, in octets, of the value field.
@@ -22698,15 +22730,12 @@ message Ospfv2OpaqueLsaTlv {
 
   // The TLV Value field, returned as a lowercase hexadecimal string.
   optional string value = 3;
-
-  // Sub-TLVs nested within this TLV's value that are not decoded into a structured field
-  // elsewhere in the model, returned raw in the generic type/length/value format (e.g.
-  // RFC 8665 Extended Prefix/Link Opaque LSA sub-TLVs).
-  repeated Ospfv2OpaqueLsaSubTlv unknown_sub_tlvs = 4;
 }
 
-// A sub-TLV nested within a top-level Opaque LSA TLV that is not decoded into a structured
-// field elsewhere in the model (RFC 8665).
+// A sub-TLV nested within a top-level Opaque LSA TLV that is not decoded into a
+// structured field elsewhere in the model (RFC 8665).
+// Reported only under a TLV this model decodes, since that is what establishes that
+// the TLV's value carries sub-TLVs at all.
 message Ospfv2OpaqueLsaSubTlv {
 
   message Type {
@@ -22776,8 +22805,10 @@ message Ospfv2OpaqueLsaSubTlv {
       eia_asbr_ip_flexible_algorithm_asbr_metric = 62;
     }
   }
-  // The sub-TLV Type field. Its meaning is scoped by the parent TLV (IANA
-  // OSPFv2 sub-TLV registries).
+  // The sub-TLV Type field. Its meaning is scoped by the parent TLV. The values
+  // below are the sub-TLV types this model names, not a copy of the authoritative
+  // IANA OSPFv2 sub-TLV registries:
+  // https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml
   optional Type.Enum type = 1;
 
   // The sub-TLV Length field, in octets, of the value field.
@@ -22785,45 +22816,6 @@ message Ospfv2OpaqueLsaSubTlv {
 
   // The sub-TLV Value field, returned as a lowercase hexadecimal string.
   optional string value = 3;
-
-  // Application-Specific Link Attributes nested within this sub-TLV, present when
-  // this is an ASLA sub-TLV (RFC 9492).
-  repeated Ospfv2OpaqueLsaAsla asla = 4;
-}
-
-// An Application-Specific Link Attribute carried within an ASLA sub-TLV (RFC 9492).
-message Ospfv2OpaqueLsaAsla {
-
-  message Type {
-    enum Enum {
-      unspecified = 0;
-      rsvp_te = 1;
-      segment_routing_policy = 2;
-      loop_free_alternate = 3;
-      flexible_algorithm = 4;
-      shared_risk_link_group = 5;
-      unidirectional_link_delay = 6;
-      min_max_unidirectional_link_delay = 7;
-      unidirectional_delay_variation = 8;
-      unidirectional_link_loss = 9;
-      unidirectional_residual_bandwidth = 10;
-      unidirectional_available_bandwidth = 11;
-      unidirectional_utilized_bandwidth = 12;
-      administrative_group = 13;
-      extended_administrative_group = 14;
-      te_metric = 15;
-      maximum_link_bandwidth = 16;
-      generic_metric = 17;
-    }
-  }
-  // The Application-Specific Link Attribute Type field: either a Link Attribute
-  // Application Identifier bit (RFC 9479), or the type of a nested link-attribute
-  // sub-TLV reusing the OSPFv2 Extended Link TLV Sub-TLV type space (RFC 9492).
-  optional Type.Enum type = 1;
-
-  // The Application-Specific Link Attribute Value field, returned as a lowercase hexadecimal
-  // string.
-  optional string value = 2;
 }
 
 // Attributes in LSA Header.

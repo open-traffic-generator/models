@@ -294,33 +294,29 @@ components:
         The decoded body of an OSPFv2 Opaque LSA, selected by Opaque Type
         (RFC 5250 Section 3).
         choice names the Opaque Type of the LSA, so reading choice is enough to know what
-        to read next. There are three cases:
-        1. The Opaque Type has a decoded payload in this model: choice is also the name of
-        the field carrying that payload (traffic_engineering, router_information,
-        extended_prefixes, extended_links).
-        2. The Opaque Type is represented by a choice value but this model does not decode
-        its body (sycamore_optical_topology, grace, l1vpn, inter_as_te_v2, ttz,
-        dynamic_flooding, extended_inter_area_asbr): choice identifies the type, no decoded
-        payload is exposed, and the TLVs of the LSA are reported raw in the parent LSA's
-        unknown_tlvs.
-        3. The Opaque Type is not represented by any choice value above: choice is unknown,
-        the numeric Opaque Type is reported in unknown.opaque_type, and the TLVs of the LSA
-        are reported raw in the parent LSA's unknown_tlvs. This is the escape hatch for an
-        Opaque Type this model does not support, whichever the reason - not assigned by
-        IANA, reserved for private use, or assigned by IANA after this version of the
-        model.
+        to read next. There are two cases:
+        1. The Opaque Type is decoded by this model: choice is also the name of the field
+        carrying the decoded payload (traffic_engineering, router_information,
+        extended_prefixes, extended_link).
+        2. The Opaque Type is not decoded by this model: choice is unknown, the numeric
+        Opaque Type is reported in unknown.opaque_type, and the TLVs of the LSA are
+        reported raw in the parent LSA's unknown_tlvs. This is the single escape hatch for
+        every Opaque Type this model does not decode, whichever the reason - assigned by
+        IANA but not decoded here (grace-LSA Opaque Type 3, L1VPN Opaque Type 5,
+        Inter-AS-TE-v2 Opaque Type 6 and the rest), not assigned by IANA, reserved for
+        private use, or assigned by IANA after this version of the model.
         The choice values are not a copy of the IANA registry and are not kept in step with
         it; the registry is the authoritative list of assigned Opaque Types:
         https://www.iana.org/assignments/ospf-opaque-types/ospf-opaque-types.xhtml
-        unknown_tlvs is not limited to cases 2 and 3: a TLV of a decoded Opaque Type that
-        this model does not itself decode is reported there too, which is why it stays on
-        the parent LSA rather than inside this object.
+        unknown_tlvs is not limited to case 2: a TLV of a decoded Opaque Type that this
+        model does not itself decode is reported there too, which is why it stays on the
+        parent LSA rather than inside this object.
       type: object
       properties:
         choice:
           description: >-
             The Opaque Type carried in the most significant octet of the LSA's Link State ID
-            (RFC 5250 Section 3), when this model represents that Opaque Type; unknown
+            (RFC 5250 Section 3), when this model decodes that Opaque Type; unknown
             otherwise.
           type: string
           x-field-uid: 1
@@ -329,52 +325,23 @@ components:
               description: >-
                 Traffic Engineering LSA, Opaque Type 1 (RFC 3630).
               x-field-uid: 1
-            sycamore_optical_topology:
-              description: >-
-                Sycamore Optical Topology Descriptions, Opaque Type 2.
-              x-field-uid: 2
-            grace:
-              description: >-
-                grace-LSA, Opaque Type 3 (RFC 3623).
-              x-field-uid: 3
             router_information:
               description: >-
                 Router Information (RI) Opaque LSA, Opaque Type 4 (RFC 7770).
-              x-field-uid: 4
-            l1vpn:
-              description: >-
-                L1VPN LSA, Opaque Type 5 (RFC 5252).
-              x-field-uid: 5
-            inter_as_te_v2:
-              description: >-
-                Inter-AS-TE-v2 LSA, Opaque Type 6 (RFC 5392).
-              x-field-uid: 6
+              x-field-uid: 2
             extended_prefixes:
               description: >-
                 OSPFv2 Extended Prefix Opaque LSA, Opaque Type 7 (RFC 7684).
-              x-field-uid: 7
-            extended_links:
+              x-field-uid: 3
+            extended_link:
               description: >-
                 OSPFv2 Extended Link Opaque LSA, Opaque Type 8 (RFC 7684).
-              x-field-uid: 8
-            ttz:
-              description: >-
-                TTZ LSA, Opaque Type 9 (RFC 8099).
-              x-field-uid: 9
-            dynamic_flooding:
-              description: >-
-                OSPFv2 Dynamic Flooding Opaque LSA, Opaque Type 10 (RFC 9667).
-              x-field-uid: 10
-            extended_inter_area_asbr:
-              description: >-
-                OSPFv2 Extended Inter-Area ASBR (EIA-ASBR) LSA, Opaque Type 11
-                (RFC 9350 Section 10.1).
-              x-field-uid: 11
+              x-field-uid: 4
             unknown:
               description: >-
-                An Opaque Type that is not represented by any of the choice values above.
-                The numeric value is reported in unknown.opaque_type.
-              x-field-uid: 12
+                An Opaque Type that this model does not decode. The numeric value is
+                reported in unknown.opaque_type.
+              x-field-uid: 5
         traffic_engineering:
           description: |-
             The decoded contents of a Traffic Engineering Opaque LSA
@@ -400,28 +367,28 @@ components:
           items:
             $ref: '#/components/schemas/Ospfv2.OpaqueLsa.ExtendedPrefix'
           x-field-uid: 4
-        extended_links:
+        extended_link:
           description: |-
-            The decoded OSPFv2 Extended Link TLVs of an Extended Link Opaque LSA
-            (RFC 7684 Section 3.1).
-          type: array
-          items:
-            $ref: '#/components/schemas/Ospfv2.OpaqueLsa.ExtendedLink'
+            The decoded OSPFv2 Extended Link TLV of an Extended Link Opaque LSA. Only one
+            Extended Link TLV is advertised in each Extended Link Opaque LSA
+            (RFC 7684 Section 3.1), so this is a single object rather than a list.
+          $ref: '#/components/schemas/Ospfv2.OpaqueLsa.ExtendedLink'
           x-field-uid: 5
         unknown:
           description: |-
-            The Opaque Type when it is not represented by a supported choice in this model
-            (RFC 5250 Section 3). The body of such an LSA cannot be decoded, so its TLVs
-            are reported raw in the parent LSA's unknown_tlvs.
+            The Opaque Type when this model does not decode it (RFC 5250 Section 3). The
+            body of such an LSA is not decoded, so its TLVs are reported raw in the parent
+            LSA's unknown_tlvs.
           $ref: '#/components/schemas/Ospfv2.OpaqueLsa.UnknownOpaqueType'
           x-field-uid: 6
     Ospfv2.OpaqueLsa.UnknownOpaqueType:
       description: |-
-        The Opaque Type of an OSPFv2 Opaque LSA that is not represented by any supported
-        choice of Ospfv2.OpaqueLsa.TlvInformation (RFC 5250 Section 3).
-        Reported as the numeric wire value, so an Opaque Type this model does not support
-        is still fully identifiable, whichever the reason - not assigned by IANA, reserved
-        for private use, or assigned by IANA after this version of the model.
+        The Opaque Type of an OSPFv2 Opaque LSA that this model does not decode
+        (RFC 5250 Section 3).
+        Reported as the numeric wire value, so an Opaque Type this model does not decode
+        is still fully identifiable, whichever the reason - assigned by IANA but not
+        decoded here, not assigned by IANA, reserved for private use, or assigned by IANA
+        after this version of the model.
       type: object
       properties:
         opaque_type:
@@ -467,9 +434,11 @@ components:
     Ospfv2.OpaqueLsa.TrafficEngineering:
       description: |-
         The decoded Traffic Engineering Opaque LSA contents, Opaque Type 1
-        (RFC 3630 Section 2.4). A TE LSA carries a single top-level TLV: either the Router
-        Address TLV, reported as router_address, or the Link TLV, reported as link_id plus
-        link_attributes.
+        (RFC 3630 Section 2.4). A TE LSA contains one top-level TLV (RFC 3630 Section 2.4):
+        either the Router Address TLV, reported as router_address, or the Link TLV,
+        reported as link_id plus link_attributes. Only one Link TLV is carried in each LSA
+        and each of its sub-TLVs occurs at most once (RFC 3630 Section 2.4.2), so both are
+        single-valued here.
       type: object
       properties:
         router_address:
@@ -497,16 +466,6 @@ components:
             Link TLV, TLV type 2 (RFC 3630 Section 2.5).
           $ref: '#/components/schemas/Ospfv2Lsa.LinkTrafficEngineering'
           x-field-uid: 3
-        sub_tlvs:
-          description: |-
-            The sub-TLVs of the Link TLV that are not decoded into link_attributes,
-            reported in the generic type/length/value wire format (RFC 3630 Section 2.5).
-            The decoded sub-TLVs are reported in link_attributes and are not repeated here,
-            so this is not the complete sub-TLV list of the TLV.
-          type: array
-          items:
-            $ref: '#/components/schemas/Ospfv2.OpaqueLsa.SubTlv'
-          x-field-uid: 4
     Ospfv2.OpaqueLsa.ExtendedPrefix:
       description: |-
         A decoded OSPFv2 Extended Prefix TLV of an Extended Prefix Opaque LSA, TLV type 1
@@ -536,22 +495,16 @@ components:
           format: uint32
           maximum: 32
           x-field-uid: 2
-        prefix_sid:
+        prefix_sids:
           description: |-
-            The Prefix-SID advertised for this prefix, decoded from the Prefix-SID sub-TLV,
-            sub-type 2 (RFC 8665 Section 5).
-          $ref: '#/components/schemas/Ospfv2Lsa.PrefixSid'
-          x-field-uid: 3
-        sub_tlvs:
-          description: |-
-            The sub-TLVs of this Extended Prefix TLV that are not decoded into prefix_sid,
-            reported in the generic type/length/value wire format (RFC 7684 Section 2.1).
-            A decoded sub-TLV is reported in prefix_sid and is not repeated here, so this
-            is not the complete sub-TLV list of the TLV.
+            The Prefix-SIDs advertised for this prefix, decoded from the Prefix-SID
+            sub-TLV, sub-type 2 (RFC 8665 Section 5). The Prefix-SID sub-TLV may appear
+            more than once in the parent TLV, one per Segment Routing algorithm, so this
+            is a list; each entry names its algorithm.
           type: array
           items:
-            $ref: '#/components/schemas/Ospfv2.OpaqueLsa.SubTlv'
-          x-field-uid: 4
+            $ref: '#/components/schemas/Ospfv2Lsa.PrefixSid'
+          x-field-uid: 3
     Ospfv2.OpaqueLsa.ExtendedLink:
       description: |-
         A decoded OSPFv2 Extended Link TLV of an Extended Link Opaque LSA, TLV type 1
@@ -593,29 +546,25 @@ components:
           type: string
           format: ipv4
           x-field-uid: 3
-        adjacency_sid:
+        adjacency_sids:
           description: |-
-            The Adjacency-SID advertised for this link, decoded from the Adj-SID sub-TLV,
-            sub-type 2, or the LAN Adj-SID sub-TLV, sub-type 3 (RFC 8665 Sections 6.1, 6.2).
-          $ref: '#/components/schemas/Ospfv2Lsa.AdjacencySid'
+            The Adjacency-SIDs advertised for this link, decoded from the Adj-SID sub-TLV,
+            sub-type 2, and the LAN Adj-SID sub-TLV, sub-type 3 (RFC 8665 Sections 6.1,
+            6.2). Both sub-TLVs may appear multiple times in one Extended Link TLV - a
+            router may allocate more than one Adj-SID to an adjacency, and a LAN Adj-SID
+            is advertised per neighbor on a multi-access link - so this is a list.
+          type: array
+          items:
+            $ref: '#/components/schemas/Ospfv2Lsa.AdjacencySid'
           x-field-uid: 4
         link_attributes:
           description: |-
             The link attributes advertised for this link, decoded from the application-specific
             and legacy link attribute sub-TLVs of the Extended Link TLV (RFC 9492 Section 6).
+            One Extended Link TLV describes one link, so the attributes of that link are
+            reported as a single object.
           $ref: '#/components/schemas/Ospfv2Lsa.LinkTrafficEngineering'
           x-field-uid: 5
-        sub_tlvs:
-          description: |-
-            The sub-TLVs of this Extended Link TLV that are not decoded into adjacency_sid
-            or link_attributes, reported in the generic type/length/value wire format
-            (RFC 7684 Section 3.1). The decoded sub-TLVs are reported in adjacency_sid and
-            link_attributes and are not repeated here, so this is not the complete sub-TLV
-            list of the TLV.
-          type: array
-          items:
-            $ref: '#/components/schemas/Ospfv2.OpaqueLsa.SubTlv'
-          x-field-uid: 6
     Ospfv2.OpaqueLsa.Tlv:
       description: |-
         A top-level TLV carried in the body of an OSPFv2 Opaque LSA that is not decoded
@@ -623,10 +572,10 @@ components:
         every OSPFv2 Opaque LSA TLV shares: a 2-octet Type, a 2-octet Length and the Value
         octets (RFC 7770 Section 2.3).
         type is the numeric wire value, so a TLV type this model has never heard of is
-        still fully representable and its content is never lost. sub_tlvs is populated only
-        when the structure of this TLV is known to carry sub-TLVs; the Value of a TLV whose
-        type is not recognised is reported in value alone, because nothing in the TLV
-        header says the Value is a sub-TLV sequence.
+        still fully representable and its content is never lost. The Value is reported as
+        one opaque blob, including for a TLV whose Value is itself a sub-TLV sequence:
+        nothing in the TLV header says the Value is a sub-TLV sequence, and a TLV reported
+        here is by definition one this model does not decode.
       type: object
       properties:
         type:
@@ -648,49 +597,10 @@ components:
           x-field-uid: 2
         value:
           description: >-
-            The TLV Value field, returned as a lowercase hexadecimal string.
+            The raw byte contents of the TLV Value field, as hex characters. Two hex
+            characters per octet, so the string is twice length characters long.
           type: string
-          x-field-uid: 3
-        sub_tlvs:
-          description: |-
-            The sub-TLVs carried in this TLV's Value, present when the structure of this
-            TLV is known to carry sub-TLVs (RFC 7684, RFC 8665, RFC 9492). A sub-TLV whose
-            type this model does not recognise is still reported here, since
-            sub_tlvs[].type is the numeric wire value.
-          type: array
-          items:
-            $ref: '#/components/schemas/Ospfv2.OpaqueLsa.SubTlv'
-          x-field-uid: 4
-    Ospfv2.OpaqueLsa.SubTlv:
-      description: |-
-        A sub-TLV nested within the Value of an OSPFv2 Opaque LSA TLV, reported in the
-        generic wire format every OSPFv2 sub-TLV shares: a 2-octet Type, a 2-octet Length
-        and the Value octets (RFC 8665).
-        type is the numeric wire value, so a sub-TLV type this model has never heard of is
-        still fully representable and its content is never lost.
-      type: object
-      properties:
-        type:
-          description: |-
-            The sub-TLV Type field, as the numeric value carried on the wire. Its meaning
-            is scoped by the parent TLV; the authoritative list of assigned sub-TLV types
-            is the IANA OSPFv2 parameters registry:
-            https://www.iana.org/assignments/ospfv2-parameters/ospfv2-parameters.xhtml
-          type: integer
-          format: uint32
-          maximum: 65535
-          x-field-uid: 1
-        length:
-          description: >-
-            The sub-TLV Length field, in octets, of the value field.
-          type: integer
-          format: uint32
-          maximum: 65535
-          x-field-uid: 2
-        value:
-          description: >-
-            The sub-TLV Value field, returned as a lowercase hexadecimal string.
-          type: string
+          format: hex
           x-field-uid: 3
     Ospfv2.LsaHeader:
       description: >-
@@ -851,18 +761,17 @@ components:
 
     Ospfv2Lsa.PrefixSid:
       description: |-
-        The learned OSPFv2 Prefix-SID and its attributes, decoded from the Prefix-SID sub-TLV of
-        the Extended Prefix Opaque LSA (RFC 8665).
+        The learned OSPFv2 Prefix-SID and its attributes, decoded from one Prefix-SID sub-TLV
+        of the Extended Prefix Opaque LSA (RFC 8665 Section 5). One object per Prefix-SID
+        sub-TLV instance.
       type: object
       properties:
-        sids:
+        sid:
           description: >-
-            One or more SID/Label values or indices associated with the IGP Prefix segment
-            attached to the prefix.
-          type: array
-          items:
-            type: integer
-            format: uint32
+            The SID/Label value or index associated with the IGP Prefix segment attached to
+            the prefix. flags.v_flag tells which of the two it is.
+          type: integer
+          format: uint32
           x-field-uid: 1
         flags:
           description: >-
@@ -871,11 +780,23 @@ components:
           x-field-uid: 2
         algorithm:
           description: >-
-            The Segment Routing algorithm the Prefix-SID is associated with.
+            The Segment Routing algorithm the Prefix-SID is associated with, decoded from
+            the Algorithm field (RFC 8665 Section 5).
           type: integer
           format: uint32
           maximum: 255
           x-field-uid: 3
+        mt_id:
+          description: |-
+            The Multi-Topology ID the Prefix-SID applies to, decoded from the MT-ID field
+            (RFC 8665 Section 5, RFC 4915). Together with prefix and algorithm it
+            identifies the Prefix-SID: RFC 8665 Section 5 requires all Prefix-SIDs
+            advertised for the same prefix, topology and algorithm to be ignored, so the
+            entries of prefix_sids are distinguished by this field and algorithm.
+          type: integer
+          format: uint32
+          maximum: 255
+          x-field-uid: 4
 
     Ospfv2Lsa.PrefixSidFlags:
       description: >-
@@ -914,8 +835,9 @@ components:
 
     Ospfv2Lsa.AdjacencySid:
       description: |-
-        The learned OSPFv2 Adjacency-SID and its attributes, decoded from the Adj-SID / LAN Adj-SID
-        sub-TLV of the Extended Link Opaque LSA (RFC 8665).
+        The learned OSPFv2 Adjacency-SID and its attributes, decoded from one Adj-SID or LAN
+        Adj-SID sub-TLV of the Extended Link Opaque LSA (RFC 8665 Sections 6.1, 6.2). One
+        object per sub-TLV instance.
       type: object
       properties:
         type:
@@ -929,13 +851,12 @@ components:
               x-field-uid: 1
             lan_adj_sid:
               x-field-uid: 2
-        sids:
+        sid:
           description: >-
-            One or more SID/Label values or indices associated with the adjacency.
-          type: array
-          items:
-            type: integer
-            format: uint32
+            The SID/Label value or index associated with the adjacency. flags.v_flag tells
+            which of the two it is.
+          type: integer
+          format: uint32
           x-field-uid: 2
         flags:
           description: >-
@@ -944,10 +865,32 @@ components:
           x-field-uid: 3
         weight:
           description: >-
-            The weight of the Adjacency-SID for the purpose of load balancing.
+            The weight of the Adjacency-SID for the purpose of load balancing, decoded
+            from the Weight field (RFC 8665 Sections 6.1, 6.2).
           type: integer
           format: uint32
+          maximum: 255
           x-field-uid: 4
+        neighbor_id:
+          description: |-
+            The Router ID of the neighbor the LAN Adjacency-SID is advertised for, decoded
+            from the Neighbor ID field of the LAN Adj-SID sub-TLV (RFC 8665 Section 6.2).
+            Present only when type is lan_adj_sid, and the field that tells one LAN
+            Adjacency-SID from another on the same multi-access link. The Adj-SID sub-TLV,
+            sub-type 2, has no Neighbor ID field, so it is absent when type is adj_sid:
+            the adjacency is then identified by the link the parent Extended Link TLV
+            describes.
+          type: string
+          format: ipv4
+          x-field-uid: 5
+        mt_id:
+          description: |-
+            The Multi-Topology ID the Adjacency-SID applies to, decoded from the MT-ID
+            field (RFC 8665 Sections 6.1, 6.2, RFC 4915).
+          type: integer
+          format: uint32
+          maximum: 255
+          x-field-uid: 6
 
     Ospfv2Lsa.AdjSidFlags:
       description: >-

@@ -22656,9 +22656,12 @@ message Ospfv2OpaqueLsaExtendedLink {
 
   // The Adjacency-SIDs advertised for this link, decoded from the Adj-SID sub-TLV,
   // sub-type 2, and the LAN Adj-SID sub-TLV, sub-type 3 (RFC 8665 Sections 6.1,
-  // 6.2). Both sub-TLVs may appear multiple times in one Extended Link TLV - a
-  // router may allocate more than one Adj-SID to an adjacency, and a LAN Adj-SID
-  // is advertised per neighbor on a multi-access link - so this is a list.
+  // 6.2). One entry per sub-TLV instance, in the order the sub-TLVs appear in the
+  // Extended Link TLV, with entry.type naming which of the two sub-TLVs each entry
+  // was decoded from; the two forms may be mixed in this list. Both sub-TLVs may
+  // appear multiple times in one Extended Link TLV - a router may allocate more
+  // than one Adj-SID to an adjacency, and a LAN Adj-SID is advertised per neighbor
+  // on a multi-access link - so this is a list.
   repeated Ospfv2LsaAdjacencySid adjacency_sids = 4;
 
   // The link attributes advertised for this link, decoded from the application-specific
@@ -22835,10 +22838,24 @@ message Ospfv2LsaPrefixSidFlags {
   optional bool l_flag = 5;
 }
 
-// The learned OSPFv2 Adjacency-SID and its attributes, decoded from one Adj-SID or
-// LAN
-// Adj-SID sub-TLV of the Extended Link Opaque LSA (RFC 8665 Sections 6.1, 6.2). One
-// object per sub-TLV instance.
+// A learned OSPFv2 Adjacency-SID and its attributes.
+// One object of this type represents exactly one sub-TLV instance on the wire, and
+// that sub-TLV is either an Adj-SID sub-TLV, sub-type 2 (RFC 8665 Section 6.1), or
+// a
+// LAN Adj-SID sub-TLV, sub-type 3 (RFC 8665 Section 6.2). The two are deliberately
+// modelled by one object because they carry the same information about the same kind
+// of thing - a SID for an adjacency over the link the parent Extended Link TLV
+// describes - and differ only in that the LAN form names the neighbor the SID is for.
+// type says which of the two sub-TLVs this object was decoded from, and is the field
+// to read before interpreting the rest: neighbor_id is present only for
+// type = lan_adj_sid, because only the LAN Adj-SID sub-TLV carries a Neighbor ID
+// field. Every other field of this object is decoded from a field that both sub-TLVs
+// carry.
+// This object is never an aggregate of several sub-TLVs: a link that advertises more
+// than one Adj-SID, or one LAN Adj-SID per neighbor, is reported as that many entries
+// of Ospfv2.OpaqueLsa.ExtendedLink/adjacency_sids, each with its own type. Both
+// sub-TLVs may appear multiple times in one Extended Link TLV (RFC 8665
+// Sections 6.1, 6.2), and the two forms may be mixed in the same list.
 message Ospfv2LsaAdjacencySid {
 
   message Type {
@@ -22848,8 +22865,11 @@ message Ospfv2LsaAdjacencySid {
       lan_adj_sid = 2;
     }
   }
-  // Adjacency-SID type: Adjacency-SID (Extended Link sub-TLV Type 2) or LAN Adjacency-SID
-  // (Type 3).
+  // The sub-TLV this object was decoded from: adj_sid for the Adj-SID sub-TLV,
+  // Extended Link sub-TLV type 2 (RFC 8665 Section 6.1), or lan_adj_sid for the LAN
+  // Adj-SID sub-TLV, type 3 (RFC 8665 Section 6.2). It is not a property of the SID
+  // itself, it names the wire encoding this object came from, and it is what tells
+  // you whether to expect neighbor_id.
   optional Type.Enum type = 1;
 
   // The SID/Label value or index associated with the adjacency. flags.v_flag tells which
@@ -22877,7 +22897,9 @@ message Ospfv2LsaAdjacencySid {
   optional uint32 mt_id = 6;
 }
 
-// One-octet flags of the OSPFv2 Adjacency-SID sub-TLV (RFC 8665).
+// The one-octet Flags field of the sub-TLV this Adjacency-SID was decoded from. The
+// Adj-SID sub-TLV and the LAN Adj-SID sub-TLV define the same flags in the same bit
+// positions (RFC 8665 Sections 6.1, 6.2), so one object covers both.
 message Ospfv2LsaAdjSidFlags {
 
   // B-Flag (Backup): the Adjacency-SID is eligible for protection.

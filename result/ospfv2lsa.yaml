@@ -350,12 +350,14 @@ components:
           x-field-uid: 2
         router_information:
           description: |-
-            The decoded contents of a Router Information (RI) Opaque LSA
-            (RFC 7770 Section 2).
-            An RI Opaque LSA is originated per router, so its contents describe the router
-            identified by the parent LSA's header.advertising_router_id. Correlate it to the
-            Router-LSA of that router by matching
-            router_lsas[].header.advertising_router_id.
+            The decoded contents of this Router Information (RI) Opaque LSA instance
+            (RFC 7770 Section 2). Multiple Router Information LSA instances may be
+            originated by the same router, with each instance represented by a separate
+            Opaque LSA, distinguished by the Opaque ID reported in the parent LSA's id.
+            The contents describe the router identified by the parent LSA's
+            header.advertising_router_id. Correlate them to the Router-LSA of that router
+            by matching router_lsas[].header.advertising_router_id, and expect to merge
+            the contents of every RI LSA instance that router originated in this scope.
           $ref: '#/components/schemas/Ospfv2.OpaqueLsa.RouterInformation'
           x-field-uid: 3
         extended_prefixes:
@@ -403,10 +405,14 @@ components:
           x-field-uid: 1
     Ospfv2.OpaqueLsa.RouterInformation:
       description: |-
-        The decoded Router Information (RI) Opaque LSA contents, Opaque Type 4
-        (RFC 7770 Section 2). The RI Opaque LSA is originated once per router, so everything
-        reported here describes the router named by the parent LSA's
-        header.advertising_router_id.
+        The decoded contents of one Router Information (RI) Opaque LSA instance, Opaque
+        Type 4 (RFC 7770 Section 2).
+        Everything reported here describes the router named by the parent LSA's
+        header.advertising_router_id, but not necessarily all of it: a router may originate
+        more than one RI LSA instance, for example when its capabilities do not fit in one
+        LSA, and each instance is a separate Opaque LSA carrying its own Opaque ID
+        (RFC 7770 Section 2.1). This object therefore reports what one instance carried,
+        not the complete Router Information of the router.
       type: object
       properties:
         sr_capability:
@@ -562,10 +568,14 @@ components:
           x-field-uid: 4
         link_attributes:
           description: |-
-            The link attributes advertised for this link, decoded from the application-specific
-            and legacy link attribute sub-TLVs of the Extended Link TLV (RFC 9492 Section 6).
-            One Extended Link TLV describes one link, so the attributes of that link are
-            reported as a single object.
+            Traffic engineering link attributes associated with this Extended Link. This
+            object represents the supported link-attribute set and does not expose the
+            underlying OSPF sub-TLV structure: it is a semantic grouping of the attribute
+            values advertised for the link, not a decode of one sub-TLV instance. The
+            values are sourced from the application-specific and legacy link attribute
+            sub-TLVs of the Extended Link TLV (RFC 9492 Section 6), and RFC 9492 allows an
+            attribute to be advertised more than once, per application, so which instance
+            a value came from is not recoverable from this object.
           $ref: '#/components/schemas/Ospfv2Lsa.LinkTrafficEngineering'
           x-field-uid: 5
     Ospfv2.OpaqueLsa.Tlv:
@@ -1041,9 +1051,12 @@ components:
 
     Ospfv2Lsa.LinkTrafficEngineering:
       description: |-
-        Traffic engineering attributes for a link, decoded from the Link TLV sub-TLVs of the
+        Traffic engineering attributes for a link, sourced from the Link TLV sub-TLVs of the
         Traffic Engineering Opaque LSA (RFC 3630 Section 2.5) and the corresponding sub-TLVs of
         the Extended Link TLV of the OSPFv2 Extended Link Opaque LSA (RFC 9492).
+        This is the attribute set of the link, not a transcription of the sub-TLVs that
+        carried it: a property here names the attribute, and the description of each names
+        the sub-TLV or sub-TLVs it can be sourced from, in either of the two encodings.
       type: object
       properties:
         link_type:

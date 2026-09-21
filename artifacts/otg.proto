@@ -22469,14 +22469,25 @@ message Ospfv2OpaqueLsa {
   repeated Ospfv2OpaqueLsaTlv unknown_tlvs = 5;
 }
 
-// The decoded body of an OSPFv2 Opaque LSA, selected by Opaque Type
-// (RFC 5250 Section 3, IANA Opaque LSA Option Types registry).
-// choice names the Opaque Type of the LSA and, for the Opaque Types the model decodes,
-// is also the name of the field that carries the decoded contents of that Opaque Type,
-// so reading choice is enough to know what to read next.
-// The Opaque Types the model does not decode select choice alone and carry no contents
-// field; every top-level TLV of such an LSA is reported raw in the parent LSA's
-// unknown_tlvs, as is any TLV of a decoded Opaque Type that is not itself decoded.
+// The decoded body of an OSPFv2 Opaque LSA, selected by Opaque Type (RFC 5250
+// Section 3, IANA Opaque Link-State Advertisements (LSA) Option Types registry).
+// choice names the Opaque Type of the LSA, so reading choice is enough to know what
+// to read next. There are three cases:
+// 1. The Opaque Type has a decoded payload in this model: choice is also the name of
+// the field carrying that payload (traffic_engineering, router_information,
+// extended_prefixes, extended_links).
+// 2. The Opaque Type is assigned by IANA but this model does not decode its body
+// (sycamore_optical_topology, grace, l1vpn, inter_as_te_v2, ttz, dynamic_flooding,
+// extended_inter_area_asbr): choice identifies the type, no decoded payload is
+// exposed, and the TLVs of the LSA are reported raw in the parent LSA's unknown_tlvs.
+// 3. The Opaque Type is not assigned by IANA - value 12 to 127 (unassigned) or 128
+// to
+// 255 (reserved for private use, RFC 5250): choice is unknown, the raw Opaque Type
+// value is reported in unknown, and the TLVs of the LSA are reported raw in the
+// parent LSA's unknown_tlvs.
+// unknown_tlvs is not limited to cases 2 and 3: a TLV of a decoded Opaque Type that
+// this model does not itself decode is reported there too, which is why it stays on
+// the parent LSA rather than inside this object.
 message Ospfv2OpaqueLsaTlvInformation {
 
   message Choice {
@@ -22493,6 +22504,7 @@ message Ospfv2OpaqueLsaTlvInformation {
       ttz = 9;
       dynamic_flooding = 10;
       extended_inter_area_asbr = 11;
+      unknown = 12;
     }
   }
   // The Opaque Type carried in the most significant octet of the LSA's Link State ID
@@ -22519,6 +22531,12 @@ message Ospfv2OpaqueLsaTlvInformation {
   // The decoded OSPFv2 Extended Link TLVs of an Extended Link Opaque LSA
   // (RFC 7684 Section 3.1).
   repeated Ospfv2OpaqueLsaExtendedLink extended_links = 5;
+
+  // The raw Opaque Type value of an LSA whose Opaque Type IANA has not assigned:
+  // value 12 to 127 (unassigned) or 128 to 255 (reserved for private use,
+  // RFC 5250). The body of such an LSA cannot be decoded, so its TLVs are reported
+  // raw in the parent LSA's unknown_tlvs.
+  optional uint32 unknown = 6;
 }
 
 // The decoded Router Information (RI) Opaque LSA contents, Opaque Type 4

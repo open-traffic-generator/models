@@ -30636,16 +30636,16 @@ components:
         Contents of OSPFv2 Opaque LSA - Type 9/10/11 (RFC 5250).
         The Link State ID of an Opaque LSA is not a plain IPv4 address; it is split into
         an Opaque Type (most significant octet) and an Opaque ID (remaining three octets),
-        decoded here as tlv_information and id (RFC 5250 Section 3). header.lsa_id carries
-        the raw, undecoded Link State ID value.
+        decoded here as tlv_information.choice and id (RFC 5250 Section 3). header.lsa_id
+        carries the raw, undecoded Link State ID value.
         The Segment Routing and Traffic Engineering information carried by an Opaque LSA is
         reported on this object, in the LSA it was actually advertised in, rather than on the
         Router-LSA, Summary-LSA, AS-External-LSA or NSSA-LSA that describes the router, link
-        or prefix it applies to. Exactly one of router_information, traffic_engineering,
-        extended_prefixes or extended_links is populated, selected by tlv_information; every
-        other top-level TLV of the LSA is reported raw in unknown_tlvs. Each of those objects
-        documents how to correlate it back to the LSA that advertises the router, link or
-        prefix it describes.
+        or prefix it applies to. The decoded contents are reported under tlv_information,
+        whose choice names the Opaque Type and selects the contents of that Opaque Type
+        directly; every top-level TLV of the LSA that the model does not decode is reported
+        raw in unknown_tlvs. Each decoded object documents how to correlate it back to the
+        LSA that advertises the router, link or prefix it describes.
       type: object
       properties:
         header:
@@ -30674,11 +30674,45 @@ components:
           - domain
         tlv_information:
           description: |-
-            The Opaque Type, decoded from the most significant octet of the LSA's Link
-            State ID (RFC 5250 Section 3). Identifies the type of information carried in
-            the tlvs (IANA Opaque LSA Option Types registry).
-          type: string
+            The type of information carried in the body of the Opaque LSA, decoded from the
+            Opaque Type in the most significant octet of the LSA's Link State ID
+            (RFC 5250 Section 3), together with the decoded contents of that Opaque Type.
+          $ref: '#/components/schemas/Ospfv2.OpaqueLsa.TlvInformation'
           x-field-uid: 3
+        id:
+          description: |-
+            The Opaque ID, decoded from the least significant three octets of the LSA's Link State ID (RFC 5250 Section 3). Used to further distinguish LSAs of the same Opaque Type originated by the same router.
+          type: integer
+          format: uint32
+          minimum: 0
+          maximum: 16777215
+          x-field-uid: 4
+        unknown_tlvs:
+          description: |-
+            Top-level TLVs carried in the body of the Opaque LSA that are not decoded into
+            tlv_information, returned raw in the generic type/length/value TLV format used by
+            all OSPFv2 Opaque LSAs (RFC 7770 Section 2, RFC 8665, RFC 9492).
+          type: array
+          items:
+            $ref: '#/components/schemas/Ospfv2.OpaqueLsa.Tlv'
+          x-field-uid: 5
+    Ospfv2.OpaqueLsa.TlvInformation:
+      description: |-
+        The decoded body of an OSPFv2 Opaque LSA, selected by Opaque Type
+        (RFC 5250 Section 3, IANA Opaque LSA Option Types registry).
+        choice names the Opaque Type of the LSA and, for the Opaque Types the model decodes,
+        is also the name of the field that carries the decoded contents of that Opaque Type,
+        so reading choice is enough to know what to read next.
+        The Opaque Types the model does not decode select choice alone and carry no contents
+        field; every top-level TLV of such an LSA is reported raw in the parent LSA's
+        unknown_tlvs, as is any TLV of a decoded Opaque Type that is not itself decoded.
+      type: object
+      properties:
+        choice:
+          description: |-
+            The Opaque Type carried in the most significant octet of the LSA's Link State ID (RFC 5250 Section 3).
+          type: string
+          x-field-uid: 1
           x-enum:
             traffic_engineering:
               description: |-
@@ -30704,11 +30738,11 @@ components:
               description: |-
                 Inter-AS-TE-v2 LSA, Opaque Type 6 (RFC 5392).
               x-field-uid: 6
-            extended_prefix:
+            extended_prefixes:
               description: |-
                 OSPFv2 Extended Prefix Opaque LSA, Opaque Type 7 (RFC 7684).
               x-field-uid: 7
-            extended_link:
+            extended_links:
               description: |-
                 OSPFv2 Extended Link Opaque LSA, Opaque Type 8 (RFC 7684).
               x-field-uid: 8
@@ -30731,62 +30765,44 @@ components:
           - router_information
           - l1vpn
           - inter_as_te_v2
-          - extended_prefix
-          - extended_link
+          - extended_prefixes
+          - extended_links
           - ttz
           - dynamic_flooding
           - extended_inter_area_asbr
-        id:
-          description: |-
-            The Opaque ID, decoded from the least significant three octets of the LSA's Link State ID (RFC 5250 Section 3). Used to further distinguish LSAs of the same Opaque Type originated by the same router.
-          type: integer
-          format: uint32
-          minimum: 0
-          maximum: 16777215
-          x-field-uid: 4
-        router_information:
-          description: |-
-            The decoded contents of a Router Information (RI) Opaque LSA, present when
-            tlv_information is router_information (RFC 7770 Section 2).
-            An RI Opaque LSA is originated per router, so its contents describe the router
-            identified by header.advertising_router_id. Correlate it to the Router-LSA of that
-            router by matching router_lsas[].header.advertising_router_id.
-          $ref: '#/components/schemas/Ospfv2.OpaqueLsa.RouterInformation'
-          x-field-uid: 5
         traffic_engineering:
           description: |-
-            The decoded contents of a Traffic Engineering Opaque LSA, present when
-            tlv_information is traffic_engineering (RFC 3630 Section 2.4).
+            The decoded contents of a Traffic Engineering Opaque LSA
+            (RFC 3630 Section 2.4).
           $ref: '#/components/schemas/Ospfv2.OpaqueLsa.TrafficEngineering'
-          x-field-uid: 6
+          x-field-uid: 2
+        router_information:
+          description: |-
+            The decoded contents of a Router Information (RI) Opaque LSA
+            (RFC 7770 Section 2).
+            An RI Opaque LSA is originated per router, so its contents describe the router
+            identified by the parent LSA's header.advertising_router_id. Correlate it to the
+            Router-LSA of that router by matching
+            router_lsas[].header.advertising_router_id.
+          $ref: '#/components/schemas/Ospfv2.OpaqueLsa.RouterInformation'
+          x-field-uid: 3
         extended_prefixes:
           description: |-
-            The decoded OSPFv2 Extended Prefix TLVs of an Extended Prefix Opaque LSA, present
-            when tlv_information is extended_prefix. One Extended Prefix Opaque LSA can carry
-            more than one Extended Prefix TLV, each describing a different prefix
-            (RFC 7684 Section 2.1).
+            The decoded OSPFv2 Extended Prefix TLVs of an Extended Prefix Opaque LSA.
+            One Extended Prefix Opaque LSA can carry more than one Extended Prefix TLV, each
+            describing a different prefix (RFC 7684 Section 2.1).
           type: array
           items:
             $ref: '#/components/schemas/Ospfv2.OpaqueLsa.ExtendedPrefix'
-          x-field-uid: 7
+          x-field-uid: 4
         extended_links:
           description: |-
-            The decoded OSPFv2 Extended Link TLVs of an Extended Link Opaque LSA, present when
-            tlv_information is extended_link (RFC 7684 Section 3.1).
+            The decoded OSPFv2 Extended Link TLVs of an Extended Link Opaque LSA
+            (RFC 7684 Section 3.1).
           type: array
           items:
             $ref: '#/components/schemas/Ospfv2.OpaqueLsa.ExtendedLink'
-          x-field-uid: 8
-        unknown_tlvs:
-          description: |-
-            TLVs carried in the body of the Opaque LSA that are not decoded into
-            router_information, traffic_engineering, extended_prefixes or extended_links,
-            returned raw in the generic type/length/value TLV format used by all OSPFv2 Opaque
-            LSAs (RFC 7770 Section 2, RFC 8665, RFC 9492).
-          type: array
-          items:
-            $ref: '#/components/schemas/Ospfv2.OpaqueLsa.Tlv'
-          x-field-uid: 9
+          x-field-uid: 5
     Ospfv2.OpaqueLsa.RouterInformation:
       description: |-
         The decoded Router Information (RI) Opaque LSA contents, Opaque Type 4
@@ -30951,13 +30967,13 @@ components:
         type:
           description: |-
             The TLV Type field. Its meaning is scoped by the parent LSA's
-            tlv_information (IANA OSPFv2 TLV registries).
+            tlv_information.choice (IANA OSPFv2 TLV registries).
           type: string
           x-field-uid: 1
           x-enum:
             te_router_address:
               description: |-
-                Router Address, TE LSA (tlv_information traffic_engineering) TLV type 1 (RFC 3630).
+                Router Address, TE LSA (tlv_information.choice traffic_engineering) TLV type 1 (RFC 3630).
               x-field-uid: 1
             te_link:
               description: |-
@@ -31041,7 +31057,7 @@ components:
               x-field-uid: 21
             extended_prefix_tlv:
               description: |-
-                OSPFv2 Extended Prefix TLV, Extended Prefix Opaque LSA (tlv_information extended_prefix) TLV type 1 (RFC 7684).
+                OSPFv2 Extended Prefix TLV, Extended Prefix Opaque LSA (tlv_information.choice extended_prefixes) TLV type 1 (RFC 7684).
               x-field-uid: 22
             extended_prefix_range_tlv:
               description: |-
@@ -31049,11 +31065,11 @@ components:
               x-field-uid: 23
             extended_link_tlv:
               description: |-
-                OSPFv2 Extended Link TLV, Extended Link Opaque LSA (tlv_information extended_link) TLV type 1 (RFC 7684).
+                OSPFv2 Extended Link TLV, Extended Link Opaque LSA (tlv_information.choice extended_links) TLV type 1 (RFC 7684).
               x-field-uid: 24
             ttz_id:
               description: |-
-                TTZ ID TLV, TTZ LSA (tlv_information ttz) TLV type 1 (RFC 8099).
+                TTZ ID TLV, TTZ LSA (tlv_information.choice ttz) TLV type 1 (RFC 8099).
               x-field-uid: 25
             ttz_router:
               description: |-
@@ -31065,7 +31081,7 @@ components:
               x-field-uid: 27
             dynamic_flooding_area_router_ids:
               description: |-
-                OSPF Area Router IDs, Dynamic Flooding Opaque LSA (tlv_information dynamic_flooding) TLV type 1 (RFC 9667).
+                OSPF Area Router IDs, Dynamic Flooding Opaque LSA (tlv_information.choice dynamic_flooding) TLV type 1 (RFC 9667).
               x-field-uid: 28
             dynamic_flooding_path:
               description: |-
@@ -31073,7 +31089,7 @@ components:
               x-field-uid: 29
             extended_inter_area_asbr_tlv:
               description: |-
-                Extended Inter-Area ASBR, EIA-ASBR LSA (tlv_information extended_inter_area_asbr) TLV type 1 (RFC 9350 Section 10.1).
+                Extended Inter-Area ASBR, EIA-ASBR LSA (tlv_information.choice extended_inter_area_asbr) TLV type 1 (RFC 9350 Section 10.1).
               x-field-uid: 30
           enum:
           - te_router_address

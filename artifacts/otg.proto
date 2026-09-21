@@ -22422,18 +22422,18 @@ message Ospfv2NssaLsa {
 // Contents of OSPFv2 Opaque LSA - Type 9/10/11 (RFC 5250).
 // The Link State ID of an Opaque LSA is not a plain IPv4 address; it is split into
 // an Opaque Type (most significant octet) and an Opaque ID (remaining three octets),
-// decoded here as tlv_information and id (RFC 5250 Section 3). header.lsa_id carries
-// the raw, undecoded Link State ID value.
+// decoded here as tlv_information.choice and id (RFC 5250 Section 3). header.lsa_id
+// carries the raw, undecoded Link State ID value.
 // The Segment Routing and Traffic Engineering information carried by an Opaque LSA
 // is
 // reported on this object, in the LSA it was actually advertised in, rather than on
 // the
 // Router-LSA, Summary-LSA, AS-External-LSA or NSSA-LSA that describes the router, link
-// or prefix it applies to. Exactly one of router_information, traffic_engineering,
-// extended_prefixes or extended_links is populated, selected by tlv_information; every
-// other top-level TLV of the LSA is reported raw in unknown_tlvs. Each of those objects
-// documents how to correlate it back to the LSA that advertises the router, link or
-// prefix it describes.
+// or prefix it applies to. The decoded contents are reported under tlv_information,
+// whose choice names the Opaque Type and selects the contents of that Opaque Type
+// directly; every top-level TLV of the LSA that the model does not decode is reported
+// raw in unknown_tlvs. Each decoded object documents how to correlate it back to the
+// LSA that advertises the router, link or prefix it describes.
 message Ospfv2OpaqueLsa {
 
   // Contents of the LSA header.
@@ -22453,7 +22453,33 @@ message Ospfv2OpaqueLsa {
   // throughout the Autonomous System, excluding stub areas).
   optional Type.Enum type = 2;
 
-  message TlvInformation {
+  // The type of information carried in the body of the Opaque LSA, decoded from the
+  // Opaque Type in the most significant octet of the LSA's Link State ID
+  // (RFC 5250 Section 3), together with the decoded contents of that Opaque Type.
+  Ospfv2OpaqueLsaTlvInformation tlv_information = 3;
+
+  // The Opaque ID, decoded from the least significant three octets of the LSA's Link
+  // State ID (RFC 5250 Section 3). Used to further distinguish LSAs of the same Opaque
+  // Type originated by the same router.
+  optional uint32 id = 4;
+
+  // Top-level TLVs carried in the body of the Opaque LSA that are not decoded into
+  // tlv_information, returned raw in the generic type/length/value TLV format used by
+  // all OSPFv2 Opaque LSAs (RFC 7770 Section 2, RFC 8665, RFC 9492).
+  repeated Ospfv2OpaqueLsaTlv unknown_tlvs = 5;
+}
+
+// The decoded body of an OSPFv2 Opaque LSA, selected by Opaque Type
+// (RFC 5250 Section 3, IANA Opaque LSA Option Types registry).
+// choice names the Opaque Type of the LSA and, for the Opaque Types the model decodes,
+// is also the name of the field that carries the decoded contents of that Opaque Type,
+// so reading choice is enough to know what to read next.
+// The Opaque Types the model does not decode select choice alone and carry no contents
+// field; every top-level TLV of such an LSA is reported raw in the parent LSA's
+// unknown_tlvs, as is any TLV of a decoded Opaque Type that is not itself decoded.
+message Ospfv2OpaqueLsaTlvInformation {
+
+  message Choice {
     enum Enum {
       unspecified = 0;
       traffic_engineering = 1;
@@ -22462,49 +22488,37 @@ message Ospfv2OpaqueLsa {
       router_information = 4;
       l1vpn = 5;
       inter_as_te_v2 = 6;
-      extended_prefix = 7;
-      extended_link = 8;
+      extended_prefixes = 7;
+      extended_links = 8;
       ttz = 9;
       dynamic_flooding = 10;
       extended_inter_area_asbr = 11;
     }
   }
-  // The Opaque Type, decoded from the most significant octet of the LSA's Link
-  // State ID (RFC 5250 Section 3). Identifies the type of information carried in
-  // the tlvs (IANA Opaque LSA Option Types registry).
-  optional TlvInformation.Enum tlv_information = 3;
+  // The Opaque Type carried in the most significant octet of the LSA's Link State ID
+  // (RFC 5250 Section 3).
+  optional Choice.Enum choice = 1;
 
-  // The Opaque ID, decoded from the least significant three octets of the LSA's Link
-  // State ID (RFC 5250 Section 3). Used to further distinguish LSAs of the same Opaque
-  // Type originated by the same router.
-  optional uint32 id = 4;
+  // The decoded contents of a Traffic Engineering Opaque LSA
+  // (RFC 3630 Section 2.4).
+  Ospfv2OpaqueLsaTrafficEngineering traffic_engineering = 2;
 
-  // The decoded contents of a Router Information (RI) Opaque LSA, present when
-  // tlv_information is router_information (RFC 7770 Section 2).
+  // The decoded contents of a Router Information (RI) Opaque LSA
+  // (RFC 7770 Section 2).
   // An RI Opaque LSA is originated per router, so its contents describe the router
-  // identified by header.advertising_router_id. Correlate it to the Router-LSA of that
-  // router by matching router_lsas[].header.advertising_router_id.
-  Ospfv2OpaqueLsaRouterInformation router_information = 5;
+  // identified by the parent LSA's header.advertising_router_id. Correlate it to the
+  // Router-LSA of that router by matching
+  // router_lsas[].header.advertising_router_id.
+  Ospfv2OpaqueLsaRouterInformation router_information = 3;
 
-  // The decoded contents of a Traffic Engineering Opaque LSA, present when
-  // tlv_information is traffic_engineering (RFC 3630 Section 2.4).
-  Ospfv2OpaqueLsaTrafficEngineering traffic_engineering = 6;
+  // The decoded OSPFv2 Extended Prefix TLVs of an Extended Prefix Opaque LSA.
+  // One Extended Prefix Opaque LSA can carry more than one Extended Prefix TLV, each
+  // describing a different prefix (RFC 7684 Section 2.1).
+  repeated Ospfv2OpaqueLsaExtendedPrefix extended_prefixes = 4;
 
-  // The decoded OSPFv2 Extended Prefix TLVs of an Extended Prefix Opaque LSA, present
-  // when tlv_information is extended_prefix. One Extended Prefix Opaque LSA can carry
-  // more than one Extended Prefix TLV, each describing a different prefix
-  // (RFC 7684 Section 2.1).
-  repeated Ospfv2OpaqueLsaExtendedPrefix extended_prefixes = 7;
-
-  // The decoded OSPFv2 Extended Link TLVs of an Extended Link Opaque LSA, present when
-  // tlv_information is extended_link (RFC 7684 Section 3.1).
-  repeated Ospfv2OpaqueLsaExtendedLink extended_links = 8;
-
-  // TLVs carried in the body of the Opaque LSA that are not decoded into
-  // router_information, traffic_engineering, extended_prefixes or extended_links,
-  // returned raw in the generic type/length/value TLV format used by all OSPFv2 Opaque
-  // LSAs (RFC 7770 Section 2, RFC 8665, RFC 9492).
-  repeated Ospfv2OpaqueLsaTlv unknown_tlvs = 9;
+  // The decoded OSPFv2 Extended Link TLVs of an Extended Link Opaque LSA
+  // (RFC 7684 Section 3.1).
+  repeated Ospfv2OpaqueLsaExtendedLink extended_links = 5;
 }
 
 // The decoded Router Information (RI) Opaque LSA contents, Opaque Type 4
@@ -22658,7 +22672,7 @@ message Ospfv2OpaqueLsaTlv {
     }
   }
   // The TLV Type field. Its meaning is scoped by the parent LSA's
-  // tlv_information (IANA OSPFv2 TLV registries).
+  // tlv_information.choice (IANA OSPFv2 TLV registries).
   optional Type.Enum type = 1;
 
   // The TLV Length field, in octets, of the value field.

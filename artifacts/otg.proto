@@ -14831,12 +14831,42 @@ message UltraEthernetCbfcSender {
   // default = -4
   optional int32 packet_overhead = 5;
 
+  message Mapping {
+    enum Enum {
+      unspecified = 0;
+      vlan_pcp_dei = 1;
+      ipv4_dscp = 2;
+      ipv6_dscp = 3;
+      vlan_pcp_dei_and_ipv4_dscp = 4;
+      vlan_pcp_dei_and_ipv6_dscp = 5;
+    }
+  }
+  // The packet header field(s) used to classify packets into virtual channels.
+  // The mac.vlan.pcp_dei classifier may be used on its own or combined with
+  // either the IPv4 or the IPv6 ip.dscp classifier; the IPv4 and IPv6 ip.dscp
+  // classifiers cannot be combined with each other.
+  // default = Mapping.Enum.vlan_pcp_dei
+  optional Mapping.Enum mapping = 6;
+
+  message Priority {
+    enum Enum {
+      unspecified = 0;
+      vlan_pcp_dei = 1;
+      ipv4_dscp = 2;
+      ipv6_dscp = 3;
+    }
+  }
+  // The packet header field that takes precedence when a packet matches more
+  // than one active classifier while mapping it to a virtual channel.
+  // default = Priority.Enum.vlan_pcp_dei
+  optional Priority.Enum priority = 7;
+
   // CC_Update (credit consumed) message configuration.
-  UltraEthernetCbfcSenderCcMessage cc_message = 6;
+  UltraEthernetCbfcSenderCcMessage cc_message = 8;
 
   // The list of virtual channels (VCs). A maximum of 32 VCs are supported per
   // port, of which a maximum of 4 may be configured as lossless.
-  repeated UltraEthernetCbfcVc virtual_channels = 7;
+  repeated UltraEthernetCbfcVc virtual_channels = 9;
 }
 
 // CBFC receiver direction configuration.
@@ -14882,12 +14912,42 @@ message UltraEthernetCbfcReceiver {
   // default = -4
   optional int32 packet_overhead = 5;
 
+  message Mapping {
+    enum Enum {
+      unspecified = 0;
+      vlan_pcp_dei = 1;
+      ipv4_dscp = 2;
+      ipv6_dscp = 3;
+      vlan_pcp_dei_and_ipv4_dscp = 4;
+      vlan_pcp_dei_and_ipv6_dscp = 5;
+    }
+  }
+  // The packet header field(s) used to classify packets into virtual channels.
+  // The mac.vlan.pcp_dei classifier may be used on its own or combined with
+  // either the IPv4 or the IPv6 ip.dscp classifier; the IPv4 and IPv6 ip.dscp
+  // classifiers cannot be combined with each other.
+  // default = Mapping.Enum.vlan_pcp_dei
+  optional Mapping.Enum mapping = 6;
+
+  message Priority {
+    enum Enum {
+      unspecified = 0;
+      vlan_pcp_dei = 1;
+      ipv4_dscp = 2;
+      ipv6_dscp = 3;
+    }
+  }
+  // The packet header field that takes precedence when a packet matches more
+  // than one active classifier while mapping it to a virtual channel.
+  // default = Priority.Enum.vlan_pcp_dei
+  optional Priority.Enum priority = 7;
+
   // CC_Update (credit consumed) message reception configuration.
-  UltraEthernetCbfcReceiverCcMessage cc_message = 6;
+  UltraEthernetCbfcReceiverCcMessage cc_message = 8;
 
   // The list of virtual channels (VCs). A maximum of 32 VCs are supported per
   // port, of which a maximum of 4 may be configured as lossless.
-  repeated UltraEthernetCbfcVc virtual_channels = 7;
+  repeated UltraEthernetCbfcVc virtual_channels = 9;
 }
 
 // CBFC CC_Update (credit consumed) message configuration. CC_Update messages are
@@ -15001,30 +15061,19 @@ message UltraEthernetCbfcVcLossless {
   optional uint32 credit_limit = 1;
 }
 
-// The packet header field used to classify packets into a virtual channel, and
-// the associated values. At a minimum, mapping from the mac.vlan.pcp_dei and
-// ip.dscp header fields is supported.
+// The per virtual channel classifier values. Which classifier(s) are active for
+// the link is selected by the CBFC sender/receiver mapping and priority; this
+// object supplies the packet field values assigned to this VC for each classifier.
 message UltraEthernetCbfcVcMapping {
 
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      vlan_pcp_dei = 1;
-      dscp = 2;
-    }
-  }
-  // The packet header field used to classify packets into this VC.
-  // 
-  // - vlan_pcp_dei: classify by the mac.vlan.pcp_dei value(s).
-  // - dscp: classify by the ip.dscp value(s).
-  // default = Choice.Enum.vlan_pcp_dei
-  optional Choice.Enum choice = 1;
+  // The mac.vlan.pcp_dei values mapped to this VC.
+  UltraEthernetCbfcVcMappingVlanPcpDei vlan_pcp_dei = 1;
 
-  // Description missing in models
-  UltraEthernetCbfcVcMappingVlanPcpDei vlan_pcp_dei = 2;
+  // The IPv4 ip.dscp values mapped to this VC.
+  UltraEthernetCbfcVcMappingDscp ipv4_dscp = 2;
 
-  // Description missing in models
-  UltraEthernetCbfcVcMappingDscp dscp = 3;
+  // The IPv6 ip.dscp values mapped to this VC.
+  UltraEthernetCbfcVcMappingDscp ipv6_dscp = 3;
 }
 
 // VLAN PCP/DEI values that classify packets into this virtual channel.
@@ -20612,18 +20661,44 @@ message BmpServerMetric {
   optional uint64 post_policy_ipv6_unicast_routes_received = 14;
 }
 
-// The request to retrieve Ultra Ethernet (UE) per port metrics/statistics covering
-// the Link Layer Retry (LLR), Credit-based Flow Control (CBFC) and PHY Control Ordered
-// Set (CtlOS) features.
+// The request to retrieve Ultra Ethernet (UE) per port metrics/statistics. A choice
+// selects which statistics set to retrieve: the port level LLR and PHY/CtlOS counters
+// (llr_cbfc_stat), the CBFC sender per virtual channel state (sender_vc_stat), or the
+// CBFC receiver per virtual channel state (receiver_vc_stat).
 message UltraEthernetMetricsRequest {
 
-  // The names of Ultra Ethernet configurations to return results for. An empty list will
-  // return results for all Ultra Ethernet configurations.
+  // The names of the ports to return Ultra Ethernet results for. An empty list will return
+  // results for all ports that have Ultra Ethernet configured.
   // 
   // x-constraint:
-  // - /components/schemas/UltraEthernet/properties/name
+  // - /components/schemas/Port/properties/name
   // 
-  repeated string ultra_ethernet_names = 1;
+  repeated string port_names = 1;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      llr_cbfc_stat = 1;
+      sender_vc_stat = 2;
+      receiver_vc_stat = 3;
+    }
+  }
+  // The statistics set to retrieve.
+  // default = Choice.Enum.llr_cbfc_stat
+  optional Choice.Enum choice = 2;
+
+  // Description missing in models
+  UltraEthernetMetricsRequestLlrCbfcStat llr_cbfc_stat = 3;
+
+  // Description missing in models
+  UltraEthernetMetricsRequestSenderVcStat sender_vc_stat = 4;
+
+  // Description missing in models
+  UltraEthernetMetricsRequestReceiverVcStat receiver_vc_stat = 5;
+}
+
+// Request for the port level LLR and PHY/CtlOS counters.
+message UltraEthernetMetricsRequestLlrCbfcStat {
 
   message ColumnNames {
     enum Enum {
@@ -20673,24 +20748,90 @@ message UltraEthernetMetricsRequest {
       llr_transmit_state = 43;
       llr_ack_nack_transmit_state = 44;
       round_trip_time_ns = 45;
-      mean_time_between_phy_errors = 46;
-      round_trip_time_valid = 47;
+      round_trip_time_valid = 46;
+      mean_time_between_phy_errors = 47;
     }
   }
   // The requested list of column names for the result set. If the list is empty then
-  // metrics for all columns will be returned. The name of the Ultra Ethernet configuration
-  // can not be excluded. The cbfc_sender_virtual_channels and cbfc_receiver_virtual_channels
-  // per-VC array metrics are always returned and cannot be individually selected or excluded
-  // via column_names.
-  repeated ColumnNames.Enum column_names = 2;
+  // metrics for all columns will be returned. The port_name identity column can not be
+  // excluded.
+  repeated ColumnNames.Enum column_names = 1;
 }
 
-// Ultra Ethernet per port statistics information covering LLR, PHY/CtlOS and the CBFC
-// per virtual channel state. LLR/PHY counters per UE-Specification-1.0.3 Table 5-13.
+// Request for the CBFC sender per virtual channel state.
+message UltraEthernetMetricsRequestSenderVcStat {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      s_p_cu = 1;
+      received_cf_update_count = 2;
+      port_excess_credit_free_error = 3;
+      vc_state = 4;
+      excess_credit_free_error = 5;
+      s_vc_cc = 6;
+      s_vc_cf = 7;
+    }
+  }
+  // The requested list of column names for the result set. If the list is empty then
+  // metrics for all columns will be returned. The port_name and vc_id identity columns
+  // can not be excluded.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// Request for the CBFC receiver per virtual channel state.
+message UltraEthernetMetricsRequestReceiverVcStat {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      port_credit_limit_exceed_error = 1;
+      vc_state = 2;
+      credit_limit_exceed_error = 3;
+      lost_credit_err = 4;
+      r_vc_cc = 5;
+      r_vc_cf = 6;
+    }
+  }
+  // The requested list of column names for the result set. If the list is empty then
+  // metrics for all columns will be returned. The port_name and vc_id identity columns
+  // can not be excluded.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// Ultra Ethernet statistics. A choice of the port level LLR and PHY/CtlOS counters
+// (llr_cbfc), the CBFC sender per virtual channel state (sender_vc), or the CBFC receiver
+// per virtual channel state (receiver_vc).
 message UltraEthernetMetric {
 
-  // The name of the configured Ultra Ethernet instance.
-  optional string name = 1;
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      llr_cbfc = 1;
+      sender_vc = 2;
+      receiver_vc = 3;
+    }
+  }
+  // The type of Ultra Ethernet statistics carried by this metric.
+  // default = Choice.Enum.llr_cbfc
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  UltraEthernetLlrCbfcMetric llr_cbfc = 2;
+
+  // Description missing in models
+  UltraEthernetSenderVcMetric sender_vc = 3;
+
+  // Description missing in models
+  UltraEthernetReceiverVcMetric receiver_vc = 4;
+}
+
+// Ultra Ethernet per port LLR and PHY/CtlOS statistics. LLR/PHY counters per UE-Specification-1.0.3
+// Table 5-13.
+message UltraEthernetLlrCbfcMetric {
+
+  // The name of the port.
+  optional string port_name = 1;
 
   message LlrModeLocal {
     enum Enum {
@@ -20742,149 +20883,157 @@ message UltraEthernetMetric {
   optional uint64 round_trip_time_ns = 6;
 
   // Indicates whether the round_trip_time_ns measurement is currently valid.
-  optional bool round_trip_time_valid = 50;
+  optional bool round_trip_time_valid = 7;
 
   // The mean time, in seconds, between PHY errors.
-  optional double mean_time_between_phy_errors = 7;
+  optional double mean_time_between_phy_errors = 8;
 
   // Number of LLR_INIT control ordered sets transmitted.
-  optional uint64 tx_init_ctl_os = 8;
+  optional uint64 tx_init_ctl_os = 9;
 
   // Number of LLR_INIT_ECHO control ordered sets transmitted.
-  optional uint64 tx_init_echo_ctl_os = 9;
+  optional uint64 tx_init_echo_ctl_os = 10;
 
   // Number of LLR_ACK control ordered sets transmitted.
-  optional uint64 tx_ack_ctl_os = 10;
+  optional uint64 tx_ack_ctl_os = 11;
 
   // Number of LLR_NACK control ordered sets transmitted.
-  optional uint64 tx_nack_ctl_os = 11;
+  optional uint64 tx_nack_ctl_os = 12;
 
   // Number of LLR-eligible frames discarded by the LLR transmitter while in the INIT
   // or FLUSH state with a discard behavior.
-  optional uint64 tx_discard = 12;
+  optional uint64 tx_discard = 13;
 
   // Number of LLR-eligible frames transmitted with a good FCS.
-  optional uint64 tx_ok = 13;
+  optional uint64 tx_ok = 14;
 
   // Number of LLR-eligible frames transmitted with a poisoned FCS.
-  optional uint64 tx_poisoned = 14;
+  optional uint64 tx_poisoned = 15;
 
   // Number of times the transmitter completed a replay operation (exited the REPLAY state).
-  optional uint64 tx_replay_event = 15;
+  optional uint64 tx_replay_event = 16;
 
   // Number of LLR-eligible frames replayed.
-  optional uint64 replayed_packet = 16;
+  optional uint64 replayed_packet = 17;
 
   // Number of bytes replayed.
-  optional uint64 replayed_byte = 17;
+  optional uint64 replayed_byte = 18;
 
   // The current LLR transmit sequence number.
-  optional uint64 tx_seq = 18;
+  optional uint64 tx_seq = 19;
 
   // The current number of unacknowledged transmitted frames.
-  optional uint64 tx_outstanding_seq = 19;
+  optional uint64 tx_outstanding_seq = 20;
 
   // Number of LLR_INIT control ordered sets received.
-  optional uint64 rx_init_ctl_os = 20;
+  optional uint64 rx_init_ctl_os = 21;
 
   // Number of LLR_INIT_ECHO control ordered sets received.
-  optional uint64 rx_init_echo_ctl_os = 21;
+  optional uint64 rx_init_echo_ctl_os = 22;
 
   // Number of LLR_ACK control ordered sets received.
-  optional uint64 rx_ack_ctl_os = 22;
+  optional uint64 rx_ack_ctl_os = 23;
 
   // Number of LLR_NACK control ordered sets received.
-  optional uint64 rx_nack_ctl_os = 23;
+  optional uint64 rx_nack_ctl_os = 24;
 
   // Number of LLR_ACK/LLR_NACK control ordered sets received with a sequence number error.
-  optional uint64 rx_ack_nack_seq_error = 24;
+  optional uint64 rx_ack_nack_seq_error = 25;
 
   // Number of LLR-eligible frames received with a good FCS.
-  optional uint64 rx_ok = 25;
+  optional uint64 rx_ok = 26;
 
   // Number of LLR-eligible frames received with a poisoned FCS.
-  optional uint64 rx_poisoned = 26;
+  optional uint64 rx_poisoned = 27;
 
   // Number of LLR-eligible frames received with a bad FCS.
-  optional uint64 rx_bad = 27;
+  optional uint64 rx_bad = 28;
 
   // Number of LLR-eligible frames received with a good FCS that had the expected sequence
   // number.
-  optional uint64 rx_expected_seq_good = 28;
+  optional uint64 rx_expected_seq_good = 29;
 
   // Number of LLR-eligible frames received with a poisoned FCS that had the expected
   // sequence number.
-  optional uint64 rx_expected_seq_poisoned = 29;
+  optional uint64 rx_expected_seq_poisoned = 30;
 
   // Number of LLR-eligible frames received with a bad FCS that had the expected sequence
   // number.
-  optional uint64 rx_expected_seq_bad = 30;
+  optional uint64 rx_expected_seq_bad = 31;
 
   // Number of LLR-eligible frames received that indicated a missing frame in the sequence.
-  optional uint64 rx_missing_seq = 31;
+  optional uint64 rx_missing_seq = 32;
 
   // Number of LLR-eligible frames received that had a duplicate sequence number.
-  optional uint64 rx_duplicate_seq = 32;
+  optional uint64 rx_duplicate_seq = 33;
 
   // Number of times the receiver has detected the start of a replay.
-  optional uint64 rx_replay = 33;
+  optional uint64 rx_replay = 34;
 
   // The current expected LLR receive sequence number.
-  optional uint64 rx_next_seq = 34;
+  optional uint64 rx_next_seq = 35;
 
   // The minimum observed spacing between received LLR_INIT control ordered sets.
-  optional uint64 llr_init_ctl_os_spacing_min = 35;
+  optional uint64 llr_init_ctl_os_spacing_min = 36;
 
   // Number of received LLR_INIT control ordered set minimum spacing violations.
-  optional uint64 llr_init_ctl_os_spacing_error = 36;
+  optional uint64 llr_init_ctl_os_spacing_error = 37;
 
   // The minimum observed spacing between received LLR_ACK/LLR_NACK control ordered sets.
-  optional uint64 llr_ack_nack_ctl_os_spacing_min = 37;
+  optional uint64 llr_ack_nack_ctl_os_spacing_min = 38;
 
   // Number of received LLR_ACK/LLR_NACK control ordered set minimum spacing violations.
-  optional uint64 llr_ack_nack_ctl_os_spacing_error = 38;
+  optional uint64 llr_ack_nack_ctl_os_spacing_error = 39;
 
   // Number of received LLR_INIT_ECHO control ordered sets whose init sequence did not
   // match the transmit sequence.
-  optional uint64 llr_init_echo_init_seq_mismatch = 39;
+  optional uint64 llr_init_echo_init_seq_mismatch = 40;
 
   // Number of received LLR_ACK control ordered sets dropped.
-  optional uint64 rx_ack_ctl_os_dropped = 40;
+  optional uint64 rx_ack_ctl_os_dropped = 41;
 
   // Number of received LLR_NACK control ordered sets dropped.
-  optional uint64 rx_nack_ctl_os_dropped = 41;
+  optional uint64 rx_nack_ctl_os_dropped = 42;
 
   // Number of received LLR_INIT control ordered sets dropped.
-  optional uint64 rx_init_ctl_os_dropped = 42;
+  optional uint64 rx_init_ctl_os_dropped = 43;
 
   // Number of received LLR_INIT_ECHO control ordered sets dropped.
-  optional uint64 rx_init_echo_ctl_os_dropped = 43;
+  optional uint64 rx_init_echo_ctl_os_dropped = 44;
 
   // Number of received UE control ordered sets with a frame header error.
-  optional uint64 ue_rx_ctl_os_frame_header_error = 44;
+  optional uint64 ue_rx_ctl_os_frame_header_error = 45;
 
   // Number of received UE control ordered set intra-frame spacing violations.
-  optional uint64 ue_rx_ctl_os_intra_frame_spacing_error = 45;
+  optional uint64 ue_rx_ctl_os_intra_frame_spacing_error = 46;
 
   // The minimum observed spacing between received UE control ordered sets.
-  optional uint64 ue_ctl_os_spacing_min = 46;
+  optional uint64 ue_ctl_os_spacing_min = 47;
 
   // Number of received UE control ordered set minimum spacing violations.
-  optional uint64 ue_ctl_os_spacing_error = 47;
-
-  // The CBFC sender per virtual channel credit state.
-  repeated UltraEthernetCbfcVcMetric cbfc_sender_virtual_channels = 48;
-
-  // The CBFC receiver per virtual channel credit state.
-  repeated UltraEthernetCbfcVcMetric cbfc_receiver_virtual_channels = 49;
+  optional uint64 ue_ctl_os_spacing_error = 48;
 }
 
-// CBFC per virtual channel (VC) credit state. Credit counters per UE-Specification-1.0.3
-// Tables 5-15/5-16; credit reconciliation Section 5.2.9.
-message UltraEthernetCbfcVcMetric {
+// CBFC sender per virtual channel (VC) state (the Port/VC State of the CBFC sender).
+// Credit counters per UE-Specification-1.0.3 Tables 5-15/5-16.
+message UltraEthernetSenderVcMetric {
+
+  // The name of the port.
+  optional string port_name = 1;
+
+  // The sender port credits in use (S_P_CU) - a port level value repeated for each VC
+  // row of the port.
+  optional uint64 s_p_cu = 2;
+
+  // The number of CF_Update messages received by the sender - a port level value repeated
+  // for each VC row of the port.
+  optional uint64 received_cf_update_count = 3;
+
+  // Indicates whether a port level excess credit freed condition was detected.
+  optional bool port_excess_credit_free_error = 4;
 
   // The zero based VC number.
-  optional uint32 vc_id = 1;
+  optional uint32 vc_id = 5;
 
   message VcState {
     enum Enum {
@@ -20894,29 +21043,58 @@ message UltraEthernetCbfcVcMetric {
     }
   }
   // The current operational state of the VC.
-  optional VcState.Enum vc_state = 2;
-
-  // The credits consumed counter for this VC (S_VC_CC for the sender or R_VC_CC for the
-  // receiver). A 20-bit cyclic counter (modulo 2^20) per UE-Specification-1.0.3 Section
-  // 5.2.
-  optional uint64 credits_consumed = 3;
-
-  // The credits freed counter for this VC (S_VC_CF for the sender or R_VC_CF for the
-  // receiver). A 15-bit cyclic counter (modulo 2^15) per UE-Specification-1.0.3 Section
-  // 5.2.
-  optional uint64 credits_freed = 4;
-
-  // Indicates whether a credit limit exceeded condition was detected on this VC when
-  // the sender credit mode is per VC.
-  optional bool credit_limit_exceeded_error = 5;
+  optional VcState.Enum vc_state = 6;
 
   // Indicates whether an excess credit freed condition was detected on this VC when the
-  // sender credit mode is per VC.
-  optional bool excess_credit_freed_error = 6;
+  // credit mode is per_vc.
+  optional bool excess_credit_free_error = 7;
 
-  // Indicates whether a lost credit condition was detected on this VC when the credit
-  // mode is per VC.
-  optional bool lost_credit_error = 7;
+  // The sender credits consumed counter for this VC (S_VC_CC). A 20-bit cyclic counter
+  // (modulo 2^20) per UE-Specification-1.0.3 Section 5.2.
+  optional uint64 s_vc_cc = 8;
+
+  // The sender credits freed counter for this VC (S_VC_CF). A 15-bit cyclic counter (modulo
+  // 2^15) per UE-Specification-1.0.3 Section 5.2.
+  optional uint64 s_vc_cf = 9;
+}
+
+// CBFC receiver per virtual channel (VC) state (the Port/VC State of the CBFC receiver).
+// Credit counters per UE-Specification-1.0.3 Tables 5-15/5-16.
+message UltraEthernetReceiverVcMetric {
+
+  // The name of the port.
+  optional string port_name = 1;
+
+  // Indicates whether a port level credit limit exceeded condition was detected.
+  optional bool port_credit_limit_exceed_error = 2;
+
+  // The zero based VC number.
+  optional uint32 vc_id = 3;
+
+  message VcState {
+    enum Enum {
+      unspecified = 0;
+      best_effort = 1;
+      lossless = 2;
+    }
+  }
+  // The current operational state of the VC.
+  optional VcState.Enum vc_state = 4;
+
+  // Indicates whether a credit limit exceeded condition was detected on this VC when
+  // the credit mode is per_vc.
+  optional bool credit_limit_exceed_error = 5;
+
+  // Indicates whether a lost credit condition was detected on this VC.
+  optional bool lost_credit_err = 6;
+
+  // The receiver credits consumed counter for this VC (R_VC_CC). A 20-bit cyclic counter
+  // (modulo 2^20) per UE-Specification-1.0.3 Section 5.2.
+  optional uint64 r_vc_cc = 7;
+
+  // The receiver credits freed counter for this VC (R_VC_CF). A 15-bit cyclic counter
+  // (modulo 2^15) per UE-Specification-1.0.3 Section 5.2.
+  optional uint64 r_vc_cf = 8;
 }
 
 // Request to traffic generator for states of choice

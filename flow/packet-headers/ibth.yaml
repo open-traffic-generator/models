@@ -1,0 +1,2597 @@
+components:
+  schemas:
+    Flow.IbthMessage:
+      description: >-
+        Composite InfiniBand Transport Header (IBTH) / RoCEv2 message (IBTA
+        Volume 1, Chapter 9 - Transport Layer). Bundles the mandatory Base
+        Transport Header (BTH) with whichever extended transport header(s)
+        the selected transport type and operation require. The wire-format
+        BTH OpCode (IBTA Volume 1, Section 9.7, Table 41) is fully derived
+        from choice plus the nested operation/sequence choices and is never
+        an independently settable field.
+      type: object
+      properties:
+        choice:
+          description: >-
+            InfiniBand transport service type (IBTA Volume 1, Section 9.7,
+            Table 41). Sets the upper bits of the derived BTH OpCode and
+            determines which operations and extended headers are valid.
+          type: string
+          default: reliable_connection
+          x-field-uid: 1
+          x-enum:
+            reliable_connection:
+              x-field-uid: 1
+            unreliable_connection:
+              x-field-uid: 2
+            reliable_datagram:
+              x-field-uid: 3
+            unreliable_datagram:
+              x-field-uid: 4
+            congestion_notification:
+              x-field-uid: 5
+        reliable_connection:
+          $ref: '#/components/schemas/Flow.Ibth.Rc'
+          x-field-uid: 2
+        unreliable_connection:
+          $ref: '#/components/schemas/Flow.Ibth.Uc'
+          x-field-uid: 3
+        reliable_datagram:
+          $ref: '#/components/schemas/Flow.Ibth.Rd'
+          x-field-uid: 4
+        unreliable_datagram:
+          $ref: '#/components/schemas/Flow.Ibth.Ud'
+          x-field-uid: 5
+        congestion_notification:
+          $ref: '#/components/schemas/Flow.Ibth.Cnp'
+          x-field-uid: 6
+        icrc:
+          x-field-pattern:
+            description: >-
+              Invariant CRC (ICRC, IBTA Volume 1 Annex A17 - RoCEv2). This is
+              a 32-bit trailer transmitted after the payload and pad bytes and
+              immediately before the Ethernet FCS, not adjacent to the BTH.
+              It is a standard Ethernet CRC-32 computed over an 8-byte
+              pseudo-LRH of 0xFF followed by the packet from the IP header
+              onward, with the mutable fields (IPv4 ToS, TTL and header
+              checksum; IPv6 traffic class, flow label and hop limit; UDP
+              checksum; BTH reserved byte 4) treated as all ones. When choice
+              is auto the implementation SHOULD compute and insert the
+              correct value. An implementation that cannot compute it MAY
+              transmit the default value 0, which is sufficient for
+              intermediate switches that do not inspect the ICRC but will be
+              discarded by any receiver that validates it. Use value or
+              values to transmit a specific (for example deliberately
+              incorrect) ICRC.
+            format: integer
+            length: 32
+            default: 0
+            features: [auto, count]
+          x-field-uid: 7
+
+    # -----------------------------------------------------------------
+    # Reusable extended transport header building blocks
+    # (IBTA Volume 1, Chapter 9 - each carried after the BTH depending on
+    # transport_type and operation; see the individual leaf schemas below
+    # for exactly when each one is present).
+    # -----------------------------------------------------------------
+
+    Flow.Ibth.Reth:
+      description: >-
+        RDMA Extended Transport Header (RETH, IBTA Volume 1, Section 9.4.1).
+        Carried on RDMA WRITE First/Only and RDMA READ Request packets.
+      type: object
+      properties:
+        virtual_address:
+          x-field-pattern:
+            description: Start of the remote virtual address to read or write.
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        r_key:
+          x-field-pattern:
+            description: Remote memory key authorizing access to virtual_address.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        dma_length:
+          x-field-pattern:
+            description: Number of bytes to transfer starting at virtual_address.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 3
+
+    Flow.Ibth.Aeth:
+      description: >-
+        ACK Extended Transport Header (AETH, IBTA Volume 1, Section 9.4.2).
+        Carried on every ACKNOWLEDGE packet and on RDMA READ Response
+        First/Last/Only packets.
+      type: object
+      properties:
+        syndrome:
+          x-field-pattern:
+            description: >-
+              ACK/NAK type (top 3 bits) and credit count or NAK code
+              (bottom 5 bits).
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        msn:
+          x-field-pattern:
+            description: Message Sequence Number of the last fully completed message.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 2
+
+    Flow.Ibth.AtomicEth:
+      description: >-
+        Atomic Extended Transport Header (AtomicETH, IBTA Volume 1, Table
+        40). Carried on Compare&Swap and Fetch&Add request packets.
+        Spec-accurate 4-field, 28-byte layout - operands are a fixed 8
+        bytes each, with no explicit length field.
+      type: object
+      properties:
+        virtual_address:
+          x-field-pattern:
+            description: Start of the remote 8-byte location to operate on.
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        r_key:
+          x-field-pattern:
+            description: Remote memory key authorizing access to virtual_address.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        swap_or_add_data:
+          x-field-pattern:
+            description: >-
+              Swap value for Compare&Swap, or the addend value for
+              Fetch&Add.
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        compare_data:
+          x-field-pattern:
+            description: >-
+              Compare value for Compare&Swap. Ignored by the responder for
+              Fetch&Add.
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 4
+
+    Flow.Ibth.Rdeth:
+      description: >-
+        Reliable Datagram Extended Transport Header (RDETH, IBTA Volume 1,
+        Section 9.4.3). Carried on every Reliable Datagram (RD) transport
+        packet, ahead of any other extended header for that packet.
+      type: object
+      properties:
+        reserved:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        ee_context:
+          x-field-pattern:
+            description: End-to-End context identifying the RD channel.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 2
+
+    Flow.Ibth.Deth:
+      description: >-
+        Datagram Extended Transport Header (DETH, IBTA Volume 1, Section
+        9.4.5). Carried on every Unreliable Datagram (UD) transport packet.
+      type: object
+      properties:
+        q_key:
+          x-field-pattern:
+            description: Qualifier key validating the sender's right to send to dest_qp.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        reserved:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        src_qp:
+          x-field-pattern:
+            description: Source queue pair number of the sender.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 3
+
+    Flow.Ibth.ImmDt:
+      description: >-
+        Immediate Data Extended Transport Header (ImmDt, IBTA Volume 1,
+        Section 9.4.4). Carried on SEND and RDMA WRITE Last/Only packets
+        whose OpCode selects the "...with Immediate" variant; delivered
+        directly to the responder's completion queue entry.
+      type: object
+      properties:
+        data:
+          x-field-pattern:
+            description: Immediate data value, opaque to the transport.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 1
+
+    Flow.Ibth.Ieth:
+      description: >-
+        Invalidate Extended Transport Header (IETH, IBTA Volume 1, Section
+        9.4.6). Carried on Send Last/Only packets whose OpCode selects the
+        "...with Invalidate" variant (IBTA Volume 1, Section 9.7, Table 41,
+        OpCodes 0x16/0x17 - defined for Reliable Connection transport
+        only). The carried r_key is invalidated by the responder on
+        receipt.
+      type: object
+      properties:
+        r_key:
+          x-field-pattern:
+            description: R_Key to invalidate on the responder.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 1
+
+    # -----------------------------------------------------------------
+    # Reliable Connection (RC) transport
+    # -----------------------------------------------------------------
+
+    Flow.Ibth.Rc:
+      description: >-
+        Reliable Connection (RC) transport operations (IBTA Volume 1,
+        Section 9.7, Table 41, OpCode prefix 000). RC is connection-
+        oriented and acknowledged, and is the transport service type used
+        by the large majority of real-world RoCEv2 traffic (RDMA WRITE/READ
+        for AI/ML training fabrics and NVMe-oF storage).
+      type: object
+      properties:
+        choice:
+          description: >-
+            Selects the RC operation, which determines the derived BTH
+            OpCode and which extended header(s) follow the BTH.
+          type: string
+          default: send
+          x-field-uid: 1
+          x-enum:
+            send:
+              x-field-uid: 1
+            write:
+              x-field-uid: 2
+            read_request:
+              x-field-uid: 3
+            read_response:
+              x-field-uid: 4
+            ack:
+              x-field-uid: 5
+            atomic:
+              x-field-uid: 6
+            atomic_ack:
+              x-field-uid: 7
+        send:
+          $ref: '#/components/schemas/Flow.Ibth.Rc.Send'
+          x-field-uid: 2
+        write:
+          $ref: '#/components/schemas/Flow.Ibth.Rc.Write'
+          x-field-uid: 3
+        read_request:
+          $ref: '#/components/schemas/Flow.Ibth.Rc.ReadRequest'
+          x-field-uid: 4
+        read_response:
+          $ref: '#/components/schemas/Flow.Ibth.Rc.ReadResponse'
+          x-field-uid: 5
+        ack:
+          $ref: '#/components/schemas/Flow.Ibth.Rc.Ack'
+          x-field-uid: 6
+        atomic:
+          $ref: '#/components/schemas/Flow.Ibth.Rc.Atomic'
+          x-field-uid: 7
+        atomic_ack:
+          $ref: '#/components/schemas/Flow.Ibth.Rc.AtomicAck'
+          x-field-uid: 8
+
+    Flow.Ibth.Rc.Send:
+      description: >-
+        RC SEND First/Middle/Last/Only (IBTA Volume 1, Section 9.7, Table
+        41, OpCodes 0x00-0x05). Carries BTH only, unless immediate_data or
+        invalidate is set.
+      type: object
+      properties:
+        sequence:
+          description: Packet position within a multi-packet SEND message.
+          type: string
+          default: only
+          x-field-uid: 1
+          x-enum:
+            first:
+              x-field-uid: 1
+            middle:
+              x-field-uid: 2
+            last:
+              x-field-uid: 3
+            only:
+              x-field-uid: 4
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 6
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 7
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 10
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 13
+        immediate_data:
+          $ref: '#/components/schemas/Flow.Ibth.ImmDt'
+          description: >-
+            When present, selects the SEND "...with Immediate" OpCode
+            variant. Only valid when sequence is last or only, and mutually
+            exclusive with invalidate. Omit to suppress Immediate Data.
+          x-field-uid: 14
+        invalidate:
+          $ref: '#/components/schemas/Flow.Ibth.Ieth'
+          description: >-
+            When present, selects the SEND "...with Invalidate" OpCode
+            variant. Only valid when sequence is last or only, and mutually
+            exclusive with immediate_data. Omit to suppress Invalidate.
+          x-field-uid: 15
+
+    Flow.Ibth.Rc.Write:
+      description: >-
+        RC RDMA WRITE First/Middle/Last/Only (IBTA Volume 1, Section 9.7,
+        Table 41, OpCodes 0x06-0x0B). RETH is only carried on first/only;
+        immediate_data is only valid on last/only.
+      type: object
+      properties:
+        sequence:
+          description: Packet position within a multi-packet RDMA WRITE message.
+          type: string
+          default: only
+          x-field-uid: 1
+          x-enum:
+            first:
+              x-field-uid: 1
+            middle:
+              x-field-uid: 2
+            last:
+              x-field-uid: 3
+            only:
+              x-field-uid: 4
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 6
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 7
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 10
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 13
+        reth:
+          $ref: '#/components/schemas/Flow.Ibth.Reth'
+          description: >-
+            Only meaningful when sequence is first or only - RETH is not
+            carried on middle/last WRITE packets. Omit on middle/last.
+          x-field-uid: 14
+        immediate_data:
+          $ref: '#/components/schemas/Flow.Ibth.ImmDt'
+          description: >-
+            When present, selects the RDMA WRITE "...with Immediate" OpCode
+            variant. Only valid when sequence is last or only.
+          x-field-uid: 15
+
+    Flow.Ibth.Rc.ReadRequest:
+      description: >-
+        RC RDMA READ Request (IBTA Volume 1, Section 9.7, Table 41, OpCode
+        0x0C). Always a single packet; always carries RETH.
+      type: object
+      properties:
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 5
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 6
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 9
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        reth:
+          $ref: '#/components/schemas/Flow.Ibth.Reth'
+          description: Always present for RDMA READ Request packets.
+          x-field-uid: 13
+
+    Flow.Ibth.Rc.ReadResponse:
+      description: >-
+        RC RDMA READ Response First/Middle/Last/Only (IBTA Volume 1,
+        Section 9.7, Table 41, OpCodes 0x0D-0x10). AETH is carried on
+        first/last/only; middle packets carry BTH only.
+      type: object
+      properties:
+        sequence:
+          description: Packet position within a multi-packet RDMA READ response.
+          type: string
+          default: only
+          x-field-uid: 1
+          x-enum:
+            first:
+              x-field-uid: 1
+            middle:
+              x-field-uid: 2
+            last:
+              x-field-uid: 3
+            only:
+              x-field-uid: 4
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 6
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 7
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 10
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 13
+        aeth:
+          $ref: '#/components/schemas/Flow.Ibth.Aeth'
+          description: >-
+            Only meaningful when sequence is first, last, or only - not
+            carried on middle response packets. Omit on middle.
+          x-field-uid: 14
+
+    Flow.Ibth.Rc.Ack:
+      description: >-
+        RC ACKNOWLEDGE (IBTA Volume 1, Section 9.7, Table 41, OpCode 0x11).
+        Always a single packet; always carries AETH.
+      type: object
+      properties:
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 5
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 6
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 9
+        reserved1:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. ACKNOWLEDGE packets never
+              request a further ACK, so the ack_req bit position is
+              reserved here rather than settable.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        psn:
+          x-field-pattern:
+            description: Packet sequence number being acknowledged.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        aeth:
+          $ref: '#/components/schemas/Flow.Ibth.Aeth'
+          description: Always present for ACKNOWLEDGE packets.
+          x-field-uid: 12
+
+    Flow.Ibth.Rc.Atomic:
+      description: >-
+        RC Compare&Swap / Fetch&Add request (IBTA Volume 1, Section 9.7,
+        Table 41, OpCodes 0x13/0x14). Always a single packet; always
+        carries AtomicETH.
+      type: object
+      properties:
+        atomic_op:
+          description: Selects Compare&Swap or Fetch&Add.
+          type: string
+          default: fetch_add
+          x-field-uid: 1
+          x-enum:
+            compare_swap:
+              x-field-uid: 1
+            fetch_add:
+              x-field-uid: 2
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 6
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 7
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 10
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 13
+        atomic_eth:
+          $ref: '#/components/schemas/Flow.Ibth.AtomicEth'
+          description: Always present for atomic request packets.
+          x-field-uid: 14
+
+    Flow.Ibth.Rc.AtomicAck:
+      description: >-
+        RC ATOMIC Acknowledge (IBTA Volume 1, Section 9.7, Table 41, OpCode
+        0x12). Always a single packet; carries AETH followed by 8 bytes of
+        original remote data (the pre-operation value read from the
+        addressed location).
+      type: object
+      properties:
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 5
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 6
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 9
+        reserved1:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. ATOMIC Acknowledge packets
+              never request a further ACK, so the ack_req bit position is
+              reserved here rather than settable.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        psn:
+          x-field-pattern:
+            description: Packet sequence number being acknowledged.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        aeth:
+          $ref: '#/components/schemas/Flow.Ibth.Aeth'
+          description: Always present for ATOMIC Acknowledge packets.
+          x-field-uid: 12
+        orig_remote_data:
+          x-field-pattern:
+            description: >-
+              Value read from the remote location before the atomic
+              operation was applied.
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 13
+
+    # -----------------------------------------------------------------
+    # Unreliable Connection (UC) transport
+    # -----------------------------------------------------------------
+
+    Flow.Ibth.Uc:
+      description: >-
+        Unreliable Connection (UC) transport operations (IBTA Volume 1,
+        Section 9.7, Table 41, OpCode prefix 001). UC is connection-
+        oriented but unacknowledged - there is no ACKNOWLEDGE OpCode, and
+        RDMA READ / Atomic operations are not defined for this transport.
+      type: object
+      properties:
+        choice:
+          description: >-
+            Selects the UC operation, which determines the derived BTH
+            OpCode and which extended header(s) follow the BTH.
+          type: string
+          default: send
+          x-field-uid: 1
+          x-enum:
+            send:
+              x-field-uid: 1
+            write:
+              x-field-uid: 2
+        send:
+          $ref: '#/components/schemas/Flow.Ibth.Uc.Send'
+          x-field-uid: 2
+        write:
+          $ref: '#/components/schemas/Flow.Ibth.Uc.Write'
+          x-field-uid: 3
+
+    Flow.Ibth.Uc.Send:
+      description: >-
+        UC SEND First/Middle/Last/Only (IBTA Volume 1, Section 9.7, Table
+        41, OpCodes 0x20-0x25). Carries BTH only, unless immediate_data is
+        set. IETH (Invalidate) is not defined for UC transport.
+      type: object
+      properties:
+        sequence:
+          description: Packet position within a multi-packet SEND message.
+          type: string
+          default: only
+          x-field-uid: 1
+          x-enum:
+            first:
+              x-field-uid: 1
+            middle:
+              x-field-uid: 2
+            last:
+              x-field-uid: 3
+            only:
+              x-field-uid: 4
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 5
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 6
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        reserved0:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. UC has no migration state, so
+              this reserves both the MigReq bit position and the classic
+              6-bit reserved field.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 9
+        reserved1:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. UC is unacknowledged, so the
+              AckReq bit position is reserved here rather than settable.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        immediate_data:
+          $ref: '#/components/schemas/Flow.Ibth.ImmDt'
+          description: >-
+            When present, selects the SEND "...with Immediate" OpCode
+            variant. Only valid when sequence is last or only.
+          x-field-uid: 12
+
+    Flow.Ibth.Uc.Write:
+      description: >-
+        UC RDMA WRITE First/Middle/Last/Only (IBTA Volume 1, Section 9.7,
+        Table 41, OpCodes 0x26-0x2B). RETH is only carried on first/only;
+        immediate_data is only valid on last/only.
+      type: object
+      properties:
+        sequence:
+          description: Packet position within a multi-packet RDMA WRITE message.
+          type: string
+          default: only
+          x-field-uid: 1
+          x-enum:
+            first:
+              x-field-uid: 1
+            middle:
+              x-field-uid: 2
+            last:
+              x-field-uid: 3
+            only:
+              x-field-uid: 4
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 5
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 6
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        reserved0:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. UC has no migration state, so
+              this reserves both the MigReq bit position and the classic
+              6-bit reserved field.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 9
+        reserved1:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. UC is unacknowledged, so the
+              AckReq bit position is reserved here rather than settable.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        reth:
+          $ref: '#/components/schemas/Flow.Ibth.Reth'
+          description: >-
+            Only meaningful when sequence is first or only. Omit on
+            middle/last.
+          x-field-uid: 12
+        immediate_data:
+          $ref: '#/components/schemas/Flow.Ibth.ImmDt'
+          description: >-
+            When present, selects the RDMA WRITE "...with Immediate" OpCode
+            variant. Only valid when sequence is last or only.
+          x-field-uid: 13
+
+    # -----------------------------------------------------------------
+    # Reliable Datagram (RD) transport
+    # -----------------------------------------------------------------
+
+    Flow.Ibth.Rd:
+      description: >-
+        Reliable Datagram (RD) transport operations (IBTA Volume 1, Section
+        9.7, Table 41, OpCode prefix 010). RD multiplexes reliable,
+        acknowledged traffic between many queue pairs over a shared
+        End-to-End context (RDETH), mirroring RC's operation set. No
+        current-generation NIC (ConnectX, BCM, Intel) implements RD
+        transport - model this only for spec-completeness or an explicit
+        interop/conformance requirement against legacy gear.
+      type: object
+      properties:
+        choice:
+          description: >-
+            Selects the RD operation, which determines the derived BTH
+            OpCode and which extended header(s) follow BTH + RDETH.
+          type: string
+          default: send
+          x-field-uid: 1
+          x-enum:
+            send:
+              x-field-uid: 1
+            write:
+              x-field-uid: 2
+            read_request:
+              x-field-uid: 3
+            read_response:
+              x-field-uid: 4
+            ack:
+              x-field-uid: 5
+            atomic:
+              x-field-uid: 6
+            atomic_ack:
+              x-field-uid: 7
+        send:
+          $ref: '#/components/schemas/Flow.Ibth.Rd.Send'
+          x-field-uid: 2
+        write:
+          $ref: '#/components/schemas/Flow.Ibth.Rd.Write'
+          x-field-uid: 3
+        read_request:
+          $ref: '#/components/schemas/Flow.Ibth.Rd.ReadRequest'
+          x-field-uid: 4
+        read_response:
+          $ref: '#/components/schemas/Flow.Ibth.Rd.ReadResponse'
+          x-field-uid: 5
+        ack:
+          $ref: '#/components/schemas/Flow.Ibth.Rd.Ack'
+          x-field-uid: 6
+        atomic:
+          $ref: '#/components/schemas/Flow.Ibth.Rd.Atomic'
+          x-field-uid: 7
+        atomic_ack:
+          $ref: '#/components/schemas/Flow.Ibth.Rd.AtomicAck'
+          x-field-uid: 8
+
+    Flow.Ibth.Rd.Send:
+      description: >-
+        RD SEND First/Middle/Last/Only (IBTA Volume 1, Section 9.7, Table
+        41, OpCodes 0x40-0x45). Carries BTH + RDETH, unless immediate_data
+        is set. IETH (Invalidate) is not defined for RD transport.
+      type: object
+      properties:
+        sequence:
+          description: Packet position within a multi-packet SEND message.
+          type: string
+          default: only
+          x-field-uid: 1
+          x-enum:
+            first:
+              x-field-uid: 1
+            middle:
+              x-field-uid: 2
+            last:
+              x-field-uid: 3
+            only:
+              x-field-uid: 4
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 6
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 7
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 10
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 13
+        rdeth:
+          $ref: '#/components/schemas/Flow.Ibth.Rdeth'
+          description: Always present, ahead of any other header, on RD transport.
+          x-field-uid: 14
+        immediate_data:
+          $ref: '#/components/schemas/Flow.Ibth.ImmDt'
+          description: >-
+            When present, selects the SEND "...with Immediate" OpCode
+            variant. Only valid when sequence is last or only.
+          x-field-uid: 15
+
+    Flow.Ibth.Rd.Write:
+      description: >-
+        RD RDMA WRITE First/Middle/Last/Only (IBTA Volume 1, Section 9.7,
+        Table 41, OpCodes 0x46-0x4B). RETH is only carried on first/only;
+        immediate_data is only valid on last/only.
+      type: object
+      properties:
+        sequence:
+          description: Packet position within a multi-packet RDMA WRITE message.
+          type: string
+          default: only
+          x-field-uid: 1
+          x-enum:
+            first:
+              x-field-uid: 1
+            middle:
+              x-field-uid: 2
+            last:
+              x-field-uid: 3
+            only:
+              x-field-uid: 4
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 6
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 7
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 10
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 13
+        rdeth:
+          $ref: '#/components/schemas/Flow.Ibth.Rdeth'
+          description: Always present, ahead of any other header, on RD transport.
+          x-field-uid: 14
+        reth:
+          $ref: '#/components/schemas/Flow.Ibth.Reth'
+          description: >-
+            Only meaningful when sequence is first or only. Omit on
+            middle/last.
+          x-field-uid: 15
+        immediate_data:
+          $ref: '#/components/schemas/Flow.Ibth.ImmDt'
+          description: >-
+            When present, selects the RDMA WRITE "...with Immediate" OpCode
+            variant. Only valid when sequence is last or only.
+          x-field-uid: 16
+
+    Flow.Ibth.Rd.ReadRequest:
+      description: >-
+        RD RDMA READ Request (IBTA Volume 1, Section 9.7, Table 41, OpCode
+        0x4C). Always a single packet; always carries RDETH + RETH.
+      type: object
+      properties:
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 5
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 6
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 9
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        rdeth:
+          $ref: '#/components/schemas/Flow.Ibth.Rdeth'
+          description: Always present, ahead of any other header, on RD transport.
+          x-field-uid: 13
+        reth:
+          $ref: '#/components/schemas/Flow.Ibth.Reth'
+          description: Always present for RDMA READ Request packets.
+          x-field-uid: 14
+
+    Flow.Ibth.Rd.ReadResponse:
+      description: >-
+        RD RDMA READ Response First/Middle/Last/Only (IBTA Volume 1,
+        Section 9.7, Table 41, OpCodes 0x4D-0x50). AETH is carried on
+        first/last/only; middle packets carry BTH + RDETH only.
+      type: object
+      properties:
+        sequence:
+          description: Packet position within a multi-packet RDMA READ response.
+          type: string
+          default: only
+          x-field-uid: 1
+          x-enum:
+            first:
+              x-field-uid: 1
+            middle:
+              x-field-uid: 2
+            last:
+              x-field-uid: 3
+            only:
+              x-field-uid: 4
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 6
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 7
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 10
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 13
+        rdeth:
+          $ref: '#/components/schemas/Flow.Ibth.Rdeth'
+          description: Always present, ahead of any other header, on RD transport.
+          x-field-uid: 14
+        aeth:
+          $ref: '#/components/schemas/Flow.Ibth.Aeth'
+          description: >-
+            Only meaningful when sequence is first, last, or only - not
+            carried on middle response packets. Omit on middle.
+          x-field-uid: 15
+
+    Flow.Ibth.Rd.Ack:
+      description: >-
+        RD ACKNOWLEDGE (IBTA Volume 1, Section 9.7, Table 41, OpCode 0x51).
+        Always a single packet; always carries RDETH + AETH.
+      type: object
+      properties:
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 5
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 6
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 9
+        reserved1:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. ACKNOWLEDGE packets never
+              request a further ACK, so the ack_req bit position is
+              reserved here rather than settable.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        psn:
+          x-field-pattern:
+            description: Packet sequence number being acknowledged.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        rdeth:
+          $ref: '#/components/schemas/Flow.Ibth.Rdeth'
+          description: Always present, ahead of any other header, on RD transport.
+          x-field-uid: 12
+        aeth:
+          $ref: '#/components/schemas/Flow.Ibth.Aeth'
+          description: Always present for ACKNOWLEDGE packets.
+          x-field-uid: 13
+
+    Flow.Ibth.Rd.Atomic:
+      description: >-
+        RD Compare&Swap / Fetch&Add request (IBTA Volume 1, Section 9.7,
+        Table 41, OpCodes 0x53/0x54). Always a single packet; always
+        carries RDETH + AtomicETH.
+      type: object
+      properties:
+        atomic_op:
+          description: Selects Compare&Swap or Fetch&Add.
+          type: string
+          default: fetch_add
+          x-field-uid: 1
+          x-enum:
+            compare_swap:
+              x-field-uid: 1
+            fetch_add:
+              x-field-uid: 2
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 6
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 7
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 10
+        ack_req:
+          x-field-pattern:
+            description: Requests an ACKNOWLEDGE packet for this packet.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        reserved1:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 13
+        rdeth:
+          $ref: '#/components/schemas/Flow.Ibth.Rdeth'
+          description: Always present, ahead of any other header, on RD transport.
+          x-field-uid: 14
+        atomic_eth:
+          $ref: '#/components/schemas/Flow.Ibth.AtomicEth'
+          description: Always present for atomic request packets.
+          x-field-uid: 15
+
+    Flow.Ibth.Rd.AtomicAck:
+      description: >-
+        RD ATOMIC Acknowledge (IBTA Volume 1, Section 9.7, Table 41, OpCode
+        0x52). Always a single packet; carries RDETH + AETH followed by 8
+        bytes of original remote data.
+      type: object
+      properties:
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        migration_request:
+          x-field-pattern:
+            description: >-
+              Automatic Path Migration request bit (IBTA Volume 1, Section
+              6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 5
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 6
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        reserved0:
+          x-field-pattern:
+            description: Reserved, transmitted as zero.
+            format: integer
+            length: 6
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        dest_qp:
+          x-field-pattern:
+            description: Destination queue pair number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 9
+        reserved1:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. ATOMIC Acknowledge packets
+              never request a further ACK, so the ack_req bit position is
+              reserved here rather than settable.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        psn:
+          x-field-pattern:
+            description: Packet sequence number being acknowledged.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 11
+        rdeth:
+          $ref: '#/components/schemas/Flow.Ibth.Rdeth'
+          description: Always present, ahead of any other header, on RD transport.
+          x-field-uid: 12
+        aeth:
+          $ref: '#/components/schemas/Flow.Ibth.Aeth'
+          description: Always present for ATOMIC Acknowledge packets.
+          x-field-uid: 13
+        orig_remote_data:
+          x-field-pattern:
+            description: >-
+              Value read from the remote location before the atomic
+              operation was applied.
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 14
+
+    # -----------------------------------------------------------------
+    # Unreliable Datagram (UD) transport
+    # -----------------------------------------------------------------
+
+    Flow.Ibth.Ud:
+      description: >-
+        Unreliable Datagram (UD) transport SEND Only (IBTA Volume 1,
+        Section 9.7, Table 41, OpCode prefix 011, OpCodes 0x64/0x65). UD
+        carries multicast and connection-management traffic. A UD message
+        must fit in a single packet (no First/Middle/Last), and always
+        carries DETH ahead of the payload.
+      type: object
+      properties:
+        solicited_event:
+          x-field-pattern:
+            description: >-
+              Requests that the responder generate an event on receipt
+              (IBTA Volume 1, Section 6.6.3).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        pad_count:
+          x-field-pattern:
+            description: Number of padding bytes (0-3) appended after the payload.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        header_version:
+          x-field-pattern:
+            description: Transport header version, always 0 for this version of the spec.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        partition_key:
+          x-field-pattern:
+            description: Partition this packet belongs to.
+            format: integer
+            length: 16
+            default: 65535
+            features: [count, metric_tags]
+          x-field-uid: 4
+        fecn:
+          x-field-pattern:
+            description: >-
+              Forward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 5
+        becn:
+          x-field-pattern:
+            description: >-
+              Backward ECN marking bit (RoCEv2 Annex A17, DCQCN congestion
+              control).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 6
+        reserved0:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. UD has no migration state, so
+              this reserves both the MigReq bit position and the classic
+              6-bit reserved field.
+            format: integer
+            length: 7
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        dest_qp:
+          x-field-pattern:
+            description: >-
+              Destination queue pair number, or the multicast group's QP
+              (0xFFFFFF) for multicast SEND.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 8
+        reserved1:
+          x-field-pattern:
+            description: >-
+              Reserved, transmitted as zero. UD is unacknowledged, so the
+              AckReq bit position is reserved here rather than settable.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        psn:
+          x-field-pattern:
+            description: Packet sequence number.
+            format: integer
+            length: 24
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        deth:
+          $ref: '#/components/schemas/Flow.Ibth.Deth'
+          description: Always present on UD transport.
+          x-field-uid: 11
+        immediate_data:
+          $ref: '#/components/schemas/Flow.Ibth.ImmDt'
+          description: >-
+            When present, selects the SEND Only "...with Immediate" OpCode
+            variant.
+          x-field-uid: 12
+
+    # -----------------------------------------------------------------
+    # Congestion Notification Packet (RoCEv2-specific, no IB transport type)
+    # -----------------------------------------------------------------
+
+    Flow.Ibth.Cnp:
+      description: >-
+        RoCEv2 Congestion Notification Packet (RoCEv2 Annex A17, DCQCN
+        congestion control). OpCode 0x81, no payload and no extended
+        transport header. Sent by a congested receiver back to the sender
+        of the ECN-marked packet that triggered it; dest_qp identifies the
+        sender's queue pair being notified to reduce its rate.
+      type: object
+      properties:
+        dest_qp:
+          x-field-pattern:
+            description: Queue pair number being notified to reduce its send rate.
+            format: integer
+            length: 24
+            default: 0
+            features: [count, metric_tags]
+          x-field-uid: 1
+        reserved:
+          x-field-pattern:
+            description: >-
+              Reserved payload area. Byte-level layout beyond OpCode and
+              dest_qp is CNP-implementation-specific per RoCEv2 Annex A17;
+              exposed here for conformance/fuzz testing of the fixed-size
+              reserved region rather than modeled field-by-field.
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 2

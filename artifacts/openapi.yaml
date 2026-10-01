@@ -3981,6 +3981,11 @@ components:
             Configuration for BMP.
           $ref: '#/components/schemas/Device.Bmp'
           x-field-uid: 14
+        ldp:
+          description: |-
+            The properties of an LDP router and its children, such as link interfaces, targeted peers and FEC ranges. In this model, LDP over IPv4 as per RFC 5036 is supported.
+          $ref: '#/components/schemas/Device.Ldp'
+          x-field-uid: 15
       required:
       - name
     Protocol.Options:
@@ -14278,6 +14283,302 @@ components:
           default: 48
           maximum: 128
           x-field-uid: 2
+    Device.Ldp:
+      description: |-
+        Configuration for an LDP router (LSR) and its children. Covers LDP over IPv4 as per RFC 5036. The LSR ID is derived from the IPv4 address of the interface the session runs on (RFC 5036 Section 2.2.2); it is not a separate property.
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          x-unique: global
+        keepalive_hold_time:
+          description: |-
+            Keep Alive Time in seconds advertised in the Initialization message (RFC 5036 Section 3.5.3). The peer declares the session down if no LDP PDU is received within this time. Applies to every session of this router.
+          type: integer
+          format: uint32
+          default: 180
+          minimum: 1
+          maximum: 65535
+          x-field-uid: 2
+        keepalive_interval:
+          description: |-
+            Interval in seconds at which KeepAlive messages are sent when no other LDP PDU is sent (RFC 5036 Section 3.5.4). Typically one third of keepalive_hold_time.
+          type: integer
+          format: uint32
+          default: 60
+          minimum: 1
+          maximum: 65535
+          x-field-uid: 3
+        graceful_restart:
+          description: |-
+            LDP graceful restart as per RFC 3478. When present, the FT Session TLV is advertised in the Initialization message. Omit to disable.
+          $ref: '#/components/schemas/Ldp.GracefulRestart'
+          x-field-uid: 4
+        ipv4_interfaces:
+          description: |-
+            IPv4 interfaces on which basic (link) Hellos are exchanged with a directly connected LSR (RFC 5036 Section 2.4.1).
+          type: array
+          items:
+            $ref: '#/components/schemas/Ldp.Ipv4Interface'
+          x-field-uid: 5
+        targeted_peers:
+          description: |-
+            Non-directly connected LDP peers reached by extended (targeted) discovery (RFC 5036 Section 2.4.2). All targeted_peers that share an ipv4_name must carry identical label_space_id and label_advertisement_mode values; a configuration that violates this is rejected.
+          type: array
+          items:
+            $ref: '#/components/schemas/Ldp.TargetedPeer'
+          x-field-uid: 6
+        ipv4_fec_ranges:
+          description: |-
+            IPv4 prefix FECs (FEC element type 2, RFC 5036 Section 3.4.1) advertised to all sessions of this router in Label Mapping messages.
+          type: array
+          items:
+            $ref: '#/components/schemas/Ldp.Ipv4FecRange'
+          x-field-uid: 7
+    Ldp.GracefulRestart:
+      description: |-
+        LDP graceful restart parameters carried in the Fault Tolerant Session TLV (RFC 3478 Section 2). Presence of this object enables graceful restart.
+      type: object
+      properties:
+        reconnect_time:
+          description: |-
+            Reconnect Timeout in seconds: the time the sender asks its peer to wait for the LDP session to be re-established after a failure (RFC 3478 Section 2). The wire value is in milliseconds; the implementation converts.
+          type: integer
+          format: uint32
+          default: 60
+          maximum: 4294967
+          x-field-uid: 1
+        recovery_time:
+          description: |-
+            Recovery Time in seconds: the time the sender retains its MPLS forwarding state across a restart (RFC 3478 Section 2). The wire value is in milliseconds; the implementation converts. 0 means the forwarding state was not preserved.
+          type: integer
+          format: uint32
+          default: 120
+          maximum: 4294967
+          x-field-uid: 2
+    Ldp.Ipv4Interface:
+      description: |-
+        An IPv4 interface on which LDP basic discovery runs: Hellos are sent to the all-routers multicast group 224.0.0.2, UDP port 646 (RFC 5036 Section 2.4.1).
+      type: object
+      required:
+      - name
+      - ipv4_name
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          x-unique: global
+        ipv4_name:
+          description: |
+            The globally unique name of the IPv4 interface on top of which this LDP interface is configured. It must match the "name" field of an entry in "ipv4_addresses". The LSR ID is derived from this address.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv4/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+          x-field-uid: 2
+        hello_interval:
+          description: |-
+            Interval in seconds between link Hello messages. This is a local timer; RFC 5036 specifies only the Hold Time (Section 3.5.2). Implementations commonly use one third of hello_hold_time.
+          type: integer
+          format: uint32
+          default: 5
+          minimum: 1
+          maximum: 65535
+          x-field-uid: 3
+        hello_hold_time:
+          description: |-
+            Hold Time in seconds carried in the Common Hello Parameters TLV (RFC 5036 Section 3.5.2). A value of 0 on the wire selects the protocol default of 15 seconds for link Hellos.
+          type: integer
+          format: uint32
+          default: 15
+          minimum: 1
+          maximum: 65534
+          x-field-uid: 4
+        label_space_id:
+          description: |-
+            The 2-octet label space identifier that, with the LSR ID, forms the LDP Identifier (RFC 5036 Section 2.2.2). 0 selects the platform-wide label space, the only value valid for interfaces that share one.
+          type: integer
+          format: uint32
+          default: 0
+          maximum: 65535
+          x-field-uid: 5
+        label_advertisement_mode:
+          description: |-
+            Label advertisement discipline proposed in the Initialization message A bit (RFC 5036 Sections 2.6.3 and 3.5.3).
+          type: string
+          default: downstream_unsolicited
+          x-enum:
+            downstream_unsolicited:
+              x-field-uid: 1
+            downstream_on_demand:
+              x-field-uid: 2
+          x-field-uid: 6
+          enum:
+          - downstream_unsolicited
+          - downstream_on_demand
+        authentication:
+          description: |-
+            When present, the session is authenticated. Omit for no authentication.
+          $ref: '#/components/schemas/Ldp.Authentication'
+          x-field-uid: 7
+    Ldp.Authentication:
+      description: |-
+        Session authentication. Presence enables it; omit for none. LDP sessions are authenticated with the TCP MD5 signature option (RFC 5036 Section 2.9, RFC 2385).
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          x-enum:
+            md5:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - md5
+        md5:
+          description: |-
+            The shared secret used for the TCP MD5 signature option.
+          type: string
+          minLength: 1
+          maxLength: 80
+          x-field-uid: 2
+    Ldp.TargetedPeer:
+      description: |-
+        A non-directly connected LDP peer reached by extended discovery: targeted Hellos are unicast to the peer address, UDP port 646 (RFC 5036 Section 2.4.2).
+      type: object
+      required:
+      - name
+      - ipv4_name
+      - peer_address
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          x-unique: global
+        ipv4_name:
+          description: |
+            The globally unique name of the local IPv4 interface or IPv4 loopback from which targeted Hellos are sent. The LSR ID is derived from this address.
+
+            x-constraint:
+            - /components/schemas/Device.Ipv4/properties/name
+            - /components/schemas/Device.Ipv4Loopback/properties/name
+          type: string
+          x-constraint:
+          - /components/schemas/Device.Ipv4/properties/name
+          - /components/schemas/Device.Ipv4Loopback/properties/name
+          x-field-uid: 2
+        peer_address:
+          description: |-
+            IPv4 address of the targeted LDP peer.
+          type: string
+          format: ipv4
+          x-field-uid: 3
+        initiate_hello:
+          description: |-
+            When true, this router actively sends targeted Hellos to peer_address (T bit set, RFC 5036 Section 3.5.2). When false, the peer is expected to initiate.
+          type: boolean
+          default: true
+          x-field-uid: 4
+        hello_interval:
+          description: |-
+            Interval in seconds between targeted Hello messages.
+          type: integer
+          format: uint32
+          default: 15
+          minimum: 1
+          maximum: 65535
+          x-field-uid: 5
+        hello_hold_time:
+          description: |-
+            Hold Time in seconds carried in the Common Hello Parameters TLV (RFC 5036 Section 3.5.2). A value of 0 on the wire selects the protocol default of 45 seconds for targeted Hellos.
+          type: integer
+          format: uint32
+          default: 45
+          minimum: 1
+          maximum: 65534
+          x-field-uid: 6
+        label_space_id:
+          description: |-
+            See Ldp.Ipv4Interface.label_space_id. Peers sharing an ipv4_name must use the same value.
+          type: integer
+          format: uint32
+          default: 0
+          maximum: 65535
+          x-field-uid: 7
+        label_advertisement_mode:
+          description: |-
+            See Ldp.Ipv4Interface.label_advertisement_mode. Peers sharing an ipv4_name must use the same value.
+          type: string
+          default: downstream_unsolicited
+          x-enum:
+            downstream_unsolicited:
+              x-field-uid: 1
+            downstream_on_demand:
+              x-field-uid: 2
+          x-field-uid: 8
+          enum:
+          - downstream_unsolicited
+          - downstream_on_demand
+        authentication:
+          description: |-
+            When present, the session is authenticated. Omit for no authentication.
+          $ref: '#/components/schemas/Ldp.Authentication'
+          x-field-uid: 9
+    Ldp.Ipv4FecRange:
+      description: |-
+        A range of IPv4 prefix FECs (FEC element type 2, RFC 5036 Section 3.4.1) advertised in Label Mapping messages. Each prefix is bound to a label taken from label_start according to label_mode.
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          x-field-uid: 1
+          description: |-
+            Globally unique name of an object. It also serves as the primary key for arrays of objects.
+          type: string
+          x-unique: global
+        addresses:
+          description: |-
+            A list of groups of IPv4 prefixes.
+          type: array
+          items:
+            $ref: '#/components/schemas/V4RouteAddress'
+          x-field-uid: 2
+        label_start:
+          description: |-
+            The label bound to the first prefix (Generic Label TLV, RFC 5036 Section 3.4.2). Labels 0 to 15 are reserved (RFC 3032).
+          type: integer
+          format: uint32
+          default: 16
+          minimum: 16
+          maximum: 1048575
+          x-field-uid: 3
+        label_mode:
+          description: |-
+            How the label changes from one prefix to the next. increment binds label_start, label_start + 1, ...; fixed binds label_start to every prefix.
+          type: string
+          default: increment
+          x-enum:
+            increment:
+              x-field-uid: 1
+            fixed:
+              x-field-uid: 2
+          x-field-uid: 4
+          enum:
+          - increment
+          - fixed
     Flow:
       description: |-
         A high level data plane traffic flow.
@@ -20497,6 +20798,8 @@ components:
               x-field-uid: 6
             ospfv3:
               x-field-uid: 7
+            ldp:
+              x-field-uid: 8
           x-field-uid: 1
           enum:
           - all
@@ -20506,6 +20809,7 @@ components:
           - isis
           - ospfv2
           - ospfv3
+          - ldp
         all:
           $ref: '#/components/schemas/State.Protocol.All'
           x-field-uid: 2
@@ -20530,6 +20834,9 @@ components:
         rocev2:
           $ref: '#/components/schemas/State.Protocol.Rocev2'
           x-field-uid: 9
+        ldp:
+          $ref: '#/components/schemas/State.Protocol.Ldp'
+          x-field-uid: 10
     State.Port.Link:
       description: |-
         Sets the link of configured ports.
@@ -20694,6 +21001,7 @@ components:
             - /components/schemas/Isis.V6RouteRange/properties/name
             - /components/schemas/Ospfv2.V4RouteRange/properties/name
             - /components/schemas/Ospfv3.V6RouteRange/properties/name
+            - /components/schemas/Ldp.Ipv4FecRange/properties/name
           type: array
           items:
             type: string
@@ -20704,6 +21012,7 @@ components:
           - /components/schemas/Isis.V6RouteRange/properties/name
           - /components/schemas/Ospfv2.V4RouteRange/properties/name
           - /components/schemas/Ospfv3.V6RouteRange/properties/name
+          - /components/schemas/Ldp.Ipv4FecRange/properties/name
           x-field-uid: 1
         state:
           description: |-
@@ -20905,6 +21214,55 @@ components:
             \ 'up', would attempt to bring up the ISIS session(s) with respective\
             \ peer(s) and advertise route(s), if configured. If the desired state\
             \ is 'down', would bring down ISIS session(s) with respective peer(s). "
+          type: string
+          x-field-uid: 2
+          x-enum:
+            up:
+              x-field-uid: 1
+            down:
+              x-field-uid: 2
+          enum:
+          - up
+          - down
+    State.Protocol.Ldp:
+      description: |-
+        Sets state of configured LDP routers.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          x-enum:
+            routers:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - routers
+        routers:
+          $ref: '#/components/schemas/State.Protocol.Ldp.Routers'
+          x-field-uid: 2
+    State.Protocol.Ldp.Routers:
+      description: |-
+        Sets state of configured LDP routers.
+      required:
+      - state
+      properties:
+        router_names:
+          description: |
+            The names of LDP routers for which the state has to be applied. An empty or null list will control all LDP routers.
+
+            x-constraint:
+            - /components/schemas/Device.Ldp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Ldp/properties/name
+          x-field-uid: 1
+        state:
+          description: |-
+            The desired state of LDP router. If the desired state is 'up', would attempt to bring up the LDP session(s) and advertise FEC range(s), if configured. If the desired state is 'down', would bring down the LDP session(s).
           type: string
           x-field-uid: 2
           x-enum:
@@ -21196,12 +21554,15 @@ components:
               x-field-uid: 3
             isis:
               x-field-uid: 4
+            ldp:
+              x-field-uid: 5
           x-field-uid: 1
           enum:
           - ipv4
           - ipv6
           - bgp
           - isis
+          - ldp
         ipv4:
           $ref: '#/components/schemas/Action.Protocol.Ipv4'
           x-field-uid: 2
@@ -21214,6 +21575,9 @@ components:
         isis:
           $ref: '#/components/schemas/Action.Protocol.Isis'
           x-field-uid: 5
+        ldp:
+          $ref: '#/components/schemas/Action.Protocol.Ldp'
+          x-field-uid: 6
     Action.Response.Protocol:
       description: |-
         Response for actions associated with protocols on configured resources.
@@ -21868,6 +22232,51 @@ components:
           enum:
           - set
           - unset
+    Action.Protocol.Ldp:
+      description: |-
+        Actions associated with LDP on configured resources.
+      type: object
+      required:
+      - choice
+      properties:
+        choice:
+          type: string
+          x-enum:
+            initiate_graceful_restart:
+              x-field-uid: 1
+          x-field-uid: 1
+          enum:
+          - initiate_graceful_restart
+        initiate_graceful_restart:
+          description: |-
+            Configuration for the initiation of LDP graceful restart.
+          $ref: '#/components/schemas/Action.Protocol.Ldp.InitiateGracefulRestart'
+          x-field-uid: 2
+    Action.Protocol.Ldp.InitiateGracefulRestart:
+      description: |-
+        Initiates an LDP graceful restart (RFC 3478) on the selected routers. Expected to require graceful_restart in the router configuration. If no name is specified the action applies to all configured LDP routers.
+      type: object
+      properties:
+        router_names:
+          description: |
+            The names of LDP routers to restart.
+
+            x-constraint:
+            - /components/schemas/Device.Ldp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Ldp/properties/name
+          x-field-uid: 1
+        restart_delay:
+          description: |-
+            Delay in seconds before the sessions are re-established after the simulated restart.
+          type: integer
+          format: uint32
+          default: 10
+          maximum: 4096
+          x-field-uid: 2
     Metrics.Request:
       description: |-
         Request to traffic generator for metrics of choice.
@@ -21924,6 +22333,8 @@ components:
               x-field-uid: 22
             bmp_server:
               x-field-uid: 23
+            ldp:
+              x-field-uid: 24
           enum:
           - port
           - flow
@@ -21948,6 +22359,7 @@ components:
           - rocev2_flow
           - egress_only_tracking
           - bmp_server
+          - ldp
         port:
           $ref: '#/components/schemas/Port.Metrics.Request'
           x-field-uid: 2
@@ -22017,6 +22429,9 @@ components:
         bmp_server:
           $ref: '#/components/schemas/BmpServer.Metrics.Request'
           x-field-uid: 24
+        ldp:
+          $ref: '#/components/schemas/Ldp.Metrics.Request'
+          x-field-uid: 25
     Metrics.Response:
       description: |-
         Response containing chosen traffic generator metrics.
@@ -22073,6 +22488,8 @@ components:
               x-field-uid: 22
             bmp_server_metrics:
               x-field-uid: 23
+            ldp_metrics:
+              x-field-uid: 24
           enum:
           - flow_metrics
           - port_metrics
@@ -22097,6 +22514,7 @@ components:
           - rocev2_flow_per_qp_metrics
           - egress_only_tracking_metrics
           - bmp_server_metrics
+          - ldp_metrics
         port_metrics:
           type: array
           items:
@@ -22212,6 +22630,11 @@ components:
           items:
             $ref: '#/components/schemas/BmpServer.Metric'
           x-field-uid: 24
+        ldp_metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ldp.Metric'
+          x-field-uid: 25
     Port.Metrics.Request:
       description: |-
         The port result request to the traffic generator
@@ -27137,6 +27560,249 @@ components:
           type: integer
           format: uint64
           x-field-uid: 14
+    Ldp.Metrics.Request:
+      description: |-
+        The request to retrieve LDP per Router metrics/statistics.
+      type: object
+      properties:
+        router_names:
+          description: |
+            The names of LDP routers to return results for. An empty list as input will return results for all LDP routers.
+
+            x-constraint:
+            - /components/schemas/Device.Ldp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Ldp/properties/name
+          x-field-uid: 1
+        column_names:
+          description: |-
+            The list of column names that the returned result set will contain. If the input list is empty then all columns will be returned.
+          type: array
+          items:
+            type: string
+            x-enum:
+              basic_sessions_up:
+                x-field-uid: 1
+              targeted_sessions_configured:
+                x-field-uid: 2
+              targeted_sessions_up:
+                x-field-uid: 3
+              session_flap_count:
+                x-field-uid: 4
+              sessions_non_existent:
+                x-field-uid: 5
+              sessions_initialized:
+                x-field-uid: 6
+              sessions_open_received:
+                x-field-uid: 7
+              sessions_open_sent:
+                x-field-uid: 8
+              sessions_operational:
+                x-field-uid: 9
+              label_mapping_tx:
+                x-field-uid: 10
+              label_mapping_rx:
+                x-field-uid: 11
+              label_request_tx:
+                x-field-uid: 12
+              label_request_rx:
+                x-field-uid: 13
+              label_withdraw_tx:
+                x-field-uid: 14
+              label_withdraw_rx:
+                x-field-uid: 15
+              label_release_tx:
+                x-field-uid: 16
+              label_release_rx:
+                x-field-uid: 17
+              label_abort_request_tx:
+                x-field-uid: 18
+              label_abort_request_rx:
+                x-field-uid: 19
+              notification_tx:
+                x-field-uid: 20
+              notification_rx:
+                x-field-uid: 21
+              established_lsps_ingress:
+                x-field-uid: 22
+              established_lsps_egress:
+                x-field-uid: 23
+            enum:
+            - basic_sessions_up
+            - targeted_sessions_configured
+            - targeted_sessions_up
+            - session_flap_count
+            - sessions_non_existent
+            - sessions_initialized
+            - sessions_open_received
+            - sessions_open_sent
+            - sessions_operational
+            - label_mapping_tx
+            - label_mapping_rx
+            - label_request_tx
+            - label_request_rx
+            - label_withdraw_tx
+            - label_withdraw_rx
+            - label_release_tx
+            - label_release_rx
+            - label_abort_request_tx
+            - label_abort_request_rx
+            - notification_tx
+            - notification_rx
+            - established_lsps_ingress
+            - established_lsps_egress
+          x-field-uid: 2
+    Ldp.Metric:
+      description: |-
+        LDP per Router metrics. Each counter is a value reported by the underlying implementation; a column not requested is not returned.
+      type: object
+      properties:
+        name:
+          description: |-
+            The name of the LDP router.
+          type: string
+          x-field-uid: 1
+        basic_sessions_up:
+          description: |-
+            The number of LDP sessions established through basic (link) discovery that are currently in the operational state.
+          type: integer
+          format: uint64
+          x-field-uid: 2
+        targeted_sessions_configured:
+          description: |-
+            The number of LDP sessions configured through extended (targeted) discovery.
+          type: integer
+          format: uint64
+          x-field-uid: 3
+        targeted_sessions_up:
+          description: |-
+            The number of LDP sessions established through extended (targeted) discovery that are currently in the operational state.
+          type: integer
+          format: uint64
+          x-field-uid: 4
+        session_flap_count:
+          description: |-
+            The number of times an LDP session left the operational state (RFC 5036 Section 2.5.4).
+          type: integer
+          format: uint64
+          x-field-uid: 5
+        sessions_non_existent:
+          description: |-
+            The number of LDP sessions currently in the NON EXISTENT state (RFC 5036 Section 2.5.4).
+          type: integer
+          format: uint64
+          x-field-uid: 6
+        sessions_initialized:
+          description: |-
+            The number of LDP sessions currently in the INITIALIZED state (RFC 5036 Section 2.5.4).
+          type: integer
+          format: uint64
+          x-field-uid: 7
+        sessions_open_received:
+          description: |-
+            The number of LDP sessions currently in the OPENREC state (RFC 5036 Section 2.5.4).
+          type: integer
+          format: uint64
+          x-field-uid: 8
+        sessions_open_sent:
+          description: |-
+            The number of LDP sessions currently in the OPENSENT state (RFC 5036 Section 2.5.4).
+          type: integer
+          format: uint64
+          x-field-uid: 9
+        sessions_operational:
+          description: |-
+            The number of LDP sessions currently in the OPERATIONAL state (RFC 5036 Section 2.5.4).
+          type: integer
+          format: uint64
+          x-field-uid: 10
+        label_mapping_tx:
+          description: |-
+            The number of Label Mapping messages sent by this LDP router (RFC 5036 Section 3.5.7).
+          type: integer
+          format: uint64
+          x-field-uid: 11
+        label_mapping_rx:
+          description: |-
+            The number of Label Mapping messages received by this LDP router (RFC 5036 Section 3.5.7).
+          type: integer
+          format: uint64
+          x-field-uid: 12
+        label_request_tx:
+          description: |-
+            The number of Label Request messages sent by this LDP router (RFC 5036 Section 3.5.8).
+          type: integer
+          format: uint64
+          x-field-uid: 13
+        label_request_rx:
+          description: |-
+            The number of Label Request messages received by this LDP router (RFC 5036 Section 3.5.8).
+          type: integer
+          format: uint64
+          x-field-uid: 14
+        label_withdraw_tx:
+          description: |-
+            The number of Label Withdraw messages sent by this LDP router (RFC 5036 Section 3.5.10).
+          type: integer
+          format: uint64
+          x-field-uid: 15
+        label_withdraw_rx:
+          description: |-
+            The number of Label Withdraw messages received by this LDP router (RFC 5036 Section 3.5.10).
+          type: integer
+          format: uint64
+          x-field-uid: 16
+        label_release_tx:
+          description: |-
+            The number of Label Release messages sent by this LDP router (RFC 5036 Section 3.5.11).
+          type: integer
+          format: uint64
+          x-field-uid: 17
+        label_release_rx:
+          description: |-
+            The number of Label Release messages received by this LDP router (RFC 5036 Section 3.5.11).
+          type: integer
+          format: uint64
+          x-field-uid: 18
+        label_abort_request_tx:
+          description: |-
+            The number of Label Abort Request messages sent by this LDP router (RFC 5036 Section 3.5.9).
+          type: integer
+          format: uint64
+          x-field-uid: 19
+        label_abort_request_rx:
+          description: |-
+            The number of Label Abort Request messages received by this LDP router (RFC 5036 Section 3.5.9).
+          type: integer
+          format: uint64
+          x-field-uid: 20
+        notification_tx:
+          description: |-
+            The number of Notification messages sent by this LDP router (RFC 5036 Section 3.5.1).
+          type: integer
+          format: uint64
+          x-field-uid: 21
+        notification_rx:
+          description: |-
+            The number of Notification messages received by this LDP router (RFC 5036 Section 3.5.1).
+          type: integer
+          format: uint64
+          x-field-uid: 22
+        established_lsps_ingress:
+          description: |-
+            The number of established LSPs for which this LDP router is the ingress, as reported by the implementation.
+          type: integer
+          format: uint64
+          x-field-uid: 23
+        established_lsps_egress:
+          description: |-
+            The number of established LSPs for which this LDP router is the egress, as reported by the implementation.
+          type: integer
+          format: uint64
+          x-field-uid: 24
     States.Request:
       description: |-
         Request to traffic generator for states of choice
@@ -27175,6 +27841,10 @@ components:
               x-field-uid: 13
             bmp_servers:
               x-field-uid: 14
+            ldp_sessions:
+              x-field-uid: 15
+            ldp_bindings:
+              x-field-uid: 16
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
@@ -27190,6 +27860,8 @@ components:
           - ospfv3_lsas
           - isis_adjacencies
           - bmp_servers
+          - ldp_sessions
+          - ldp_bindings
         ipv4_neighbors:
           $ref: '#/components/schemas/Neighborsv4.States.Request'
           x-field-uid: 2
@@ -27232,6 +27904,12 @@ components:
         bmp_servers:
           $ref: '#/components/schemas/BmpServers.State.Request'
           x-field-uid: 15
+        ldp_sessions:
+          $ref: '#/components/schemas/Ldp.Sessions.State.Request'
+          x-field-uid: 16
+        ldp_bindings:
+          $ref: '#/components/schemas/Ldp.Bindings.State.Request'
+          x-field-uid: 17
     States.Response:
       description: |-
         Response containing chosen traffic generator states
@@ -27270,6 +27948,10 @@ components:
               x-field-uid: 13
             bmp_servers:
               x-field-uid: 14
+            ldp_sessions:
+              x-field-uid: 15
+            ldp_bindings:
+              x-field-uid: 16
           enum:
           - ipv4_neighbors
           - ipv6_neighbors
@@ -27285,6 +27967,8 @@ components:
           - ospfv3_lsas
           - isis_adjacencies
           - bmp_servers
+          - ldp_sessions
+          - ldp_bindings
         ipv4_neighbors:
           type: array
           items:
@@ -27355,6 +28039,16 @@ components:
           items:
             $ref: '#/components/schemas/BmpServer.State'
           x-field-uid: 15
+        ldp_sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ldp.Sessions.State'
+          x-field-uid: 16
+        ldp_bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ldp.Bindings.State'
+          x-field-uid: 17
     Neighborsv4.States.Request:
       description: |-
         The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -31509,6 +32203,136 @@ components:
             The multi exit discriminator (MED) is an optional non-transitive attribute and the value is used for route selection. The route with the lowest MED value is preferred.
           type: integer
           format: uint32
+    Ldp.Sessions.State.Request:
+      description: |-
+        The request to retrieve LDP session information.
+      type: object
+      properties:
+        ldp_router_names:
+          description: |
+            The names of LDP routers for which session information is requested. An empty list returns all LDP routers.
+
+            x-constraint:
+            - /components/schemas/Device.Ldp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Ldp/properties/name
+          x-field-uid: 1
+    Ldp.Sessions.State:
+      description: |-
+        The LDP sessions of one LDP router.
+      type: object
+      properties:
+        ldp_router_name:
+          description: |-
+            The name of the LDP router.
+          type: string
+          x-field-uid: 1
+        sessions:
+          description: |-
+            The state of each LDP session of the router.
+          type: array
+          items:
+            $ref: '#/components/schemas/Ldp.Session'
+          x-field-uid: 2
+    Ldp.Session:
+      description: |-
+        State of one LDP session (RFC 5036 Section 2.5.4 session state machine).
+      type: object
+      properties:
+        interface_name:
+          description: |-
+            Name of the Ldp.Ipv4Interface the session runs on. Present for link-discovery sessions.
+          type: string
+          x-field-uid: 1
+        peer_name:
+          description: |-
+            Name of the Ldp.TargetedPeer the session runs to. Present for targeted sessions.
+          type: string
+          x-field-uid: 2
+        session_state:
+          description: |-
+            LDP session state (RFC 5036 Section 2.5.4).
+          type: string
+          x-enum:
+            non_existent:
+              x-field-uid: 1
+            initialized:
+              x-field-uid: 2
+            open_received:
+              x-field-uid: 3
+            open_sent:
+              x-field-uid: 4
+            operational:
+              x-field-uid: 5
+          x-field-uid: 3
+          enum:
+          - non_existent
+          - initialized
+          - open_received
+          - open_sent
+          - operational
+    Ldp.Bindings.State.Request:
+      description: |-
+        The request to retrieve IPv4 FEC label bindings learned from peers.
+      type: object
+      properties:
+        ldp_router_names:
+          description: |
+            The names of LDP routers for which label bindings are requested. An empty list returns bindings for all LDP routers.
+
+            x-constraint:
+            - /components/schemas/Device.Ldp/properties/name
+          type: array
+          items:
+            type: string
+          x-constraint:
+          - /components/schemas/Device.Ldp/properties/name
+          x-field-uid: 1
+    Ldp.Bindings.State:
+      description: |-
+        The label bindings learned by one LDP router.
+      type: object
+      properties:
+        ldp_router_name:
+          description: |-
+            The name of the LDP router.
+          type: string
+          x-field-uid: 1
+        ipv4_bindings:
+          description: |-
+            IPv4 prefix FEC to label bindings learned from peers. An empty list means no bindings were learned.
+          type: array
+          items:
+            $ref: '#/components/schemas/Ldp.Ipv4Binding'
+          x-field-uid: 2
+    Ldp.Ipv4Binding:
+      description: |-
+        An IPv4 prefix FEC to label binding received in a Label Mapping message (RFC 5036 Sections 3.4.1 and 3.5.7).
+      type: object
+      properties:
+        prefix:
+          description: |-
+            The IPv4 prefix of the FEC (FEC element type 2, RFC 5036 Section 3.4.1).
+          type: string
+          format: ipv4
+          x-field-uid: 1
+        prefix_length:
+          description: |-
+            The prefix length of the FEC in bits.
+          type: integer
+          format: uint32
+          maximum: 32
+          x-field-uid: 2
+        label:
+          description: |-
+            The label bound to the FEC (Generic Label TLV, RFC 5036 Section 3.4.2).
+          type: integer
+          format: uint32
+          maximum: 1048575
+          x-field-uid: 3
     Capture.Request:
       description: |-
         The capture result request to the traffic generator.

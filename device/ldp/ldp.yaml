@@ -1,0 +1,150 @@
+components:
+  schemas:
+    Device.LdpRouter:
+      description: >-
+        Configuration for an emulated LDP Label Switching Router (LSR) as per
+        RFC 5036. In this model, LDP over IPv4 is supported, with Basic (link)
+        discovery on IPv4 interfaces (RFC 5036 Section 2.4.1) and Extended
+        (targeted) discovery to configured peers (RFC 5036 Section 2.4.2).
+        The LDP Identifier carried in every LDP PDU is lsr_id:label_space_id
+        (RFC 5036 Section 2.2.2).
+        At least one entry in ipv4_interfaces or ipv4_targeted_peers is needed
+        to form an LDP session. All sessions of this router use the session
+        parameters configured here (label space, label advertisement mode,
+        keepalive and graceful restart).
+      type: object
+      required: [name, lsr_id]
+      properties:
+        name:
+          x-include: ../../common/common.yaml#/components/schemas/Named.Object/properties/name
+          x-field-uid: 1
+        lsr_id:
+          description: >-
+            The 4-octet LSR ID, the first part of the 6-octet LDP Identifier
+            (RFC 5036 Section 2.2.2). It must be globally unique in the network
+            and is normally the address of an IPv4 loopback of this device.
+            An implementation that uses one router ID per emulated device
+            requires lsr_id to be equal to any other router ID configured on the
+            same device, such as Device.BgpRouter.router_id or a custom
+            OSPFv2 / OSPFv3 router ID, and rejects a mismatch.
+          type: string
+          format: ipv4
+          x-field-uid: 2
+        label_space_id:
+          description: >-
+            The 2-octet label space identifier, the second part of the LDP
+            Identifier (RFC 5036 Section 2.2.2). The value 0 identifies the
+            platform-wide label space (RFC 5036 Section 2.2.1), which is the
+            normal value for IPv4 LDP over Ethernet.
+          type: integer
+          format: uint32
+          maximum: 65535
+          default: 0
+          x-field-uid: 3
+        label_advertisement_mode:
+          description: >-
+            The label advertisement discipline proposed by this LSR in the A bit
+            of the Common Session Parameters TLV of the Initialization message
+            (RFC 5036 Sections 2.6.3 and 3.5.3). It applies to every session of
+            this router.
+            downstream_unsolicited - labels for the FECs in ipv4_fec_ranges are
+            advertised to every peer without a request (A bit = 0).
+            downstream_on_demand - a label for a FEC is advertised to a peer
+            only after that peer sends a Label Request for it (A bit = 1).
+          type: string
+          default: downstream_unsolicited
+          x-enum:
+            downstream_unsolicited:
+              x-field-uid: 1
+            downstream_on_demand:
+              x-field-uid: 2
+          x-field-uid: 4
+        keepalive_hold_time:
+          description: >-
+            The KeepAlive Time in seconds advertised in the Common Session
+            Parameters TLV of the Initialization message (RFC 5036 Section
+            3.5.3). A session is closed when no LDP PDU is received from the
+            peer within the negotiated KeepAlive Time, which is the smaller of
+            the two advertised values. The value must be non-zero.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 65535
+          default: 180
+          x-field-uid: 5
+        keepalive_interval:
+          description: >-
+            The interval in seconds at which KeepAlive messages are sent when no
+            other LDP PDU has been sent (RFC 5036 Sections 2.5.6 and 3.5.4).
+            It should be smaller than keepalive_hold_time. One third of
+            keepalive_hold_time is common.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 65535
+          default: 60
+          x-field-uid: 6
+        graceful_restart:
+          description: >-
+            When present, LDP graceful restart (RFC 3478) is enabled and the
+            Fault Tolerant Session TLV is included in the Initialization message.
+            Omit to disable graceful restart.
+          $ref: '#/components/schemas/Ldp.GracefulRestart'
+          x-field-uid: 7
+        ipv4_interfaces:
+          description: >-
+            IPv4 interfaces on which LDP Basic Discovery runs (RFC 5036 Section
+            2.4.1). A session is formed with each LSR discovered on the link.
+          type: array
+          items:
+            $ref: './ipv4interface.yaml#/components/schemas/Ldp.Ipv4Interface'
+          x-field-uid: 8
+        ipv4_targeted_peers:
+          description: >-
+            IPv4 peers to which LDP Extended Discovery runs (RFC 5036 Section
+            2.4.2). A session is formed with each configured peer.
+          type: array
+          items:
+            $ref: './ipv4targetedpeer.yaml#/components/schemas/Ldp.Ipv4TargetedPeer'
+          x-field-uid: 9
+        ipv4_fec_ranges:
+          description: >-
+            IPv4 Prefix FECs (RFC 5036 Section 3.4.1) that this LSR advertises
+            to all its peers in Label Mapping messages.
+          type: array
+          items:
+            $ref: './ipv4fecrange.yaml#/components/schemas/Ldp.Ipv4FecRange'
+          x-field-uid: 10
+
+    Ldp.GracefulRestart:
+      description: >-
+        LDP graceful restart parameters (RFC 3478). When this object is present,
+        the emulated LSR includes the Fault Tolerant (FT) Session TLV (type
+        0x0503) with the L flag set in its Initialization message (RFC 3478
+        Section 2). Both timers are configured in seconds; they are carried in
+        milliseconds on the wire, and the implementation converts them.
+      type: object
+      properties:
+        reconnect_time:
+          description: >-
+            The FT Reconnect Timeout in seconds advertised in the FT Session TLV
+            (RFC 3478 Section 2): the time the peer should wait for this LSR to
+            re-establish the session after a restart. A value of 0 indicates
+            that this LSR does not preserve its forwarding state across a
+            restart.
+          type: integer
+          format: uint32
+          maximum: 3600
+          default: 120
+          x-field-uid: 1
+        recovery_time:
+          description: >-
+            The Recovery Time in seconds advertised in the FT Session TLV after
+            a restart (RFC 3478 Section 2): the time for which this LSR retains
+            the MPLS forwarding state it preserved across the restart. A value
+            of 0 indicates that the forwarding state was not preserved.
+          type: integer
+          format: uint32
+          maximum: 3600
+          default: 120
+          x-field-uid: 2

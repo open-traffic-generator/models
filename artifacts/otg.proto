@@ -2717,6 +2717,10 @@ message Device {
 
   // Configuration for BMP.
   DeviceBmp bmp = 14;
+
+  // The properties of an LDP router and its children, such as LDP interfaces, targeted
+  // peers and FEC ranges. In this model, LDP over IPv4 is supported as per RFC 5036.
+  DeviceLdpRouter ldp = 15;
 }
 
 // Common options that apply to all configured protocols and interfaces.
@@ -10692,6 +10696,264 @@ message DeviceBmpServerIpv6UnicastPrefixException {
   optional uint32 prefix_length = 2;
 }
 
+// Configuration for an emulated LDP Label Switching Router (LSR) as per RFC 5036. In
+// this model, LDP over IPv4 is supported, with Basic (link) discovery on IPv4 interfaces
+// (RFC 5036 Section 2.4.1) and Extended (targeted) discovery to configured peers (RFC
+// 5036 Section 2.4.2). The LDP Identifier carried in every LDP PDU is lsr_id:label_space_id
+// (RFC 5036 Section 2.2.2). At least one entry in ipv4_interfaces or ipv4_targeted_peers
+// is needed to form an LDP session. All sessions of this router use the session parameters
+// configured here (label space, label advertisement mode, keepalive and graceful restart).
+message DeviceLdpRouter {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // The 4-octet LSR ID, the first part of the 6-octet LDP Identifier (RFC 5036 Section
+  // 2.2.2). It must be globally unique in the network and is normally the address of
+  // an IPv4 loopback of this device. An implementation that uses one router ID per emulated
+  // device requires lsr_id to be equal to any other router ID configured on the same
+  // device, such as Device.BgpRouter.router_id or a custom OSPFv2 / OSPFv3 router ID,
+  // and rejects a mismatch.
+  // required = true
+  optional string lsr_id = 2;
+
+  // The 2-octet label space identifier, the second part of the LDP Identifier (RFC 5036
+  // Section 2.2.2). The value 0 identifies the platform-wide label space (RFC 5036 Section
+  // 2.2.1), which is the normal value for IPv4 LDP over Ethernet.
+  // default = 0
+  optional uint32 label_space_id = 3;
+
+  message LabelAdvertisementMode {
+    enum Enum {
+      unspecified = 0;
+      downstream_unsolicited = 1;
+      downstream_on_demand = 2;
+    }
+  }
+  // The label advertisement discipline proposed by this LSR in the A bit of the Common
+  // Session Parameters TLV of the Initialization message (RFC 5036 Sections 2.6.3 and
+  // 3.5.3). It applies to every session of this router. downstream_unsolicited - labels
+  // for the FECs in ipv4_fec_ranges are advertised to every peer without a request (A
+  // bit = 0). downstream_on_demand - a label for a FEC is advertised to a peer only after
+  // that peer sends a Label Request for it (A bit = 1).
+  // default = LabelAdvertisementMode.Enum.downstream_unsolicited
+  optional LabelAdvertisementMode.Enum label_advertisement_mode = 4;
+
+  // The KeepAlive Time in seconds advertised in the Common Session Parameters TLV of
+  // the Initialization message (RFC 5036 Section 3.5.3). A session is closed when no
+  // LDP PDU is received from the peer within the negotiated KeepAlive Time, which is
+  // the smaller of the two advertised values. The value must be non-zero.
+  // default = 180
+  optional uint32 keepalive_hold_time = 5;
+
+  // The interval in seconds at which KeepAlive messages are sent when no other LDP PDU
+  // has been sent (RFC 5036 Sections 2.5.6 and 3.5.4). It should be smaller than keepalive_hold_time.
+  // One third of keepalive_hold_time is common.
+  // default = 60
+  optional uint32 keepalive_interval = 6;
+
+  // When present, LDP graceful restart (RFC 3478) is enabled and the Fault Tolerant Session
+  // TLV is included in the Initialization message. Omit to disable graceful restart.
+  LdpGracefulRestart graceful_restart = 7;
+
+  // IPv4 interfaces on which LDP Basic Discovery runs (RFC 5036 Section 2.4.1). A session
+  // is formed with each LSR discovered on the link.
+  repeated LdpIpv4Interface ipv4_interfaces = 8;
+
+  // IPv4 peers to which LDP Extended Discovery runs (RFC 5036 Section 2.4.2). A session
+  // is formed with each configured peer.
+  repeated LdpIpv4TargetedPeer ipv4_targeted_peers = 9;
+
+  // IPv4 Prefix FECs (RFC 5036 Section 3.4.1) that this LSR advertises to all its peers
+  // in Label Mapping messages.
+  repeated LdpIpv4FecRange ipv4_fec_ranges = 10;
+}
+
+// LDP graceful restart parameters (RFC 3478). When this object is present, the emulated
+// LSR includes the Fault Tolerant (FT) Session TLV (type 0x0503) with the L flag set
+// in its Initialization message (RFC 3478 Section 2). Both timers are configured in
+// seconds; they are carried in milliseconds on the wire, and the implementation converts
+// them.
+message LdpGracefulRestart {
+
+  // The FT Reconnect Timeout in seconds advertised in the FT Session TLV (RFC 3478 Section
+  // 2): the time the peer should wait for this LSR to re-establish the session after
+  // a restart. A value of 0 indicates that this LSR does not preserve its forwarding
+  // state across a restart.
+  // default = 120
+  optional uint32 reconnect_time = 1;
+
+  // The Recovery Time in seconds advertised in the FT Session TLV after a restart (RFC
+  // 3478 Section 2): the time for which this LSR retains the MPLS forwarding state it
+  // preserved across the restart. A value of 0 indicates that the forwarding state was
+  // not preserved.
+  // default = 120
+  optional uint32 recovery_time = 2;
+}
+
+// LDP Basic Discovery on an IPv4 interface (RFC 5036 Section 2.4.1). The emulated LSR
+// sends LDP Link Hellos (UDP port 646, destination 224.0.0.2) on the referenced IPv4
+// interface and forms a session with each LSR discovered on the link.
+message LdpIpv4Interface {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // The globally unique name of the IPv4 interface on which Link Hellos are sent. It
+  // must match the name field of an entry in ipv4_addresses. A loopback cannot be used,
+  // because Link Hellos are sent on a link.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv4/properties/name
+  // 
+  // required = true
+  optional string ipv4_name = 2;
+
+  // The interval in seconds between Link Hello messages. RFC 5036 Section 3.5.2.1 asks
+  // that Hellos are sent well within the hold time; hello_interval should be at most
+  // one third of hello_hold_time.
+  // default = 5
+  optional uint32 hello_interval = 3;
+
+  // The Hold Time in seconds advertised in the Common Hello Parameters TLV of Link Hellos
+  // (RFC 5036 Section 3.5.2). The hello adjacency is removed when no Hello is received
+  // within the negotiated hold time, which is the smaller of the two advertised values.
+  // The value 65535 means infinite.
+  // default = 15
+  optional uint32 hello_hold_time = 4;
+
+  // When present, the TCP MD5 Signature Option is used on the session TCP connection
+  // of every session discovered on this interface (RFC 5036 Section 2.9). Omit to disable
+  // authentication. A session is a single TCP connection, so all adjacencies that lead
+  // to the same peer LSR must use the same key.
+  LdpAuthentication authentication = 5;
+}
+
+// LDP session authentication. When this object is present, the TCP MD5 Signature Option
+// (RFC 2385) is used on the LDP session TCP connection (RFC 5036 Section 2.9). Omit
+// the object to disable authentication.
+message LdpAuthentication {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      md5 = 1;
+    }
+  }
+  // The authentication mechanism.
+  // default = Choice.Enum.md5
+  optional Choice.Enum choice = 1;
+
+  // The shared key used to compute the TCP MD5 signature (RFC 2385). A key must be set
+  // when choice is md5.
+  optional string md5 = 2;
+}
+
+// LDP Extended Discovery to one IPv4 peer (RFC 5036 Section 2.4.2). The emulated LSR
+// sends unicast Targeted Hellos (UDP port 646) from the address of ipv4_name to remote_address
+// and forms a session with that LSR. remote_address must be reachable from the DUT,
+// for example through an IGP or a static route.
+message LdpIpv4TargetedPeer {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // The globally unique name of the local IPv4 interface or IPv4 loopback from which
+  // Targeted Hellos are sent. It must match the name field of an entry in ipv4_addresses
+  // or ipv4_loopbacks.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.Ipv4/properties/name
+  // - /components/schemas/Device.Ipv4Loopback/properties/name
+  // 
+  // required = true
+  optional string ipv4_name = 2;
+
+  // The IPv4 address of the targeted peer, to which Targeted Hellos are sent (RFC 5036
+  // Section 2.4.2).
+  // required = true
+  optional string remote_address = 3;
+
+  // The interval in seconds between Targeted Hello messages. It should be at most one
+  // third of hello_hold_time (RFC 5036 Section 3.5.2.1).
+  // default = 15
+  optional uint32 hello_interval = 4;
+
+  // The Hold Time in seconds advertised in the Common Hello Parameters TLV of Targeted
+  // Hellos (RFC 5036 Section 3.5.2). The value 65535 means infinite.
+  // default = 45
+  optional uint32 hello_hold_time = 5;
+
+  // When present, the TCP MD5 Signature Option is used on the session TCP connection
+  // to this peer (RFC 5036 Section 2.9). Omit to disable authentication. If the peer
+  // is also reached through an Ldp.Ipv4Interface, both must use the same key.
+  LdpAuthentication authentication = 6;
+}
+
+// A range of IPv4 Prefix FEC elements (FEC element type 0x02, RFC 5036 Section 3.4.1)
+// that the emulated LSR advertises to all its peers in Label Mapping messages (RFC
+// 5036 Section 3.5.7), each bound to a Generic Label (RFC 5036 Section 3.4.2.1). A
+// DUT normally installs a label for a FEC only when it has a matching route (RFC 5036
+// Section 2.6.1), so the same prefixes are usually also advertised through an IGP,
+// for example an Isis.V4RouteRange on the same device.
+message LdpIpv4FecRange {
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 1;
+
+  // A list of groups of IPv4 prefixes. Each generated prefix is one Prefix FEC element.
+  repeated V4RouteAddress addresses = 2;
+
+  // The labels bound to the prefixes of this range.
+  LdpFecLabel label = 3;
+}
+
+// The Generic Label (RFC 5036 Section 3.4.2.1) bound to each Prefix FEC of a Ldp.Ipv4FecRange.
+// increment - the n-th prefix generated by addresses (counting across all entries,
+// in order, from 0) gets label start + n. fixed - every prefix of the range gets the
+// same label. Use 3 (Implicit NULL) or 0 (IPv4 Explicit NULL) to emulate an egress
+// LSR (RFC 3032 Section 2.1).
+message LdpFecLabel {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      increment = 1;
+      fixed = 2;
+    }
+  }
+  // How labels are assigned to the prefixes of the range.
+  // default = Choice.Enum.increment
+  optional Choice.Enum choice = 1;
+
+  // Labels that increase by 1 from one prefix to the next.
+  LdpFecLabelIncrement increment = 2;
+
+  // The label bound to every prefix of the range. Meaningful values are 3 (Implicit NULL),
+  // 0 (IPv4 Explicit NULL) and 16 to 1048575. Values 1, 2 and 4 to 15 are reserved (RFC
+  // 3032 Section 2.1).
+  // default = 3
+  optional uint32 fixed = 3;
+}
+
+// Labels that increase by 1 from one prefix to the next.
+message LdpFecLabelIncrement {
+
+  // The label bound to the first prefix of the range. Labels 0 to 15 are reserved (RFC
+  // 3032 Section 2.1). start plus the number of prefixes in the range minus 1 must not
+  // exceed 1048575; the implementation rejects a configuration that does.
+  // default = 16
+  optional uint32 start = 1;
+}
+
 // A high level data plane traffic flow.
 message Flow {
 
@@ -10889,6 +11151,7 @@ message FlowRouter {
   // - /components/schemas/Isis.V6RouteRange/properties/name
   // - /components/schemas/Ospfv2.V4RouteRange/properties/name
   // - /components/schemas/Ospfv3.V6RouteRange/properties/name
+  // - /components/schemas/Ldp.Ipv4FecRange/properties/name
   // - /components/schemas/Device.Dhcpv4client/properties/name
   // - /components/schemas/Device.Dhcpv6client/properties/name
   // 
@@ -10909,6 +11172,7 @@ message FlowRouter {
   // - /components/schemas/Device.Dhcpv4client/properties/name
   // - /components/schemas/Ospfv2.V4RouteRange/properties/name
   // - /components/schemas/Ospfv3.V6RouteRange/properties/name
+  // - /components/schemas/Ldp.Ipv4FecRange/properties/name
   // - /components/schemas/Device.Dhcpv6client/properties/name
   // 
   repeated string rx_names = 3;
@@ -15833,6 +16097,7 @@ message StateProtocol {
       isis = 5;
       ospfv2 = 6;
       ospfv3 = 7;
+      ldp = 8;
     }
   }
   // Description missing in models
@@ -15862,6 +16127,9 @@ message StateProtocol {
 
   // Description missing in models
   StateProtocolRocev2 rocev2 = 9;
+
+  // Description missing in models
+  StateProtocolLdp ldp = 10;
 }
 
 // Sets the link of configured ports.
@@ -15991,6 +16259,7 @@ message StateProtocolRoute {
   // - /components/schemas/Isis.V6RouteRange/properties/name
   // - /components/schemas/Ospfv2.V4RouteRange/properties/name
   // - /components/schemas/Ospfv3.V6RouteRange/properties/name
+  // - /components/schemas/Ldp.Ipv4FecRange/properties/name
   // 
   repeated string names = 1;
 
@@ -16347,6 +16616,50 @@ message StateProtocolIsisSimLinks {
   optional State.Enum state = 2;
 }
 
+// Sets state of configured LDP routers.
+message StateProtocolLdp {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      routers = 1;
+    }
+  }
+  // The LDP objects whose state is set.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Sets the state of LDP routers.
+  StateProtocolLdpRouters routers = 2;
+}
+
+// Sets state of configured LDP routers.
+message StateProtocolLdpRouters {
+
+  // The names of LDP routers for which the state has to be applied. An empty or null
+  // list will control all LDP routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.LdpRouter/properties/name
+  // 
+  repeated string router_names = 1;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      up = 1;
+      down = 2;
+    }
+  }
+  // The desired state of the LDP router. If the desired state is 'up', the router starts
+  // Hello discovery on its interfaces and towards its targeted peers, attempts to bring
+  // up its LDP session(s) and advertises its FEC range(s), if configured. If the desired
+  // state is 'down', the router stops sending Hellos and closes its LDP session(s) (RFC
+  // 5036 Section 2.5.6).
+  // required = true
+  optional State.Enum state = 2;
+}
+
 // Request for triggering action against configured resources.
 message ControlAction {
 
@@ -16405,6 +16718,7 @@ message ActionProtocol {
       ipv6 = 2;
       bgp = 3;
       isis = 4;
+      ldp = 5;
     }
   }
   // Description missing in models
@@ -16422,6 +16736,9 @@ message ActionProtocol {
 
   // Description missing in models
   ActionProtocolIsis isis = 5;
+
+  // Description missing in models
+  ActionProtocolLdp ldp = 6;
 }
 
 // Response for actions associated with protocols on configured resources.
@@ -16970,6 +17287,44 @@ message ActionProtocolIsisOverloadBit {
   optional Choice.Enum choice = 2;
 }
 
+// Actions associated with LDP on configured resources.
+message ActionProtocolLdp {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      initiate_graceful_restart = 1;
+    }
+  }
+  // The LDP action to perform.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Configuration for the initiation of an LDP graceful restart.
+  ActionProtocolLdpInitiateGracefulRestart initiate_graceful_restart = 2;
+}
+
+// Initiates an LDP graceful restart (RFC 3478) on the selected LDP routers. Each selected
+// router closes its LDP sessions without withdrawing its labels, and re-establishes
+// them after restart_delay seconds. The Initialization messages sent after the restart
+// carry the FT Session TLV with the configured reconnect_time and recovery_time (RFC
+// 3478 Section 2). A selected router must have graceful_restart configured; otherwise
+// the implementation returns an error. If no name is specified, all configured LDP
+// routers are restarted.
+message ActionProtocolLdpInitiateGracefulRestart {
+
+  // The names of LDP routers to restart.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.LdpRouter/properties/name
+  // 
+  repeated string router_names = 1;
+
+  // The time in seconds after which the selected LDP routers re-establish their sessions.
+  // default = 30
+  optional uint32 restart_delay = 2;
+}
+
 // Request to traffic generator for metrics of choice.
 message MetricsRequest {
 
@@ -16999,6 +17354,7 @@ message MetricsRequest {
       rocev2_flow = 21;
       egress_only_tracking = 22;
       bmp_server = 23;
+      ldp = 24;
     }
   }
   // Description missing in models
@@ -17073,6 +17429,9 @@ message MetricsRequest {
 
   // Description missing in models
   BmpServerMetricsRequest bmp_server = 24;
+
+  // Description missing in models
+  LdpMetricsRequest ldp = 25;
 }
 
 // Response containing chosen traffic generator metrics.
@@ -17104,6 +17463,7 @@ message MetricsResponse {
       rocev2_flow_per_qp_metrics = 21;
       egress_only_tracking_metrics = 22;
       bmp_server_metrics = 23;
+      ldp_metrics = 24;
     }
   }
   // Description missing in models
@@ -17178,6 +17538,9 @@ message MetricsResponse {
 
   // Description missing in models
   repeated BmpServerMetric bmp_server_metrics = 24;
+
+  // Description missing in models
+  repeated LdpMetric ldp_metrics = 25;
 }
 
 // The port result request to the traffic generator
@@ -19990,6 +20353,132 @@ message BmpServerMetric {
   optional uint64 post_policy_ipv6_unicast_routes_received = 14;
 }
 
+// The request to retrieve LDP per router metrics/statistics.
+message LdpMetricsRequest {
+
+  // The names of LDP routers to return results for. An empty list will return results
+  // for all LDP routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.LdpRouter/properties/name
+  // 
+  repeated string router_names = 1;
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      sessions_up = 1;
+      sessions_flap = 2;
+      sessions_non_existent = 3;
+      sessions_initialized = 4;
+      sessions_open_received = 5;
+      sessions_open_sent = 6;
+      sessions_operational = 7;
+      notifications_sent = 8;
+      notifications_received = 9;
+      label_mappings_sent = 10;
+      label_mappings_received = 11;
+      label_requests_sent = 12;
+      label_requests_received = 13;
+      label_withdraws_sent = 14;
+      label_withdraws_received = 15;
+      label_releases_sent = 16;
+      label_releases_received = 17;
+      label_abort_requests_sent = 18;
+      label_abort_requests_received = 19;
+      ingress_lsps_up = 20;
+      egress_lsps_up = 21;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned. The name of the LDP router cannot be excluded.
+  repeated ColumnNames.Enum column_names = 2;
+}
+
+// LDP per router statistics information. A counter that is not reported by the implementation
+// is absent.
+message LdpMetric {
+
+  // The name of a configured LDP router.
+  optional string name = 1;
+
+  // The number of LDP sessions of this router that are up, that is in the OPERATIONAL
+  // state (RFC 5036 Section 2.5.4). Sessions formed through Basic (link) discovery (RFC
+  // 5036 Section 2.4.1) and through Extended (targeted) discovery (RFC 5036 Section 2.4.2)
+  // are both counted.
+  optional uint64 sessions_up = 2;
+
+  // The number of times an LDP session of this router left the OPERATIONAL state (RFC
+  // 5036 Section 2.5.4).
+  optional uint64 sessions_flap = 3;
+
+  // The number of LDP sessions of this router currently in the NON EXISTENT state of
+  // the session initialization state machine (RFC 5036 Section 2.5.4).
+  optional uint64 sessions_non_existent = 4;
+
+  // The number of LDP sessions of this router currently in the INITIALIZED state of the
+  // session initialization state machine (RFC 5036 Section 2.5.4).
+  optional uint64 sessions_initialized = 5;
+
+  // The number of LDP sessions of this router currently in the OPENREC state of the session
+  // initialization state machine (RFC 5036 Section 2.5.4).
+  optional uint64 sessions_open_received = 6;
+
+  // The number of LDP sessions of this router currently in the OPENSENT state of the
+  // session initialization state machine (RFC 5036 Section 2.5.4).
+  optional uint64 sessions_open_sent = 7;
+
+  // The number of LDP sessions of this router currently in the OPERATIONAL state of the
+  // session initialization state machine (RFC 5036 Section 2.5.4).
+  optional uint64 sessions_operational = 8;
+
+  // The number of Notification messages (type 0x0001, RFC 5036 Section 3.5.1) sent.
+  optional uint64 notifications_sent = 9;
+
+  // The number of Notification messages (type 0x0001, RFC 5036 Section 3.5.1) received.
+  optional uint64 notifications_received = 10;
+
+  // The number of Label Mapping messages (type 0x0400, RFC 5036 Section 3.5.7) sent.
+  optional uint64 label_mappings_sent = 11;
+
+  // The number of Label Mapping messages (type 0x0400, RFC 5036 Section 3.5.7) received.
+  optional uint64 label_mappings_received = 12;
+
+  // The number of Label Request messages (type 0x0401, RFC 5036 Section 3.5.8) sent.
+  optional uint64 label_requests_sent = 13;
+
+  // The number of Label Request messages (type 0x0401, RFC 5036 Section 3.5.8) received.
+  optional uint64 label_requests_received = 14;
+
+  // The number of Label Withdraw messages (type 0x0402, RFC 5036 Section 3.5.10) sent.
+  optional uint64 label_withdraws_sent = 15;
+
+  // The number of Label Withdraw messages (type 0x0402, RFC 5036 Section 3.5.10) received.
+  optional uint64 label_withdraws_received = 16;
+
+  // The number of Label Release messages (type 0x0403, RFC 5036 Section 3.5.11) sent.
+  optional uint64 label_releases_sent = 17;
+
+  // The number of Label Release messages (type 0x0403, RFC 5036 Section 3.5.11) received.
+  optional uint64 label_releases_received = 18;
+
+  // The number of Label Abort Request messages (type 0x0404, RFC 5036 Section 3.5.9)
+  // sent.
+  optional uint64 label_abort_requests_sent = 19;
+
+  // The number of Label Abort Request messages (type 0x0404, RFC 5036 Section 3.5.9)
+  // received.
+  optional uint64 label_abort_requests_received = 20;
+
+  // The number of IPv4 Prefix FECs for which this LSR has received a label from a peer,
+  // that is LSPs for which this LSR is the ingress.
+  optional uint64 ingress_lsps_up = 21;
+
+  // The number of IPv4 Prefix FECs advertised by this LSR for which a session to a peer
+  // is OPERATIONAL, that is LSPs for which this LSR is the egress.
+  optional uint64 egress_lsps_up = 22;
+}
+
 // Request to traffic generator for states of choice
 message StatesRequest {
 
@@ -20010,6 +20499,7 @@ message StatesRequest {
       ospfv3_lsas = 12;
       isis_adjacencies = 13;
       bmp_servers = 14;
+      ldp_bindings = 15;
     }
   }
   // Description missing in models
@@ -20057,6 +20547,9 @@ message StatesRequest {
 
   // Description missing in models
   BmpServersStateRequest bmp_servers = 15;
+
+  // Description missing in models
+  LdpBindingsStateRequest ldp_bindings = 16;
 }
 
 // Response containing chosen traffic generator states
@@ -20079,6 +20572,7 @@ message StatesResponse {
       ospfv3_lsas = 12;
       isis_adjacencies = 13;
       bmp_servers = 14;
+      ldp_bindings = 15;
     }
   }
   // Description missing in models
@@ -20126,6 +20620,9 @@ message StatesResponse {
 
   // Description missing in models
   repeated BmpServerState bmp_servers = 15;
+
+  // Description missing in models
+  repeated LdpBindingsState ldp_bindings = 16;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -22950,6 +23447,51 @@ message BmpPrefixIpv6UnicastState {
   // The multi exit discriminator (MED) is an optional non-transitive attribute and the
   // value is used for route selection. The route with the lowest MED value is preferred.
   optional uint32 multi_exit_discriminator = 13;
+}
+
+// The request to retrieve the FEC-label bindings received by LDP routers.
+message LdpBindingsStateRequest {
+
+  // The names of LDP routers for which received label bindings are requested. An empty
+  // list will return results for all LDP routers.
+  // 
+  // x-constraint:
+  // - /components/schemas/Device.LdpRouter/properties/name
+  // 
+  repeated string ldp_router_names = 1;
+}
+
+// The FEC-label bindings received by one LDP router from its peers.
+message LdpBindingsState {
+
+  // The name of the LDP router.
+  optional string ldp_router_name = 1;
+
+  // The IPv4 Prefix FEC-label bindings received in Label Mapping messages (RFC 5036 Section
+  // 3.5.7).
+  repeated LdpIpv4BindingState ipv4_bindings = 2;
+}
+
+// One IPv4 Prefix FEC element (RFC 5036 Section 3.4.1) and the label bound to it by
+// a peer (RFC 5036 Section 3.4.2.1).
+message LdpIpv4BindingState {
+
+  // The IPv4 prefix of the FEC element.
+  optional string prefix = 1;
+
+  // The prefix length of the FEC element.
+  optional uint32 prefix_length = 2;
+
+  // The label bound to the FEC by the peer. 3 is Implicit NULL and 0 is IPv4 Explicit
+  // NULL (RFC 3032 Section 2.1).
+  optional uint32 label = 3;
+
+  // The LSR ID of the peer that advertised the binding (RFC 5036 Section 2.2.2).
+  optional string peer_lsr_id = 4;
+
+  // The label space identifier of the peer that advertised the binding (RFC 5036 Section
+  // 2.2.2).
+  optional uint32 peer_label_space_id = 5;
 }
 
 // The capture result request to the traffic generator.

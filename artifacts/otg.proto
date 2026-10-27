@@ -11007,6 +11007,18 @@ message FlowOptions {
   // Applied across all flows.
   // default = False
   optional bool packet_loss_duration = 1;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      rocev2 = 1;
+    }
+  }
+  // Selects the stateful flow type for which common options are configured.
+  optional Choice.Enum choice = 2;
+
+  // Common options that apply across all RoCEv2 flows.
+  Rocev2FlowOptions rocev2 = 3;
 }
 
 // A container for different types of transmit and receive
@@ -14778,6 +14790,144 @@ message FlowPayloadFixed {
   optional bool repeat = 2;
 }
 
+// Common RoCEv2 flow options that apply across all configured RoCEv2 flows.
+message Rocev2FlowOptions {
+
+  // When enabled, allows RoCEv2 packets to be received out of order.
+  // Applied across all RoCEv2 flows.
+  // default = False
+  optional bool support_reordering = 1;
+}
+
+// RoCEv2 traffic flow configuration.
+message Rocev2Flows {
+
+  // Specifies the list of transmit (TX) ports used for sending RoCEv2 traffic.
+  repeated Rocev2TxPorts tx_ports = 1;
+}
+
+// Defines the transmit (TX) port settings for RoCEv2 traffic, including the port name
+// and transmission type configuration.
+message Rocev2TxPorts {
+
+  // The name of port for which this settings will be applied to.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  optional string port_name = 1;
+
+  // Description missing in models
+  Rocev2TransmitType transmit_type = 2;
+}
+
+// RoCEv2 flows can be configured to run in continuous mode or fixed iteration.
+message Rocev2TransmitType {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      target_line_rate = 1;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.target_line_rate
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  Rocev2TargetLineRate target_line_rate = 2;
+}
+
+// Configure target line rate of traffic rate on this port as percentage of link speed.
+message Rocev2TargetLineRate {
+
+  // Target Line Rate as percentage of max line rate.
+  // default = 98
+  optional uint64 value = 1;
+
+  // Description missing in models
+  repeated Rocev2Flow flows = 2;
+}
+
+// Configure properties for a specific RoCE flow on the Tx port.
+message Rocev2Flow {
+
+  // The unique name of an emulated device that will be transmitting the flows.
+  // 
+  // x-constraint:
+  // - /components/schemas/Rocev2.QPs/properties/qp_name
+  // 
+  // required = true
+  optional string tx_endpoint = 1;
+
+  // The unique name of remote QP or port which be receiving the packets for the flow.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // - /components/schemas/Rocev2.QPs/properties/qp_name
+  // 
+  optional string rx_endpoint = 2;
+
+  // Globally unique name of an object. It also serves as the primary key for arrays of
+  // objects.
+  // required = true
+  optional string name = 3;
+
+  // Description missing in models
+  Rocev2Verb rocev2_verb = 4;
+
+  // Length of Message that needs to be transmitted to the remote end-point.
+  // default = 1
+  optional uint32 message_size = 5;
+
+  message MessageSizeUnit {
+    enum Enum {
+      unspecified = 0;
+      bytes = 1;
+      kb = 2;
+      mb = 3;
+      gb = 4;
+    }
+  }
+  // Unit of the transfer message size. Available options are Bytes, KiloBtyes (KB), NegaBytes
+  // (MB) and GigaBytes (GB).
+  // default = MessageSizeUnit.Enum.mb
+  optional MessageSizeUnit.Enum message_size_unit = 6;
+}
+
+// RoCEv2 Verb. Available options are: WRITE, WRITE_With_Immediate, SEND, SEND_With_Immediate
+// and READ.
+message Rocev2Verb {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      write = 1;
+      write_with_immediate = 2;
+      send = 3;
+      send_with_immediate = 4;
+      read = 5;
+    }
+  }
+  // Description missing in models
+  // default = Choice.Enum.write
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  Rocev2ImmediateData write_with_immediate = 2;
+
+  // Description missing in models
+  Rocev2ImmediateData send_with_immediate = 3;
+}
+
+// Four bytes of immediate Data for SEND/WRITE with immediate.
+message Rocev2ImmediateData {
+
+  // Four bytes of immediate Data for SEND/WRITE with immediate.
+  // default = 00000000
+  optional string immediate_data = 1;
+}
+
 // The optional container for event configuration.
 // Both cp_events.enable and dp_events.enable must be explicitly set to true to get
 // 
@@ -15115,135 +15265,6 @@ message StatefulFlow {
 
   // RoCEv2 Flow Groups.
   repeated Rocev2Flows rocev2 = 2;
-}
-
-// RoCEv2 traffic flow configuration.
-message Rocev2Flows {
-
-  // Specifies the list of transmit (TX) ports used for sending RoCEv2 traffic.
-  repeated Rocev2TxPorts tx_ports = 1;
-}
-
-// Defines the transmit (TX) port settings for RoCEv2 traffic, including the port name
-// and transmission type configuration.
-message Rocev2TxPorts {
-
-  // The name of port for which this settings will be applied to.
-  // 
-  // x-constraint:
-  // - /components/schemas/Port/properties/name
-  // 
-  optional string port_name = 1;
-
-  // Description missing in models
-  Rocev2TransmitType transmit_type = 2;
-}
-
-// RoCEv2 flows can be configured to run in continuous mode or fixed iteration.
-message Rocev2TransmitType {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      target_line_rate = 1;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.target_line_rate
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  Rocev2TargetLineRate target_line_rate = 2;
-}
-
-// Configure target line rate of traffic rate on this port as percentage of link speed.
-message Rocev2TargetLineRate {
-
-  // Target Line Rate as percentage of max line rate.
-  // default = 98
-  optional uint64 value = 1;
-
-  // Description missing in models
-  repeated Rocev2Flow flows = 2;
-}
-
-// Configure properties for a specific RoCE flow on the Tx port.
-message Rocev2Flow {
-
-  // The unique name of an emulated device that will be transmitting the flows.
-  // 
-  // x-constraint:
-  // - /components/schemas/Rocev2.QPs/properties/qp_name
-  // 
-  // required = true
-  optional string tx_endpoint = 1;
-
-  // The unique name of remote QP or port which be receiving the packets for the flow.
-  // 
-  // x-constraint:
-  // - /components/schemas/Port/properties/name
-  // - /components/schemas/Rocev2.QPs/properties/qp_name
-  // 
-  optional string rx_endpoint = 2;
-
-  // Globally unique name of an object. It also serves as the primary key for arrays of
-  // objects.
-  // required = true
-  optional string name = 3;
-
-  // Description missing in models
-  Rocev2Verb rocev2_verb = 4;
-
-  // Length of Message that needs to be transmitted to the remote end-point.
-  // default = 1
-  optional uint32 message_size = 5;
-
-  message MessageSizeUnit {
-    enum Enum {
-      unspecified = 0;
-      bytes = 1;
-      kb = 2;
-      mb = 3;
-      gb = 4;
-    }
-  }
-  // Unit of the transfer message size. Available options are Bytes, KiloBtyes (KB), NegaBytes
-  // (MB) and GigaBytes (GB).
-  // default = MessageSizeUnit.Enum.mb
-  optional MessageSizeUnit.Enum message_size_unit = 6;
-}
-
-// RoCEv2 Verb. Available options are: WRITE, WRITE_With_Immediate, SEND, SEND_With_Immediate
-// and READ.
-message Rocev2Verb {
-
-  message Choice {
-    enum Enum {
-      unspecified = 0;
-      write = 1;
-      write_with_immediate = 2;
-      send = 3;
-      send_with_immediate = 4;
-      read = 5;
-    }
-  }
-  // Description missing in models
-  // default = Choice.Enum.write
-  optional Choice.Enum choice = 1;
-
-  // Description missing in models
-  Rocev2ImmediateData write_with_immediate = 2;
-
-  // Description missing in models
-  Rocev2ImmediateData send_with_immediate = 3;
-}
-
-// Four bytes of immediate Data for SEND/WRITE with immediate.
-message Rocev2ImmediateData {
-
-  // Four bytes of immediate Data for SEND/WRITE with immediate.
-  // default = 00000000
-  optional string immediate_data = 1;
 }
 
 // Egress tracking specification for a specified port.

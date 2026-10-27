@@ -14573,6 +14573,13 @@ message UltraEthernet {
   // Ultra Ethernet Credit-based Flow Control (CBFC) settings.
   UltraEthernetCbfc cbfc = 4;
 
+  // Ultra Ethernet impairment settings used to inject LLR and PHY Control
+  // Ordered Set (CtlOS) errors for negative and robustness testing. Each
+  // nested impairment holds its parameters here (set_config); the impairment
+  // is started and stopped at runtime via the control API
+  // (set_control_state with the matching impairment choice).
+  UltraEthernetImpairment impairment = 6;
+
   // Globally unique name of an object. It also serves as the primary key for arrays of
   // objects.
   // required = true
@@ -15092,6 +15099,208 @@ message UltraEthernetCbfcVcMappingDscp {
 
   // The DSCP values mapped to this VC. Valid values are 0 to 63.
   repeated uint32 values = 1;
+}
+
+// Ultra Ethernet impairment configuration. Each nested object holds the
+// parameters for one impairment test. The parameters are applied as part of
+// the configuration (set_config), while each impairment is started or stopped
+// at runtime using the control API (set_control_state) with the matching
+// impairment choice.
+// 
+// The LLR impairments inject errors into the Link Layer Retry protocol
+// (Reference: UE-Specification-1.0.3 Section 5.1) and the CtlOS impairments
+// drop or delay the Control Ordered Sets that carry the LLR and CBFC messages
+// (Reference: UE-Specification-1.0.3 Section 6.2).
+message UltraEthernetImpairment {
+
+  // Inject a jump in the sequence number of transmitted LLR-eligible frames.
+  UltraEthernetImpairmentLlrFrameSequenceJump llr_frame_sequence_jump = 1;
+
+  // Inject a CRC error into transmitted LLR-eligible frames.
+  UltraEthernetImpairmentLlrFrameCrcError llr_frame_crc_error = 2;
+
+  // Inject a poisoned CRC (stomped CRC) into transmitted LLR-eligible frames.
+  UltraEthernetImpairmentLlrPoisonedCrcError llr_poisoned_crc_error = 3;
+
+  // Inject incorrect content into transmitted LLR_INIT_ECHO Control Ordered
+  // Sets.
+  UltraEthernetImpairmentLlrInitEchoIncorrectContent llr_init_echo_incorrect_content = 4;
+
+  // Simulate received frame loss so the receiver generates an LLR_NACK.
+  UltraEthernetImpairmentLlrGenerateNack llr_generate_nack = 5;
+
+  // Inject an incorrect sequence number into transmitted LLR_ACK / LLR_NACK
+  // Control Ordered Sets.
+  UltraEthernetImpairmentLlrAckNackIncorrectSequenceNumber llr_ack_nack_incorrect_sequence_number = 6;
+
+  // Stop incrementing the sequence number carried in transmitted LLR_ACK
+  // Control Ordered Sets.
+  UltraEthernetImpairmentLlrAckSequenceFreeze llr_ack_sequence_freeze = 7;
+
+  // Force the transmit LLR to replay frames from the replay buffer.
+  UltraEthernetImpairmentLlrTxForceReplay llr_tx_force_replay = 8;
+
+  // Drop selected transmitted Control Ordered Sets (CtlOS).
+  UltraEthernetImpairmentCtlOsDrop tx_ctl_os_drop = 9;
+
+  // Drop selected received Control Ordered Sets (CtlOS).
+  UltraEthernetImpairmentCtlOsDrop rx_ctl_os_drop = 10;
+
+  // Delay transmitted Control Ordered Sets (CtlOS).
+  UltraEthernetImpairmentTxCtlOsDelay tx_ctl_os_delay = 11;
+}
+
+// Parameters for the LLR Frame Sequence Jump impairment. After skipping
+// skip_count LLR-eligible frames, the sequence number of the next transmitted
+// frame is offset by delta_error.
+message UltraEthernetImpairmentLlrFrameSequenceJump {
+
+  // The number of LLR-eligible frames to transmit normally before injecting the
+  // sequence number jump.
+  // default = 0
+  optional uint32 skip_count = 1;
+
+  // The amount by which the transmitted frame sequence number is jumped.
+  // default = 1
+  optional uint32 delta_error = 2;
+}
+
+// Parameters for the LLR Frame CRC Error impairment. After skipping skip_count
+// LLR-eligible frames, a CRC error is injected into the next transmitted frame.
+message UltraEthernetImpairmentLlrFrameCrcError {
+
+  // The number of LLR-eligible frames to transmit normally before injecting the
+  // CRC error.
+  // default = 0
+  optional uint32 skip_count = 1;
+}
+
+// Parameters for the LLR Poisoned CRC Error impairment. After skipping
+// skip_count LLR-eligible frames, a poisoned (stomped) CRC is injected into the
+// next transmitted frame.
+message UltraEthernetImpairmentLlrPoisonedCrcError {
+
+  // The number of LLR-eligible frames to transmit normally before injecting the
+  // poisoned CRC.
+  // default = 0
+  optional uint32 skip_count = 1;
+}
+
+// Parameters for the LLR INIT_ECHO Incorrect Content impairment. Selects which
+// field(s) of the transmitted LLR_INIT_ECHO Control Ordered Set carry incorrect
+// content.
+message UltraEthernetImpairmentLlrInitEchoIncorrectContent {
+
+  // Transmit an incorrect sequence number in the LLR_INIT_ECHO.
+  // default = True
+  optional bool incorrect_sequence_number = 1;
+
+  // Transmit an incorrect data value in the LLR_INIT_ECHO.
+  // default = True
+  optional bool incorrect_data_value = 2;
+}
+
+// Parameters for the LLR Generate NACK (Rx Frame Drop) impairment. After
+// skipping skip_count received LLR-eligible frames, simulated_frame_loss_count
+// frames are dropped so that the receiver generates an LLR_NACK.
+message UltraEthernetImpairmentLlrGenerateNack {
+
+  // The number of received LLR-eligible frames to accept normally before
+  // simulating frame loss.
+  // default = 0
+  optional uint32 skip_count = 1;
+
+  // The number of consecutive received frames to drop to simulate loss.
+  // default = 1
+  optional uint32 simulated_frame_loss_count = 2;
+}
+
+// Parameters for the LLR ACK/NACK Incorrect Sequence Number impairment. After
+// skipping skip_count transmitted LLR_ACK / LLR_NACK Control Ordered Sets, the
+// sequence number of the next one of the selected type is offset by
+// delta_sequence_number.
+message UltraEthernetImpairmentLlrAckNackIncorrectSequenceNumber {
+
+  // The number of transmitted LLR_ACK / LLR_NACK Control Ordered Sets to send
+  // normally before injecting the incorrect sequence number.
+  // default = 0
+  optional uint32 skip_count = 1;
+
+  message Type {
+    enum Enum {
+      unspecified = 0;
+      ack = 1;
+      nack = 2;
+    }
+  }
+  // The Control Ordered Set type whose sequence number is made incorrect.
+  // default = Type.Enum.ack
+  optional Type.Enum type = 2;
+
+  // The signed amount by which the transmitted sequence number is offset.
+  // default = 1
+  optional int32 delta_sequence_number = 3;
+}
+
+// Parameters for the LLR ACK Sequence Freeze impairment. After skipping
+// skip_count transmitted LLR_ACK Control Ordered Sets, the sequence number
+// carried in the LLR_ACKs stops incrementing.
+message UltraEthernetImpairmentLlrAckSequenceFreeze {
+
+  // The number of transmitted LLR_ACK Control Ordered Sets to send normally
+  // before freezing the acknowledged sequence number.
+  // default = 0
+  optional uint32 skip_count = 1;
+}
+
+// Parameters for the LLR Tx Force Replay impairment. After skipping skip_count
+// transmitted LLR-eligible frames, the transmit LLR is forced to replay frames
+// held in the replay buffer.
+message UltraEthernetImpairmentLlrTxForceReplay {
+
+  // The number of transmitted LLR-eligible frames to send normally before
+  // forcing a replay.
+  // default = 0
+  optional uint32 skip_count = 1;
+}
+
+// Parameters for the Control Ordered Set (CtlOS) Drop impairment. Selects which
+// CtlOS message types are dropped. Used for both the transmit and receive
+// direction CtlOS drop impairments.
+message UltraEthernetImpairmentCtlOsDrop {
+
+  // Drop LLR_INIT_ECHO Control Ordered Sets.
+  // default = False
+  optional bool init_echo = 1;
+
+  // Drop LLR_INIT Control Ordered Sets.
+  // default = False
+  optional bool init = 2;
+
+  // Drop LLR_ACK Control Ordered Sets.
+  // default = False
+  optional bool ack = 3;
+
+  // Drop LLR_NACK Control Ordered Sets.
+  // default = False
+  optional bool nack = 4;
+
+  // Drop CBFC CF_Update Control Ordered Sets.
+  // default = False
+  optional bool cf = 5;
+
+  // Drop the selected Control Ordered Sets continuously while the impairment is
+  // running. This is currently fixed to true.
+  // default = True
+  optional bool continuous = 6;
+}
+
+// Parameters for the Tx Control Ordered Set (CtlOS) Delay impairment.
+message UltraEthernetImpairmentTxCtlOsDelay {
+
+  // The delay, in nanoseconds, applied to transmitted Control Ordered Sets.
+  // default = 100
+  optional uint32 delay = 1;
 }
 
 // Per flow Ultra Ethernet (UEC) settings.
@@ -16453,6 +16662,7 @@ message StateUltraEthernet {
       unspecified = 0;
       llr = 1;
       cbfc = 2;
+      impairment = 3;
     }
   }
   // Description missing in models
@@ -16464,6 +16674,9 @@ message StateUltraEthernet {
 
   // Description missing in models
   StateUltraEthernetCbfc cbfc = 3;
+
+  // Description missing in models
+  StateUltraEthernetImpairment impairment = 4;
 }
 
 // Sets the Link Layer Retry (LLR) mode state of configured Ultra Ethernet instances.
@@ -16526,6 +16739,54 @@ message StateUltraEthernetCbfc {
   // enable or disable both sender and receiver.
   // required = true
   optional State.Enum state = 2;
+}
+
+// Starts or stops a Ultra Ethernet impairment test on configured Ultra Ethernet instances.
+// The impairment parameters are taken from the matching impairment configuration applied
+// via set_config.
+message StateUltraEthernetImpairment {
+
+  // The names of target Ultra Ethernet instances. An empty or null list will target all
+  // Ultra Ethernet instances.
+  // 
+  // x-constraint:
+  // - /components/schemas/UltraEthernet/properties/name
+  // 
+  repeated string ultra_ethernet_names = 1;
+
+  message Impairment {
+    enum Enum {
+      unspecified = 0;
+      llr_frame_sequence_jump = 1;
+      llr_frame_crc_error = 2;
+      llr_poisoned_crc_error = 3;
+      llr_init_echo_incorrect_content = 4;
+      llr_generate_nack = 5;
+      llr_ack_nack_incorrect_sequence_number = 6;
+      llr_ack_sequence_freeze = 7;
+      llr_tx_force_replay = 8;
+      tx_ctl_os_drop = 9;
+      rx_ctl_os_drop = 10;
+      tx_ctl_os_delay = 11;
+    }
+  }
+  // The impairment test to start or stop. Each value corresponds to an impairment configured
+  // under the Ultra Ethernet impairment settings.
+  // required = true
+  optional Impairment.Enum impairment = 2;
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      start = 1;
+      stop = 2;
+    }
+  }
+  // The impairment state to apply.
+  // - start: begin injecting the impairment using its configured parameters. - stop:
+  // stop injecting the impairment (traffic passes unimpaired).
+  // required = true
+  optional State.Enum state = 3;
 }
 
 // Sets the link of configured ports.

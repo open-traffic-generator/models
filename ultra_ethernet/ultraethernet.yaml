@@ -44,6 +44,15 @@ components:
             Ultra Ethernet Credit-based Flow Control (CBFC) settings.
           $ref: '#/components/schemas/UltraEthernet.Cbfc'
           x-field-uid: 4
+        impairment:
+          description: |-
+            Ultra Ethernet impairment settings used to inject LLR and PHY Control
+            Ordered Set (CtlOS) errors for negative and robustness testing. Each
+            nested impairment holds its parameters here (set_config); the impairment
+            is started and stopped at runtime via the control API
+            (set_control_state with the matching impairment choice).
+          $ref: '#/components/schemas/UltraEthernet.Impairment'
+          x-field-uid: 6
         name:
           x-include: ../common/common.yaml#/components/schemas/Named.Object/properties/name
           x-field-uid: 5
@@ -808,6 +817,314 @@ components:
             type: integer
             format: uint32
             maximum: 63
+          x-field-uid: 1
+
+    UltraEthernet.Impairment:
+      description: |-
+        Ultra Ethernet impairment configuration. Each nested object holds the
+        parameters for one impairment "test". The parameters are applied as part of
+        the configuration (set_config), while each impairment is started or stopped
+        at runtime using the control API (set_control_state) with the matching
+        impairment choice.
+
+        The LLR impairments inject errors into the Link Layer Retry protocol
+        (Reference: UE-Specification-1.0.3 Section 5.1) and the CtlOS impairments
+        drop or delay the Control Ordered Sets that carry the LLR and CBFC messages
+        (Reference: UE-Specification-1.0.3 Section 6.2).
+      type: object
+      properties:
+        llr_frame_sequence_jump:
+          description: |-
+            Inject a jump in the sequence number of transmitted LLR-eligible frames.
+          $ref: '#/components/schemas/UltraEthernet.Impairment.LlrFrameSequenceJump'
+          x-field-uid: 1
+        llr_frame_crc_error:
+          description: |-
+            Inject a CRC error into transmitted LLR-eligible frames.
+          $ref: '#/components/schemas/UltraEthernet.Impairment.LlrFrameCrcError'
+          x-field-uid: 2
+        llr_poisoned_crc_error:
+          description: |-
+            Inject a poisoned CRC (stomped CRC) into transmitted LLR-eligible frames.
+          $ref: '#/components/schemas/UltraEthernet.Impairment.LlrPoisonedCrcError'
+          x-field-uid: 3
+        llr_init_echo_incorrect_content:
+          description: |-
+            Inject incorrect content into transmitted LLR_INIT_ECHO Control Ordered
+            Sets.
+          $ref: '#/components/schemas/UltraEthernet.Impairment.LlrInitEchoIncorrectContent'
+          x-field-uid: 4
+        llr_generate_nack:
+          description: |-
+            Simulate received frame loss so the receiver generates an LLR_NACK.
+          $ref: '#/components/schemas/UltraEthernet.Impairment.LlrGenerateNack'
+          x-field-uid: 5
+        llr_ack_nack_incorrect_sequence_number:
+          description: |-
+            Inject an incorrect sequence number into transmitted LLR_ACK / LLR_NACK
+            Control Ordered Sets.
+          $ref: '#/components/schemas/UltraEthernet.Impairment.LlrAckNackIncorrectSequenceNumber'
+          x-field-uid: 6
+        llr_ack_sequence_freeze:
+          description: |-
+            Stop incrementing the sequence number carried in transmitted LLR_ACK
+            Control Ordered Sets.
+          $ref: '#/components/schemas/UltraEthernet.Impairment.LlrAckSequenceFreeze'
+          x-field-uid: 7
+        llr_tx_force_replay:
+          description: |-
+            Force the transmit LLR to replay frames from the replay buffer.
+          $ref: '#/components/schemas/UltraEthernet.Impairment.LlrTxForceReplay'
+          x-field-uid: 8
+        tx_ctl_os_drop:
+          description: |-
+            Drop selected transmitted Control Ordered Sets (CtlOS).
+          $ref: '#/components/schemas/UltraEthernet.Impairment.CtlOsDrop'
+          x-field-uid: 9
+        rx_ctl_os_drop:
+          description: |-
+            Drop selected received Control Ordered Sets (CtlOS).
+          $ref: '#/components/schemas/UltraEthernet.Impairment.CtlOsDrop'
+          x-field-uid: 10
+        tx_ctl_os_delay:
+          description: |-
+            Delay transmitted Control Ordered Sets (CtlOS).
+          $ref: '#/components/schemas/UltraEthernet.Impairment.TxCtlOsDelay'
+          x-field-uid: 11
+
+    UltraEthernet.Impairment.LlrFrameSequenceJump:
+      description: |-
+        Parameters for the LLR Frame Sequence Jump impairment. After skipping
+        skip_count LLR-eligible frames, the sequence number of the next transmitted
+        frame is offset by delta_error.
+      type: object
+      properties:
+        skip_count:
+          description: |-
+            The number of LLR-eligible frames to transmit normally before injecting the
+            sequence number jump.
+          type: integer
+          format: uint32
+          maximum: 524287
+          default: 0
+          x-field-uid: 1
+        delta_error:
+          description: |-
+            The amount by which the transmitted frame sequence number is jumped.
+          type: integer
+          format: uint32
+          minimum: 1
+          maximum: 524287
+          default: 1
+          x-field-uid: 2
+
+    UltraEthernet.Impairment.LlrFrameCrcError:
+      description: |-
+        Parameters for the LLR Frame CRC Error impairment. After skipping skip_count
+        LLR-eligible frames, a CRC error is injected into the next transmitted frame.
+      type: object
+      properties:
+        skip_count:
+          description: |-
+            The number of LLR-eligible frames to transmit normally before injecting the
+            CRC error.
+          type: integer
+          format: uint32
+          maximum: 524287
+          default: 0
+          x-field-uid: 1
+
+    UltraEthernet.Impairment.LlrPoisonedCrcError:
+      description: |-
+        Parameters for the LLR Poisoned CRC Error impairment. After skipping
+        skip_count LLR-eligible frames, a poisoned (stomped) CRC is injected into the
+        next transmitted frame.
+      type: object
+      properties:
+        skip_count:
+          description: |-
+            The number of LLR-eligible frames to transmit normally before injecting the
+            poisoned CRC.
+          type: integer
+          format: uint32
+          maximum: 524287
+          default: 0
+          x-field-uid: 1
+
+    UltraEthernet.Impairment.LlrInitEchoIncorrectContent:
+      description: |-
+        Parameters for the LLR INIT_ECHO Incorrect Content impairment. Selects which
+        field(s) of the transmitted LLR_INIT_ECHO Control Ordered Set carry incorrect
+        content.
+      type: object
+      properties:
+        incorrect_sequence_number:
+          description: |-
+            Transmit an incorrect sequence number in the LLR_INIT_ECHO.
+          type: boolean
+          default: true
+          x-field-uid: 1
+        incorrect_data_value:
+          description: |-
+            Transmit an incorrect data value in the LLR_INIT_ECHO.
+          type: boolean
+          default: true
+          x-field-uid: 2
+
+    UltraEthernet.Impairment.LlrGenerateNack:
+      description: |-
+        Parameters for the LLR Generate NACK (Rx Frame Drop) impairment. After
+        skipping skip_count received LLR-eligible frames, simulated_frame_loss_count
+        frames are dropped so that the receiver generates an LLR_NACK.
+      type: object
+      properties:
+        skip_count:
+          description: |-
+            The number of received LLR-eligible frames to accept normally before
+            simulating frame loss.
+          type: integer
+          format: uint32
+          maximum: 524287
+          default: 0
+          x-field-uid: 1
+        simulated_frame_loss_count:
+          description: |-
+            The number of consecutive received frames to drop to simulate loss.
+          type: integer
+          format: uint32
+          maximum: 524287
+          default: 1
+          x-field-uid: 2
+
+    UltraEthernet.Impairment.LlrAckNackIncorrectSequenceNumber:
+      description: |-
+        Parameters for the LLR ACK/NACK Incorrect Sequence Number impairment. After
+        skipping skip_count transmitted LLR_ACK / LLR_NACK Control Ordered Sets, the
+        sequence number of the next one of the selected type is offset by
+        delta_sequence_number.
+      type: object
+      properties:
+        skip_count:
+          description: |-
+            The number of transmitted LLR_ACK / LLR_NACK Control Ordered Sets to send
+            normally before injecting the incorrect sequence number.
+          type: integer
+          format: uint32
+          maximum: 524287
+          default: 0
+          x-field-uid: 1
+        type:
+          description: |-
+            The Control Ordered Set type whose sequence number is made incorrect.
+          type: string
+          default: ack
+          x-field-uid: 2
+          x-enum:
+            ack:
+              x-field-uid: 1
+            nack:
+              x-field-uid: 2
+        delta_sequence_number:
+          description: |-
+            The signed amount by which the transmitted sequence number is offset.
+          type: integer
+          format: int32
+          minimum: -524288
+          maximum: 524287
+          default: 1
+          x-field-uid: 3
+
+    UltraEthernet.Impairment.LlrAckSequenceFreeze:
+      description: |-
+        Parameters for the LLR ACK Sequence Freeze impairment. After skipping
+        skip_count transmitted LLR_ACK Control Ordered Sets, the sequence number
+        carried in the LLR_ACKs stops incrementing.
+      type: object
+      properties:
+        skip_count:
+          description: |-
+            The number of transmitted LLR_ACK Control Ordered Sets to send normally
+            before freezing the acknowledged sequence number.
+          type: integer
+          format: uint32
+          maximum: 524287
+          default: 0
+          x-field-uid: 1
+
+    UltraEthernet.Impairment.LlrTxForceReplay:
+      description: |-
+        Parameters for the LLR Tx Force Replay impairment. After skipping skip_count
+        transmitted LLR-eligible frames, the transmit LLR is forced to replay frames
+        held in the replay buffer.
+      type: object
+      properties:
+        skip_count:
+          description: |-
+            The number of transmitted LLR-eligible frames to send normally before
+            forcing a replay.
+          type: integer
+          format: uint32
+          maximum: 524287
+          default: 0
+          x-field-uid: 1
+
+    UltraEthernet.Impairment.CtlOsDrop:
+      description: |-
+        Parameters for the Control Ordered Set (CtlOS) Drop impairment. Selects which
+        CtlOS message types are dropped. Used for both the transmit and receive
+        direction CtlOS drop impairments.
+      type: object
+      properties:
+        init_echo:
+          description: |-
+            Drop LLR_INIT_ECHO Control Ordered Sets.
+          type: boolean
+          default: false
+          x-field-uid: 1
+        init:
+          description: |-
+            Drop LLR_INIT Control Ordered Sets.
+          type: boolean
+          default: false
+          x-field-uid: 2
+        ack:
+          description: |-
+            Drop LLR_ACK Control Ordered Sets.
+          type: boolean
+          default: false
+          x-field-uid: 3
+        nack:
+          description: |-
+            Drop LLR_NACK Control Ordered Sets.
+          type: boolean
+          default: false
+          x-field-uid: 4
+        cf:
+          description: |-
+            Drop CBFC CF_Update Control Ordered Sets.
+          type: boolean
+          default: false
+          x-field-uid: 5
+        continuous:
+          description: |-
+            Drop the selected Control Ordered Sets continuously while the impairment is
+            running. This is currently fixed to true.
+          type: boolean
+          default: true
+          x-field-uid: 6
+
+    UltraEthernet.Impairment.TxCtlOsDelay:
+      description: |-
+        Parameters for the Tx Control Ordered Set (CtlOS) Delay impairment.
+      type: object
+      properties:
+        delay:
+          description: |-
+            The delay, in nanoseconds, applied to transmitted Control Ordered Sets.
+          type: integer
+          format: uint32
+          maximum: 10237
+          default: 100
           x-field-uid: 1
 
     Flow.UltraEthernet:

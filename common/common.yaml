@@ -16,9 +16,126 @@ components:
             Globally unique name of an object.
             It also serves as the primary key for arrays of objects.
           type: string
+          # Disallow leading and trailing whitespace
+          pattern: '^\S(.*\S)?$'
           x-field-uid: 1
           x-unique: global
-    ChoiceNone:
+
+    Described.Object:
       description: >-
-        A empty container that is used to indicate a null choice.
+        An object that can be described with a textual description.
       type: object
+      properties:
+        description:
+          type: string
+          description: >-
+            A detailed description of the object.
+          x-field-uid: 1
+
+    Identified.Object:
+      description: >-
+        An object that can be described with a string UUID.
+      type: object
+      properties:
+        id:
+          type: string
+          description: >-
+            The unique ID of an object.
+          x-field-uid: 1
+
+    Placeholder.Object:
+      description: >-
+        A placeholder object for fields that are yet to be properly defined.
+      type: object
+      properties:
+        value:
+          type: string
+          description: >-
+            Placeholder type for fields that are yet to be defined.
+          x-field-uid: 1
+
+    Tagged.Object:
+      description: >-
+        An object that can be associated with a list of tags.
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+          default: []
+          description: >-
+            List of tags associated with this object.
+          x-field-uid: 1
+
+    Versioned.Object:
+      description: >
+        An object that has a version.
+      type: object
+      properties:
+        version:
+          type: string
+          format: semantic-version
+          description: >-
+            Semver (semantic versioning) formatted version of containing object.
+          x-field-uid: 1
+
+    Implementation:
+      description: >-
+        Identifies the implementation serving the API.
+      type: object
+      properties:
+        id:
+          description: >-
+            Identifies the implementation as a reverse domain name without a
+            trailing ".", such as "com.example.app". It may name a level below
+            the application, such as "com.example.app.component". It is the
+            prefix of the implementation's own keys in CustomSettings.
+            Set by the implementation; empty if it defines no prefixed settings.
+          type: string
+          readOnly: true
+          default: ''
+          x-field-uid: 1
+
+    CustomSettings:
+      description: >-
+        A list of implementation-specific settings, as key/value pairs.
+        Values are strings for simplicity; a setting of any other type is carried
+        in its string form, and the implementation that supports the key
+        defines how to parse it.
+
+        It is recommended that keys have the form "<implementation id>.<property>",
+        where the implementation prefix is a reverse domain name owned by the 
+        implementation author/publisher, e.g. "com.example.app.custom_setting".
+        This prevents key collisions. But implementations are free to handle 
+        keys that don't conform to this style, e.g. keys with a different
+        or missing implementation id.
+
+        Each implementation is expected to document, outside of the model, the
+        settings it supports. An implementation should ignore keys that it
+        does not process but should warn that it did so. 
+        
+        Implementations should return an error for duplicate keys unless it
+        intentionally accepts duplicate keys.
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyValuePair'
+          default: []
+          x-field-uid: 1
+
+    KeyValuePair:
+      description: >-
+        One key/value pair.
+      type: object
+      required: [key, value]
+      properties:
+        key:
+          type: string
+          x-field-uid: 1
+        value:
+          type: string
+          x-field-uid: 2

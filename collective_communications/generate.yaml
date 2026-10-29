@@ -1,0 +1,112 @@
+components:
+  schemas:
+    CollectiveCommunications.Config.Generate.Request:
+      description: >-
+        Inputs used to generate a Collective Communication Benchmarks configuration.
+
+        The infrastructure is compiled into otg configuration settings, namely:
+          /ports
+          /devices/ethernets/...
+          /layer1
+          /captures
+        along with a partially populated collective communications infrastructure and bindings. The generated
+        config can be further customized by using get_config, modifying the
+        returned config, and calling set_config to update it.
+
+        If the config is not clear, generation will preserve the existing settings
+        and expand them incrementally to match the specified infrastructure.
+
+      type: object
+      required: [infrastructure]
+      properties:
+        infrastructure:
+          $ref: './infrastructure.yaml#/components/schemas/CollectiveCommunications.HighLevelInfrastructure'
+          description: >-
+            The infrastructure to compile into a configuration.
+          x-field-uid: 1
+        platform_regions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.PlatformRegion'
+          description: >-
+            Assigns platforms to different regions of the infrastructure.
+          x-field-uid: 2
+
+    CollectiveCommunications.PlatformRegion:
+      description: >-
+        Assigns a platform to a region within the infrastructure.
+      type: object
+      properties:
+        region:
+          $ref: '#/components/schemas/CollectiveCommunications.InfrastructureRegion'
+          description: >-
+            The infrastructure region to which a platform is assigned.
+          x-field-uid: 1
+        platform_name:
+          type: string
+          x-constraint:
+          - '/components/schemas/CollectiveCommunications.PlatformConfig/properties/name'
+          description: >-
+            The name of the CollectiveCommunications.PlatformConfig assigned to this
+            infrastructure region.
+          x-field-uid: 2
+
+    CollectiveCommunications.InfrastructureRegion:
+      description: >-
+        Defines a region within the infrastructure by specifying boundary components.
+      type: object
+      properties:
+        boundary_refs:
+          type: array
+          items:
+            $ref: './bindings.yaml#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            Components that mark the boundary of this region within the infrastructure.
+          x-field-uid: 1
+
+    CollectiveCommunications.AllocationStrategy:
+      description: >-
+        Strategy for allocating XPUs to the derived process groups.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the allocation strategy. Default is sequential.
+          x-field-uid: 1
+          x-enum:
+            sequential:
+              description: >-
+                Allocate XPUs sequentially from the ordered list of available XPUs.
+              x-field-uid: 1
+            round_robin:
+              description: >-
+                Allocate XPUs in a round-robin fashion across process groups.
+              x-field-uid: 2
+            custom:
+              description: >-
+                Allocate XPUs using a user-defined strategy.
+              x-field-uid: 3
+        round_robin:
+          $ref: '#/components/schemas/CollectiveCommunications.RoundRobinStrategy'
+          description: >-
+            Round-robin allocation strategy configuration.
+          x-field-uid: 2
+
+    CollectiveCommunications.RoundRobinStrategy:
+      description: >-
+        Round-robin XPU allocation strategy.
+        Allocates XPUs in a round-robin fashion across process groups.
+      type: object
+      properties:
+        step:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          description: >-
+            Number of consecutive XPUs each group takes before the next group's
+            turn. A step of 1 interleaves one XPU at a time; larger values take
+            larger contiguous chunks per turn.
+          x-field-uid: 1

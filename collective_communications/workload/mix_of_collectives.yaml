@@ -1,0 +1,298 @@
+components:
+  schemas:
+    CollectiveCommunications.MixOfCollectives:
+      description: >-
+        Multiple collective communication configuration.
+      type: object
+      required: [workload_sets]
+      properties:
+        workload_sets:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.WorkloadSet'
+          minItems: 1
+          description: >-
+            The workload sets that form this run. Workload sets are executed in parallel
+            and are intended to model independent jobs or spaces within a run (e.g. coming
+            from different tenants).
+          x-field-uid: 1
+
+    CollectiveCommunications.MixOfCollectives.WorkloadSet:
+      description: >-
+        A workload set consisting of a number of workloads, executed on a distinct
+        subset of the infrastructure, as part of a Mix of Collectives run.
+
+        The workloads run sequentially, each with a potentially different mix
+        of process groups carrying out collective communications. The entire
+        set of workloads can be repeated a configurable number of times.
+      type: object
+      required: [name, workloads]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 35
+          description: >-
+            A unique name for this workload set.
+          x-field-uid: 1
+        workloads:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.Workload'
+          minItems: 1
+          description: >-
+            The workloads in the set, executed sequentially.
+          x-field-uid: 2
+        process_groups:
+          type: array
+          items:
+            $ref: '../process_group.yaml#/components/schemas/CollectiveCommunications.ProcessGroup'
+          minItems: 1
+          description: >-
+            Definitions for the process groups over which collective operations will be executed.
+          x-field-uid: 3
+        repeat_count:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          description: >-
+            Number of times to repeat the execution of workloads in this set. Each
+            repeat executes all of the configured workloads.
+          x-field-uid: 4
+        repeat_delay:
+          type: integer
+          format: uint32
+          default: 100
+          minimum: 0
+          maximum: 100000000
+          description: >-
+            Delay between repeats, in microseconds.
+          x-field-uid: 5
+        background_traffic:
+          $ref: '../workload.yaml#/components/schemas/CollectiveCommunications.BackgroundTraffic'
+          description: >-
+            Optional specification for generating background traffic while this workload is executing.
+          x-field-uid: 6
+
+    CollectiveCommunications.MixOfCollectives.Workload:
+      description: >-
+        A workload that consists of one or more operations, executed in
+        sequence or in parallel.
+      type: object
+      required: [operations]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 35
+          description: >-
+            A unique name for this workload.
+          x-field-uid: 1
+        execution_mode:
+          type: string
+          default: sequential
+          description: >-
+            Selects whether the operations in this workload are executed
+            sequentially or in parallel.
+          x-field-uid: 2
+          x-enum:
+            sequential:
+              description: >-
+                Operations are executed one after another.
+              x-field-uid: 1
+            parallel:
+              description: >-
+                Operations are executed concurrently.
+              x-field-uid: 2
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.Operation'
+          minItems: 1
+          description: >-
+            The operations executed as part of this workload.
+          x-field-uid: 3
+        repeat_count:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          description: >-
+            Number of times to repeat the execution of this workload.
+          x-field-uid: 4
+        repeat_delay:
+          type: integer
+          format: uint32
+          default: 100
+          minimum: 0
+          maximum: 100000000
+          description: >-
+            Delay between repeats, in microseconds.
+          x-field-uid: 5
+        transport:
+          $ref: '../transport.yaml#/components/schemas/CollectiveCommunications.Transport'
+          description: >-
+            Collective-communications-specific transport settings for this workload
+          x-field-uid: 6
+
+    CollectiveCommunications.MixOfCollectives.Operation:
+      description: >-
+        An operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the type of operation to execute.
+          x-field-uid: 1
+          x-enum:
+            collective:
+              description: >-
+                A collective communication operation.
+              x-field-uid: 1
+            point_to_point:
+              description: >-
+                A point-to-point (send/recv) operation.
+              x-field-uid: 2
+        collective:
+          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.CollectiveOperation'
+          description: >-
+            A collective communication operation.
+          x-field-uid: 2
+        point_to_point:
+          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.PointToPointOperation'
+          description: >-
+            A point-to-point (send/recv) operation.
+          x-field-uid: 3
+
+    CollectiveCommunications.MixOfCollectives.CollectiveOperation:
+      description: >-
+        A collective operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+      type: object
+      required: [collective_algorithm, process_group]
+      properties:
+        collective_algorithm:
+          $ref: '../workload.yaml#/components/schemas/CollectiveCommunications.Algorithm'
+          description: >-
+            The collective communication operation and algorithm to execute.
+          x-field-uid: 1
+        data_size:
+          type: integer
+          format: uint64
+          default: 1073741824
+          minimum: 1
+          description: >-
+            Data size of this collective operation in bytes.
+          x-field-uid: 2
+        process_group:
+          type: string
+          x-constraint:
+            - '/components/schemas/CollectiveCommunications.ProcessGroup/properties/name'
+          description: >-
+            The name of the process group (defined in the enclosing
+            WorkloadSet's process_groups) over which this collective operation executes.
+          x-field-uid: 3
+        repeat_count:
+          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.RepeatCount'
+          description: >-
+            A description for how many times to execute this operation
+          x-field-uid: 4
+        repeat_delay:
+          type: integer
+          format: uint32
+          default: 100
+          minimum: 0
+          maximum: 100000000
+          description: >-
+            Delay between repeats, in microseconds.
+          x-field-uid: 5
+        transport:
+          $ref: '../transport.yaml#/components/schemas/CollectiveCommunications.Transport'
+          description: >-
+            Collective-communications-specific transport settings for this operation. If
+            unspecified, the workload default is used.
+          x-field-uid: 6
+
+    CollectiveCommunications.MixOfCollectives.PointToPointOperation:
+      description: >-
+        A point-to-point (send/recv) operation, executed as part of a
+        CollectiveCommunications.MixOfCollectives.Workload.
+      type: object
+      required: [flows]
+      properties:
+        flows:
+          $ref: '../point_to_point.yaml#/components/schemas/CollectiveCommunications.PointToPoint.Flows'
+          description: >-
+            A collection of point-to-point flows, specified either explicitly or implicitly.
+          x-field-uid: 1
+        data_size:
+          type: integer
+          format: uint64
+          default: 1073741824
+          minimum: 1
+          description: >-
+            Data size for each point-to-point flow, in bytes.
+          x-field-uid: 2
+        repeat_count:
+          $ref: '#/components/schemas/CollectiveCommunications.MixOfCollectives.RepeatCount'
+          description: >-
+            A description for how many times to execute this operation
+          x-field-uid: 3
+        repeat_delay:
+          type: integer
+          format: uint32
+          default: 100
+          minimum: 0
+          maximum: 100000000
+          description: >-
+            Delay between repeats, in microseconds.
+          x-field-uid: 4
+        transport:
+          $ref: '../transport.yaml#/components/schemas/CollectiveCommunications.Transport'
+          description: >-
+            Collective-communications-specific transport settings for this operation. If
+            unspecified, the workload default is used.
+          x-field-uid: 5
+
+    CollectiveCommunications.MixOfCollectives.RepeatCount:
+      description: >-
+        A description for how many times to execute an operation.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: exact_count
+          description: >-
+            Selects the way in which the repeat count is specified.
+          x-field-uid: 1
+          x-enum:
+            exact_count:
+              description: >-
+                Specify the number of repeats as an exact count.
+              x-field-uid: 1
+            fill_time:
+              description: >-
+                Specify the number of repeats indirectly, as the number
+                required to fill a given amount of time. At least one
+                iteration will always be executed.
+              x-field-uid: 2
+        exact_count:
+          type: integer
+          format: uint32
+          default: 1
+          minimum: 1
+          maximum: 4294967295
+          description: >-
+            The exact number of repeats
+          x-field-uid: 2
+        fill_time:
+          type: number
+          format: double
+          default: 0
+          minimum: 0
+          description: >-
+            The amount of time to fill, in seconds. The total time taken may
+            be slightly longer, to give the last repeat time to finish in full.
+          x-field-uid: 3

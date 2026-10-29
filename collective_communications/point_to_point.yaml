@@ -1,0 +1,82 @@
+components:
+  schemas:
+    CollectiveCommunications.PointToPoint.Flows:
+      description: >-
+        A collection of point-to-point flows, specified either explicitly or implicitly.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the representation of point-to-point flows.
+          x-field-uid: 1
+          x-enum:
+            endpoints:
+              description: >-
+                The flows are represented as an explicit list of sender/receiver endpoints.
+              x-field-uid: 1
+            auto_fill:
+              description: >-
+                The flows are automatically specified by selecting among all ranks in a process
+                group according to a filling algorithm.
+              x-field-uid: 2
+        endpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.PointToPoint.Flow'
+          description: >-
+            A list of the sender/receiver rank pairs for each point-to-point flow in the collection.
+          x-field-uid: 2
+        auto_fill:
+          $ref: '#/components/schemas/CollectiveCommunications.PointToPoint.FlowsAutoFill'
+          description: >-
+            A specification for automatically generating flows between ranks in a process group.
+          x-field-uid: 3
+
+    CollectiveCommunications.PointToPoint.Flow:
+      description: >-
+        A single directed point-to-point flow: sender transmits to receiver.
+      type: object
+      required: [sender, receiver]
+      properties:
+        sender:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: >-
+            Rank that sends on this flow.
+          x-field-uid: 1
+        receiver:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: >-
+            Rank that receives on this flow.
+          x-field-uid: 2
+
+    CollectiveCommunications.PointToPoint.FlowsAutoFill:
+      description: >-
+        A specification for automatically generating flows between ranks in a process group.
+      type: object
+      properties:
+        process_group:
+          type: string
+          x-constraint:
+            - '/components/schemas/CollectiveCommunications.ProcessGroup/properties/name'
+          description: >-
+            The name of a process group. Flows will be generated only between ranks in this
+            process group. If unspecified, we default to the entire world (all ranks).
+          x-field-uid: 1
+        algorithm:
+          type: string
+          default: bidi_consecutive_pairs
+          description: >-
+            Selects the algorithm used to generate flows between ranks.
+          x-field-uid: 2
+          x-enum:
+            bidi_consecutive_pairs:
+              description: >-
+                Bidirectional consecutive pairs. Ranks are ordered and grouped into pairs.
+                Flows will be generated for each pair, in both directions.
+              x-field-uid: 1

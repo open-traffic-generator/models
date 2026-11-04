@@ -486,3 +486,13 @@ The build script will enforce the following keyword conventions:
 * Provide a link to reDocly.
 * Provide sample in gosnappi (or snappi) and corresponding config in JSON or YAML or PbText.
 * Include "right" set of reviewers.
+
+### What NOT to commit
+
+* **Do not commit any file under `artifacts/`.**
+  The `artifacts/` directory (`artifacts/openapi.yaml`, `artifacts/otg.proto`,
+  `artifacts/openapi.html`, etc.) contains auto-generated output produced by
+  the CI pipeline when it runs `build.py`.  These files are regenerated
+  automatically on every CI run and must not be committed manually.
+  The directory is listed in `.gitignore`; stage only source YAML files from
+  `config/` and the schema sub-directories.

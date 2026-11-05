@@ -104,6 +104,9 @@ components:
         flow_control:
           $ref: '#/components/schemas/Layer1.FlowControl'
           x-field-uid: 9
+        pfc_pause_generation:
+          $ref: '#/components/schemas/Layer1.PfcPauseGeneration'
+          x-field-uid: 11
         name:
           x-include: ../common/common.yaml#/components/schemas/Named.Object/properties/name
           x-field-uid: 10
@@ -283,3 +286,86 @@ components:
           maximum: 7
           default: 7
           x-field-uid: 9
+    Layer1.PfcPauseGeneration:
+      description: |-
+        A container for layer1 PFC (IEEE 802.1Qbb) pause frame generation settings.
+        When enabled, the port autonomously transmits PFC pause frames per priority
+        based on the fill level of emulated ingress buffers crossing configured thresholds.
+        Generated PFC pause frames always use the IEEE reserved multicast destination
+        address 01:80:C2:00:00:01, so the destination address is not configurable.
+        To enable PFC pause generation on ports this object must be a valid object
+        not a null value.
+      type: object
+      x-status:
+        status: under-review
+        information: This feature is currently under review for pending exploration on use cases.
+      properties:
+        source_address:
+          description: |-
+            The 48bit MAC address used as the source address in the generated
+            PFC pause frames. If not set, the MAC address of the underlying test
+            port is used.
+          type: string
+          format: mac
+          x-field-uid: 1
+        high_threshold:
+          description: |-
+            The emulated ingress buffer fill level, as a percentage, at which
+            PFC pause generation starts for a priority.
+          type: integer
+          format: uint32
+          maximum: 100
+          x-field-uid: 2
+        low_threshold:
+          description: |-
+            The emulated ingress buffer fill level, as a percentage, at which
+            PFC pause generation stops for a priority.
+          type: integer
+          format: uint32
+          maximum: 100
+          x-field-uid: 3
+        priorities:
+          description: |-
+            The list of per priority (PFC class) pause generation settings.
+            Only the priorities added to this list have pause generation enabled;
+            each priority (0-7) may appear at most once.
+          type: array
+          maxItems: 8
+          items:
+            $ref: '#/components/schemas/Layer1.PfcPauseGeneration.Priority'
+          x-field-uid: 4
+    Layer1.PfcPauseGeneration.Priority:
+      description: |-
+        Per priority (PFC class) pause generation settings.
+      type: object
+      required: [pfc_queue]
+      properties:
+        pfc_queue:
+          description: |-
+            The PFC priority queue (0-7) that these pause generation settings
+            apply to.
+          type: integer
+          format: uint32
+          maximum: 7
+          x-field-uid: 1
+        dscp:
+          description: |-
+            The DSCP value mapped to this priority.
+          type: integer
+          format: uint32
+          maximum: 63
+          x-field-uid: 2
+        consumption_rate:
+          description: |-
+            The desired consumption (drain) line rate for this priority, as a
+            percentage, used to model how fast the emulated ingress buffer empties.
+          type: integer
+          format: uint32
+          maximum: 100
+          x-field-uid: 3
+        buffer_size:
+          description: |-
+            The emulated ingress buffer size in kilobytes for this priority.
+          type: integer
+          format: uint32
+          x-field-uid: 4

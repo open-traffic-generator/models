@@ -32,9 +32,9 @@ components:
           x-field-uid: 3
     Flow.Cfm.SelectOpCode:
       description: Select message header. The opcode byte in the CFM Common Header is
-        automatically set based on the choice as defined in IEEE 802.1Q-2018 Table 21-7.
-        Currently only Continuity Check Message (CCM), Loopback Message (LBM) and
-        Loopback Reply (LBR) are supported.
+        automatically set based on the choice as defined in IEEE 802.1Q-2018 Table 21-7
+        and ITU-T Y.1731. Currently supported choices are Continuity Check Message (CCM),
+        Loopback Message (LBM), Loopback Reply (LBR) and Delay Measurement Message (DMM).
       type: object
       properties:
         choice:
@@ -48,6 +48,8 @@ components:
               x-field-uid: 2
             lbr:
               x-field-uid: 3
+            dmm:
+              x-field-uid: 4
         ccm:
           $ref: '#/components/schemas/Flow.Cfm.Ccm'
           x-field-uid: 2
@@ -57,6 +59,9 @@ components:
         lbr:
           $ref: '#/components/schemas/Flow.Cfm.Lbr'
           x-field-uid: 4
+        dmm:
+          $ref: '#/components/schemas/Flow.Cfm.Dmm'
+          x-field-uid: 5
     Flow.Cfm.Ccm:
       description: >-
         CCM is a multicast PDU used to detect continuity and configuration errors
@@ -344,6 +349,69 @@ components:
           type: boolean
           default: true
           x-field-uid: 3
+    Flow.Cfm.Dmm:
+      description: Delay Measurement Message (DMM) is a diagnostic frame sent by a Maintenance
+        End Point (MEP) to a peer MEP to measure one-way or two-way frame delay,
+        as defined in ITU-T Y.1731 Section 8.2. DMM flag bits are reserved and set to zero.
+      type: object
+      properties:
+        tx_timestamp_f:
+          x-field-pattern:
+            description: >-
+              The timestamp at which the DMM frame is transmitted by the originating MEP
+              (ITU-T Y.1731 Section 8.2).
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 1
+        reserved_for_dmm_receiver:
+          x-field-pattern:
+            description: >-
+              Reserved for the DMM receiving equipment to record its receive
+              timestamp when forming the DMR. Set to zero by the DMM originator
+              (ITU-T Y.1731 Section 8.2).
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        reserved_for_dmr:
+          x-field-pattern:
+            description: >-
+              Reserved for the DMM receiving equipment to record its transmit
+              timestamp when forming the DMR. Set to zero by the DMM originator
+              (ITU-T Y.1731 Section 8.2).
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        reserved_for_dmr_receiver:
+          x-field-pattern:
+            description: >-
+              Reserved for the DMR receiving equipment to record its receive
+              timestamp when the DMR arrives back at the originating MEP.
+              Set to zero by the DMM originator (ITU-T Y.1731 Section 8.2).
+            format: integer
+            length: 64
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        tlvs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Cfm.Tlvs'
+          x-field-uid: 5
+        append_end_tlv:
+          description: >-
+            When true, the implementation appends an End TLV (Type 0,
+            IEEE 802.1Q-2018 Table 21-17) after all TLVs in the tlvs list.
+            Set to false only when testing DUT behaviour with a deliberately
+            missing End TLV.
+          type: boolean
+          default: true
+          x-field-uid: 6
     Flow.Cfm.Tlvs:
       description: >-
         CFM TLV entry. The Type byte (IEEE 802.1Q-2018 Table 21-17) is set

@@ -11,9 +11,14 @@ components:
           x-enum:
             echo:
               x-field-uid: 1
+            neighbor_solicitation:
+              x-field-uid: 2
         echo:
           $ref: '#/components/schemas/Flow.Icmpv6.Echo'
           x-field-uid: 2
+        neighbor_solicitation:
+          $ref: '#/components/schemas/Flow.Icmpv6.NeighborSolicitation'
+          x-field-uid: 3
     Flow.Icmpv6.Echo:
       description: Packet Header for ICMPv6 Echo
       type: object
@@ -60,6 +65,312 @@ components:
         checksum:
           x-include: '#/components/schemas/Flow.Icmpv6.Common/properties/checksum'
           x-field-uid: 5
+    Flow.Icmpv6.NeighborSolicitation:
+      description: >-
+        Packet Header for ICMPv6 NDP Neighbor Solicitation (Type 135, RFC 4861 Section 4.3).
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: >-
+              ICMPv6 message type. Fixed at 135 for Neighbor Solicitation.
+            format: integer
+            length: 8
+            default: 135
+            features: [count]
+          x-field-uid: 1
+        code:
+          x-field-pattern:
+            description: >-
+              ICMPv6 message code. Must be 0 for Neighbor Solicitation.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        checksum:
+          x-include: '#/components/schemas/Flow.Icmpv6.Common/properties/checksum'
+          x-field-uid: 3
+        reserved:
+          x-field-pattern:
+            description: >-
+              Reserved field. Must be initialized to zero by the sender and
+              must be ignored by the receiver.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        target_address:
+          x-field-pattern:
+            description: >-
+              The IPv6 address of the target of the solicitation. Must not be
+              a multicast address.
+            format: ipv6
+            default: '::1'
+            features: [count]
+          x-field-uid: 5
+        options:
+          description: >-
+            Optional list of NDP options. Source Link-Layer Address SHOULD be
+            included when sent from a unicast address (RFC 4861 Section 4.3).
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Icmpv6.NdpOption'
+          x-field-uid: 6
+    Flow.Icmpv6.NdpOption:
+      description: >-
+        NDP option (RFC 4861 Section 4.6) carried in NDP messages. The option
+        Length is in units of 8 octets including the type and length bytes
+        themselves.
+      type: object
+      properties:
+        choice:
+          type: string
+          default: source_link_layer_address
+          x-field-uid: 1
+          x-enum:
+            source_link_layer_address:
+              x-field-uid: 1
+            target_link_layer_address:
+              x-field-uid: 2
+            prefix_information:
+              x-field-uid: 3
+            redirected_header:
+              x-field-uid: 4
+            mtu:
+              x-field-uid: 5
+        source_link_layer_address:
+          $ref: '#/components/schemas/Flow.Icmpv6.NdpLinkLayerAddressOption'
+          x-field-uid: 2
+        target_link_layer_address:
+          $ref: '#/components/schemas/Flow.Icmpv6.NdpLinkLayerAddressOption'
+          x-field-uid: 3
+        prefix_information:
+          $ref: '#/components/schemas/Flow.Icmpv6.NdpPrefixInformationOption'
+          x-field-uid: 4
+        redirected_header:
+          $ref: '#/components/schemas/Flow.Icmpv6.NdpRedirectedHeaderOption'
+          x-field-uid: 5
+        mtu:
+          $ref: '#/components/schemas/Flow.Icmpv6.NdpMtuOption'
+          x-field-uid: 6
+    Flow.Icmpv6.NdpLinkLayerAddressOption:
+      description: >-
+        NDP Source Link-Layer Address (Type 1) or Target Link-Layer Address
+        (Type 2) option (RFC 4861 Section 4.6.1). The option Type byte is
+        set from the parent choice.
+      type: object
+      properties:
+        length:
+          x-field-pattern:
+            description: >-
+              Option length in units of 8 octets, including the type and
+              length bytes. For a 6-octet Ethernet address this is 1.
+            format: integer
+            length: 8
+            default: 1
+            features: [auto, count]
+          x-field-uid: 1
+        link_layer_address:
+          x-field-pattern:
+            description: >-
+              Link-layer address of the sender (source option) or target
+              (target option).
+            format: mac
+            default: '00:00:00:00:00:00'
+            features: [count]
+          x-field-uid: 2
+    Flow.Icmpv6.NdpPrefixInformationOption:
+      description: >-
+        NDP Prefix Information option (Type 3). Defined in RFC 4861
+        Section 4.6.2 and extended for Mobile IPv6 Home Agent by
+        RFC 6275 Section 7.2 (R flag). Provides hosts with on-link
+        prefixes and prefixes for address autoconfiguration.
+      type: object
+      properties:
+        length:
+          x-field-pattern:
+            description: >-
+              Option length in units of 8 octets. Fixed at 4 for the
+              Prefix Information option.
+            format: integer
+            length: 8
+            default: 4
+            features: [auto, count]
+          x-field-uid: 1
+        prefix_length:
+          x-field-pattern:
+            description: >-
+              Number of leading bits of the Prefix field that are valid.
+              Range 0..128.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        l_flag:
+          x-field-pattern:
+            description: >-
+              On-link (L) flag. When set, the prefix can be used for
+              on-link determination. RFC 4861 Section 4.6.2.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        a_flag:
+          x-field-pattern:
+            description: >-
+              Autonomous address-configuration (A) flag. When set, the
+              prefix can be used for stateless address autoconfiguration.
+              RFC 4861 Section 4.6.2.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        r_flag:
+          x-field-pattern:
+            description: >-
+              Router address (R) flag. When set, the Prefix field
+              contains a complete IP address assigned to the sending
+              router. Used by Mobile IPv6 (RFC 6275 Section 7.2).
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        reserved1:
+          x-field-pattern:
+            description: >-
+              Reserved. Must be initialized to zero by the sender.
+            format: integer
+            length: 5
+            default: 0
+            features: [count]
+          x-field-uid: 6
+        valid_lifetime:
+          x-field-pattern:
+            description: >-
+              Length of time in seconds that the prefix is valid for
+              on-link determination. A value of 0xffffffff represents
+              infinity.
+            format: integer
+            length: 32
+            default: 4294967295
+            features: [count]
+          x-field-uid: 7
+        preferred_lifetime:
+          x-field-pattern:
+            description: >-
+              Length of time in seconds that addresses generated from the
+              prefix via stateless address autoconfiguration remain
+              preferred. Must be less than or equal to valid_lifetime.
+            format: integer
+            length: 32
+            default: 10
+            features: [count]
+          x-field-uid: 8
+        reserved2:
+          x-field-pattern:
+            description: >-
+              Reserved. Must be initialized to zero by the sender.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        prefix:
+          x-field-pattern:
+            description: >-
+              IP address or prefix of an IP address. The Prefix Length
+              field contains the number of valid leading bits.
+            format: ipv6
+            default: '0::1'
+            features: [count]
+          x-field-uid: 10
+    Flow.Icmpv6.NdpRedirectedHeaderOption:
+      description: >-
+        NDP Redirected Header option (Type 4). Defined in RFC 4861
+        Section 4.6.3. Used in Redirect messages to include as much as
+        possible of the IP packet that triggered the Redirect, without
+        exceeding the minimum IPv6 MTU.
+      type: object
+      properties:
+        length:
+          x-field-pattern:
+            description: >-
+              Option length in units of 8 octets, including type/length
+              bytes, reserved bytes and the truncated original packet.
+            format: integer
+            length: 8
+            default: 1
+            features: [auto, count]
+          x-field-uid: 1
+        reserved1:
+          x-field-pattern:
+            description: >-
+              Reserved. Must be initialized to zero by the sender.
+            format: integer
+            length: 16
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        reserved2:
+          x-field-pattern:
+            description: >-
+              Reserved. Must be initialized to zero by the sender.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        data:
+          description: >-
+            As much as possible of the original IP packet that triggered
+            the Redirect, without the Redirect IP packet exceeding the
+            minimum IPv6 MTU. Hex string.
+          type: string
+          format: hex
+          default: '00'
+          x-field-uid: 4
+    Flow.Icmpv6.NdpMtuOption:
+      description: >-
+        NDP MTU option (Type 5). Defined in RFC 4861 Section 4.6.4. Used
+        in Router Advertisement messages to ensure that all nodes on a
+        link use the same MTU value in those cases where the link MTU is
+        not well known.
+      type: object
+      properties:
+        length:
+          x-field-pattern:
+            description: >-
+              Option length in units of 8 octets. Fixed at 1 for the
+              MTU option.
+            format: integer
+            length: 8
+            default: 1
+            features: [auto, count]
+          x-field-uid: 1
+        reserved:
+          x-field-pattern:
+            description: >-
+              Reserved. Must be initialized to zero by the sender.
+            format: integer
+            length: 16
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        mtu:
+          x-field-pattern:
+            description: >-
+              Recommended MTU for the link, in octets.
+            format: integer
+            length: 32
+            default: 1500
+            features: [count]
+          x-field-uid: 3
     Flow.Icmpv6.Common:
       description: >-
         Common properties for ICMPv6 packet headers that require checksum

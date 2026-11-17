@@ -1,0 +1,263 @@
+components:
+  schemas:
+    Flow.Igmpv3:
+      description: >-
+        IGMPv3 packet header (RFC 9776, which obsoletes RFC 3376). The choice selects
+        the Membership Query or the Version 3 Membership Report message layout.
+      type: object
+      properties:
+        choice:
+          description: >-
+            Selects the IGMPv3 message, default is membership_query.
+          type: string
+          default: membership_query
+          x-field-uid: 1
+          x-enum:
+            membership_query:
+              x-field-uid: 1
+            membership_report:
+              x-field-uid: 2
+        membership_query:
+          $ref: '#/components/schemas/Flow.Igmpv3.MembershipQuery'
+          x-field-uid: 2
+        membership_report:
+          $ref: '#/components/schemas/Flow.Igmpv3.MembershipReport'
+          x-field-uid: 3
+    Flow.Igmpv3.MembershipQuery:
+      description: >-
+        IGMPv3 Membership Query message.
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: >-
+              IGMP message type, 17 (0x11) for a Membership Query.
+            format: integer
+            length: 8
+            default: 17
+            features: [count]
+          x-field-uid: 1
+        max_resp_code:
+          x-field-pattern:
+            description: >-
+              Maximum time in units of 1/10 second within which hosts must respond to
+              the query, so the default 100 is 10 seconds. Values of 128 or more use
+              the exponent and mantissa encoding of RFC 9776 Section 4.1.1.
+            format: integer
+            length: 8
+            default: 100
+            features: [count]
+          x-field-uid: 2
+        checksum:
+          x-field-pattern:
+            description: >-
+              Checksum of the whole IGMP message, a 16-bit one's complement sum
+              with no pseudo-header.
+            format: checksum
+            length: 16
+          x-field-uid: 3
+        group_address:
+          x-field-pattern:
+            description: >-
+              Group address, zero for a general query and the group being queried for
+              a group-specific or group-and-source-specific query.
+            format: ipv4
+            default: 0.0.0.0
+            features: [count]
+          x-field-uid: 4
+        flags:
+          x-field-pattern:
+            description: >-
+              Flags field of the query, 4 bits that are managed by IANA and are set to
+              zero by a conforming sender.
+            format: integer
+            length: 4
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        s_flag:
+          x-field-pattern:
+            description: >-
+              Suppress router-side processing flag, when set receiving routers do not
+              update their timers.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 6
+        qrv:
+          x-field-pattern:
+            description: >-
+              Querier's robustness variable. Zero means the receiver uses its own
+              value, otherwise it is the value used by the querier.
+            format: integer
+            length: 3
+            default: 2
+            features: [count]
+          x-field-uid: 7
+        qqic:
+          x-field-pattern:
+            description: >-
+              Querier's query interval code in seconds, so the default 125 is 125
+              seconds. Values of 128 or more use the exponent and mantissa encoding
+              of RFC 9776 Section 4.1.7.
+            format: integer
+            length: 8
+            default: 125
+            features: [count]
+          x-field-uid: 8
+        number_of_sources:
+          x-field-pattern:
+            description: >-
+              Number of source addresses in the query, zero for a general and a
+              group-specific query. When auto, it is set to the number of entries in
+              sources.
+            format: integer
+            length: 16
+            default: 0
+            features: [auto, count]
+          x-field-uid: 9
+        sources:
+          description: >-
+            List of unicast source addresses of a group-and-source-specific query.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Igmpv3.Source'
+          x-field-uid: 10
+    Flow.Igmpv3.MembershipReport:
+      description: >-
+        IGMPv3 Version 3 Membership Report message.
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: >-
+              IGMP message type, 34 (0x22) for a Version 3 Membership Report.
+            format: integer
+            length: 8
+            default: 34
+            features: [count]
+          x-field-uid: 1
+        reserved:
+          x-field-pattern:
+            description: >-
+              Reserved field, set to zero by the sender and ignored by the receiver.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        checksum:
+          x-field-pattern:
+            description: >-
+              Checksum of the whole IGMP message, a 16-bit one's complement sum
+              with no pseudo-header.
+            format: checksum
+            length: 16
+          x-field-uid: 3
+        flags:
+          x-field-pattern:
+            description: >-
+              Flags field of the report, 16 bits that are managed by IANA and are set
+              to zero by a conforming sender.
+            format: integer
+            length: 16
+            default: 0
+            features: [count]
+          x-field-uid: 4
+        number_of_group_records:
+          x-field-pattern:
+            description: >-
+              Number of group records. When auto, it is set to the number of entries
+              in group_records.
+            format: integer
+            length: 16
+            default: 0
+            features: [auto, count]
+          x-field-uid: 5
+        group_records:
+          description: >-
+            List of group records, each one reports the membership state of one
+            multicast group.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Igmpv3.GroupRecord'
+          x-field-uid: 6
+    Flow.Igmpv3.GroupRecord:
+      description: >-
+        A group record of the Version 3 Membership Report.
+      type: object
+      properties:
+        record_type:
+          x-field-pattern:
+            x-constants:
+              mode_is_include: 1
+              mode_is_exclude: 2
+              change_to_include_mode: 3
+              change_to_exclude_mode: 4
+              allow_new_sources: 5
+              block_old_sources: 6
+            description: >-
+              Record type, which tells whether the record reports the current state,
+              a filter mode change or a source list change of the group.
+            format: integer
+            length: 8
+            default: 1
+            features: [count]
+          x-field-uid: 1
+        aux_data_length:
+          x-field-pattern:
+            description: >-
+              Length of aux_data in 32-bit words. It is not derived from aux_data and
+              is set to zero by a conforming sender.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        number_of_sources:
+          x-field-pattern:
+            description: >-
+              Number of source addresses in this record. It is not derived from
+              sources, set it to the number of entries in sources.
+            format: integer
+            length: 16
+            default: 0
+            features: [count]
+          x-field-uid: 3
+        multicast_address:
+          x-field-pattern:
+            description: >-
+              Multicast group address that this record reports on.
+            format: ipv4
+            default: 0.0.0.0
+            features: [count]
+          x-field-uid: 4
+        sources:
+          description: >-
+            List of unicast source addresses of this record.
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Igmpv3.Source'
+          x-field-uid: 5
+        aux_data:
+          description: >-
+            Auxiliary data in hex, a multiple of 4 octets (maximum 255 32-bit words).
+            Not defined by IGMPv3, so when omitted no auxiliary data is sent.
+          type: string
+          format: hex
+          maxLength: 2040
+          x-field-uid: 6
+    Flow.Igmpv3.Source:
+      description: >-
+        A source address.
+      type: object
+      properties:
+        address:
+          x-field-pattern:
+            description: >-
+              Unicast IPv4 source address, use a counter to send a range of sources.
+            format: ipv4
+            default: 0.0.0.0
+            features: [count]
+          x-field-uid: 1

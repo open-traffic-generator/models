@@ -16220,7 +16220,20 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.Echo.Checksum'
     Flow.Icmpv6.NeighborSolicitation:
       description: |-
-        Packet Header for ICMPv6 NDP Neighbor Solicitation (Type 135, RFC 4861 Section 4.3).
+        Packet Header for ICMPv6 NDP Neighbor Solicitation (Type 135, RFC 4861 Section 4.3). A conforming NS is sent with IPv6 Hop Limit 255 (RFC 4861 Section 7.1.1).
+        RFC requirements described for this header (MUST / MUST NOT) apply to a conforming packet. The model does not enforce them, so any value the fields can encode may be configured for conformance and negative testing.
+        The IPv6 and Ethernet destinations are set in their own headers. Use these values, where T is target_address and "low 24 bits" are the last 3 octets of T (RFC 4291 Section 2.7.1, RFC 2464 Section 7):
+        Multicast NS (address resolution, duplicate address detection):
+          IPv6 dst     = ff02::1:ff + low 24 bits of T
+          Ethernet dst = 33:33:ff + low 24 bits of T
+          Example: T = 2001:db8::5 gives IPv6 dst ff02::1:ff00:5 and
+          Ethernet dst 33:33:ff:00:00:05.
+
+        Unicast NS (neighbor reachability check):
+          IPv6 dst     = T
+          Ethernet dst = MAC address of the target
+
+        In a conforming duplicate address detection packet the IPv6 source is :: and the Source Link-Layer Address option is omitted.
       type: object
       properties:
         type:
@@ -16240,14 +16253,14 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.NeighborSolicitation.TargetAddress'
         options:
           description: |-
-            Optional list of NDP options. Source Link-Layer Address SHOULD be included when sent from a unicast address (RFC 4861 Section 4.3).
+            Optional list of NDP options (RFC 4861 Section 4.6). In a conforming packet (RFC 4861 Section 4.3) the Source Link-Layer Address option is omitted when the IPv6 source is the unspecified address (DAD), is included in multicast solicitations and should be included in unicast solicitations. It is the only option RFC 4861 defines for Neighbor Solicitation. Other option types, and combinations that differ from the above, can be configured for conformance and negative testing; a conforming receiver silently ignores options not defined for the message (RFC 4861 Section 4.6).
           type: array
           items:
             $ref: '#/components/schemas/Flow.Icmpv6.NdpOption'
           x-field-uid: 6
     Flow.Icmpv6.NdpOption:
       description: |-
-        NDP option (RFC 4861 Section 4.6) carried in NDP messages. The option Length is in units of 8 octets including the type and length bytes themselves.
+        NDP option (RFC 4861 Section 4.6) carried in NDP messages. The option Length is in units of 8 octets including the type and length bytes themselves. The option type is not validated against the message it is carried in; a conforming receiver silently ignores an option that is not defined for the message (RFC 4861 Section 4.6). RFC requirements stated for options describe a conforming packet; the model does not enforce them, so other values can be configured for conformance and negative testing.
       type: object
       properties:
         choice:
@@ -16348,7 +16361,7 @@ components:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.NdpRedirectedHeaderOption.Reserved2'
         data:
           description: |-
-            As much as possible of the original IP packet that triggered the Redirect, without the Redirect IP packet exceeding the minimum IPv6 MTU. Hex string.
+            Leading part of the original IP packet (IP header + data) that triggered the Redirect, truncated so the Redirect message does not exceed the minimum IPv6 MTU (RFC 4861 Section 4.6.3). Hex string. The option is padded with zero octets to a multiple of 8 octets.
           type: string
           format: hex
           default: '00'
@@ -38441,7 +38454,7 @@ components:
           x-field-uid: 3
     Pattern.Flow.Ipv6.Dst:
       description: |-
-        Destination address in IPv6 packet header. If dst_usids is configured, the locator and usids provided in that should be used to construct the IPv6 destination address instead of this field.
+        Destination address in IPv6 packet header. If dst_usids is configured, the locator and usids provided in that should be used to construct the IPv6 destination address instead of this field. When this is a multicast address, the Ethernet destination should be 33:33 followed by the last 4 octets of this address (RFC 2464 Section 7), for example ff02::1:ff00:5 maps to 33:33:ff:00:00:05.
       type: object
       properties:
         choice:
@@ -47695,7 +47708,7 @@ components:
           maximum: 256
     Pattern.Flow.Icmpv6.NeighborSolicitation.Type:
       description: |-
-        ICMPv6 message type. Fixed at 135 for Neighbor Solicitation.
+        ICMPv6 message type. Default 135 for Neighbor Solicitation.
       type: object
       properties:
         choice:
@@ -47762,7 +47775,7 @@ components:
           maximum: 256
     Pattern.Flow.Icmpv6.NeighborSolicitation.Code:
       description: |-
-        ICMPv6 message code. Must be 0 for Neighbor Solicitation.
+        ICMPv6 message code. Default 0 for Neighbor Solicitation.
       type: object
       properties:
         choice:
@@ -47866,7 +47879,7 @@ components:
           format: uint32
     Pattern.Flow.Icmpv6.NeighborSolicitation.Reserved:
       description: |-
-        Reserved field. Must be initialized to zero by the sender and must be ignored by the receiver.
+        Reserved (RFC 4861 Section 4.3). Zero in a conforming packet: the sender initializes it to zero and the receiver ignores it.
       type: object
       properties:
         choice:
@@ -47928,7 +47941,7 @@ components:
           format: uint32
     Pattern.Flow.Icmpv6.NeighborSolicitation.TargetAddress:
       description: |-
-        The IPv6 address of the target of the solicitation. Must not be a multicast address.
+        The IPv6 address of the target of the solicitation (RFC 4861 Section 4.3). In a conforming packet it is not a multicast address.
       type: object
       properties:
         choice:
@@ -48056,7 +48069,7 @@ components:
         start:
           type: string
           x-field-uid: 1
-          default: 00:00:00:00:00:00
+          default: 00:00:00:00:00:01
           format: mac
         step:
           type: string
@@ -48094,7 +48107,7 @@ components:
         value:
           type: string
           x-field-uid: 2
-          default: 00:00:00:00:00:00
+          default: 00:00:00:00:00:01
           format: mac
         values:
           type: array
@@ -48103,7 +48116,7 @@ components:
             format: mac
           x-field-uid: 3
           default:
-          - 00:00:00:00:00:00
+          - 00:00:00:00:00:01
         increment:
           $ref: '#/components/schemas/Pattern.Flow.Icmpv6.NdpLinkLayerAddressOption.LinkLayerAddress.Counter'
           x-field-uid: 5
@@ -48798,7 +48811,7 @@ components:
           maximum: 256
     Pattern.Flow.Icmpv6.NdpRedirectedHeaderOption.Length:
       description: |-
-        Option length in units of 8 octets, including type/length bytes, reserved bytes and the truncated original packet.
+        Option length in units of 8 octets (RFC 4861 Section 4.6), covering the type, length and reserved octets (8 octets in total) plus the data. When auto, it is computed as ceil((8 + octets of data) / 8) and the data is padded with zero octets to a multiple of 8 octets.
       type: object
       properties:
         choice:

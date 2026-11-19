@@ -1,0 +1,156 @@
+components:
+  schemas:
+    CollectiveCommunications.Bindings:
+      description: >-
+        Links the hardware-independent workload to the infrastructure, and the
+        infrastructure to physical test resources. Maps ranks to logical XPUs,
+        associates logical NICs with emulated OTG Ethernet interfaces, and
+        assigns physical test ports and platforms.
+      type: object
+      required:
+        - choice
+      properties:
+        choice:
+          type: string
+          description: >-
+            The type of binding to use.
+          x-enum:
+            basic_binding:
+              x-field-uid: 1
+          x-field-uid: 1
+        basic_binding:
+          $ref: '#/components/schemas/CollectiveCommunications.BasicBinding'
+          description: >-
+            The rank and NIC bindings.
+          x-field-uid: 2
+
+    CollectiveCommunications.BasicBinding:
+      type: object
+      description: >-
+        A set of rank and NIC bindings.
+      properties:
+        rank_bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.RankBinding'
+          description: >-
+            List of bindings that map each rank to a specific logical XPU and its available NICs.
+          x-field-uid: 1
+        nic_bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.NicBinding'
+          description: >-
+            List of NIC bindings associating logical NICs with emulated OTG
+            Ethernet interfaces.
+          x-field-uid: 2
+
+    CollectiveCommunications.InfrastructureRef:
+      description: >-
+        A reference to a infrastructure element.
+      type: object
+      required: [device_instance_name, device_index, component_name, component_index]
+      properties:
+        device_instance_name:
+          type: string
+          description: >-
+            Name of the infrastructure device (e.g. the value set for CollectiveCommunications.GenericHost.name).
+          x-field-uid: 1
+        device_index:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: >-
+            Zero-based index of the device among the identically named devices
+            (all hosts in a collection share one name; see
+            InfrastructureUniformHostCollection). Must be less than the number
+            of hosts in the collection (InfrastructureUniformHostCollection.count).
+            The same index addresses the device in every binding, so a rank's
+            XPU and its NICs use the same device_index for the same host.
+          x-field-uid: 2
+        component_name:
+          type: string
+          description: >-
+            Name of the component within the device that this reference selects,
+            e.g. the accelerator ("xpu") or network interface ("nic") of a host.
+            Together with component_index it identifies one component of the
+            device selected by device_instance_name and device_index.
+            The accelerator is always named "xpu" in this API; the server
+            resolves it to the accelerator component of the infrastructure
+            definition (named "npu" internally).
+            Every other name must exactly match (case-sensitive) a component
+            name defined for the device in the infrastructure definition, such
+            as "nic"; the server rejects unknown names, and the name must be
+            of the kind the referencing field expects (an XPU for
+            RankBinding.infrastructure_ref, a NIC for nic_refs and
+            NicBinding.infrastructure_ref).
+          x-field-uid: 3
+        component_index:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: >-
+            Zero-based index of the component among the components named
+            component_name within the selected device (e.g. the second NIC of a
+            host is component_name "nic", component_index 1). Must be less than
+            the number of such components in the device, as defined by the host
+            type in the infrastructure (e.g. GenericHost.xpu_count for "xpu").
+            The number of NICs need not equal the number of XPUs, so each
+            component name has its own count. The server rejects out-of-range
+            indexes.
+          x-field-uid: 4
+
+    CollectiveCommunications.RankBinding:
+      description: >-
+        Assigns a rank to a logical XPU and lists the NICs available to that XPU.
+      type: object
+      required: [infrastructure_ref, rank_id]
+      properties:
+        infrastructure_ref:
+          $ref: '#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            Reference to the XPU used by this rank.
+          x-field-uid: 1
+        rank_id:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: >-
+            The unique identifier for this rank in the distributed workload.
+          x-field-uid: 2
+        nic_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            List of NICs available to this XPU (in the same host).
+          x-field-uid: 3
+
+    CollectiveCommunications.NicBinding:
+      description: >-
+        Binds a NIC defined in the infrastructure to an emulated OTG
+        Ethernet interface that carries all of its network-stack settings
+        (MTU, MAC, VLANs, IP addressing, QoS, RoCEv2 peers).
+      type: object
+      required: [infrastructure_ref, ethernet_name]
+      properties:
+        infrastructure_ref:
+          $ref: '#/components/schemas/CollectiveCommunications.InfrastructureRef'
+          description: >-
+            Reference to a NIC defined in the infrastructure.
+          x-field-uid: 1
+        ethernet_name:
+          type: string
+          x-constraint:
+          - '/components/schemas/Device.Ethernet/properties/name'
+          description: >-
+            The name of the Device.Ethernet interface that models this NIC.
+            The interface's connection (e.g. port_name) determines
+            which test ports may generate this NIC's flows.
+          x-field-uid: 2
+        custom_settings:
+          $ref: '../common/common.yaml#/components/schemas/CustomSettings'
+          description: >-
+            Implementation-specific properties for this NIC, keyed as
+            CustomSettings describes.
+          x-field-uid: 3

@@ -1,0 +1,220 @@
+components:
+  schemas:
+    CollectiveCommunications.Workload:
+      description: >-
+        Definition of the collective communications traffic to run.
+        Selects the workload type (e.g. single collective, workload replay, etc) and carries its configuration.
+        The definition of what infrastructure it runs on and how it maps to test resources is described
+        by CollectiveCommunications.Infrastructure and CollectiveCommunications.Bindings respectively.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the workload type.
+          x-field-uid: 1
+          x-enum:
+            single_collective:
+              description: >-
+                Run a Collective Communication Benchmark with a single collective.
+              x-field-uid: 1
+            mix_of_collectives:
+              description: >-
+                Run a Collective Communication Benchmark with multiple collectives.
+              x-field-uid: 2
+        single_collective:
+          $ref: './workload/single_collective.yaml#/components/schemas/CollectiveCommunications.SingleCollective'
+          description: >-
+            Single collective benchmark configuration.
+          x-field-uid: 2
+        mix_of_collectives:
+          $ref: './workload/mix_of_collectives.yaml#/components/schemas/CollectiveCommunications.MixOfCollectives'
+          description: >-
+            Mix of collectives benchmark configuration.
+          x-field-uid: 3
+
+    CollectiveCommunications.Algorithm.Type:
+      description: >-
+        Holder for the collective communication algorithm type enum. Not a schema in
+        the bundled artifacts; the value property is merged inline wherever it
+        is included via x-include.
+      type: object
+      properties:
+        value:
+          type: string
+          x-field-uid: 1
+          x-enum:
+            all_to_all_parallel:
+              description: >-
+                All To All collective with chunk transfer in parallel.
+              x-field-uid: 1
+            all_to_all_pxn:
+              description: >-
+                All To All collective that leverages message aggregation and
+                rail-optimized topologies.
+              x-field-uid: 2
+            all_reduce_unidirectional_ring:
+              description: >-
+                All Reduce collective with chunk transfer in a unidirectional ring.
+              x-field-uid: 3
+            all_reduce_bidirectional_ring:
+              description: >-
+                All Reduce collective with chunk transfer in a bidirectional ring.
+              x-field-uid: 4
+            all_reduce_vector_halving_doubling:
+              description: >-
+                All Reduce collective using a vector halving doubling algorithm.
+              x-field-uid: 5
+            all_reduce_double_binary_tree:
+              description: >-
+                All Reduce collective with chunk transfer in a double binary tree.
+              x-field-uid: 6
+            all_gather_ring:
+              description: >-
+                All Gather collective with chunk transfer in a unidirectional ring.
+              x-field-uid: 7
+            reduce_scatter_ring:
+              description: >-
+                Reduce Scatter collective with chunk transfer in a unidirectional ring.
+              x-field-uid: 8
+            broadcast_parallel:
+              description: >-
+                Broadcast collective with chunk transfer in parallel.
+              x-field-uid: 9
+            gather_parallel:
+              description: >-
+                Gather point to point collective (all to one) with chunk transfer
+                in parallel.
+              x-field-uid: 10
+
+    CollectiveCommunications.Algorithm:
+      description: >-
+        Specifies a collective communication algorithm.
+
+        Currently only the type can be specified, but more parameters may be added
+        in the future to support e.g. parameters for certain algorithms.
+
+        For algorithms that are influenced by the order in which the ranks in the
+        collective are specified, the order is taken from the definition of the
+        corresponding process group. If the process group is not specified explicitly
+        (e.g. the world), the default order is simply the list of ranks in ascending
+        numerical order, e.g. from 0 to N-1 for the world.
+
+        For tree-based algorithms that feature a root rank, the default root rank is
+        the first one in the rank ordering (either the default or explicit one).
+      type: object
+      properties:
+        algorithm_type:
+          type: string
+          default: all_to_all_parallel
+          description: >-
+            The collective algorithm to use. Default is all_to_all_parallel.
+          x-include: ./workload.yaml#/components/schemas/CollectiveCommunications.Algorithm.Type/properties/value
+          x-field-uid: 1
+
+    CollectiveCommunications.BackgroundTraffic:
+      description: >-
+        Specification for generating background traffic.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects how the background traffic is generated.
+          x-field-uid: 1
+          x-enum:
+            flows:
+              description: >-
+                Activate a collection of flows (from Config.flows).
+              x-field-uid: 1
+            line_rate_percentage:
+              description: >-
+                Traffic is generated such that a given percentage of the line
+                rate is consumed.
+              x-field-uid: 2
+        flows:
+          type: array
+          items:
+            type: string
+          x-constraint:
+            - '/components/schemas/Flow/properties/name'
+          description: >-
+            The names of the flows (configured in Config.flows) to activate.
+          x-field-uid: 2
+        line_rate_percentage:
+          $ref: '#/components/schemas/CollectiveCommunications.BackgroundTraffic.LineRatePercentage'
+          description: >-
+            Traffic is generated such that a given percentage of the line
+            rate is consumed.
+          x-field-uid: 3
+
+    CollectiveCommunications.BackgroundTraffic.LineRatePercentage:
+      description: >-
+        Specification for generating background traffic such that a given percentage of the
+        line rate is consumed.
+
+        The server will automatically set up flows timed and sized appropriately to achieve the
+        target line rate usage percentage.
+      type: object
+      properties:
+        line_rate_percentage:
+          type: integer
+          format: uint32
+          default: 5
+          minimum: 1
+          maximum: 100
+          description: >-
+            Target average percentage of NIC line rate used by the
+            background traffic. The remaining line rate is available to
+            other operations.
+          x-field-uid: 1
+        scope:
+          $ref: '#/components/schemas/CollectiveCommunications.FlowGenerationScope'
+          description: >-
+            The set of ranks between which background traffic flows will be generated, for
+            optionally restricting the background traffic effect to only a section of the world.
+            The target percentage will apply to the communication within this scope.
+
+            If the scope is not specified, a default scope is applied corresponding to the maximal
+            set of ranks that is allowed in the context of the enclosing object (e.g. the world,
+            a tenant etc)
+          x-field-uid: 2
+
+    CollectiveCommunications.FlowGenerationScope:
+      description: >-
+        Selects the set of ranks for which flows will be generated as part of
+        an automatic flow generation algorithm.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the type of scope.
+          x-field-uid: 1
+          x-enum:
+            maximal:
+              description: >-
+                The maximal set of ranks that is allowed in the context of the enclosing
+                object (e.g. the world, a tenant etc).
+
+                If the algorithm takes the order of ranks into account, for this setting the
+                ranks will be assumed to be ordered in ascending numeric order.
+              x-field-uid: 1
+            process_group:
+              description: >-
+                The ranks within a specified process group.
+              x-field-uid: 2
+        process_group:
+          type: string
+          x-constraint:
+            - '/components/schemas/CollectiveCommunications.ProcessGroup/properties/name'
+          description: >-
+            The name of a process group. Flows will be generated only between ranks in this
+            process group.
+
+            The implementation will validate whether the selected process group is allowed
+            in context (e.g. a tenant may be forbidden from using another tenant's process group).
+          x-field-uid: 2

@@ -1,0 +1,98 @@
+components:
+  schemas:
+    CollectiveCommunications.ProcessGroup:
+      description: >-
+        Description of a process group over which collective communications are run.
+      type: object
+      required: [name, ranks]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 35
+          description: >-
+            A unique name for this process group.
+          x-field-uid: 1
+        ranks:
+          $ref: '#/components/schemas/CollectiveCommunications.RankSet'
+          description: >-
+            The ranks that form this process group.
+            
+            Whether a rank can participate in multiple process groups depends on the
+            specifics of the benchmark being run. Implementations will validate whether
+            process groups are non-overlapping when they are required to be so.
+          x-field-uid: 2
+
+    CollectiveCommunications.RankSet:
+      description: >-
+        A set of ranks that form a communication group.
+
+        The order in which the ranks are supplied is significant and may be used by
+        the implementation to inform the way in which flows are created for e.g. ring
+        and tree-based collective operations.
+
+        If an implementation does not support a specific order but rather requires the
+        ranks to be sorted, it can reject non-sorted rank sets with an error.
+      type: object
+      required: [choice]
+      properties:
+        choice:
+          type: string
+          description: >-
+            Selects the representation of the rank set.
+          x-field-uid: 1
+          x-enum:
+            list:
+              description: >-
+                The ranks are represented as an explicit list.
+              x-field-uid: 1
+            ranges:
+              description: >-
+                The ranks are represented as a collection of ranges.
+              x-field-uid: 2
+        list:
+          type: array
+          items:
+            type: integer
+            format: uint32
+          minItems: 1
+          description: >-
+            A list of distinct ranks.
+          x-field-uid: 2
+        ranges:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectiveCommunications.RankRange'
+          minItems: 1
+          description: >-
+            A collection of non-overlapping rank ranges.
+          x-field-uid: 3
+
+    CollectiveCommunications.RankRange:
+      description: >-
+        A range of ranks, starting at `start` and advancing by `step`, up to a
+        total of `length` ranks.
+      type: object
+      required: [start, length]
+      properties:
+        start:
+          type: integer
+          format: uint32
+          minimum: 0
+          description: >-
+            The first rank in the range.
+          x-field-uid: 1
+        step:
+          type: integer
+          format: int32
+          default: 1
+          description: >-
+            The increment between successive ranks in the range. May not be 0.
+          x-field-uid: 2
+        length:
+          type: integer
+          format: uint32
+          minimum: 1
+          description: >-
+            The number of ranks in the range.
+          x-field-uid: 3

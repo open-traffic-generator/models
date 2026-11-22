@@ -13,12 +13,17 @@ components:
               x-field-uid: 1
             neighbor_solicitation:
               x-field-uid: 2
+            router_advertisement:
+              x-field-uid: 3
         echo:
           $ref: '#/components/schemas/Flow.Icmpv6.Echo'
           x-field-uid: 2
         neighbor_solicitation:
           $ref: '#/components/schemas/Flow.Icmpv6.NeighborSolicitation'
           x-field-uid: 3
+        router_advertisement:
+          $ref: '#/components/schemas/Flow.Icmpv6.RouterAdvertisement'
+          x-field-uid: 4
     Flow.Icmpv6.Echo:
       description: Packet Header for ICMPv6 Echo
       type: object
@@ -151,6 +156,175 @@ components:
           items:
             $ref: '#/components/schemas/Flow.Icmpv6.NdpOption'
           x-field-uid: 6
+    Flow.Icmpv6.RouterAdvertisement:
+      description: >-
+        Packet Header for ICMPv6 NDP Router Advertisement (Type 134, RFC 4861
+        Section 4.2). A conforming RA is sent from the link-local address of
+        the advertising interface with IPv6 Hop Limit 255 (RFC 4861 Section
+        6.1.2).
+
+        RFC requirements described for this header (MUST / MUST NOT) apply to
+        a conforming packet. The model does not enforce them, so any value the
+        fields can encode may be configured for conformance and negative
+        testing.
+
+        The IPv6 and Ethernet destinations are set in their own headers:
+
+        Unsolicited or multicast solicited RA (RFC 4861 Section 6.2.4 and
+        6.2.6):
+          IPv6 dst     = ff02::1 (all-nodes)
+          Ethernet dst = 33:33:00:00:00:01
+
+        Unicast solicited RA (RFC 4861 Section 6.2.6):
+          IPv6 dst     = the source address of the Router Solicitation
+          Ethernet dst = MAC address of the soliciting node
+
+        A router lifetime of 0 tells hosts that the sender is not a default
+        router (RFC 4861 Section 6.2.5).
+      type: object
+      properties:
+        type:
+          x-field-pattern:
+            description: >-
+              ICMPv6 message type. Default 134 for Router Advertisement.
+            format: integer
+            length: 8
+            default: 134
+            features: [count]
+          x-field-uid: 1
+        code:
+          x-field-pattern:
+            description: >-
+              ICMPv6 message code. Default 0 for Router Advertisement.
+            format: integer
+            length: 8
+            default: 0
+            features: [count]
+          x-field-uid: 2
+        checksum:
+          x-include: '#/components/schemas/Flow.Icmpv6.Common/properties/checksum'
+          x-field-uid: 3
+        cur_hop_limit:
+          x-field-pattern:
+            description: >-
+              Default Hop Limit for packets sent by hosts on the link (RFC
+              4861 Section 4.2). 0 means unspecified by this router.
+            format: integer
+            length: 8
+            default: 64
+            features: [count]
+          x-field-uid: 4
+        m_flag:
+          x-field-pattern:
+            description: >-
+              Managed address configuration flag (RFC 4861 Section 4.2):
+              addresses are available via DHCPv6.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 5
+        o_flag:
+          x-field-pattern:
+            description: >-
+              Other configuration flag (RFC 4861 Section 4.2): other
+              configuration information is available via DHCPv6.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 6
+        h_flag:
+          x-field-pattern:
+            description: >-
+              Home Agent flag (RFC 6275 Section 7.1): the router is also a
+              Mobile IPv6 home agent on this link.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 7
+        router_preference:
+          x-field-pattern:
+            x-constants:
+              high: 1
+              medium: 0
+              low: 3
+            description: >-
+              Default Router Preference (Prf, RFC 4191 Section 2.2): 01 high,
+              00 medium, 11 low. 10 is reserved and a conforming receiver
+              treats it as medium.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 8
+        p_flag:
+          x-field-pattern:
+            description: >-
+              Proxy flag (RFC 4389 Section 4.1.3.3): the RA is proxied by an
+              ND proxy.
+            format: integer
+            length: 1
+            default: 0
+            features: [count]
+          x-field-uid: 9
+        reserved:
+          x-field-pattern:
+            description: >-
+              Reserved flag bits. Zero in a conforming packet: the sender
+              initializes them to zero and the receiver ignores them.
+            format: integer
+            length: 2
+            default: 0
+            features: [count]
+          x-field-uid: 10
+        router_lifetime:
+          x-field-pattern:
+            description: >-
+              Lifetime of the router as a default router, in seconds (RFC
+              4861 Section 4.2). 0 means the router is not a default router.
+              A conforming value is at most 9000 (RFC 4861 Section 6.2.1).
+            format: integer
+            length: 16
+            default: 1800
+            features: [count]
+          x-field-uid: 11
+        reachable_time:
+          x-field-pattern:
+            description: >-
+              Time, in milliseconds, that a node assumes a neighbor is
+              reachable after a reachability confirmation (RFC 4861 Section
+              4.2). 0 means unspecified by this router.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 12
+        retrans_timer:
+          x-field-pattern:
+            description: >-
+              Time, in milliseconds, between retransmitted Neighbor
+              Solicitation messages (RFC 4861 Section 4.2). 0 means
+              unspecified by this router.
+            format: integer
+            length: 32
+            default: 0
+            features: [count]
+          x-field-uid: 13
+        options:
+          description: >-
+            Optional list of NDP options (RFC 4861 Section 4.6). RFC 4861
+            Section 4.2 defines the Source Link-Layer Address option (should
+            be included), the MTU option and one Prefix Information option
+            per advertised prefix for Router Advertisement. Other option
+            types can be configured for conformance and negative testing; a
+            conforming receiver silently ignores options not defined for the
+            message (RFC 4861 Section 4.6).
+          type: array
+          items:
+            $ref: '#/components/schemas/Flow.Icmpv6.NdpOption'
+          x-field-uid: 14
     Flow.Icmpv6.NdpOption:
       description: >-
         NDP option (RFC 4861 Section 4.6) carried in NDP messages. The option

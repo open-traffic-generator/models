@@ -14614,8 +14614,29 @@ message FlowCfmLength {
   optional uint32 value = 3;
 }
 
-// IGMPv3 packet header (RFC 9776, which obsoletes RFC 3376). The choice selects the
-// Membership Query or the Version 3 Membership Report message layout.
+// Packet Header for IGMPv3 (RFC 9776, which obsoletes RFC 3376), carried directly in
+// IPv4. The choice selects the Membership Query or the IGMPv3 Membership Report. A
+// conforming message is sent with IP protocol number two, TTL one, IP precedence Internetwork
+// Control (ToS 0xc0) and the IP Router Alert option (RFC 2113). The model does not
+// enforce these requirements, so any value the fields can encode may be configured
+// for negative testing.
+// The IPv4 and Ethernet destinations are set in their own headers. Use these values
+// (RFC 9776 Sections 4.1.12 and 4.2.15):
+// General Query:
+// IPv4 dst = 224.0.0.1
+// Group-Specific and Group-and-Source Specific Query:
+// IPv4 dst = group_address
+// IGMPv3 Membership Report:
+// IPv4 dst = 224.0.0.22, IPv4 src = a unicast address or 0.0.0.0
+// 
+// Ethernet dst = 01:00:5e + low 23 bits of the IPv4 dst (RFC 1112 Section 6.4), for
+// example 224.0.0.22 gives 01:00:5e:00:00:16.
+// The flow size overrides the packet length, so set it large enough for the whole message.
+// A Query is twelve octets plus four per source. A Report is eight octets plus, per
+// group record, eight octets plus four per source plus four per aux_data_length word.
+// Ethernet, IPv4 with Router Alert and the FCS add 42 octets. The default flow size
+// of 64 fits a Query with up to two sources or a Report with one record of up to one
+// source.
 message FlowIgmpv3 {
 
   message Choice {
@@ -14670,7 +14691,7 @@ message FlowIgmpv3MembershipQuery {
   repeated FlowIgmpv3Source sources = 10;
 }
 
-// IGMPv3 Version 3 Membership Report message (RFC 9776 Section 4.2).
+// IGMPv3 Membership Report message (RFC 9776 Section 4.2).
 message FlowIgmpv3MembershipReport {
 
   // Description missing in models
@@ -14710,14 +14731,16 @@ message FlowIgmpv3GroupRecord {
   // List of unicast source addresses of this record.
   repeated FlowIgmpv3Source sources = 5;
 
-  // Auxiliary data in hex, a multiple of 4 octets (maximum 255 32-bit words). IGMPv3
-  // does not define any auxiliary data, so a conforming sender omits it (RFC 9776 Section
-  // 4.2.11).
+  // Auxiliary Data (RFC 9776 Section 4.2.11) as a hex string of whole 32-bit words, so
+  // a multiple of eight hex characters, up to 255 words. IGMPv3 defines no auxiliary
+  // data, so a conforming sender omits it and a receiver ignores it. Other lengths are
+  // not valid and the result is implementation specific.
   optional string aux_data = 6;
 }
 
-// A source address entry. The entries form a vector of IPv4 unicast addresses, one
-// per source, and their number is given by number_of_sources.
+// One source address entry of a Query (RFC 9776 Section 4.1.9) or of a group record
+// (RFC 9776 Section 4.2.10). Each entry is one IPv4 address in the message, so add
+// one entry per source to carry several sources.
 message FlowIgmpv3Source {
 
   // Description missing in models
@@ -40673,7 +40696,10 @@ message PatternFlowIgmpv3MembershipQueryTypeCounter {
   optional uint32 count = 3;
 }
 
-// IGMP message type, 17 (0x11) for a Membership Query.
+// IGMP message type (RFC 9776 Section 4.1). Default 17 (0x11), Membership Query. This
+// header always sends the IGMPv3 layout, the eight octet IGMPv1 and IGMPv2 messages
+// use the igmpv1 and igmpv2 headers. Another value sends this layout with that type
+// for negative testing, receivers silently ignore unrecognized types.
 message PatternFlowIgmpv3MembershipQueryType {
 
   message Choice {
@@ -40720,9 +40746,13 @@ message PatternFlowIgmpv3MembershipQueryMaxRespCodeCounter {
   optional uint32 count = 3;
 }
 
-// Maximum time in units of 1/10 second within which hosts must respond to the query,
-// so the default 100 is 10 seconds. Values of 128 or more use the exponent and mantissa
-// encoding of RFC 9776 Section 4.1.1.
+// Max Resp Code (RFC 9776 Section 4.1.1), the maximum time hosts may wait before they
+// report, in units of 1/10 second. Below 128 it is the time itself, so the default
+// 100 is 10 seconds (Section 8.3). From 128 up it is floating point: the high bit is
+// set, the next three bits are exp and the low four bits are mant, and the time is
+// (mant OR 0x10) shifted left by (exp plus three), so 128 is 12.8 seconds and 255 is
+// 3174.4 seconds. The value is sent as configured. Group-Specific and Group-and-Source
+// Specific Queries normally use 10 (Section 8.8).
 message PatternFlowIgmpv3MembershipQueryMaxRespCode {
 
   message Choice {
@@ -40753,7 +40783,9 @@ message PatternFlowIgmpv3MembershipQueryMaxRespCode {
   PatternFlowIgmpv3MembershipQueryMaxRespCodeCounter decrement = 6;
 }
 
-// Checksum of the whole IGMP message, a 16-bit one's complement sum with no pseudo-header.
+// Checksum (RFC 9776 Section 4.1.2), the 16-bit one's complement of the one's complement
+// sum of the whole IGMP message, which is the entire IP payload including every source
+// address. There is no pseudo-header.
 message PatternFlowIgmpv3MembershipQueryChecksum {
 
   message Choice {
@@ -40798,8 +40830,8 @@ message PatternFlowIgmpv3MembershipQueryGroupAddressCounter {
   optional uint32 count = 3;
 }
 
-// Group address, zero for a general query and the group being queried for a group-specific
-// or group-and-source-specific query.
+// Group Address (RFC 9776 Section 4.1.3), zero for a General Query and the group being
+// queried for a Group-Specific or Group-and-Source Specific Query.
 message PatternFlowIgmpv3MembershipQueryGroupAddress {
 
   message Choice {
@@ -40846,8 +40878,10 @@ message PatternFlowIgmpv3MembershipQueryFlagsCounter {
   optional uint32 count = 3;
 }
 
-// Flags field of the query, 4 bits that are managed by IANA and are set to zero by
-// a conforming sender.
+// Flags (RFC 9776 Section 4.1.4), four bits managed by IANA (RFC 9778 Section 2.2).
+// The most significant bit (value eight) is E, Extension (RFC 9279), which is set only
+// when an extension follows the sources, the other bits are unassigned. This header
+// does not model the extension, so a conforming message from it has flags zero.
 message PatternFlowIgmpv3MembershipQueryFlags {
 
   message Choice {
@@ -40894,8 +40928,9 @@ message PatternFlowIgmpv3MembershipQuerySFlagCounter {
   optional uint32 count = 3;
 }
 
-// Suppress router-side processing flag, when set receiving routers do not update their
-// timers.
+// S flag, Suppress Router-Side Processing (RFC 9776 Section 4.1.5). When set to one,
+// receiving routers skip their normal timer updates for this Query, Querier election
+// and host-side processing still happen.
 message PatternFlowIgmpv3MembershipQuerySFlag {
 
   message Choice {
@@ -40942,8 +40977,9 @@ message PatternFlowIgmpv3MembershipQueryQrvCounter {
   optional uint32 count = 3;
 }
 
-// Querier's robustness variable. Zero means the receiver uses its own value, otherwise
-// it is the value used by the querier.
+// QRV, Querier's Robustness Variable (RFC 9776 Section 4.1.6). A querier whose Robustness
+// Variable is above seven sends zero, and a receiver of zero uses its own value. The
+// default is the RFC default of two (Section 8.1).
 message PatternFlowIgmpv3MembershipQueryQrv {
 
   message Choice {
@@ -40990,8 +41026,10 @@ message PatternFlowIgmpv3MembershipQueryQqicCounter {
   optional uint32 count = 3;
 }
 
-// Querier's query interval code in seconds, so the default 125 is 125 seconds. Values
-// of 128 or more use the exponent and mantissa encoding of RFC 9776 Section 4.1.7.
+// QQIC, Querier's Query Interval Code (RFC 9776 Section 4.1.7), in seconds. Below 128
+// it is the interval itself, so the default 125 is the RFC default Query Interval (Section
+// 8.2). From 128 up it uses the floating point form of max_resp_code, so 255 is 31744
+// seconds. Zero tells receivers to use their own default. The value is sent as configured.
 message PatternFlowIgmpv3MembershipQueryQqic {
 
   message Choice {
@@ -41093,7 +41131,9 @@ message PatternFlowIgmpv3MembershipReportTypeCounter {
   optional uint32 count = 3;
 }
 
-// IGMP message type, 34 (0x22) for a Version 3 Membership Report.
+// IGMP message type (RFC 9776 Section 4.2). Default 34 (0x22), IGMPv3 Membership Report.
+// Another value sends this layout with that type for negative testing, receivers silently
+// ignore unrecognized types.
 message PatternFlowIgmpv3MembershipReportType {
 
   message Choice {
@@ -41171,7 +41211,9 @@ message PatternFlowIgmpv3MembershipReportReserved {
   PatternFlowIgmpv3MembershipReportReservedCounter decrement = 6;
 }
 
-// Checksum of the whole IGMP message, a 16-bit one's complement sum with no pseudo-header.
+// Checksum (RFC 9776 Section 4.2.2), the 16-bit one's complement of the one's complement
+// sum of the whole IGMP message, which is the entire IP payload including every group
+// record and any aux_data. There is no pseudo-header.
 message PatternFlowIgmpv3MembershipReportChecksum {
 
   message Choice {
@@ -41216,8 +41258,11 @@ message PatternFlowIgmpv3MembershipReportFlagsCounter {
   optional uint32 count = 3;
 }
 
-// Flags field of the report, 16 bits that are managed by IANA and are set to zero by
-// a conforming sender.
+// Flags (RFC 9776 Section 4.2.3), sixteen bits managed by IANA (RFC 9778 Section 2.3).
+// The most significant bit (value 0x8000) is E, Extension (RFC 9279), which is set
+// only when an extension follows the last group record, the other bits are unassigned.
+// This header does not model the extension, so a conforming message from it has flags
+// zero.
 message PatternFlowIgmpv3MembershipReportFlags {
 
   message Choice {
@@ -41318,8 +41363,12 @@ message PatternFlowIgmpv3GroupRecordRecordTypeCounter {
   optional uint32 count = 3;
 }
 
-// Record type, which tells whether the record reports the current state, a filter mode
-// change or a source list change of the group.
+// Record Type (RFC 9776 Section 4.2.13). Current-State records, sent in reply to a
+// Query, are mode_is_include and mode_is_exclude. Filter-Mode-Change records are change_to_include_mode
+// and change_to_exclude_mode. Source-List-Change records are allow_new_sources and
+// block_old_sources. A change_to_include_mode record with no sources is how a host
+// leaves a group. Receivers silently ignore other values, so any value up to 255 may
+// be sent for negative testing.
 message PatternFlowIgmpv3GroupRecordRecordType {
 
   message Choice {
@@ -41366,9 +41415,10 @@ message PatternFlowIgmpv3GroupRecordAuxDataLengthCounter {
   optional uint32 count = 3;
 }
 
-// Length of aux_data in 32-bit words (RFC 9776 Section 4.2.7). When auto, it is set
-// to the length of aux_data in 32-bit words, so zero when aux_data is omitted. A conforming
-// sender uses zero.
+// Aux Data Len (RFC 9776 Section 4.2.7), the length of aux_data in 32-bit words. When
+// auto, it is the length of aux_data in octets divided by four, so zero when aux_data
+// is omitted. A conforming sender uses zero (Section 4.2.11), set a value to make it
+// disagree with aux_data for negative testing.
 message PatternFlowIgmpv3GroupRecordAuxDataLength {
 
   message Choice {
@@ -41477,7 +41527,8 @@ message PatternFlowIgmpv3GroupRecordMulticastAddressCounter {
   optional uint32 count = 3;
 }
 
-// Multicast group address that this record reports on.
+// Multicast Address (RFC 9776 Section 4.2.9), the IPv4 multicast group this record
+// reports on. Several records may name the same group.
 message PatternFlowIgmpv3GroupRecordMulticastAddress {
 
   message Choice {
@@ -41524,7 +41575,8 @@ message PatternFlowIgmpv3SourceAddressCounter {
   optional uint32 count = 3;
 }
 
-// Unicast IPv4 source address, use a counter to send a range of sources.
+// Unicast IPv4 source address. A counter or a values list changes the address from
+// packet to packet across the flow, it does not add sources to the message.
 message PatternFlowIgmpv3SourceAddress {
 
   message Choice {

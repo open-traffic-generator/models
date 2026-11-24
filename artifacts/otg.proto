@@ -14620,6 +14620,9 @@ message FlowCfmLength {
 // Control (ToS 0xc0) and the IP Router Alert option (RFC 2113). The model does not
 // enforce these requirements, so any value the fields can encode may be configured
 // for negative testing.
+// A Query of eight octets is IGMPv1 or IGMPv2 and a Query of twelve or more octets
+// is IGMPv3 (RFC 9776 Section 7.1), so membership_query always builds an IGMPv3 Query.
+// The eight octet messages use the igmpv1 and igmpv2 headers.
 // The IPv4 and Ethernet destinations are set in their own headers. Use these values
 // (RFC 9776 Sections 4.1.12 and 4.2.15):
 // General Query:
@@ -14687,7 +14690,9 @@ message FlowIgmpv3MembershipQuery {
   // Description missing in models
   PatternFlowIgmpv3MembershipQueryNumberOfSources number_of_sources = 9;
 
-  // List of unicast source addresses of a group-and-source-specific query.
+  // List of unicast source addresses of a group-and-source-specific query. RFC 9776 Section
+  // 4.1.8 gives the example that 366 sources fit in a Query on an Ethernet MTU of 1500
+  // octets.
   repeated FlowIgmpv3Source sources = 10;
 }
 
@@ -40879,9 +40884,10 @@ message PatternFlowIgmpv3MembershipQueryFlagsCounter {
 }
 
 // Flags (RFC 9776 Section 4.1.4), four bits managed by IANA (RFC 9778 Section 2.2).
-// The most significant bit (value eight) is E, Extension (RFC 9279), which is set only
-// when an extension follows the sources, the other bits are unassigned. This header
-// does not model the extension, so a conforming message from it has flags zero.
+// The most significant bit (value eight) is E, Extension (RFC 9279 Section 3.3), which
+// is set only when an extension follows the sources, the other bits are unassigned.
+// This header does not model the extension, so a conforming message from it has flags
+// zero.
 message PatternFlowIgmpv3MembershipQueryFlags {
 
   message Choice {
@@ -40930,7 +40936,8 @@ message PatternFlowIgmpv3MembershipQuerySFlagCounter {
 
 // S flag, Suppress Router-Side Processing (RFC 9776 Section 4.1.5). When set to one,
 // receiving routers skip their normal timer updates for this Query, Querier election
-// and host-side processing still happen.
+// and host-side processing still happen. Queriers use it in repeated Group-Specific
+// and Group-and-Source Specific Queries (Section 6.6.3).
 message PatternFlowIgmpv3MembershipQuerySFlag {
 
   message Choice {
@@ -40979,7 +40986,8 @@ message PatternFlowIgmpv3MembershipQueryQrvCounter {
 
 // QRV, Querier's Robustness Variable (RFC 9776 Section 4.1.6). A querier whose Robustness
 // Variable is above seven sends zero, and a receiver of zero uses its own value. The
-// default is the RFC default of two (Section 8.1).
+// Robustness Variable itself is never zero (Section 8.1). The default is the RFC default
+// of two (Section 8.1).
 message PatternFlowIgmpv3MembershipQueryQrv {
 
   message Choice {
@@ -41259,8 +41267,8 @@ message PatternFlowIgmpv3MembershipReportFlagsCounter {
 }
 
 // Flags (RFC 9776 Section 4.2.3), sixteen bits managed by IANA (RFC 9778 Section 2.3).
-// The most significant bit (value 0x8000) is E, Extension (RFC 9279), which is set
-// only when an extension follows the last group record, the other bits are unassigned.
+// The most significant bit (value 0x8000) is E, Extension (RFC 9279 Section 3.4), which
+// is set only when an extension follows the last group record, the other bits are unassigned.
 // This header does not model the extension, so a conforming message from it has flags
 // zero.
 message PatternFlowIgmpv3MembershipReportFlags {
@@ -41529,7 +41537,8 @@ message PatternFlowIgmpv3GroupRecordMulticastAddressCounter {
 }
 
 // Multicast Address (RFC 9776 Section 4.2.9), the IPv4 multicast group this record
-// reports on. Several records may name the same group.
+// reports on. Several records may name the same group, for example one allow_new_sources
+// and one block_old_sources record (RFC 9776 Section 4.2.13).
 message PatternFlowIgmpv3GroupRecordMulticastAddress {
 
   message Choice {

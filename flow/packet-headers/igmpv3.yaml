@@ -10,6 +10,11 @@ components:
         requirements, so any value the fields can encode may be configured for
         negative testing.
 
+        A Query of eight octets is IGMPv1 or IGMPv2 and a Query of twelve or
+        more octets is IGMPv3 (RFC 9776 Section 7.1), so membership_query
+        always builds an IGMPv3 Query. The eight octet messages use the igmpv1
+        and igmpv2 headers.
+
         The IPv4 and Ethernet destinations are set in their own headers. Use
         these values (RFC 9776 Sections 4.1.12 and 4.2.15):
 
@@ -106,7 +111,7 @@ components:
             description: >-
               Flags (RFC 9776 Section 4.1.4), four bits managed by IANA (RFC 9778
               Section 2.2). The most significant bit (value eight) is E, Extension (RFC
-              9279), which is set only when an extension follows the sources, the other
+              9279 Section 3.3), which is set only when an extension follows the sources, the other
               bits are unassigned. This header does not model the extension, so a
               conforming message from it has flags zero.
             format: integer
@@ -119,7 +124,9 @@ components:
             description: >-
               S flag, Suppress Router-Side Processing (RFC 9776 Section 4.1.5). When set
               to one, receiving routers skip their normal timer updates for this Query,
-              Querier election and host-side processing still happen.
+              Querier election and host-side processing still happen. Queriers
+              use it in repeated Group-Specific and Group-and-Source Specific
+              Queries (Section 6.6.3).
             format: integer
             length: 1
             default: 0
@@ -130,7 +137,8 @@ components:
             description: >-
               QRV, Querier's Robustness Variable (RFC 9776 Section 4.1.6). A querier
               whose Robustness Variable is above seven sends zero, and a receiver of zero
-              uses its own value. The default is the RFC default of two (Section 8.1).
+              uses its own value. The Robustness Variable itself is never zero (Section
+              8.1). The default is the RFC default of two (Section 8.1).
             format: integer
             length: 3
             default: 2
@@ -163,6 +171,8 @@ components:
         sources:
           description: >-
             List of unicast source addresses of a group-and-source-specific query.
+            RFC 9776 Section 4.1.8 gives the example that 366 sources fit in a
+            Query on an Ethernet MTU of 1500 octets.
           type: array
           items:
             $ref: '#/components/schemas/Flow.Igmpv3.Source'
@@ -207,7 +217,7 @@ components:
             description: >-
               Flags (RFC 9776 Section 4.2.3), sixteen bits managed by IANA (RFC 9778
               Section 2.3). The most significant bit (value 0x8000) is E, Extension (RFC
-              9279), which is set only when an extension follows the last group record,
+              9279 Section 3.4), which is set only when an extension follows the last group record,
               the other bits are unassigned. This header does not model the extension, so
               a conforming message from it has flags zero.
             format: integer
@@ -288,7 +298,9 @@ components:
           x-field-pattern:
             description: >-
               Multicast Address (RFC 9776 Section 4.2.9), the IPv4 multicast group this
-              record reports on. Several records may name the same group.
+              record reports on. Several records may name the same group, for example one
+              allow_new_sources and one block_old_sources record (RFC 9776
+              Section 4.2.13).
             format: ipv4
             default: 0.0.0.0
             features: [count]

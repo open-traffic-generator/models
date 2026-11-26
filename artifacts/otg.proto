@@ -62,6 +62,9 @@ message Config {
   // received for each unique value in the bits being tracked from the beginning of the
   // test.
   repeated EgressOnlyTracking egress_only_tracking = 11;
+
+  // A Collective Communication benchmark configuration
+  CollectiveCommunications collective_communications = 12;
 }
 
 // Global configuration options.
@@ -2300,8 +2303,8 @@ message Layer1 {
   // Under Review: This field is currently under review for pending exploration on use
   // cases
   // 
-  // Set to true to override the auto_negotiate, link_training
-  // and rs_fec settings for gigabit ethernet interfaces.
+  // Set to true to override the auto_negotiate, link_training,
+  // rs_fec and fec_mode settings for gigabit ethernet interfaces.
   optional bool ieee_media_defaults = 6;
 
   // Under Review: This field is currently under review for pending exploration on use
@@ -2366,33 +2369,73 @@ message Layer1 {
   // settings are applied.
   // default = Mode.Enum.mode_no_change
   optional Mode.Enum mode = 11;
+
+  message Signaling {
+    enum Enum {
+      unspecified = 0;
+      auto = 1;
+      nrz = 2;
+      pam4_53_gbps = 3;
+      pam4_106_gbps = 4;
+    }
+  }
+  // Physical lane signaling for the configured speed. Combined with
+  // 'speed' this determines the number of lanes and the per-lane rate,
+  // e.g. speed_400_gbps with pam4_106_gbps implies 4 lanes at
+  // 106.25 Gbps each.
+  // default = Signaling.Enum.auto
+  optional Signaling.Enum signaling = 12;
+
+  message FecMode {
+    enum Enum {
+      unspecified = 0;
+      default = 1;
+      no_fec = 2;
+      rs_fec = 3;
+      rs_fec_kp4 = 4;
+    }
+  }
+  // The Forward Error Correction mode set or advertised.
+  // 
+  // If any mode except for `default` is selected, the mode will either be
+  // advertised and requested during negotiation (if `auto_negotiate` is True),
+  // or set directly without negotiation (if `auto_negotiate` is False).
+  // 
+  // Setting the mode to `default` lets the FEC mode be selected via the
+  // deprecated `auto_negotiation.rs_fec` field. This option enables preserving
+  // behavior for clients which are not yet using this field.
+  // 
+  // Implementations should reject with an error FEC settings that are incompatible
+  // with the other parameters (speed etc).
+  // default = FecMode.Enum.default
+  optional FecMode.Enum fec_mode = 13;
 }
 
 // Configuration for auto negotiation settings
 message Layer1AutoNegotiation {
 
-  // If auto_negotiate is true and the interface supports this option
-  // then this speed will be advertised.
+  // If auto_negotiate is true and the interface supports
+  // 1000 megabits per second, then this speed will be advertised.
   // default = True
   optional bool advertise_1000_mbps = 1;
 
-  // If auto_negotiate is true and the interface supports this option
-  // then this speed will be advertised.
+  // If auto_negotiate is true and the interface supports
+  // 100 megabits per second full-duplex, then this speed will be advertised.
   // default = True
   optional bool advertise_100_fd_mbps = 2;
 
-  // If auto_negotiate is true and the interface supports this option
-  // then this speed will be advertised.
+  // If auto_negotiate is true and the interface supports
+  // 100 megabits per second, half-duplex, then this speed will be advertised.
   // default = True
   optional bool advertise_100_hd_mbps = 3;
 
-  // If auto_negotiate is true and the interface supports this option
-  // then this speed will be advertised.
+  // If auto_negotiate is true and the interface supports
+  // 10 megabits per second, full-duplex, then this speed will be advertised.
   // default = True
   optional bool advertise_10_fd_mbps = 4;
 
-  // If auto_negotiate is true and the interface supports this option
-  // then this speed will be advertised.
+  // If auto_negotiate is true and the interface supports
+  // 10 megabits per second, half-duplex, then this speed will be advertised.
   // default = True
   optional bool advertise_10_hd_mbps = 5;
 
@@ -2400,7 +2443,18 @@ message Layer1AutoNegotiation {
   // default = False
   optional bool link_training = 6;
 
-  // Enable/disable gigabit ethernet reed solomon forward error correction (RS FEC).
+  // Deprecated: This property is deprecated in favor of the `fec_mode` field
+  // 
+  // Enables setting the Forward Error Correction mode for the link through
+  // auto-negotiation.
+  // 
+  // If both this field and `auto_negotiate` are set, the Clause 91 Reed-Solomon
+  // FEC mode will be advertised and requested during negotiation. Otherwise, FEC
+  // will remain disabled, unless a specific mode is mandated by the link speed,
+  // in which case that one will be applied.
+  // 
+  // This field is deprecated in favor of the `fec_mode` field and will be ignored
+  // if the latter is set to anything other than `default`.
   // default = False
   optional bool rs_fec = 7;
 }
@@ -2443,49 +2497,98 @@ message Layer1Ieee8021qbb {
 
   // The upper limit on the transmit time of a queue after receiving a
   // message to pause a specified priority.
-  // A value of 0 or null indicates that pfc delay will not be enabled.
+  // A value of 0 indicates that PFC delay will not be enabled.
   // default = 0
   optional uint32 pfc_delay = 1;
 
-  // The valid values are null, 0 - 7.
-  // A null value indicates there is no setting for this pfc class.
+  // The priority group assigned to priority 0.
+  // 
+  // All priorities mapped to the same group will be treated as if they were one
+  // priority, i.e. a pause/resume request received for any of the priorities in
+  // the group will pause/resume traffic for all of the priorities in the group.
+  // 
+  // Use enabled_pfc_priorities to enable/disable PFC altogether for select priorities.
   // default = 0
   optional uint32 pfc_class_0 = 2;
 
-  // The valid values are null, 0 - 7.
-  // A null value indicates there is no setting for this pfc class.
+  // The priority group assigned to priority 1.
+  // 
+  // All priorities mapped to the same group will be treated as if they were one
+  // priority, i.e. a pause/resume request received for any of the priorities in
+  // the group will pause/resume traffic for all of the priorities in the group.
+  // 
+  // Use enabled_pfc_priorities to enable/disable PFC altogether for select priorities.
   // default = 1
   optional uint32 pfc_class_1 = 3;
 
-  // The valid values are null, 0 - 7.
-  // A null value indicates there is no setting for this pfc class.
+  // The priority group assigned to priority 2.
+  // 
+  // All priorities mapped to the same group will be treated as if they were one
+  // priority, i.e. a pause/resume request received for any of the priorities in
+  // the group will pause/resume traffic for all of the priorities in the group.
+  // 
+  // Use enabled_pfc_priorities to enable/disable PFC altogether for select priorities.
   // default = 2
   optional uint32 pfc_class_2 = 4;
 
-  // The valid values are null, 0 - 7.
-  // A null value indicates there is no setting for this pfc class.
+  // The priority group assigned to priority 3.
+  // 
+  // All priorities mapped to the same group will be treated as if they were one
+  // priority, i.e. a pause/resume request received for any of the priorities in
+  // the group will pause/resume traffic for all of the priorities in the group.
+  // 
+  // Use enabled_pfc_priorities to enable/disable PFC altogether for select priorities.
   // default = 3
   optional uint32 pfc_class_3 = 5;
 
-  // The valid values are null, 0 - 7.
-  // A null value indicates there is no setting for this pfc class.
+  // The priority group assigned to priority 4.
+  // 
+  // All priorities mapped to the same group will be treated as if they were one
+  // priority, i.e. a pause/resume request received for any of the priorities in
+  // the group will pause/resume traffic for all of the priorities in the group.
+  // 
+  // Use enabled_pfc_priorities to enable/disable PFC altogether for select priorities.
   // default = 4
   optional uint32 pfc_class_4 = 6;
 
-  // The valid values are null, 0 - 7.
-  // A null value indicates there is no setting for this pfc class.
+  // The priority group assigned to priority 5.
+  // 
+  // All priorities mapped to the same group will be treated as if they were one
+  // priority, i.e. a pause/resume request received for any of the priorities in
+  // the group will pause/resume traffic for all of the priorities in the group.
+  // 
+  // Use enabled_pfc_priorities to enable/disable PFC altogether for select priorities.
   // default = 5
   optional uint32 pfc_class_5 = 7;
 
-  // The valid values are null, 0 - 7.
-  // A null value indicates there is no setting for this pfc class.
+  // The priority group assigned to priority 6.
+  // 
+  // All priorities mapped to the same group will be treated as if they were one
+  // priority, i.e. a pause/resume request received for any of the priorities in
+  // the group will pause/resume traffic for all of the priorities in the group.
+  // 
+  // Use enabled_pfc_priorities to enable/disable PFC altogether for select priorities.
   // default = 6
   optional uint32 pfc_class_6 = 8;
 
-  // The valid values are null, 0 - 7.
-  // A null value indicates there is no setting for this pfc class.
+  // The priority group assigned to priority 7.
+  // 
+  // All priorities mapped to the same group will be treated as if they were one
+  // priority, i.e. a pause/resume request received for any of the priorities in
+  // the group will pause/resume traffic for all of the priorities in the group.
+  // 
+  // Use enabled_pfc_priorities to enable/disable PFC altogether for select priorities.
   // default = 7
   optional uint32 pfc_class_7 = 9;
+
+  // The list of priorities for which PFC is enabled.
+  // 
+  // By default PFC is enabled for all priorities.
+  // 
+  // Disabled priorities will not be considered to be part of a priority group
+  // regardless of their pfc_class_X setting.
+  // default = [0, 1, 2, 3, 4, 5, 6, 7]
+  repeated uint32 enabled_pfc_priorities = 10;
 }
 
 // Configuration for capture settings.
@@ -2530,6 +2633,10 @@ message Capture {
   // objects.
   // required = true
   optional string name = 6;
+
+  // Maximum capture file size in bytes. A value of 0 means no explicit limit.
+  // default = 0
+  optional uint64 max_file_size = 7;
 }
 
 // Configuration for capture filters
@@ -8105,15 +8212,6 @@ message BgpAttributesSegmentRoutingPolicySRv6SIDEndpointBehaviorAndStructure {
   optional uint32 arg_length = 5;
 }
 
-// Optional field in the NLRI carrying the distinguisher for Segment Routing Policy
-// NLRI with SAFI 73.
-message BgpNLRIPrefixSegmentRoutingDistinguisher {
-
-  // The value of the optional Segment Routing distinguisher of the prefix.
-  // default = 1
-  optional uint32 value = 1;
-}
-
 // A BGP/MPLS Layer 3 VPN VRF (RFC 4364). Groups a Route Target
 // import/export policy with a set of customer (PE-CE learned or locally
 // originated) IPv4/IPv6 route ranges. Each route range carries its own
@@ -9945,53 +10043,6 @@ message Ospfv2InterfaceAdvanced {
   // 
   // default = True
   optional bool validate_received_mtu = 5;
-}
-
-// The OSPF Options field is present in OSPF Hello packets, Database Description packets
-// and all LSAs.
-// The Options field enables OSPF routers to support (or not support) optional capabilities,
-// and to
-// communicate their capability level to other OSPF routers https://datatracker.ietf.org/doc/html/rfc2328#page-46.
-// When used in Hello packets, the Options field allows a router to reject a neighbor
-// because of a capability mismatch.
-message Ospfv2InterfaceOptions {
-
-  // Type of Service: 0th-bit: describes OSPFv2's TOS capability.
-  // default = False
-  optional bool t_bit = 1;
-
-  // External Capability: This bit describes the way AS-external-LSAs are flooded.
-  // default = False
-  optional bool e_bit = 2;
-
-  // Multicast Capability: This bit describes whether IP multicast datagrams are forwarded
-  // according to  the specifications in [Ref18], rfc2328.
-  // default = False
-  optional bool mc_bit = 3;
-
-  // NSSA Capability: This bit describes the handling of Type-7 LSAs, as specified in
-  // [Ref19], rfc2328.
-  // default = False
-  optional bool np_bit = 4;
-
-  // External Attribute: This bit describes the router's willingness to receive and forward
-  // External-Attributes-LSAs,  as specified in [Ref20], rfc2328.
-  // default = False
-  optional bool ea_bit = 5;
-
-  // Demand Circuit: This bit describes the router's handling of demand circuits, as specified
-  // in [Ref21], rfc2328.
-  // default = False
-  optional bool dc_bit = 6;
-
-  // Opaque LSA's Forwarded: This bit describes the router's willingness to receive and
-  // forward Opaque-LSAs, rfc2370.
-  // default = False
-  optional bool o_bit = 7;
-
-  // Opaque LSA's Forwarded: 7th-bit: unused bit.
-  // default = False
-  optional bool unused_bit = 8;
 }
 
 // This contains OSPFv2 authentication properties.
@@ -15487,49 +15538,6 @@ message EventDPEvents {
   optional float rx_rate_threshold = 2;
 }
 
-// Description missing in models
-message EventRequest {
-
-  message Type {
-    enum Enum {
-      unspecified = 0;
-      link_down = 1;
-      link_up = 2;
-      route_withdraw = 3;
-      route_advertise = 4;
-      flow_rx_rate_above_threshold = 5;
-      flow_rx_rate_below_threshold = 6;
-    }
-  }
-  // Constrain the events being returned by specifying event types.
-  // If the list is empty then all event types will be returned.
-  repeated Type.Enum type = 1;
-
-  // Constrain the events being returned by specifying event sources.
-  // If the list is empty then all event sources will be returned.
-  // 
-  // x-constraint:
-  // - /components/schemas/Port/properties/name
-  // - /components/schemas/Bgp.V4RouteRange/name
-  // - /components/schemas/Bgp.V6RouteRange/name
-  // 
-  repeated string source = 2;
-}
-
-// A container that describes what events a system should provide and
-// optionally where to publish them.
-message EventSubscription {
-
-  // Description missing in models
-  EventRequest events = 1;
-
-  // Indicates where a client wants to be notified of the events set in
-  // the events property.
-  // If this property is empty or null then no event notifications will
-  // be forwarded.
-  optional string callback_url = 2;
-}
-
 // Configuration of LLDP protocol IEEE Ref: https://www.ieee802.org/1/files/public/docs2002/lldp-protocol-00.pdf
 message Lldp {
 
@@ -16024,6 +16032,721 @@ message EgressOnlyTrackingFilter {
   optional Choice.Enum choice = 1;
 }
 
+// Collective Communications configuration.
+// The configuration consists of high-level configuration objects that describe an AI
+// workload and the infrastructure it is running on. In addition there is a transport
+// section with transport parameters that are unique  to collective communications.
+message CollectiveCommunications {
+
+  // Definition of the collective communications traffic to run.
+  CollectiveCommunicationsWorkload workload = 1;
+
+  // The declaration of the system testbed.
+  CollectiveCommunicationsInfrastructure infrastructure = 2;
+
+  // General information about the collective benchmark Result to populate the collective
+  // benchmark Result with. These fields in the collective benchmark Result itself can
+  // be further edited after the test.
+  CollectiveCommunicationsResultInfo result_info = 3;
+}
+
+// General information about the collective benchmark Result
+message CollectiveCommunicationsResultInfo {
+
+  // The list of tags associated with the collective benchmark.
+  // List of tags associated with this object.
+  // default = []
+  repeated string tags = 1;
+
+  // A detailed description of the collective benchmark.
+  // A detailed description of the object.
+  optional string description = 2;
+}
+
+// Definition of the collective communications traffic to run. Selects the workload
+// type (e.g. single collective, mix of collectives etc) and carries its configuration.
+// The definition of what infrastructure it runs on is described by CollectiveCommunications.Infrastructure.
+message CollectiveCommunicationsWorkload {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      single_collective = 1;
+      mix_of_collectives = 2;
+    }
+  }
+  // Selects the workload type.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Single collective benchmark configuration.
+  CollectiveCommunicationsSingleCollective single_collective = 2;
+
+  // Mix of collectives benchmark configuration.
+  CollectiveCommunicationsMixOfCollectives mix_of_collectives = 3;
+}
+
+// Specifies a collective communication algorithm.
+// Currently only the type can be specified, but more parameters may be added in the
+// future to support e.g. parameters for certain algorithms.
+// For algorithms that are influenced by the order in which the ranks in the collective
+// are specified, the order is taken from the definition of the corresponding process
+// group. If the process group is not specified explicitly (e.g. the world), the default
+// order is simply the list of ranks in ascending numerical order, e.g. from 0 to N-1
+// for the world.
+// For tree-based algorithms that feature a root rank, the default root rank is the
+// first one in the rank ordering (either the default or explicit one).
+message CollectiveCommunicationsAlgorithm {
+
+  message AlgorithmType {
+    enum Enum {
+      unspecified = 0;
+      all_to_all_parallel = 1;
+      all_to_all_pxn = 2;
+      all_reduce_unidirectional_ring = 3;
+      all_reduce_bidirectional_ring = 4;
+      all_reduce_vector_halving_doubling = 5;
+      all_reduce_double_binary_tree = 6;
+      all_gather_ring = 7;
+      reduce_scatter_ring = 8;
+      broadcast_parallel = 9;
+      gather_parallel = 10;
+    }
+  }
+  // The collective algorithm to use. Default is all_to_all_parallel.
+  // default = AlgorithmType.Enum.all_to_all_parallel
+  optional AlgorithmType.Enum algorithm_type = 1;
+}
+
+// Specification for generating background traffic.
+message CollectiveCommunicationsBackgroundTraffic {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      flows = 1;
+      line_rate_percentage = 2;
+    }
+  }
+  // Selects how the background traffic is generated.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The names of the flows (configured in Config.flows) to activate.
+  // 
+  // x-constraint:
+  // - /components/schemas/Flow/properties/name
+  // 
+  repeated string flows = 2;
+
+  // Traffic is generated such that a given percentage of the line rate is consumed.
+  CollectiveCommunicationsBackgroundTrafficLineRatePercentage line_rate_percentage = 3;
+}
+
+// Specification for generating background traffic such that a given percentage of the
+// line rate is consumed.
+// The server will automatically set up flows timed and sized appropriately to achieve
+// the target line rate usage percentage.
+message CollectiveCommunicationsBackgroundTrafficLineRatePercentage {
+
+  // Target average percentage of line rate used by the background traffic. The remaining
+  // line rate is available to other operations.
+  // default = 5
+  optional uint32 line_rate_percentage = 1;
+
+  // The set of ranks between which background traffic flows will be generated, for optionally
+  // restricting the background traffic effect to only a section of the world. The target
+  // percentage will apply to the communication within this scope.
+  // If the scope is not specified, a default scope is applied corresponding to the maximal
+  // set of ranks that is allowed in the context of the enclosing object (e.g. the world,
+  // a tenant etc)
+  CollectiveCommunicationsFlowGenerationScope scope = 2;
+}
+
+// Selects the set of ranks for which flows will be generated as part of an automatic
+// flow generation algorithm.
+message CollectiveCommunicationsFlowGenerationScope {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      maximal = 1;
+      process_group = 2;
+    }
+  }
+  // Selects the type of scope.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The name of a process group. Flows will be generated only between ranks in this process
+  // group.
+  // The implementation will validate whether the selected process group is allowed in
+  // context (e.g. a tenant may be forbidden from using another tenant's process group).
+  // 
+  // x-constraint:
+  // - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+  // 
+  optional string process_group = 2;
+}
+
+// Single collective communication configuration.
+message CollectiveCommunicationsSingleCollective {
+
+  // The collective communication algorithm to use.
+  CollectiveCommunicationsAlgorithm collective_algorithm = 1;
+
+  // Data size specification for each benchmark collective run.
+  CollectiveCommunicationsDatasizes datasizes = 2;
+
+  // Collective-communications-specific transport settings that apply to the traffic generated
+  // for this collective.
+  CollectiveCommunicationsTransport transport = 3;
+
+  // Number of collective executions per data size.
+  // default = 1
+  optional uint32 iterations = 4;
+
+  // Delay between iterations, in microseconds.
+  // default = 0
+  optional uint32 iteration_delay = 5;
+}
+
+// Data size specification for each benchmark collective run — either an explicit list
+// of sizes or a multiplier-based range.
+message CollectiveCommunicationsDatasizes {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      multiplier = 1;
+      list = 2;
+    }
+  }
+  // Selects the data size specification.
+  // default = Choice.Enum.list
+  optional Choice.Enum choice = 1;
+
+  // Data size range using a multiplier.
+  CollectiveCommunicationsDatasize multiplier = 2;
+
+  // Explicit list of data sizes.
+  CollectiveCommunicationsDatasizeList list = 3;
+}
+
+// Data size range specification for a collective communications benchmark. Starting
+// at start, each subsequent size is obtained by multiplying by multiplier, continuing
+// until end is reached.
+message CollectiveCommunicationsDatasize {
+
+  // Initial data size in bytes. Default 134217728 (128 MiB).
+  // default = 134217728
+  optional uint64 start = 1;
+
+  // Factor by which the data size is multiplied at each step.
+  // default = 2
+  optional uint32 multiplier = 2;
+
+  // Maximum data size in bytes. The last size run is the largest value not exceeding
+  // end. Default 4294967296 (4 GiB).
+  // default = 4294967296
+  optional uint64 end = 3;
+}
+
+// Explicit list of data sizes for a collective communications benchmark.
+message CollectiveCommunicationsDatasizeList {
+
+  // List of data sizes in bytes. Default [1073741824] (1 GiB).
+  // default = [1073741824]
+  repeated uint64 size_bytes = 1;
+}
+
+// Multiple collective communication configuration.
+message CollectiveCommunicationsMixOfCollectives {
+
+  // The workload sets that form this run. Workload sets are executed in parallel and
+  // are intended to model independent jobs or spaces within a run (e.g. coming from different
+  // tenants).
+  repeated CollectiveCommunicationsMixOfCollectivesWorkloadSet workload_sets = 1;
+}
+
+// A workload set consisting of a number of workloads, executed on a distinct subset
+// of the infrastructure, as part of a Mix of Collectives run.
+// The workloads run sequentially, each with a potentially different mix of process
+// groups carrying out collective communications. The entire set of workloads can be
+// repeated a configurable number of times.
+message CollectiveCommunicationsMixOfCollectivesWorkloadSet {
+
+  // A unique name for this workload set.
+  // required = true
+  optional string name = 1;
+
+  // The workloads in the set, executed sequentially.
+  repeated CollectiveCommunicationsMixOfCollectivesWorkload workloads = 2;
+
+  // Definitions for the process groups over which collective operations will be executed.
+  // Process group names must be distinct within a workload set.
+  repeated CollectiveCommunicationsProcessGroup process_groups = 3;
+
+  // Number of times to repeat the execution of workloads in this set. Each repeat executes
+  // all of the configured workloads.
+  // default = 1
+  optional uint32 repeat_count = 4;
+
+  // Delay between repeats, in microseconds.
+  // default = 0
+  optional uint32 repeat_delay = 5;
+
+  // Optional specification for generating background traffic while this workload is executing.
+  CollectiveCommunicationsBackgroundTraffic background_traffic = 6;
+}
+
+// A workload that consists of one or more operations, executed in sequence or in parallel.
+message CollectiveCommunicationsMixOfCollectivesWorkload {
+
+  // A unique name for this workload.
+  // required = true
+  optional string name = 1;
+
+  message ExecutionMode {
+    enum Enum {
+      unspecified = 0;
+      sequential = 1;
+      parallel = 2;
+    }
+  }
+  // Selects whether the operations in this workload are executed sequentially or in parallel.
+  // default = ExecutionMode.Enum.sequential
+  optional ExecutionMode.Enum execution_mode = 2;
+
+  // The operations executed as part of this workload.
+  repeated CollectiveCommunicationsMixOfCollectivesOperation operations = 3;
+
+  // Number of times to repeat the execution of this workload.
+  // default = 1
+  optional uint32 repeat_count = 4;
+
+  // Delay between repeats, in microseconds.
+  // default = 0
+  optional uint32 repeat_delay = 5;
+
+  // Collective-communications-specific transport settings that apply to traffic generated
+  // for this workload.
+  CollectiveCommunicationsTransport transport = 6;
+}
+
+// An operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+message CollectiveCommunicationsMixOfCollectivesOperation {
+
+  // A name for this operation, unique within its workload set.
+  // required = true
+  optional string name = 1;
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      collective = 1;
+      point_to_point = 2;
+    }
+  }
+  // Selects the type of operation to execute.
+  // required = true
+  optional Choice.Enum choice = 2;
+
+  // A collective communication operation.
+  CollectiveCommunicationsMixOfCollectivesCollectiveOperation collective = 3;
+
+  // A point-to-point (send/recv) operation.
+  CollectiveCommunicationsMixOfCollectivesPointToPointOperation point_to_point = 4;
+}
+
+// A collective operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+message CollectiveCommunicationsMixOfCollectivesCollectiveOperation {
+
+  // The collective communication operation and algorithm to execute.
+  // required = true
+  CollectiveCommunicationsAlgorithm collective_algorithm = 1;
+
+  // Total data size of this collective operation in bytes across all ranks.
+  // default = 1073741824
+  optional uint64 data_size = 2;
+
+  // The name of the process group (defined in the enclosing WorkloadSet's process_groups)
+  // over which this collective operation executes.
+  // 
+  // x-constraint:
+  // - /components/schemas/CollectiveCommunications.ProcessGroup/properties/name
+  // 
+  // required = true
+  optional string process_group = 3;
+
+  // A description for how many times to execute this operation
+  CollectiveCommunicationsMixOfCollectivesRepeatCount repeat_count = 4;
+
+  // Delay between repeats, in microseconds.
+  // default = 0
+  optional uint32 repeat_delay = 5;
+
+  // Collective-communications-specific transport settings for the traffic generated for
+  // this operation. If set, they replace the workload's transport as a whole for this
+  // operation (there is no field-by-field merge). If not set, the workload's transport
+  // is used.
+  CollectiveCommunicationsTransport transport = 6;
+}
+
+// A point-to-point (send/recv) operation, executed as part of a CollectiveCommunications.MixOfCollectives.Workload.
+message CollectiveCommunicationsMixOfCollectivesPointToPointOperation {
+
+  // A collection of point-to-point flows, specified either explicitly or implicitly.
+  // required = true
+  CollectiveCommunicationsPointToPointFlows flows = 1;
+
+  // Data size for each point-to-point flow, in bytes.
+  // default = 1073741824
+  optional uint64 data_size = 2;
+
+  // A description for how many times to execute this operation
+  CollectiveCommunicationsMixOfCollectivesRepeatCount repeat_count = 3;
+
+  // Delay between repeats, in microseconds.
+  // default = 0
+  optional uint32 repeat_delay = 4;
+
+  // Collective-communications-specific transport settings for the traffic generated for
+  // this operation. If set, they replace the workload's transport as a whole for this
+  // operation (there is no field-by-field merge). If not set, the workload's transport
+  // is used.
+  CollectiveCommunicationsTransport transport = 5;
+}
+
+// A description for how many times to execute an operation.
+message CollectiveCommunicationsMixOfCollectivesRepeatCount {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      exact_count = 1;
+      fill_time = 2;
+    }
+  }
+  // Selects the way in which the repeat count is specified.
+  // default = Choice.Enum.exact_count
+  optional Choice.Enum choice = 1;
+
+  // The exact number of repeats
+  // default = 1
+  optional uint32 exact_count = 2;
+
+  // The amount of time to fill, in seconds. The total time taken may be slightly longer,
+  // to give the last repeat time to finish in full.
+  // default = 0
+  optional double fill_time = 3;
+}
+
+// Description of a process group over which collective communications are run.
+message CollectiveCommunicationsProcessGroup {
+
+  // A unique name for this process group.
+  // required = true
+  optional string name = 1;
+
+  // The ranks that form this process group.
+  // Whether a rank can participate in multiple process groups depends on the specifics
+  // of the benchmark being run. Implementations will validate whether process groups
+  // are non-overlapping when they are required to be so.
+  // required = true
+  CollectiveCommunicationsRankSet ranks = 2;
+}
+
+// A set of ranks that form a communication group.
+// The order in which the ranks are supplied is significant and may be used by the implementation
+// to inform the way in which flows are created for e.g. ring and tree-based collective
+// operations.
+// If an implementation does not support a specific order but rather requires the ranks
+// to be sorted, it can reject non-sorted rank sets with an error.
+message CollectiveCommunicationsRankSet {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      list = 1;
+      ranges = 2;
+    }
+  }
+  // Selects the representation of the rank set.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // A list of distinct ranks.
+  repeated uint32 list = 2;
+
+  // A collection of non-overlapping rank ranges.
+  repeated CollectiveCommunicationsRankRange ranges = 3;
+}
+
+// A range of ranks, starting at `start` and advancing by `step`, up to a total of `length`
+// ranks.
+message CollectiveCommunicationsRankRange {
+
+  // The first rank in the range.
+  // required = true
+  optional uint32 start = 1;
+
+  // The increment between successive ranks in the range. May not be 0.
+  // default = 1
+  optional int32 step = 2;
+
+  // The number of ranks in the range.
+  // required = true
+  optional uint32 length = 3;
+}
+
+// Selects the network transport used to carry the workload's traffic and provides additional
+// settings for that transport, if any.
+message CollectiveCommunicationsTransport {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      rocev2 = 1;
+    }
+  }
+  // Selects the network transport.
+  // default = Choice.Enum.rocev2
+  optional Choice.Enum choice = 1;
+
+  // RoCEv2 transport settings.
+  CollectiveCommunicationsRocev2TransportSettings rocev2 = 2;
+}
+
+// Workload-level RoCEv2 transport settings, applied uniformly across every rank pair
+// using this transport.
+message CollectiveCommunicationsRocev2TransportSettings {
+
+  // (Maximum) RDMA message size in bytes.
+  // default = 131072
+  optional uint32 rdma_message_size = 1;
+
+  // Number of Queue Pairs per rank pair.
+  // default = 1
+  optional uint32 qps_per_rankpair = 2;
+
+  message Verb {
+    enum Enum {
+      unspecified = 0;
+      write = 1;
+      send = 2;
+    }
+  }
+  // RDMA verb used for data transfers in collective communication operations. Default
+  // is write.
+  // default = Verb.Enum.write
+  optional Verb.Enum verb = 3;
+
+  // Enable reuse of Queue Pairs (QPs) for RDMA messages between a rank pair, rather than
+  // opening a new QP per message.
+  // default = True
+  optional bool reuse_qps = 4;
+
+  // Queue Pair negotiation method.
+  CollectiveCommunicationsQpNegotiation qp_negotiation = 5;
+}
+
+// Selects the method used to negotiate Queue Pairs across ranks.
+message CollectiveCommunicationsQpNegotiation {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      automatic = 1;
+      custom = 2;
+      tcp_store = 3;
+      rdma_cm = 4;
+    }
+  }
+  // Selects the QP negotiation method.
+  // default = Choice.Enum.automatic
+  optional Choice.Enum choice = 1;
+
+  // Vendor/Implementation-specific queue pair negotiation method.
+  CollectiveCommunicationsCustomQpNegotiation custom = 2;
+
+  // TCP store rendezvous endpoint.
+  CollectiveCommunicationsTcpStore tcp_store = 3;
+}
+
+// Vendor/Implementation-specific queue pair negotiation method.
+message CollectiveCommunicationsCustomQpNegotiation {
+
+  // Name of the custom QP negotiation method. Used by the implementation to determine
+  // which custom_settings apply.
+  // required = true
+  optional string negotiation_type = 1;
+
+  // Custom properties for the specified Vendor/Implementation and negotiation_type to
+  // control qp negotiations, keyed as described under CustomSettings
+  CustomSettings custom_settings = 2;
+}
+
+// Rendezvous endpoint for TCP-store-based Queue Pair negotiation. Shared by every rank
+// in the scope to which the transport applies (e.g. workload, operation etc)
+message CollectiveCommunicationsTcpStore {
+
+  // TCP store hostname or IP address.
+  // default = localhost
+  optional string address = 1;
+
+  // TCP store port number.
+  // default = 12345
+  optional uint32 port = 2;
+}
+
+// A placeholder object for fields that are yet to be properly defined.
+message PlaceholderObject {
+
+  // Placeholder type for fields that are yet to be defined.
+  optional string value = 1;
+}
+
+// A list of implementation-specific settings, as key/value pairs. Values are strings
+// for simplicity; a setting of any other type is carried in its string form, and the
+// implementation that supports the key defines how to parse it.
+// It is recommended that keys have the form <implementation id>.<property>, where the
+// implementation prefix is a reverse domain name owned by the  implementation author/publisher,
+// e.g. com.example.app.custom_setting. This prevents key collisions. But implementations
+// are free to handle  keys that don't conform to this style, e.g. keys with a different
+// or missing implementation id.
+// Each implementation is expected to document, outside of the model, the settings it
+// supports. An implementation should ignore keys with unrecognized implementation ids,
+// but should return an error for unrecognized keys with a matching implementation id.
+// Implementations should return an error for duplicate keys unless it intentionally
+// accepts duplicate keys.
+message CustomSettings {
+
+  // Description missing in models
+  // default = []
+  repeated KeyValuePair items = 1;
+}
+
+// One key/value pair.
+message KeyValuePair {
+
+  // Description missing in models
+  // required = true
+  optional string key = 1;
+
+  // Description missing in models
+  // required = true
+  optional string value = 2;
+}
+
+// A collection of point-to-point flows, specified either explicitly or implicitly.
+message CollectiveCommunicationsPointToPointFlows {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      endpoints = 1;
+      auto_fill = 2;
+    }
+  }
+  // Selects the representation of point-to-point flows.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // A list of the sender/receiver rank pairs for each point-to-point flow in the collection.
+  repeated CollectiveCommunicationsPointToPointFlow endpoints = 2;
+
+  // A specification for automatically generating flows between ranks in a given scope.
+  CollectiveCommunicationsPointToPointFlowsAutoFill auto_fill = 3;
+}
+
+// A single directed point-to-point flow: sender transmits to receiver.
+message CollectiveCommunicationsPointToPointFlow {
+
+  // Rank that sends on this flow.
+  // required = true
+  optional uint32 sender = 1;
+
+  // Rank that receives on this flow.
+  // required = true
+  optional uint32 receiver = 2;
+}
+
+// A specification for automatically generating flows between ranks in a given scope.
+message CollectiveCommunicationsPointToPointFlowsAutoFill {
+
+  // The set of ranks between which flows will be generated.
+  // required = true
+  CollectiveCommunicationsFlowGenerationScope scope = 1;
+
+  message Algorithm {
+    enum Enum {
+      unspecified = 0;
+      bidi_consecutive_pairs = 1;
+    }
+  }
+  // Selects the algorithm used to generate flows between ranks.
+  // default = Algorithm.Enum.bidi_consecutive_pairs
+  optional Algorithm.Enum algorithm = 2;
+}
+
+// The declaration of the system testbed.
+message CollectiveCommunicationsInfrastructure {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      simple_implicit = 1;
+    }
+  }
+  // Selects how the infrastructure is specified.
+  // default = Choice.Enum.simple_implicit
+  optional Choice.Enum choice = 1;
+
+  // A simple infrastructure consisting of a number of generic hosts, each with a number
+  // of XPUs, each XPU
+  // connected 1:1 to a NIC. The user needs only define the hosts as OTG devices, associated
+  // NICs as OTG
+  // ethernets, and the test ports as OTG ports, with the rest of the connections and
+  // rank mapping being
+  // implicitly derived by the implementation as per the rules and parameters defined
+  // here.
+  CollectiveCommunicationsSimpleImplicitInfrastructure simple_implicit = 2;
+}
+
+// A simple infrastructure consisting of a number of generic hosts, each with a number
+// of XPUs, each XPU
+// connected 1:1 to a NIC.
+// 
+// To set up a number of hosts, the user will declare as many devices as there are hosts.
+// For each host, they
+// will add as many ethernets as there are XPUs in that host, with the understanding
+// that one NIC maps to
+// one XPU. The ethernets can then be connected to declared test ports.
+// 
+// Ranks are automatically mapped to the implicitly defined XPUs as per the order of
+// definition of devices and
+// their ethernets: for each device in the order of definition, we go over each ethernet
+// in the device, in their
+// order of definition, and assign the next rank in order (0, 1, 2 etc.) to the XPU
+// corresponding to the ethernet.
+// 
+// With this simple mapping option, the user may not declare devices for any other purpose,
+// as they will be
+// taken to be a host.
+// 
+// Specific implementations may introduce extra restrictions, such as requiring that
+// all hosts define the same
+// number of XPUs.
+message CollectiveCommunicationsSimpleImplicitInfrastructure {
+
+  // If non-zero, XPUs within the same host will be linked with a generic interconnect
+  // of the specified bandwidth, in gigabits per second. If 0, XPU interconnect will be
+  // disabled and XPUs within the same host will only communicate via the network.
+  // default = 1600
+  optional uint32 xpu_interconnect_bandwidth_gbps = 1;
+}
+
 // Port specific configurations.
 message PerPortOptions {
 
@@ -16070,6 +16793,10 @@ message Rocev2PerPortSettings {
 
   // Description missing in models
   Rocev2DCQCN dcqcn_settings = 3;
+
+  // Enable receive-side out-of-order packet handling for this port.
+  // default = False
+  optional bool enable_rx_reordering = 4;
 }
 
 // CNP parameters.
@@ -16148,6 +16875,14 @@ message Rocev2AckAndNak {
   // Number of retransmission attempts before stopping due to missing ACK/NAK.
   // default = 3
   optional uint32 retransmission_retry_count = 5;
+
+  // Number of retransmission attempts triggered by a Receiver Not Ready (RNR) NAK.
+  // default = 0
+  optional uint32 rnr_nak_retry_count = 6;
+
+  // Request an ACK after every N packets. 0 disables the periodic request.
+  // default = 32
+  optional uint32 ack_request_interval = 7;
 }
 
 // ACK parameters.
@@ -16289,6 +17024,10 @@ message Rocev2DCQCN {
   // the hyper increment rate recovery mode.
   // default = 0.001
   optional float hyper_increment_rate = 14;
+
+  // The coefficient between alpha and the rate reduction factor.
+  // default = 11
+  optional uint32 rate_decrement_coefficient = 15;
 }
 
 // MACsec hardware acceleration settings of a test port. These settings are applicable
@@ -16770,6 +17509,7 @@ message ControlState {
       port = 1;
       protocol = 2;
       traffic = 3;
+      collective_communications = 4;
     }
   }
   // Description missing in models
@@ -16784,6 +17524,9 @@ message ControlState {
 
   // Description missing in models
   StateTraffic traffic = 4;
+
+  // Description missing in models
+  StateCollectiveCommunications collective_communications = 5;
 }
 
 // States associated with configured ports.
@@ -16866,6 +17609,25 @@ message StateProtocol {
 
   // Description missing in models
   StateProtocolRocev2 rocev2 = 9;
+}
+
+// Execution/runtime control for the AI workload. Set the desired state to request a
+// transition; the runtime engine automatically transitions through any intermediate
+// states to reach it.
+message StateCollectiveCommunications {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      execution = 1;
+    }
+  }
+  // Selects the aspect of the collective benchmark to control.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Requests a collective benchmark execution state transition.
+  StateCollectiveCommunicationsExecution execution = 2;
 }
 
 // Sets the link of configured ports.
@@ -17409,6 +18171,32 @@ message StateProtocolIsisSimLinks {
   // LSP-ID of ST2: 770000000002-00-00: IS-Reachability Neighbors : ['770000000001']
   // LSP-ID of ST3: 770000000003-00-00: IS-Reachability Neighbors : ['770000000001']
   optional State.Enum state = 2;
+}
+
+// Provides state control of AI Workload executions. AI workloads typically run through
+// a number of states until they reach a terminal state, but can end prematurely if
+// an error is encountered, or if the user requests a stop.
+message StateCollectiveCommunicationsExecution {
+
+  message State {
+    enum Enum {
+      unspecified = 0;
+      start = 1;
+      stop = 2;
+    }
+  }
+  // The requested AI workload execution state.
+  // 
+  // If the value of the state property is 'start' then the AI workload will be run, if
+  // possible.
+  // 
+  // If the value of the state property is 'stop' then the AI workload will be stopped
+  // before automatically
+  // completing. Normally the AI workload will automatically stop when all the requested
+  // combinations have
+  // been executed, so this is not normally needed.
+  // required = true
+  optional State.Enum state = 1;
 }
 
 // Request for triggering action against configured resources.
@@ -18037,6 +18825,9 @@ message ActionProtocolIsisOverloadBit {
 // Request to traffic generator for metrics of choice.
 message MetricsRequest {
 
+  // Description missing in models
+  MetricsPagination pagination = 25;
+
   message Choice {
     enum Enum {
       unspecified = 0;
@@ -18063,6 +18854,7 @@ message MetricsRequest {
       rocev2_flow = 21;
       egress_only_tracking = 22;
       bmp_server = 23;
+      collective_communications = 24;
     }
   }
   // Description missing in models
@@ -18137,10 +18929,16 @@ message MetricsRequest {
 
   // Description missing in models
   BmpServerMetricsRequest bmp_server = 24;
+
+  // Description missing in models
+  CollectiveCommunicationsMetricsRequest collective_communications = 26;
 }
 
 // Response containing chosen traffic generator metrics.
 message MetricsResponse {
+
+  // Description missing in models
+  MetricsPaginationResponse pagination = 25;
 
   message Choice {
     enum Enum {
@@ -18168,6 +18966,7 @@ message MetricsResponse {
       rocev2_flow_per_qp_metrics = 21;
       egress_only_tracking_metrics = 22;
       bmp_server_metrics = 23;
+      collective_communications_metrics = 24;
     }
   }
   // Description missing in models
@@ -18242,6 +19041,42 @@ message MetricsResponse {
 
   // Description missing in models
   repeated BmpServerMetric bmp_server_metrics = 24;
+
+  // Description missing in models
+  CollectiveCommunicationsMetricsResponse collective_communications_metrics = 26;
+}
+
+// Controls which slice of result rows is returned for a metrics request. If omitted,
+// all rows are returned. A row is one entry of the metrics  list selected by the request's
+// choice. The order of rows is deterministic  by index. An implementation that does
+// not support pagination returns an  error when this object is provided.
+message MetricsPagination {
+
+  // Zero-based index of the first row to return from the full result set.
+  // default = 0
+  optional uint32 start = 1;
+
+  // Maximum number of rows to return starting at `start`.
+  // required = true
+  optional uint32 count = 2;
+}
+
+// Metadata describing the rows returned for a metrics request and how they relate to
+// the full result set.
+message MetricsPaginationResponse {
+
+  // The number of rows returned in this response.
+  // required = true
+  optional uint32 number_of_rows_returned = 1;
+
+  // The total number of rows available for the request across all pages, before pagination
+  // is applied.
+  // required = true
+  optional uint32 total_rows = 2;
+
+  // The zero-based index of the first returned row within the full result set.
+  // required = true
+  optional uint32 start_index = 3;
 }
 
 // The port result request to the traffic generator
@@ -21054,6 +21889,1880 @@ message BmpServerMetric {
   optional uint64 post_policy_ipv6_unicast_routes_received = 14;
 }
 
+// Request to the traffic generator for Collective Communications metrics of a chosen
+// type.
+message CollectiveCommunicationsMetricsRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      single_collective = 1;
+      mix_of_collectives = 2;
+    }
+  }
+  // The Collective Communications type to fetch metrics for.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveMetricsRequest single_collective = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesMetricsRequest mix_of_collectives = 3;
+}
+
+// Response containing Collective Communications metrics of the chosen type.
+message CollectiveCommunicationsMetricsResponse {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      single_collective = 1;
+      mix_of_collectives = 2;
+    }
+  }
+  // The Collective Communications type the metrics in the response belong to.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveMetricsResponse single_collective = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesMetricsResponse mix_of_collectives = 3;
+}
+
+// Request for metrics from a Collective Communication Benchmark run with a single collective.
+message CollectiveCommunicationsSingleCollectiveMetricsRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      data_chunks = 2;
+      flows = 3;
+      qpairs = 4;
+      ports = 5;
+      aggregation_of_iterations = 6;
+      iteration = 7;
+    }
+  }
+  // The type of Single Collective metrics to fetch.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveSummaryMetricsRequest summary = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveDataChunkMetricsRequest data_chunks = 3;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveFlowMetricsRequest flows = 4;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveQpMetricsRequest qpairs = 5;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectivePortsMetricsRequest ports = 6;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveAggregationOfIterationsMetricsRequest aggregation_of_iterations = 7;
+
+  // Description missing in models
+  CollectiveCommunicationsSingleCollectiveIterationMetricsRequest iteration = 8;
+}
+
+// Response containing Single Collective metrics of the chosen type.
+message CollectiveCommunicationsSingleCollectiveMetricsResponse {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      data_chunks = 2;
+      flows = 3;
+      qpairs = 4;
+      ports = 5;
+      aggregation_of_iterations = 6;
+      iteration = 7;
+    }
+  }
+  // The type of Single Collective metrics contained in the response.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The rows of summary metrics.
+  repeated CollectiveCommunicationsSingleCollectiveSummaryMetric summary = 2;
+
+  // The rows of data-chunk-transfer metrics.
+  repeated CollectiveCommunicationsSingleCollectiveDataChunkMetric data_chunks = 3;
+
+  // The rows of flow metrics.
+  repeated CollectiveCommunicationsSingleCollectiveFlowMetric flows = 4;
+
+  // The rows of queue-pair (QP) metrics.
+  repeated CollectiveCommunicationsSingleCollectiveQpMetric qpairs = 5;
+
+  // The rows of port metrics.
+  repeated CollectiveCommunicationsSingleCollectivePortsMetric ports = 6;
+
+  // The rows of aggregated iteration metrics.
+  repeated CollectiveCommunicationsSingleCollectiveAggregationOfIterationsMetric aggregation_of_iterations = 7;
+
+  // The rows of iteration metrics.
+  repeated CollectiveCommunicationsSingleCollectiveIterationMetric iteration = 8;
+}
+
+// Request for summary metrics. Summarizes the completion times and throughput rates
+// per collective datasize.
+message CollectiveCommunicationsSingleCollectiveSummaryMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size_bytes = 1;
+      collective = 2;
+      iterations = 3;
+      avg_collective_time_ms = 4;
+      algo_bw_gbps = 5;
+      bus_bw_gbps = 6;
+      ideal_percentage = 7;
+      pfc_rx = 8;
+      ecn_ce_rx = 9;
+      frames_retx = 10;
+      total_time_s = 11;
+      duty_cycle_percentage = 12;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of summary metrics.
+message CollectiveCommunicationsSingleCollectiveSummaryMetric {
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 1;
+
+  // Collective operation name.
+  optional string collective = 2;
+
+  // Number of benchmark runs per data size.
+  optional uint32 iterations = 3;
+
+  // Average time over all iterations to complete one collective operation, in milliseconds.
+  optional float avg_collective_time_ms = 4;
+
+  // Algorithm bandwidth, calculated as Collective Size / Time (in 1e9 Bytes/sec).
+  optional float algo_bw_gbps = 5;
+
+  // Bus bandwidth in GB/s. Equals algo_bw_gbps multiplied by the bus factor of the corresponding
+  // nccl-tests collective, for example 2(n-1)/n for all-reduce and (n-1)/n for all-gather,
+  // reduce-scatter and all-to-all, where n is the number of ranks in the process group.
+  optional float bus_bw_gbps = 6;
+
+  // Achieved bus bandwidth as a percentage of the ideal goodput.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float ideal_percentage = 7;
+
+  // Total number of Priority Flow Control frames received.
+  optional uint64 pfc_rx = 8;
+
+  // Total number of frames received with ECN congestion encountered.
+  optional uint64 ecn_ce_rx = 9;
+
+  // Frames Retransmitted count.
+  optional uint64 frames_retx = 10;
+
+  // Time to complete all iterations, in seconds.
+  optional float total_time_s = 11;
+
+  // Ratio of total execution time utilized for actual collective operation (as percentage).
+  optional float duty_cycle_percentage = 12;
+}
+
+// Request for data-chunk-transfer metrics. Contains payload size and timing information
+// for each logical transfer from rank to rank.
+message CollectiveCommunicationsSingleCollectiveDataChunkMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size_bytes = 1;
+      collective = 2;
+      iteration = 3;
+      source_rank = 4;
+      destination_rank = 5;
+      data_chunk_transfer_id = 6;
+      buffer_offset = 7;
+      chunk_count = 8;
+      channel_id = 9;
+      emulated_tx_component = 10;
+      transmit_type = 11;
+      chunk_size_bytes = 12;
+      payload_bytes = 13;
+      start_ms = 14;
+      end_ms = 15;
+      completion_time_ms = 16;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of data-chunk-transfer metrics.
+message CollectiveCommunicationsSingleCollectiveDataChunkMetric {
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 1;
+
+  // Collective operation name.
+  optional string collective = 2;
+
+  // Iteration number.
+  optional uint32 iteration = 3;
+
+  // Source rank of the chunk transfer.
+  optional uint32 source_rank = 4;
+
+  // Destination rank of the chunk transfer.
+  optional uint32 destination_rank = 5;
+
+  // Data Chunk Transfer ID.
+  optional uint32 data_chunk_transfer_id = 6;
+
+  // Buffer offset where the chunk starts.
+  optional uint64 buffer_offset = 7;
+
+  // Number of chunks being transmitted.
+  optional uint32 chunk_count = 8;
+
+  // Communication channel ID.
+  optional uint32 channel_id = 9;
+
+  // Emulated infra component source of the chunk transfer.
+  optional string emulated_tx_component = 10;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 11;
+
+  // Chunk size in Bytes.
+  optional uint64 chunk_size_bytes = 12;
+
+  // Payload bytes.
+  optional uint64 payload_bytes = 13;
+
+  // Start time of the chunk transfer expressed in ms.
+  // The time is expressed relative to the moment when test traffic starts (the earliest
+  // send/receive, which has a time of 0).
+  optional float start_ms = 14;
+
+  // End time of the chunk transfer expressed in ms.
+  // The time is expressed relative to the moment when test traffic starts (the earliest
+  // send/receive, which has a time of 0).
+  optional float end_ms = 15;
+
+  // Completion time of the chunk transfer expressed in ms.
+  optional float completion_time_ms = 16;
+}
+
+// Request for flow metrics. Contains flow size and timing statistics for each queue
+// pair per logical transfer from rank to rank.
+message CollectiveCommunicationsSingleCollectiveFlowMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size_bytes = 1;
+      collective = 2;
+      iteration = 3;
+      source_rank = 4;
+      destination_rank = 5;
+      channel_id = 6;
+      emulated_tx_component = 7;
+      transmit_type = 8;
+      data_chunk_transfer_id = 9;
+      destination_qp_id = 10;
+      buffer_offset = 11;
+      chunk_count = 12;
+      flow_size_bytes = 13;
+      start_ms = 14;
+      end_ms = 15;
+      completion_time_ms = 16;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of flow metrics.
+message CollectiveCommunicationsSingleCollectiveFlowMetric {
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 1;
+
+  // Collective operation name.
+  optional string collective = 2;
+
+  // Iteration number.
+  optional uint32 iteration = 3;
+
+  // Source rank of the flow.
+  optional uint32 source_rank = 4;
+
+  // Destination rank of the flow.
+  optional uint32 destination_rank = 5;
+
+  // Communication channel ID.
+  optional uint32 channel_id = 6;
+
+  // Emulated infra component source of the flow transfer.
+  optional string emulated_tx_component = 7;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 8;
+
+  // Data Chunk Transfer ID.
+  optional uint32 data_chunk_transfer_id = 9;
+
+  // Destination Queue pair ID.
+  optional uint32 destination_qp_id = 10;
+
+  // Buffer offset where the chunk starts.
+  optional uint64 buffer_offset = 11;
+
+  // Number of chunks being transmitted.
+  optional uint32 chunk_count = 12;
+
+  // Flow size in Bytes.
+  optional uint64 flow_size_bytes = 13;
+
+  // Start time of the flow expressed in ms.
+  // The time is expressed relative to the moment when test traffic starts (the earliest
+  // send/receive, which has a time of 0).
+  optional float start_ms = 14;
+
+  // End time of the flow expressed in ms.
+  // The time is expressed relative to the moment when test traffic starts (the earliest
+  // send/receive, which has a time of 0).
+  optional float end_ms = 15;
+
+  // Completion time of the flow expressed in ms.
+  optional float completion_time_ms = 16;
+}
+
+// Request for queue-pair (QP) metrics. Contains detailed message statistics for each
+// queue-pair used in the collective.
+message CollectiveCommunicationsSingleCollectiveQpMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size_bytes = 1;
+      collective = 2;
+      source_rank = 3;
+      destination_rank = 4;
+      source_qp_id = 5;
+      destination_qp_id = 6;
+      messages_sent = 7;
+      messages_received = 8;
+      messages_failed = 9;
+      bytes_tx = 10;
+      bytes_rx = 11;
+      frames_tx = 12;
+      frames_rx = 13;
+      frames_delta = 14;
+      frames_seq_error = 15;
+      frames_retx = 16;
+      ack_tx = 17;
+      ack_rx = 18;
+      nack_tx = 19;
+      nack_rx = 20;
+      nack_rnr_rx = 21;
+      reordered_rx = 22;
+      duplicate_rx = 23;
+      ecn_ce_rx = 24;
+      cnp_tx = 25;
+      cnp_rx = 26;
+      min_latency_ns = 27;
+      max_latency_ns = 28;
+      avg_latency_ns = 29;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of queue-pair (QP) metrics.
+message CollectiveCommunicationsSingleCollectiveQpMetric {
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 1;
+
+  // Collective operation name.
+  optional string collective = 2;
+
+  // Source rank.
+  optional uint32 source_rank = 3;
+
+  // Destination rank.
+  optional uint32 destination_rank = 4;
+
+  // Source QP ID.
+  optional uint32 source_qp_id = 5;
+
+  // Destination QP ID.
+  optional uint32 destination_qp_id = 6;
+
+  // Messages sent.
+  optional uint64 messages_sent = 7;
+
+  // Messages received.
+  optional uint64 messages_received = 8;
+
+  // Messages failed.
+  optional uint64 messages_failed = 9;
+
+  // Total bytes transmitted (this includes retransmitted bytes as well).
+  optional uint64 bytes_tx = 10;
+
+  // Total bytes received (this includes retransmitted bytes as well).
+  optional uint64 bytes_rx = 11;
+
+  // Frames transmitted.
+  optional uint64 frames_tx = 12;
+
+  // Frames received.
+  optional uint64 frames_rx = 13;
+
+  // Frames delta.
+  optional int32 frames_delta = 14;
+
+  // Frames sequence error.
+  optional uint64 frames_seq_error = 15;
+
+  // Frames retransmitted.
+  optional uint64 frames_retx = 16;
+
+  // ACK transmitted.
+  optional uint64 ack_tx = 17;
+
+  // ACK received.
+  optional uint64 ack_rx = 18;
+
+  // NACK transmitted.
+  optional uint64 nack_tx = 19;
+
+  // NACK received.
+  optional uint64 nack_rx = 20;
+
+  // NACK RNR received.
+  optional uint64 nack_rnr_rx = 21;
+
+  // Reordered frames received.
+  optional uint64 reordered_rx = 22;
+
+  // Duplicate frames received.
+  optional uint64 duplicate_rx = 23;
+
+  // ECN-CE received.
+  optional uint64 ecn_ce_rx = 24;
+
+  // CNP transmitted.
+  optional uint64 cnp_tx = 25;
+
+  // CNP received.
+  optional uint64 cnp_rx = 26;
+
+  // Minimum latency in nanoseconds.
+  optional uint64 min_latency_ns = 27;
+
+  // Maximum latency in nanoseconds.
+  optional uint64 max_latency_ns = 28;
+
+  // Average latency in nanoseconds.
+  optional uint64 avg_latency_ns = 29;
+}
+
+// Request for port metrics. Contains byte, frame, and congestion packet counts for
+// each port.
+message CollectiveCommunicationsSingleCollectivePortsMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      name = 1;
+      location = 2;
+      ranks = 3;
+      speed = 4;
+      frames_tx = 5;
+      frames_rx = 6;
+      bytes_tx = 7;
+      bytes_rx = 8;
+      pause_frames_rx = 9;
+      ecn_ce_rx = 10;
+      cnp_tx = 11;
+      cnp_rx = 12;
+      crc_errors = 13;
+      roce_v2_qps_configured = 14;
+      roce_v2_qps_ready = 15;
+      roce_v2_data_frames_tx = 16;
+      roce_v2_data_frames_rx = 17;
+      roce_v2_ack_tx = 18;
+      roce_v2_ack_rx = 19;
+      roce_v2_nack_tx = 20;
+      roce_v2_nack_rx = 21;
+      roce_v2_frame_sequence_errors = 22;
+      frames_retx = 23;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of port metrics.
+message CollectiveCommunicationsSingleCollectivePortsMetric {
+
+  // The port name.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  optional string name = 1;
+
+  // The port location.
+  optional string location = 2;
+
+  // IDs of the ranks associated with this port. A single physical test port can carry
+  // several ranks; the list is empty when the port carries none.
+  repeated uint32 ranks = 3;
+
+  // Physical link speed, in Gigabits/second.
+  optional float speed = 4;
+
+  // Total frames transmitted.
+  optional uint64 frames_tx = 5;
+
+  // Total frames received.
+  optional uint64 frames_rx = 6;
+
+  // Total bytes transmitted.
+  optional uint64 bytes_tx = 7;
+
+  // Total bytes received.
+  optional uint64 bytes_rx = 8;
+
+  // Priority Pause Frames received.
+  optional uint64 pause_frames_rx = 9;
+
+  // Frames received with ECN congestion encountered (Explicit Congestion Notification
+  // - Congestion Experienced).
+  optional uint64 ecn_ce_rx = 10;
+
+  // Congestion notification packets transmitted.
+  optional uint64 cnp_tx = 11;
+
+  // Congestion notification packets received.
+  optional uint64 cnp_rx = 12;
+
+  // Number of CRC errors detected.
+  optional uint64 crc_errors = 13;
+
+  // RoCEv2 Queue Pairs configured.
+  optional uint32 roce_v2_qps_configured = 14;
+
+  // RoCEv2 Queue Pairs ready.
+  optional uint32 roce_v2_qps_ready = 15;
+
+  // RoCEv2 frames transmitted.
+  optional uint64 roce_v2_data_frames_tx = 16;
+
+  // RoCEv2 frames received.
+  optional uint64 roce_v2_data_frames_rx = 17;
+
+  // RoCEv2 Acknowledgement frames transmitted.
+  optional uint64 roce_v2_ack_tx = 18;
+
+  // RoCEv2 Acknowledgement frames received.
+  optional uint64 roce_v2_ack_rx = 19;
+
+  // RoCEv2 Negative Acknowledgement frames transmitted.
+  optional uint64 roce_v2_nack_tx = 20;
+
+  // RoCEv2 Negative Acknowledgement frames received.
+  optional uint64 roce_v2_nack_rx = 21;
+
+  // RoCEv2 Sequence Error Frames.
+  optional uint64 roce_v2_frame_sequence_errors = 22;
+
+  // Frames Retransmitted count.
+  optional uint64 frames_retx = 23;
+}
+
+// Request for aggregated iteration metrics. Each row summarizes the iterations per
+// collective datasize.
+message CollectiveCommunicationsSingleCollectiveAggregationOfIterationsMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size_bytes = 1;
+      collective = 2;
+      iterations = 3;
+      min_collective_time_ms = 4;
+      avg_collective_time_ms = 5;
+      max_collective_time_ms = 6;
+      min_algo_bw_gbps = 7;
+      avg_algo_bw_gbps = 8;
+      max_algo_bw_gbps = 9;
+      min_bus_bw_gbps = 10;
+      avg_bus_bw_gbps = 11;
+      max_bus_bw_gbps = 12;
+      min_ideal_percentage = 13;
+      avg_ideal_percentage = 14;
+      max_ideal_percentage = 15;
+      pfc_rx = 16;
+      ecn_ce_rx = 17;
+      frames_retx = 18;
+      total_time_s = 19;
+      duty_cycle_percentage = 20;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of aggregated iteration metrics.
+message CollectiveCommunicationsSingleCollectiveAggregationOfIterationsMetric {
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 1;
+
+  // Collective operation name.
+  optional string collective = 2;
+
+  // Number of benchmark runs per data size.
+  optional uint32 iterations = 3;
+
+  // Minimum collective time in milliseconds.
+  optional float min_collective_time_ms = 4;
+
+  // Average collective time in milliseconds.
+  optional float avg_collective_time_ms = 5;
+
+  // Maximum collective time in milliseconds.
+  optional float max_collective_time_ms = 6;
+
+  // Minimum algorithm bandwidth (GB/s).
+  optional float min_algo_bw_gbps = 7;
+
+  // Average algorithm bandwidth (GB/s).
+  optional float avg_algo_bw_gbps = 8;
+
+  // Maximum algorithm bandwidth (GB/s).
+  optional float max_algo_bw_gbps = 9;
+
+  // Minimum bus bandwidth (GB/s). Equals min_algo_bw_gbps multiplied by the bus factor
+  // of the corresponding nccl-tests collective, for example 2(n-1)/n for all-reduce and
+  // (n-1)/n for all-gather, reduce-scatter and all-to-all, where n is the number of ranks
+  // in the process group.
+  optional float min_bus_bw_gbps = 10;
+
+  // Average bus bandwidth (GB/s). Equals avg_algo_bw_gbps multiplied by the bus factor
+  // of the corresponding nccl-tests collective, for example 2(n-1)/n for all-reduce and
+  // (n-1)/n for all-gather, reduce-scatter and all-to-all, where n is the number of ranks
+  // in the process group.
+  optional float avg_bus_bw_gbps = 11;
+
+  // Maximum bus bandwidth (GB/s). Equals max_algo_bw_gbps multiplied by the bus factor
+  // of the corresponding nccl-tests collective, for example 2(n-1)/n for all-reduce and
+  // (n-1)/n for all-gather, reduce-scatter and all-to-all, where n is the number of ranks
+  // in the process group.
+  optional float max_bus_bw_gbps = 12;
+
+  // Minimum achieved bus bandwidth as a percentage of the ideal goodput.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float min_ideal_percentage = 13;
+
+  // Average achieved bus bandwidth as a percentage of the ideal goodput.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float avg_ideal_percentage = 14;
+
+  // Maximum achieved bus bandwidth as a percentage of the ideal goodput.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float max_ideal_percentage = 15;
+
+  // Number of Priority Flow Control frames received.
+  optional uint64 pfc_rx = 16;
+
+  // Number of frames received with ECN congestion encountered.
+  optional uint64 ecn_ce_rx = 17;
+
+  // Frames Retransmitted count.
+  optional uint64 frames_retx = 18;
+
+  // Time to complete all iterations, in seconds.
+  optional float total_time_s = 19;
+
+  // Ratio of total execution time utilized for actual collective operation (as percentage).
+  optional float duty_cycle_percentage = 20;
+}
+
+// Request for detailed iteration metrics. Contains completion time and throughput details
+// for each iteration of each collective datasize.
+message CollectiveCommunicationsSingleCollectiveIterationMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      data_size_bytes = 1;
+      collective = 2;
+      iteration = 3;
+      collective_start_time_ms = 4;
+      collective_end_time_ms = 5;
+      collective_completion_time_ms = 6;
+      algo_bw_gbps = 7;
+      bus_bw_gbps = 8;
+      ideal_percentage = 9;
+      min_fct_ms = 10;
+      p50_fct_ms = 11;
+      p95_fct_ms = 12;
+      p99_fct_ms = 13;
+      p99_99_fct_ms = 14;
+      max_fct_ms = 15;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of iteration metrics.
+message CollectiveCommunicationsSingleCollectiveIterationMetric {
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 1;
+
+  // Collective operation name.
+  optional string collective = 2;
+
+  // Iteration number.
+  optional uint32 iteration = 3;
+
+  // Start time of the collective of the current iteration expressed in ms. The time is
+  // expressed relative to the moment when test traffic starts (the earliest send/receive,
+  // which has a time of 0).
+  optional float collective_start_time_ms = 4;
+
+  // End time of the collective of the current iteration expressed in ms. The time is
+  // expressed relative to the moment when test traffic starts (the earliest send/receive,
+  // which has a time of 0).
+  optional float collective_end_time_ms = 5;
+
+  // Collective completion time of the current iteration in milliseconds (end - start).
+  optional float collective_completion_time_ms = 6;
+
+  // Algorithm bandwidth, calculated as Collective Size / Time (in 1e9 Bytes/sec).
+  optional float algo_bw_gbps = 7;
+
+  // Bus bandwidth in GB/s. Equals algo_bw_gbps multiplied by the bus factor of the corresponding
+  // nccl-tests collective, for example 2(n-1)/n for all-reduce and (n-1)/n for all-gather,
+  // reduce-scatter and all-to-all, where n is the number of ranks in the process group.
+  optional float bus_bw_gbps = 8;
+
+  // Achieved bus bandwidth as a percentage of the ideal goodput.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float ideal_percentage = 9;
+
+  // Smallest Flow Completion Time of any of the flows, in milliseconds.
+  optional float min_fct_ms = 10;
+
+  // 50th percentile of Flow Completion Times, in milliseconds.
+  optional float p50_fct_ms = 11;
+
+  // 95th percentile of Flow Completion Times, in milliseconds.
+  optional float p95_fct_ms = 12;
+
+  // 99th percentile of Flow Completion Times, in milliseconds.
+  optional float p99_fct_ms = 13;
+
+  // 99.99th percentile of Flow Completion Times, in milliseconds.
+  optional float p99_99_fct_ms = 14;
+
+  // Largest Flow Completion Time of all flows, in milliseconds.
+  optional float max_fct_ms = 15;
+}
+
+// Request for metrics from a Collective Communication Benchmark run with a mix of collectives.
+message CollectiveCommunicationsMixOfCollectivesMetricsRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      workload_set_iteration = 2;
+      workload_iteration = 3;
+      qpairs = 4;
+      operation_iteration = 5;
+      ports = 6;
+      flows = 7;
+      data_chunks = 8;
+    }
+  }
+  // The type of Mix of Collectives metrics to fetch.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesSummaryMetricsRequest summary = 2;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesWorkloadSetIterationMetricsRequest workload_set_iteration = 3;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesWorkloadIterationMetricsRequest workload_iteration = 4;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesQpMetricsRequest qpairs = 5;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesOperationIterationMetricsRequest operation_iteration = 6;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesPortsMetricsRequest ports = 7;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesFlowMetricsRequest flows = 8;
+
+  // Description missing in models
+  CollectiveCommunicationsMixOfCollectivesDataChunkMetricsRequest data_chunks = 9;
+}
+
+// Response containing Mix of Collectives metrics of the chosen type.
+message CollectiveCommunicationsMixOfCollectivesMetricsResponse {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      summary = 1;
+      workload_set_iteration = 2;
+      qpairs = 3;
+      operation_iteration = 4;
+      ports = 5;
+      flows = 6;
+      data_chunks = 7;
+      workload_iteration = 8;
+    }
+  }
+  // The type of Mix of Collectives metrics contained in the response.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The rows of summary metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesSummaryMetric summary = 2;
+
+  // The rows of workload set iteration metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesWorkloadSetIterationMetric workload_set_iteration = 3;
+
+  // The rows of workload iteration metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesWorkloadIterationMetric workload_iteration = 4;
+
+  // The rows of queue-pair (QP) metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesQpMetric qpairs = 5;
+
+  // The rows of operation iteration metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesOperationIterationMetric operation_iteration = 6;
+
+  // The rows of port metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesPortsMetric ports = 7;
+
+  // The rows of flow metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesFlowMetric flows = 8;
+
+  // The rows of data-chunk-transfer metrics.
+  repeated CollectiveCommunicationsMixOfCollectivesDataChunkMetric data_chunks = 9;
+}
+
+// Request for summary metrics. Summarizes the completion times and throughput rates
+// per collective datasize.
+message CollectiveCommunicationsMixOfCollectivesSummaryMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      operation = 2;
+      process_group = 3;
+      data_size_bytes = 4;
+      collective = 5;
+      workload_set_iterations = 6;
+      avg_collective_time_ms = 7;
+      algo_bw_gbps = 8;
+      bus_bw_gbps = 9;
+      ideal_percentage = 10;
+      total_time_s = 11;
+      duty_cycle_percentage = 12;
+      pfc_rx = 13;
+      ecn_ce_rx = 14;
+      frames_retx = 15;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of summary metrics.
+message CollectiveCommunicationsMixOfCollectivesSummaryMetric {
+
+  // The name of the workload set (tenant) that owns this collective.
+  optional string workload_set = 1;
+
+  // The name of the operation aggregated in this row.
+  optional string operation = 2;
+
+  // The process group whose NPUs executed the collective.
+  optional string process_group = 3;
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 4;
+
+  // The collective algorithm type of the operation aggregated in this row.
+  optional string collective = 5;
+
+  // The number of cycles over which this collective was executed.
+  optional uint32 workload_set_iterations = 6;
+
+  // Average completion time (ms) of the collective across all workload set iterations.
+  optional float avg_collective_time_ms = 7;
+
+  // Algorithmic bandwidth (data size divided by collective time), GB/s.
+  optional float algo_bw_gbps = 8;
+
+  // Bus bandwidth in GB/s. Equals algo_bw_gbps multiplied by the bus factor of the corresponding
+  // nccl-tests collective, for example 2(n-1)/n for all-reduce and (n-1)/n for all-gather,
+  // reduce-scatter and all-to-all, where n is the number of ranks in the process group.
+  optional float bus_bw_gbps = 9;
+
+  // Achieved bus bandwidth as a percentage of the ideal goodput.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float ideal_percentage = 10;
+
+  // Wall-clock time (s) the collective was active across all workload set iterations.
+  optional float total_time_s = 11;
+
+  // Fraction of total time the collective was actively transferring data (as percentage).
+  optional float duty_cycle_percentage = 12;
+
+  // Total Priority Flow Control pause frames received during execution.
+  optional uint64 pfc_rx = 13;
+
+  // Total ECN Congestion Experienced packets received during execution.
+  optional uint64 ecn_ce_rx = 14;
+
+  // Total frames retransmitted during execution.
+  optional uint64 frames_retx = 15;
+}
+
+// Request for workload set iteration metrics. Contains details timing and throughput
+// statistics for each collective in each workload set iteration.
+message CollectiveCommunicationsMixOfCollectivesWorkloadSetIterationMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      operation = 2;
+      process_group = 3;
+      data_size_bytes = 4;
+      collective = 5;
+      workload_set_iteration = 6;
+      workload_iterations = 7;
+      operation_iterations = 8;
+      min_collective_time_ms = 9;
+      avg_collective_time_ms = 10;
+      max_collective_time_ms = 11;
+      min_algo_bw_gbps = 12;
+      avg_algo_bw_gbps = 13;
+      max_algo_bw_gbps = 14;
+      min_bus_bw_gbps = 15;
+      avg_bus_bw_gbps = 16;
+      max_bus_bw_gbps = 17;
+      min_ideal_percentage = 18;
+      avg_ideal_percentage = 19;
+      max_ideal_percentage = 20;
+      workload_set_iteration_start_time_ms = 21;
+      workload_set_iteration_end_time_ms = 22;
+      total_time_s = 23;
+      duty_cycle_percentage = 24;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of workload set iteration metrics.
+message CollectiveCommunicationsMixOfCollectivesWorkloadSetIterationMetric {
+
+  // The name of the workload set (tenant) that owns this collective.
+  optional string workload_set = 1;
+
+  // The name of the operation aggregated in this row.
+  optional string operation = 2;
+
+  // The process group whose NPUs executed the collective.
+  optional string process_group = 3;
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 4;
+
+  // The collective algorithm type of the operation aggregated in this row.
+  optional string collective = 5;
+
+  // The workload set iteration aggregated in this row.
+  optional uint32 workload_set_iteration = 6;
+
+  // Number of iterations of each workload within this workload set iteration.
+  optional uint32 workload_iterations = 7;
+
+  // Number of iterations of each operation within each workload iteration.
+  optional uint32 operation_iterations = 8;
+
+  // Minimum collective completion time (ms) observed across operation iterations of this
+  // workload set iteration.
+  optional float min_collective_time_ms = 9;
+
+  // Average collective completion time (ms) across operation iterations of this workload
+  // set iteration.
+  optional float avg_collective_time_ms = 10;
+
+  // Maximum collective completion time (ms) observed across operation iterations of this
+  // workload set iteration.
+  optional float max_collective_time_ms = 11;
+
+  // Minimum algorithmic bandwidth (GB/s) observed across operation iterations of this
+  // workload set iteration.
+  optional float min_algo_bw_gbps = 12;
+
+  // Average algorithmic bandwidth (GB/s) across operation iterations of this workload
+  // set iteration.
+  optional float avg_algo_bw_gbps = 13;
+
+  // Maximum algorithmic bandwidth (GB/s) observed across operation iterations of this
+  // workload set iteration.
+  optional float max_algo_bw_gbps = 14;
+
+  // Minimum bus bandwidth in GB/s. Equals min_algo_bw_gbps multiplied by the bus factor
+  // of the corresponding nccl-tests collective, for example 2(n-1)/n for all-reduce and
+  // (n-1)/n for all-gather, reduce-scatter and all-to-all, where n is the number of ranks
+  // in the process group.
+  optional float min_bus_bw_gbps = 15;
+
+  // Average bus bandwidth in GB/s. Equals avg_algo_bw_gbps multiplied by the bus factor
+  // of the corresponding nccl-tests collective, for example 2(n-1)/n for all-reduce and
+  // (n-1)/n for all-gather, reduce-scatter and all-to-all, where n is the number of ranks
+  // in the process group.
+  optional float avg_bus_bw_gbps = 16;
+
+  // Maximum bus bandwidth in GB/s. Equals max_algo_bw_gbps multiplied by the bus factor
+  // of the corresponding nccl-tests collective, for example 2(n-1)/n for all-reduce and
+  // (n-1)/n for all-gather, reduce-scatter and all-to-all, where n is the number of ranks
+  // in the process group.
+  optional float max_bus_bw_gbps = 17;
+
+  // Minimum achieved bus bandwidth as a percentage of the ideal goodput, across operation
+  // iterations of this workload set iteration.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float min_ideal_percentage = 18;
+
+  // Average achieved bus bandwidth as a percentage of the ideal goodput, across operation
+  // iterations of this workload set iteration.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float avg_ideal_percentage = 19;
+
+  // Maximum achieved bus bandwidth as a percentage of the ideal goodput, across operation
+  // iterations of this workload set iteration.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float max_ideal_percentage = 20;
+
+  // Start time of the workload set iteration expressed in ms. The time is expressed relative
+  // to the moment when test traffic starts (the earliest send/receive, which has a time
+  // of 0).
+  optional float workload_set_iteration_start_time_ms = 21;
+
+  // End time of the workload set iteration expressed in ms. The time is expressed relative
+  // to the moment when test traffic starts (the earliest send/receive, which has a time
+  // of 0).
+  optional float workload_set_iteration_end_time_ms = 22;
+
+  // Wall-clock time (s) the collective was active during this workload set iteration.
+  optional float total_time_s = 23;
+
+  // Fraction of workload set iteration time the collective was actively transferring
+  // data (as percentage).
+  optional float duty_cycle_percentage = 24;
+}
+
+// Request for workload iteration metrics. Contains timing and throughput statistics
+// for each collective in each workload iteration.
+message CollectiveCommunicationsMixOfCollectivesWorkloadIterationMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      workload = 2;
+      operation = 3;
+      process_group = 4;
+      data_size_bytes = 5;
+      collective = 6;
+      workload_set_iteration = 7;
+      workload_iteration = 8;
+      operation_iterations = 9;
+      min_collective_time_ms = 10;
+      avg_collective_time_ms = 11;
+      max_collective_time_ms = 12;
+      min_algo_bw_gbps = 13;
+      avg_algo_bw_gbps = 14;
+      max_algo_bw_gbps = 15;
+      min_bus_bw_gbps = 16;
+      avg_bus_bw_gbps = 17;
+      max_bus_bw_gbps = 18;
+      min_ideal_percentage = 19;
+      avg_ideal_percentage = 20;
+      max_ideal_percentage = 21;
+      workload_iteration_start_time_ms = 22;
+      workload_iteration_end_time_ms = 23;
+      total_time_s = 24;
+      duty_cycle_percentage = 25;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of workload iteration metrics.
+message CollectiveCommunicationsMixOfCollectivesWorkloadIterationMetric {
+
+  // The name of the workload set (tenant) that owns this collective.
+  optional string workload_set = 1;
+
+  // The name of the workload, within the workload set, that owns this collective.
+  optional string workload = 2;
+
+  // The name of the operation aggregated in this row.
+  optional string operation = 3;
+
+  // The process group whose NPUs executed the collective.
+  optional string process_group = 4;
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 5;
+
+  // The collective algorithm type of the operation aggregated in this row.
+  optional string collective = 6;
+
+  // The workload set iteration in which this workload iteration was executed.
+  optional uint32 workload_set_iteration = 7;
+
+  // The workload iteration aggregated in this row.
+  optional uint32 workload_iteration = 8;
+
+  // Number of iterations of the operation within this workload iteration.
+  optional uint32 operation_iterations = 9;
+
+  // Minimum collective completion time (ms) observed across operation iterations of this
+  // workload iteration.
+  optional float min_collective_time_ms = 10;
+
+  // Average collective completion time (ms) across operation iterations of this workload
+  // iteration.
+  optional float avg_collective_time_ms = 11;
+
+  // Maximum collective completion time (ms) observed across operation iterations of this
+  // workload iteration.
+  optional float max_collective_time_ms = 12;
+
+  // Minimum algorithmic bandwidth (GB/s) observed across operation iterations of this
+  // workload iteration.
+  optional float min_algo_bw_gbps = 13;
+
+  // Average algorithmic bandwidth (GB/s) across operation iterations of this workload
+  // iteration.
+  optional float avg_algo_bw_gbps = 14;
+
+  // Maximum algorithmic bandwidth (GB/s) observed across operation iterations of this
+  // workload iteration.
+  optional float max_algo_bw_gbps = 15;
+
+  // Minimum bus bandwidth in GB/s. Equals min_algo_bw_gbps multiplied by the bus factor
+  // of the corresponding nccl-tests collective, for example 2(n-1)/n for all-reduce and
+  // (n-1)/n for all-gather, reduce-scatter and all-to-all, where n is the number of ranks
+  // in the process group.
+  optional float min_bus_bw_gbps = 16;
+
+  // Average bus bandwidth in GB/s. Equals avg_algo_bw_gbps multiplied by the bus factor
+  // of the corresponding nccl-tests collective, for example 2(n-1)/n for all-reduce and
+  // (n-1)/n for all-gather, reduce-scatter and all-to-all, where n is the number of ranks
+  // in the process group.
+  optional float avg_bus_bw_gbps = 17;
+
+  // Maximum bus bandwidth in GB/s. Equals max_algo_bw_gbps multiplied by the bus factor
+  // of the corresponding nccl-tests collective, for example 2(n-1)/n for all-reduce and
+  // (n-1)/n for all-gather, reduce-scatter and all-to-all, where n is the number of ranks
+  // in the process group.
+  optional float max_bus_bw_gbps = 18;
+
+  // Minimum achieved bus bandwidth as a percentage of the ideal goodput, across operation
+  // iterations of this workload iteration.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float min_ideal_percentage = 19;
+
+  // Average achieved bus bandwidth as a percentage of the ideal goodput, across operation
+  // iterations of this workload iteration.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float avg_ideal_percentage = 20;
+
+  // Maximum achieved bus bandwidth as a percentage of the ideal goodput, across operation
+  // iterations of this workload iteration.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float max_ideal_percentage = 21;
+
+  // Start time of the workload iteration expressed in ms. The time is expressed relative
+  // to the moment when test traffic starts (the earliest send/receive, which has a time
+  // of 0).
+  optional float workload_iteration_start_time_ms = 22;
+
+  // End time of the workload iteration expressed in ms. The time is expressed relative
+  // to the moment when test traffic starts (the earliest send/receive, which has a time
+  // of 0).
+  optional float workload_iteration_end_time_ms = 23;
+
+  // Wall-clock time (s) the collective was active during this workload iteration.
+  optional float total_time_s = 24;
+
+  // Fraction of workload iteration time the collective was actively transferring data
+  // (as percentage).
+  optional float duty_cycle_percentage = 25;
+}
+
+// Request for queue-pair (QP) metrics. Contains detailed message statistics for each
+// queue-pair used in the collective.
+message CollectiveCommunicationsMixOfCollectivesQpMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      workload = 2;
+      operation = 3;
+      process_group = 4;
+      data_size_bytes = 5;
+      collective = 6;
+      src_qp_id = 7;
+      dst_qp_id = 8;
+      source_rank = 9;
+      destination_rank = 10;
+      messages_sent = 11;
+      messages_received = 12;
+      messages_failed = 13;
+      bytes_tx = 14;
+      bytes_rx = 15;
+      frames_tx = 16;
+      frames_rx = 17;
+      frames_delta = 18;
+      frames_seq_error = 19;
+      frames_re_tx = 20;
+      ack_tx = 21;
+      ack_rx = 22;
+      nack_tx = 23;
+      nack_rx = 24;
+      nack_rnr_rx = 25;
+      reordered_rx = 26;
+      duplicate_rx = 27;
+      ecn_ce_rx = 28;
+      cnp_tx = 29;
+      cnp_rx = 30;
+      min_latency_ns = 31;
+      avg_latency_ns = 32;
+      max_latency_ns = 33;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of queue-pair (QP) metrics.
+message CollectiveCommunicationsMixOfCollectivesQpMetric {
+
+  // The workload set (tenant) that owns this collective.
+  optional string workload_set = 1;
+
+  // The name of the workload, within the workload set, that owns this collective.
+  optional string workload = 2;
+
+  // Name of the operation that owns this queue pair.
+  optional string operation = 3;
+
+  // The process group whose NPUs executed the collective.
+  optional string process_group = 4;
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 5;
+
+  // The collective algorithm type of the operation that owns this queue pair.
+  optional string collective = 6;
+
+  // Source QP ID.
+  optional uint32 src_qp_id = 7;
+
+  // Destination QP ID.
+  optional uint32 dst_qp_id = 8;
+
+  // Source rank.
+  optional uint32 source_rank = 9;
+
+  // Destination rank.
+  optional uint32 destination_rank = 10;
+
+  // Messages sent.
+  optional uint64 messages_sent = 11;
+
+  // Messages received.
+  optional uint64 messages_received = 12;
+
+  // Messages failed.
+  optional uint64 messages_failed = 13;
+
+  // Total bytes Tx (this includes retransmitted bytes as well).
+  optional uint64 bytes_tx = 14;
+
+  // Total bytes Rx (this includes retransmitted bytes as well).
+  optional uint64 bytes_rx = 15;
+
+  // Frames Tx.
+  optional uint64 frames_tx = 16;
+
+  // Frames Rx.
+  optional uint64 frames_rx = 17;
+
+  // Frames delta.
+  optional int32 frames_delta = 18;
+
+  // Frames sequence error.
+  optional uint64 frames_seq_error = 19;
+
+  // Frames ReTx.
+  optional uint64 frames_re_tx = 20;
+
+  // ACK Tx.
+  optional uint64 ack_tx = 21;
+
+  // ACK Rx.
+  optional uint64 ack_rx = 22;
+
+  // NACK Tx.
+  optional uint64 nack_tx = 23;
+
+  // NACK Rx.
+  optional uint64 nack_rx = 24;
+
+  // NACK RNR Rx.
+  optional uint64 nack_rnr_rx = 25;
+
+  // Reordered Rx.
+  optional uint64 reordered_rx = 26;
+
+  // Duplicate Rx.
+  optional uint64 duplicate_rx = 27;
+
+  // ECN-CE Rx.
+  optional uint64 ecn_ce_rx = 28;
+
+  // CNP Tx.
+  optional uint64 cnp_tx = 29;
+
+  // CNP Rx.
+  optional uint64 cnp_rx = 30;
+
+  // Minimum latency in nanoseconds.
+  optional uint64 min_latency_ns = 31;
+
+  // Average latency in nanoseconds.
+  optional uint64 avg_latency_ns = 32;
+
+  // Maximum latency in nanoseconds.
+  optional uint64 max_latency_ns = 33;
+}
+
+// Request for operation iteration metrics. Contains completion time and throughput
+// details for each operation iteration of each collective datasize.
+message CollectiveCommunicationsMixOfCollectivesOperationIterationMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      workload = 2;
+      operation = 3;
+      process_group = 4;
+      data_size_bytes = 5;
+      collective = 6;
+      workload_set_iteration = 7;
+      workload_iteration = 8;
+      operation_iteration = 9;
+      collective_start_time_ms = 10;
+      collective_end_time_ms = 11;
+      collective_completion_time_ms = 12;
+      algo_bw_gbps = 13;
+      bus_bw_gbps = 14;
+      ideal_percentage = 15;
+      min_fct_ms = 16;
+      p50_fct_ms = 17;
+      p95_fct_ms = 18;
+      max_fct_ms = 19;
+      p99_fct_ms = 20;
+      p99_99_fct_ms = 21;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of operation iteration metrics.
+message CollectiveCommunicationsMixOfCollectivesOperationIterationMetric {
+
+  // The name of the workload set (tenant) that owns this collective.
+  optional string workload_set = 1;
+
+  // The name of the workload, within the workload set, that owns this collective.
+  optional string workload = 2;
+
+  // The name of the operation.
+  optional string operation = 3;
+
+  // The process group whose NPUs executed the collective.
+  optional string process_group = 4;
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 5;
+
+  // The collective algorithm type of the operation.
+  optional string collective = 6;
+
+  // The workload set iteration in which this operation iteration was executed.
+  optional uint32 workload_set_iteration = 7;
+
+  // The workload iteration in which this operation iteration was executed.
+  optional uint32 workload_iteration = 8;
+
+  // The operation iteration index within the workload iteration for this collective.
+  optional uint32 operation_iteration = 9;
+
+  // Start time of the collective operation iteration expressed in ms. The time is expressed
+  // relative to the moment when test traffic starts (the earliest send/receive, which
+  // has a time of 0).
+  optional float collective_start_time_ms = 10;
+
+  // End time of the collective operation iteration expressed in ms. The time is expressed
+  // relative to the moment when test traffic starts (the earliest send/receive, which
+  // has a time of 0).
+  optional float collective_end_time_ms = 11;
+
+  // Completion time of the collective operation iteration (end minus start), in ms.
+  optional float collective_completion_time_ms = 12;
+
+  // Algorithmic bandwidth (GB/s) achieved during this operation iteration.
+  optional float algo_bw_gbps = 13;
+
+  // Bus bandwidth in GB/s. Equals algo_bw_gbps multiplied by the bus factor of the corresponding
+  // nccl-tests collective, for example 2(n-1)/n for all-reduce and (n-1)/n for all-gather,
+  // reduce-scatter and all-to-all, where n is the number of ranks in the process group.
+  optional float bus_bw_gbps = 14;
+
+  // Achieved bus bandwidth as a percentage of the ideal goodput.
+  // Goodput is defined as the rate of transfer of useful application data, excluding
+  // protocol headers, retransmissions etc.
+  optional float ideal_percentage = 15;
+
+  // Minimum per-flow completion time (ms) observed in this operation iteration.
+  optional float min_fct_ms = 16;
+
+  // 50th percentile (median) per-flow completion time (ms) in this operation iteration.
+  optional float p50_fct_ms = 17;
+
+  // 95th percentile per-flow completion time (ms) in this operation iteration.
+  optional float p95_fct_ms = 18;
+
+  // Maximum per-flow completion time (ms) observed in this operation iteration.
+  optional float max_fct_ms = 19;
+
+  // 99th percentile of Flow Completion Times, in milliseconds.
+  optional float p99_fct_ms = 20;
+
+  // 99.99th percentile of Flow Completion Times, in milliseconds.
+  optional float p99_99_fct_ms = 21;
+}
+
+// Request for port metrics. Contains byte, frame, and congestion packet counts for
+// each port.
+message CollectiveCommunicationsMixOfCollectivesPortsMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      name = 1;
+      location = 2;
+      ranks = 3;
+      speed = 4;
+      frames_tx = 5;
+      frames_rx = 6;
+      bytes_tx = 7;
+      bytes_rx = 8;
+      pause_frames_rx = 9;
+      ecn_ce_rx = 10;
+      cnp_tx = 11;
+      cnp_rx = 12;
+      crc_errors = 13;
+      roce_v2_qps_configured = 14;
+      roce_v2_qps_ready = 15;
+      roce_v2_data_frames_tx = 16;
+      roce_v2_data_frames_rx = 17;
+      roce_v2_ack_tx = 18;
+      roce_v2_ack_rx = 19;
+      roce_v2_nack_tx = 20;
+      roce_v2_nack_rx = 21;
+      roce_v2_frame_sequence_errors = 22;
+      frames_retx = 23;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of port metrics.
+message CollectiveCommunicationsMixOfCollectivesPortsMetric {
+
+  // The port name.
+  // 
+  // x-constraint:
+  // - /components/schemas/Port/properties/name
+  // 
+  optional string name = 1;
+
+  // The port location.
+  optional string location = 2;
+
+  // IDs of the ranks associated with this port. A single physical test port can carry
+  // several ranks; the list is empty when the port carries none.
+  repeated uint32 ranks = 3;
+
+  // Physical link speed, in Gigabits/second.
+  optional float speed = 4;
+
+  // Total frames transmitted.
+  optional uint64 frames_tx = 5;
+
+  // Total frames received.
+  optional uint64 frames_rx = 6;
+
+  // Total bytes transmitted.
+  optional uint64 bytes_tx = 7;
+
+  // Total bytes received.
+  optional uint64 bytes_rx = 8;
+
+  // Priority Pause Frames received.
+  optional uint64 pause_frames_rx = 9;
+
+  // Frames received with ECN congestion encountered (Explicit Congestion Notification
+  // - Congestion Experienced).
+  optional uint64 ecn_ce_rx = 10;
+
+  // Congestion notification packets transmitted.
+  optional uint64 cnp_tx = 11;
+
+  // Congestion notification packets received.
+  optional uint64 cnp_rx = 12;
+
+  // Number of CRC errors detected.
+  optional uint64 crc_errors = 13;
+
+  // RoCEv2 Queue Pairs configured.
+  optional uint32 roce_v2_qps_configured = 14;
+
+  // RoCEv2 Queue Pairs ready.
+  optional uint32 roce_v2_qps_ready = 15;
+
+  // RoCEv2 frames transmitted.
+  optional uint64 roce_v2_data_frames_tx = 16;
+
+  // RoCEv2 frames received.
+  optional uint64 roce_v2_data_frames_rx = 17;
+
+  // RoCEv2 Acknowledgement frames transmitted.
+  optional uint64 roce_v2_ack_tx = 18;
+
+  // RoCEv2 Acknowledgement frames received.
+  optional uint64 roce_v2_ack_rx = 19;
+
+  // RoCEv2 Negative Acknowledgement frames transmitted.
+  optional uint64 roce_v2_nack_tx = 20;
+
+  // RoCEv2 Negative Acknowledgement frames received.
+  optional uint64 roce_v2_nack_rx = 21;
+
+  // RoCEv2 Sequence Error Frames.
+  optional uint64 roce_v2_frame_sequence_errors = 22;
+
+  // Frames Retransmitted count.
+  optional uint64 frames_retx = 23;
+}
+
+// Request for flow metrics. Contains flow size and timing statistics for each queue
+// pair per logical transfer from rank to rank.
+message CollectiveCommunicationsMixOfCollectivesFlowMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      workload = 2;
+      operation = 3;
+      process_group = 4;
+      collective = 5;
+      data_size_bytes = 6;
+      operation_iteration = 7;
+      data_chunk_transfer_id = 8;
+      qp_id = 9;
+      channel_id = 10;
+      buffer_offset = 11;
+      chunk_count = 12;
+      start_ms = 13;
+      end_ms = 14;
+      completion_time_ms = 15;
+      transmit_type = 16;
+      emulated_tx_component = 17;
+      flow_size_bytes = 18;
+      source_rank = 19;
+      destination_rank = 20;
+      workload_set_iteration = 21;
+      workload_iteration = 22;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of flow metrics.
+message CollectiveCommunicationsMixOfCollectivesFlowMetric {
+
+  // Source rank of the flow.
+  optional uint32 source_rank = 1;
+
+  // Destination rank of the flow.
+  optional uint32 destination_rank = 2;
+
+  // The name of the workload set (tenant) that owns this flow.
+  optional string workload_set = 3;
+
+  // The name of the workload, within the workload set, that owns this flow.
+  optional string workload = 4;
+
+  // The name of the operation that owns this flow.
+  optional string operation = 5;
+
+  // The process group whose NPUs executed this flow.
+  optional string process_group = 6;
+
+  // The collective algorithm type of the operation that owns this flow.
+  optional string collective = 7;
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 8;
+
+  // Operation iteration number.
+  optional uint32 operation_iteration = 9;
+
+  // Data Chunk Transfer ID.
+  optional uint32 data_chunk_transfer_id = 10;
+
+  // Destination Queue pair ID.
+  optional uint32 qp_id = 11;
+
+  // Communication channel ID.
+  optional uint32 channel_id = 12;
+
+  // Buffer offset where the chunk starts.
+  optional uint64 buffer_offset = 13;
+
+  // Number of chunks being transmitted.
+  optional uint32 chunk_count = 14;
+
+  // Start time of the flow expressed in ms.
+  // The time is expressed relative to the moment when test traffic starts (the earliest
+  // send/receive, which has a time of 0).
+  optional float start_ms = 15;
+
+  // End time of the flow expressed in ms.
+  // The time is expressed relative to the moment when test traffic starts (the earliest
+  // send/receive, which has a time of 0).
+  optional float end_ms = 16;
+
+  // Completion time of the flow expressed in ms.
+  optional float completion_time_ms = 17;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 18;
+
+  // Emulated infra component source of the flow transfer.
+  optional string emulated_tx_component = 19;
+
+  // Flow size in Bytes.
+  optional uint64 flow_size_bytes = 20;
+
+  // Workload Set iteration number.
+  optional uint32 workload_set_iteration = 21;
+
+  // Workload iteration number.
+  optional uint32 workload_iteration = 22;
+}
+
+// Request for data-chunk-transfer metrics. Contains payload size and timing information
+// for each logical transfer from rank to rank.
+message CollectiveCommunicationsMixOfCollectivesDataChunkMetricsRequest {
+
+  message ColumnNames {
+    enum Enum {
+      unspecified = 0;
+      workload_set = 1;
+      workload = 2;
+      operation = 3;
+      process_group = 4;
+      collective = 5;
+      operation_iteration = 6;
+      data_chunk_transfer_id = 7;
+      channel_id = 8;
+      buffer_offset = 9;
+      chunk_count = 10;
+      data_size_bytes = 11;
+      chunk_size_bytes = 12;
+      start_ms = 13;
+      end_ms = 14;
+      completion_time_ms = 15;
+      transmit_type = 16;
+      emulated_tx_component = 17;
+      payload_bytes = 18;
+      source_rank = 19;
+      destination_rank = 20;
+      workload_set_iteration = 21;
+      workload_iteration = 22;
+    }
+  }
+  // The list of column names that the returned result set will contain. If the list is
+  // empty then all columns will be returned.
+  repeated ColumnNames.Enum column_names = 1;
+}
+
+// One row of data-chunk-transfer metrics.
+message CollectiveCommunicationsMixOfCollectivesDataChunkMetric {
+
+  // Source rank of the chunk transfer.
+  optional uint32 source_rank = 1;
+
+  // Destination rank of the chunk transfer.
+  optional uint32 destination_rank = 2;
+
+  // The name of the workload set (tenant) that owns this chunk transfer.
+  optional string workload_set = 3;
+
+  // The name of the workload, within the workload set, that owns this chunk transfer.
+  optional string workload = 4;
+
+  // The name of the operation that owns this chunk transfer.
+  optional string operation = 5;
+
+  // The process group whose NPUs executed this chunk transfer.
+  optional string process_group = 6;
+
+  // The collective algorithm type of the operation that owns this chunk transfer.
+  optional string collective = 7;
+
+  // Operation iteration number.
+  optional uint32 operation_iteration = 8;
+
+  // Data Chunk Transfer ID.
+  optional uint32 data_chunk_transfer_id = 9;
+
+  // Communication channel ID.
+  optional uint32 channel_id = 10;
+
+  // Buffer offset where the chunk starts.
+  optional uint64 buffer_offset = 11;
+
+  // Number of chunks being transmitted.
+  optional uint32 chunk_count = 12;
+
+  // Total data size in bytes of the collective across ranks.
+  optional uint64 data_size_bytes = 13;
+
+  // Chunk size in Bytes.
+  optional uint64 chunk_size_bytes = 14;
+
+  // Start time of the chunk transfer expressed in ms.
+  // The time is expressed relative to the moment when test traffic starts (the earliest
+  // send/receive, which has a time of 0).
+  optional float start_ms = 15;
+
+  // End time of the chunk transfer expressed in ms.
+  // The time is expressed relative to the moment when test traffic starts (the earliest
+  // send/receive, which has a time of 0).
+  optional float end_ms = 16;
+
+  // Completion time of the chunk transfer expressed in ms.
+  optional float completion_time_ms = 17;
+
+  // Whether via NPU interconnect or NIC network interconnects.
+  optional string transmit_type = 18;
+
+  // Emulated infra component source of the chunk transfer.
+  optional string emulated_tx_component = 19;
+
+  // Payload bytes.
+  optional uint64 payload_bytes = 20;
+
+  // Workload Set iteration number.
+  optional uint32 workload_set_iteration = 21;
+
+  // Workload iteration number.
+  optional uint32 workload_iteration = 22;
+}
+
 // Request to traffic generator for states of choice
 message StatesRequest {
 
@@ -21074,6 +23783,7 @@ message StatesRequest {
       ospfv3_lsas = 12;
       isis_adjacencies = 13;
       bmp_servers = 14;
+      collective_communications = 15;
     }
   }
   // Description missing in models
@@ -21121,6 +23831,9 @@ message StatesRequest {
 
   // Description missing in models
   BmpServersStateRequest bmp_servers = 15;
+
+  // Description missing in models
+  CollectiveCommunicationsStateRequest collective_communications = 16;
 }
 
 // Response containing chosen traffic generator states
@@ -21143,6 +23856,7 @@ message StatesResponse {
       ospfv3_lsas = 12;
       isis_adjacencies = 13;
       bmp_servers = 14;
+      collective_communications = 15;
     }
   }
   // Description missing in models
@@ -21190,6 +23904,9 @@ message StatesResponse {
 
   // Description missing in models
   repeated BmpServerState bmp_servers = 15;
+
+  // Description missing in models
+  CollectiveCommunicationsState collective_communications = 16;
 }
 
 // The request to retrieve IPv4 Neighbor state (ARP cache entries) of a network interface(s).
@@ -24822,6 +27539,156 @@ message BmpPrefixIpv6UnicastState {
   // The multi exit discriminator (MED) is an optional non-transitive attribute and the
   // value is used for route selection. The route with the lowest MED value is preferred.
   optional uint32 multi_exit_discriminator = 13;
+}
+
+// The request to retrieve execution/run states of the configured collective benchmark.
+message CollectiveCommunicationsStateRequest {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      execution = 1;
+    }
+  }
+  // Selects which collective benchmark states to retrieve.
+  // required = true
+  optional Choice.Enum choice = 1;
+}
+
+// The execution/run states of the configured collective benchmark.
+message CollectiveCommunicationsState {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      execution = 1;
+    }
+  }
+  // Indicates which collective benchmark states are being reported.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The execution/run states of the collective benchmark.
+  CollectiveCommunicationsStateExecution execution = 2;
+}
+
+// The execution/run states of the collective benchmark.
+message CollectiveCommunicationsStateExecution {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      stopped = 1;
+      started = 2;
+      stopping = 3;
+    }
+  }
+  // The current lifecycle state of the AI workload's collective benchmark run.
+  // See ../images/ccb_run_states.md for a simplified diagram.
+  // 
+  // State transitions table:
+  // 
+  // +------------------+--------------------------+------------------+
+  // | Current State    | Trigger                  | Next State       |
+  // +==================+==========================+==================+
+  // | (initial)        | -                        | Stopped(Unrun)   |
+  // +------------------+--------------------------+------------------+
+  // | Stopped(Unrun)   | set_control_state(start) | Started          |
+  // |                  | set_control_state(stop)  | Stopped(Unrun)   |
+  // +------------------+--------------------------+------------------+
+  // | Started*         | set_control_state(stop)  | Stopping         |
+  // |                  | set_control_state(start) | Started          |
+  // |                  | auto: run successful     | Stopped(Success) |
+  // |                  | auto: run unsuccessful   | Stopped(Failure) |
+  // +------------------+--------------------------+------------------+
+  // | Stopping*        | auto: stop complete      | Stopped(Manual)  |
+  // |                  | set_control_state(start) | Started**        |
+  // |                  | set_control_state(stop)  | Stopping         |
+  // +------------------+--------------------------+------------------+
+  // | Stopped(Manual)**| set_control_state(start) | Started          |
+  // |                  | set_control_state(stop)  | Stopped(Manual)  |
+  // +------------------+--------------------------+------------------+
+  // | Stopped(Success) | set_control_state(start) | Started          |
+  // |                  | set_control_state(stop)  | Stopped(Success) |
+  // +------------------+--------------------------+------------------+
+  // | Stopped(Failure) | set_control_state(start) | Started          |
+  // |                  | set_control_state(stop)  | Stopped(Failure) |
+  // +------------------+--------------------------+------------------+
+  // 
+  // *  Started and Stopping are transient states that automatically
+  // transition to other states. There is no guarantee that these
+  // states will persist long enough to observe using get_states.
+  // 
+  // ** Calling set_control_state(start) while stopping should cause
+  // the implementation to finish the Stopping operation,
+  // automatically transition to Stopped(Manual), and then
+  // automatically transition to Started. In this case
+  // Stopped(Manual) is also a transient state that might not persist
+  // long enough to observe using get_states.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // The reason the collective benchmark has been stopped and possibly results of a successful
+  // run.
+  CollectiveCommunicationsStateStopped stopped = 2;
+}
+
+// Status information about why state has stopped
+message CollectiveCommunicationsStateStopped {
+
+  message Choice {
+    enum Enum {
+      unspecified = 0;
+      unrun = 1;
+      success = 2;
+      manual = 3;
+      failure = 4;
+    }
+  }
+  // The reason the collective benchmark is in the stopped state.
+  // required = true
+  optional Choice.Enum choice = 1;
+
+  // Status associated with a run that was successful and complete
+  CollectiveCommunicationsStateStoppedSuccess success = 2;
+
+  // Status associated with a run that failed
+  CollectiveCommunicationsStateStoppedFailure failure = 3;
+}
+
+// Status associated with a run that was successful and complete
+message CollectiveCommunicationsStateStoppedSuccess {
+
+  // A list of any system specific warnings that have occurred while
+  // executing the request.
+  repeated string warnings = 1;
+}
+
+// Status associated with a run that failed
+message CollectiveCommunicationsStateStoppedFailure {
+
+  // Numeric status code based on the underlying transport being used.
+  // The API server MUST set this code explicitly based on following references:
+  // - HTTP 4xx errors: https://datatracker.ietf.org/doc/html/rfc9110#section-15.5
+  // - HTTP 5xx errors: https://datatracker.ietf.org/doc/html/rfc9110#section-15.6
+  // - gRPC errors: https://grpc.github.io/grpc/core/md_doc_statuscodes.html
+  optional int32 code = 1;
+
+  message Kind {
+    enum Enum {
+      unspecified = 0;
+      validation = 1;
+      internal = 2;
+    }
+  }
+  // Classification of error originating from within API server that may not be mapped
+  // to the value in `code`.
+  // Absence of this field may indicate that the error did not originate from within API
+  // server.
+  optional Kind.Enum kind = 2;
+
+  // List of error messages generated while executing the request.
+  repeated string errors = 3;
 }
 
 // The capture result request to the traffic generator.
